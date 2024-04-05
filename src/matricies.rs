@@ -43,54 +43,6 @@ pub trait MatrixOracle {
         col: Self::ColT,
     ) -> Result<impl Iterator<Item = (Self::CoefficientField, Self::RowT)>, PhliteError>;
 
-    fn with_trivial_filtration(self) -> WithTrivialFiltration<Self, Self>
-    where
-        Self: Sized,
-    {
-        WithTrivialFiltration {
-            matrix_ref: self,
-            phantom: PhantomData,
-        }
-    }
-
-    fn borrow_trivial_filtration(&self) -> WithTrivialFiltration<&Self, Self>
-    where
-        Self: Sized,
-    {
-        WithTrivialFiltration {
-            matrix_ref: &self,
-            phantom: PhantomData,
-        }
-    }
-
-    fn with_filtration<FT: FiltrationT, F: Fn(Self::RowT) -> Result<FT, PhliteError>>(
-        self,
-        filtration_function: F,
-    ) -> WithFuncFiltration<Self, Self, FT, F>
-    where
-        Self: Sized,
-    {
-        WithFuncFiltration {
-            oracle: self,
-            filtration: filtration_function,
-            phantom: PhantomData,
-        }
-    }
-
-    fn borrow_with_filtration<FT: FiltrationT, F: Fn(Self::RowT) -> Result<FT, PhliteError>>(
-        &self,
-        filtration_function: F,
-    ) -> WithFuncFiltration<&Self, Self, FT, F>
-    where
-        Self: Sized,
-    {
-        WithFuncFiltration {
-            oracle: self,
-            filtration: filtration_function,
-            phantom: PhantomData,
-        }
-    }
-
     /// Checks that the matricies are equal on the specified col, ignoring ordering due to filtration values
     fn eq_on_col<M2>(&self, other: &M2, col: Self::ColT) -> bool
     where
@@ -101,8 +53,8 @@ pub trait MatrixOracle {
                 RowT = Self::RowT,
             > + Sized,
     {
-        let self_trivial = self.borrow_trivial_filtration();
-        let other_trivial = other.borrow_trivial_filtration();
+        let self_trivial = self.with_trivial_filtration();
+        let other_trivial = other.with_trivial_filtration();
 
         let mut self_col = self_trivial.build_bhcol(col).unwrap();
         let self_col_sorted = self_col
@@ -144,16 +96,69 @@ pub trait HasRowFiltration: MatrixOracle + Sized {
     }
 }
 
+pub trait MatrixRef: MatrixOracle + Copy {
+    fn with_trivial_filtration(self) -> WithTrivialFiltration<Self>
+    where
+        Self: Sized,
+    {
+        WithTrivialFiltration { matrix_ref: self }
+    }
+
+    fn with_filtration<FT: FiltrationT, F: Fn(Self::RowT) -> Result<FT, PhliteError>>(
+        self,
+        filtration_function: F,
+    ) -> WithFuncFiltration<Self, FT, F>
+    where
+        Self: Sized,
+    {
+        WithFuncFiltration {
+            oracle: self,
+            filtration: filtration_function,
+            phantom: PhantomData,
+        }
+    }
+}
+
+impl<'a, M> MatrixOracle for &'a M
+where
+    M: MatrixOracle,
+{
+    type CoefficientField = M::CoefficientField;
+    type ColT = M::ColT;
+    type RowT = M::RowT;
+
+    fn column(
+        &self,
+        col: Self::ColT,
+    ) -> Result<impl Iterator<Item = (Self::CoefficientField, Self::RowT)>, PhliteError> {
+        (*self).column(col)
+    }
+}
+
+impl<'a, M> HasRowFiltration for &'a M
+where
+    M: HasRowFiltration,
+{
+    type FiltrationT = M::FiltrationT;
+
+    fn filtration_value(&self, row: Self::RowT) -> Result<Self::FiltrationT, PhliteError> {
+        (*self).filtration_value(row)
+    }
+}
+
+impl<'a, M> MatrixRef for &'a M where M: MatrixOracle {}
+
 // ======== Matrix oracle adaptors ============================
+
+// TODO: Convert all adaptors to accept MatrixRef
 
 // ====== WithTrivialFiltration ================
 
-pub struct WithTrivialFiltration<Ref: Borrow<M>, M: MatrixOracle> {
-    matrix_ref: Ref,
-    phantom: PhantomData<M>,
+pub struct WithTrivialFiltration<M: MatrixRef> {
+    matrix_ref: M,
 }
 
-impl<Ref: Borrow<M>, M: MatrixOracle> MatrixOracle for WithTrivialFiltration<Ref, M> {
+impl<M: MatrixRef> MatrixOracle for WithTrivialFiltration<M> {
     type CoefficientField = M::CoefficientField;
     type ColT = M::ColT;
     type RowT = M::RowT;
@@ -166,7 +171,7 @@ impl<Ref: Borrow<M>, M: MatrixOracle> MatrixOracle for WithTrivialFiltration<Ref
     }
 }
 
-impl<Ref: Borrow<M>, M: MatrixOracle> HasRowFiltration for WithTrivialFiltration<Ref, M> {
+impl<M: MatrixRef> HasRowFiltration for WithTrivialFiltration<M> {
     type FiltrationT = ();
 
     fn filtration_value(&self, _row: Self::RowT) -> Result<Self::FiltrationT, PhliteError> {
@@ -177,34 +182,25 @@ impl<Ref: Borrow<M>, M: MatrixOracle> HasRowFiltration for WithTrivialFiltration
 // ====== WithFuncFiltration ===================
 
 pub struct WithFuncFiltration<
-    Ref: Borrow<M>,
-    M: MatrixOracle,
+    M: MatrixRef,
     FT: FiltrationT,
     F: Fn(M::RowT) -> Result<FT, PhliteError>,
 > {
-    oracle: Ref,
+    oracle: M,
     filtration: F,
     phantom: PhantomData<M>,
 }
 
-impl<
-        Ref: Borrow<M>,
-        M: MatrixOracle,
-        FT: FiltrationT,
-        F: Fn(M::RowT) -> Result<FT, PhliteError>,
-    > WithFuncFiltration<Ref, M, FT, F>
+impl<M: MatrixRef, FT: FiltrationT, F: Fn(M::RowT) -> Result<FT, PhliteError>>
+    WithFuncFiltration<M, FT, F>
 {
-    pub fn discard_filtration(self) -> Ref {
+    pub fn discard_filtration(self) -> M {
         self.oracle
     }
 }
 
-impl<
-        Ref: Borrow<M>,
-        M: MatrixOracle,
-        FT: FiltrationT,
-        F: Fn(M::RowT) -> Result<FT, PhliteError>,
-    > MatrixOracle for WithFuncFiltration<Ref, M, FT, F>
+impl<M: MatrixRef, FT: FiltrationT, F: Fn(M::RowT) -> Result<FT, PhliteError>> MatrixOracle
+    for WithFuncFiltration<M, FT, F>
 {
     type CoefficientField = M::CoefficientField;
     type ColT = M::ColT;
@@ -217,12 +213,8 @@ impl<
     }
 }
 
-impl<
-        Ref: Borrow<M>,
-        M: MatrixOracle,
-        FT: FiltrationT,
-        F: Fn(M::RowT) -> Result<FT, PhliteError>,
-    > HasRowFiltration for WithFuncFiltration<Ref, M, FT, F>
+impl<M: MatrixRef, FT: FiltrationT, F: Fn(M::RowT) -> Result<FT, PhliteError>> HasRowFiltration
+    for WithFuncFiltration<M, FT, F>
 {
     type FiltrationT = FT;
 
@@ -266,7 +258,7 @@ where
 
 // ====== Consolidator =========================
 
-fn consolidate<Ref: Borrow<M>, M>(oracle: Ref) -> Consolidator<Ref, M> {
+pub fn consolidate<Ref: Borrow<M>, M>(oracle: Ref) -> Consolidator<Ref, M> {
     Consolidator {
         oracle,
         phantom: PhantomData,
@@ -279,7 +271,7 @@ pub struct Consolidator<Ref: Borrow<M>, M> {
 }
 
 pub struct ConsolidatorColumn<'a, M: MatrixOracle> {
-    bh_col: BHCol<WithTrivialFiltration<&'a M, M>>,
+    bh_col: BHCol<WithTrivialFiltration<&'a M>>,
 }
 
 impl<'a, M: MatrixOracle> Iterator for ConsolidatorColumn<'a, M> {
@@ -307,7 +299,7 @@ where
         let bh_col = self
             .oracle
             .borrow()
-            .borrow_trivial_filtration()
+            .with_trivial_filtration()
             .build_bhcol(col)?;
         // This iterator will consolidate all entries with the same row index into a new iterator
         Ok(ConsolidatorColumn { bh_col })
@@ -507,7 +499,7 @@ pub fn simple_Z2_matrix(cols: Vec<Vec<usize>>) -> SimpleZ2Matrix {
 mod tests {
 
     use crate::fields::{NonZeroCoefficient, Z2};
-    use crate::matricies::{simple_Z2_matrix, HasRowFiltration};
+    use crate::matricies::{simple_Z2_matrix, HasRowFiltration, MatrixRef};
 
     use super::{consolidate, product, MatrixOracle};
     use crate::columns::BHCol;
@@ -550,7 +542,7 @@ mod tests {
 
     #[test]
     fn test_matrix_bhcol_interface() {
-        let matrix = simple_Z2_matrix(vec![
+        let base_matrix = simple_Z2_matrix(vec![
             vec![],
             vec![],
             vec![],
@@ -558,8 +550,8 @@ mod tests {
             vec![1, 2],
             vec![0, 2],
             vec![3, 4, 5],
-        ])
-        .with_filtration(|idx| Ok(idx * 10));
+        ]);
+        let matrix = base_matrix.with_filtration(|idx| Ok(idx * 10));
         let add = |column: &mut BHCol<_>, index| {
             column.add_entries(
                 matrix
@@ -583,8 +575,8 @@ mod tests {
         assert_eq!(column.pop_pivot(), None);
 
         // Opposite filtration
-        let opp_matrix = matrix
-            .borrow_with_filtration(|idx| Ok(-(matrix.filtration_value(idx).unwrap() as isize)));
+        let opp_matrix =
+            matrix.with_filtration(|idx| Ok(-(matrix.filtration_value(idx).unwrap() as isize)));
         let opp_add = |column: &mut BHCol<_>, index| {
             column.add_entries(
                 opp_matrix
