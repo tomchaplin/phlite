@@ -1,5 +1,6 @@
 use std::{borrow::Borrow, marker::PhantomData};
 
+use itertools::equal;
 use ordered_float::NotNan;
 
 use crate::{
@@ -34,15 +35,13 @@ pub trait MatrixOracle {
     /// To specify a given matrix, you will later provide an oracle, alongside a basis for the column space.
     /// If you are unable to produce a column, please return [`PhliteError::NotInDomain`].
     ///
-    /// It is dis-advantageous to produce the rows in ascending order (see [`BinaryHeap::push`](std::collections::BinaryHeap::push)).
+    /// It is dis-advantageous to produce the rows in ascending order because inserting into binary heaps would require traversing the full height (see [`BinaryHeap::push`](std::collections::BinaryHeap::push)).
     /// Since checking and sorting by filtration values is typically slow, prefer to produce in descending order with respect to the ordering on [`RowT`](Self::RowT).
     /// Lower bounds on iterator size provided via [`Iterator::size_hint`] will be used to preallocate.
     fn column(
         &self,
         col: Self::ColT,
     ) -> Result<impl Iterator<Item = (Self::CoefficientField, Self::RowT)>, PhliteError>;
-
-    // TODO: Offer consuming versions to allow method chaining
 
     fn with_trivial_filtration(self) -> WithTrivialFiltration<Self, Self>
     where
@@ -62,6 +61,59 @@ pub trait MatrixOracle {
             matrix_ref: &self,
             phantom: PhantomData,
         }
+    }
+
+    fn with_filtration<FT: FiltrationT, F: Fn(Self::RowT) -> Result<FT, PhliteError>>(
+        self,
+        filtration_function: F,
+    ) -> WithFuncFiltration<Self, Self, FT, F>
+    where
+        Self: Sized,
+    {
+        WithFuncFiltration {
+            oracle: self,
+            filtration: filtration_function,
+            phantom: PhantomData,
+        }
+    }
+
+    fn borrow_with_filtration<FT: FiltrationT, F: Fn(Self::RowT) -> Result<FT, PhliteError>>(
+        &self,
+        filtration_function: F,
+    ) -> WithFuncFiltration<&Self, Self, FT, F>
+    where
+        Self: Sized,
+    {
+        WithFuncFiltration {
+            oracle: self,
+            filtration: filtration_function,
+            phantom: PhantomData,
+        }
+    }
+
+    /// Checks that the matricies are equal on the specified col, ignoring ordering due to filtration values
+    fn eq_on_col<M2>(&self, other: &M2, col: Self::ColT) -> bool
+    where
+        Self: Sized,
+        M2: MatrixOracle<
+                CoefficientField = Self::CoefficientField,
+                ColT = Self::ColT,
+                RowT = Self::RowT,
+            > + Sized,
+    {
+        let self_trivial = self.borrow_trivial_filtration();
+        let other_trivial = other.borrow_trivial_filtration();
+
+        let mut self_col = self_trivial.build_bhcol(col).unwrap();
+        let self_col_sorted = self_col
+            .drain_sorted()
+            .map(|e| Into::<(Self::CoefficientField, Self::RowT, ())>::into(e));
+        let mut other_col = other_trivial.build_bhcol(col).unwrap();
+        let other_col_sorted = other_col
+            .drain_sorted()
+            .map(|e| Into::<(Self::CoefficientField, Self::RowT, ())>::into(e));
+
+        equal(self_col_sorted, other_col_sorted)
     }
 }
 
@@ -83,6 +135,12 @@ pub trait HasRowFiltration: MatrixOracle + Sized {
 
     fn empty_bhcol(&self) -> BHCol<Self> {
         BHCol::<Self>::default()
+    }
+
+    fn build_bhcol(&self, col: Self::ColT) -> Result<BHCol<Self>, PhliteError> {
+        let mut output = self.empty_bhcol();
+        output.add_entries(self.column_with_filtration(col)?.map(|e| e.unwrap()));
+        Ok(output)
     }
 }
 
@@ -116,11 +174,68 @@ impl<Ref: Borrow<M>, M: MatrixOracle> HasRowFiltration for WithTrivialFiltration
     }
 }
 
+// ====== WithFuncFiltration ===================
+
+pub struct WithFuncFiltration<
+    Ref: Borrow<M>,
+    M: MatrixOracle,
+    FT: FiltrationT,
+    F: Fn(M::RowT) -> Result<FT, PhliteError>,
+> {
+    oracle: Ref,
+    filtration: F,
+    phantom: PhantomData<M>,
+}
+
+impl<
+        Ref: Borrow<M>,
+        M: MatrixOracle,
+        FT: FiltrationT,
+        F: Fn(M::RowT) -> Result<FT, PhliteError>,
+    > WithFuncFiltration<Ref, M, FT, F>
+{
+    pub fn discard_filtration(self) -> Ref {
+        self.oracle
+    }
+}
+
+impl<
+        Ref: Borrow<M>,
+        M: MatrixOracle,
+        FT: FiltrationT,
+        F: Fn(M::RowT) -> Result<FT, PhliteError>,
+    > MatrixOracle for WithFuncFiltration<Ref, M, FT, F>
+{
+    type CoefficientField = M::CoefficientField;
+    type ColT = M::ColT;
+    type RowT = M::RowT;
+    fn column(
+        &self,
+        col: Self::ColT,
+    ) -> Result<impl Iterator<Item = (Self::CoefficientField, Self::RowT)>, PhliteError> {
+        self.oracle.borrow().column(col)
+    }
+}
+
+impl<
+        Ref: Borrow<M>,
+        M: MatrixOracle,
+        FT: FiltrationT,
+        F: Fn(M::RowT) -> Result<FT, PhliteError>,
+    > HasRowFiltration for WithFuncFiltration<Ref, M, FT, F>
+{
+    type FiltrationT = FT;
+
+    fn filtration_value(&self, row: Self::RowT) -> Result<Self::FiltrationT, PhliteError> {
+        (self.filtration)(row)
+    }
+}
+
 // ====== WithOrderedBasis =====================
 
 pub struct WithOrderedColBasis<Ref: Borrow<M>, M: MatrixOracle> {
     oracle: Ref,
-    col_basis: Vec<M::ColT>,
+    pub col_basis: Vec<M::ColT>,
 }
 
 impl<Ref: Borrow<M>, M: MatrixOracle> MatrixOracle for WithOrderedColBasis<Ref, M> {
@@ -152,6 +267,22 @@ where
 // ======== Combinators ========================================
 
 // ====== Product ==============================
+
+pub fn product<Ref1: Borrow<M1>, Ref2: Borrow<M2>, M1, M2>(
+    left: Ref1,
+    right: Ref2,
+) -> Product<Ref1, Ref2, M1, M2>
+where
+    M1: MatrixOracle,
+    M2: MatrixOracle<CoefficientField = M1::CoefficientField, RowT = M1::ColT>,
+{
+    Product {
+        left,
+        right,
+        phantom_left: PhantomData,
+        phantom_right: PhantomData,
+    }
+}
 
 pub struct Product<Ref1: Borrow<M1>, Ref2: Borrow<M2>, M1, M2> {
     left: Ref1,
@@ -203,33 +334,51 @@ where
     }
 }
 
-// ====== Add ==================================
+// ====== Sum ==================================
 
-// pub struct Add<'a, M1, M2> {
-//     left: &'a M1,
-//     right: &'a M2,
-// }
-//
-// impl<'a, M1, M2> MatrixOracle for Add<'a, M1, M2> {
-//     type CoefficientField;
-//
-//     type ColT;
-//
-//     type RowT;
-//
-//     type FiltrationT;
-//
-//     fn column(
-//         &self,
-//         col: Self::ColT,
-//     ) -> Result<impl Iterator<Item = (Self::CoefficientField, Self::RowT)>, PhliteError> {
-//         todo!()
-//     }
-//
-//     fn filtration_value(&self, row: Self::RowT) -> Result<Self::FiltrationT, PhliteError> {
-//         todo!()
-//     }
-// }
+pub fn sum<Ref1: Borrow<M1>, Ref2: Borrow<M2>, M1, M2>(
+    left: Ref1,
+    right: Ref2,
+) -> Sum<Ref1, Ref2, M1, M2>
+where
+    M1: MatrixOracle,
+    M2: MatrixOracle<CoefficientField = M1::CoefficientField, ColT = M1::ColT, RowT = M1::RowT>,
+{
+    Sum {
+        left,
+        right,
+        phantom_left: PhantomData,
+        phantom_right: PhantomData,
+    }
+}
+
+// Note: We don't implement has filtration in case the filtrations disagree
+pub struct Sum<Ref1: Borrow<M1>, Ref2: Borrow<M2>, M1, M2> {
+    left: Ref1,
+    right: Ref2,
+    phantom_left: PhantomData<M1>,
+    phantom_right: PhantomData<M2>,
+}
+
+impl<Ref1: Borrow<M1>, Ref2: Borrow<M2>, M1, M2> MatrixOracle for Sum<Ref1, Ref2, M1, M2>
+where
+    M1: MatrixOracle,
+    M2: MatrixOracle<CoefficientField = M1::CoefficientField, ColT = M1::ColT, RowT = M1::RowT>,
+{
+    type CoefficientField = M1::CoefficientField;
+    type ColT = M1::ColT;
+    type RowT = M1::RowT;
+    fn column(
+        &self,
+        col: Self::ColT,
+    ) -> Result<impl Iterator<Item = (Self::CoefficientField, Self::RowT)>, PhliteError> {
+        Ok(self
+            .left
+            .borrow()
+            .column(col)?
+            .chain(self.right.borrow().column(col)?))
+    }
+}
 
 // ======== Default matrix oracles =============================
 
@@ -299,11 +448,47 @@ mod tests {
     use crate::fields::{NonZeroCoefficient, Z2};
     use crate::matricies::{simple_Z2_matrix, HasRowFiltration};
 
-    use super::MatrixOracle;
-    use crate::columns::{BHCol, ColumnEntry};
+    use super::{product, MatrixOracle};
+    use crate::columns::BHCol;
 
     #[test]
-    fn test_add() {
+    fn test_matrix_product() {
+        let matrix_d = simple_Z2_matrix(vec![
+            vec![],
+            vec![],
+            vec![],
+            vec![0, 1],
+            vec![1, 2],
+            vec![0, 2],
+            vec![3, 4, 5],
+        ]);
+        let matrix_v = simple_Z2_matrix(vec![
+            vec![0],
+            vec![1],
+            vec![2],
+            vec![3],
+            vec![4],
+            vec![3, 4, 5],
+            vec![6],
+        ]);
+
+        let true_matrix_r = simple_Z2_matrix(vec![
+            vec![],
+            vec![],
+            vec![],
+            vec![0, 1],
+            vec![1, 2],
+            vec![],
+            vec![3, 4, 5],
+        ]);
+
+        let matrix_r = product(matrix_d, matrix_v);
+
+        assert!((0..=6).all(|i| matrix_r.eq_on_col(&true_matrix_r, i)))
+    }
+
+    #[test]
+    fn test_matrix_bhcol_interface() {
         let matrix = simple_Z2_matrix(vec![
             vec![],
             vec![],
@@ -313,44 +498,50 @@ mod tests {
             vec![0, 2],
             vec![3, 4, 5],
         ])
-        .with_trivial_filtration();
+        .with_filtration(|idx| Ok(idx * 10));
         let add = |column: &mut BHCol<_>, index| {
             column.add_entries(
                 matrix
-                    .column(index)
+                    .column_with_filtration(index)
                     .unwrap()
-                    .map(|(coef, idx)| (coef, idx, ()))
-                    .map(ColumnEntry::from),
+                    .map(|e| e.unwrap()),
             );
         };
 
         let mut column = matrix.empty_bhcol();
         add(&mut column, 5);
         add(&mut column, 4);
-        println!("{:?}", column);
         assert_eq!(
             column.pop_pivot().map(|e| e.into()),
-            Some((Z2::one(), 1, ()))
+            Some((Z2::one(), 1, 10))
         );
         assert_eq!(
             column.pop_pivot().map(|e| e.into()),
-            Some((Z2::one(), 0, ()))
+            Some((Z2::one(), 0, 0))
         );
         assert_eq!(column.pop_pivot(), None);
 
-        // Forget filtration
-
-        let mut column = matrix.empty_bhcol();
-        add(&mut column, 5);
-        add(&mut column, 4);
-        println!("{:?}", column);
+        // Opposite filtration
+        let opp_matrix = matrix
+            .borrow_with_filtration(|idx| Ok(-(matrix.filtration_value(idx).unwrap() as isize)));
+        let opp_add = |column: &mut BHCol<_>, index| {
+            column.add_entries(
+                opp_matrix
+                    .column_with_filtration(index)
+                    .unwrap()
+                    .map(|e| e.unwrap()),
+            );
+        };
+        let mut column = opp_matrix.empty_bhcol();
+        opp_add(&mut column, 5);
+        opp_add(&mut column, 4);
         assert_eq!(
             column.pop_pivot().map(|e| e.into()),
-            Some((Z2::one(), 1, ()))
+            Some((Z2::one(), 0, 0))
         );
         assert_eq!(
             column.pop_pivot().map(|e| e.into()),
-            Some((Z2::one(), 0, ()))
+            Some((Z2::one(), 1, -10))
         );
         assert_eq!(column.pop_pivot(), None);
 
@@ -365,7 +556,6 @@ mod tests {
         let mut column = matrix.empty_bhcol();
         add(&mut column, 6);
         add(&mut column, 6);
-        println!("{:?}", column);
         assert_eq!(column.to_sorted_vec().len(), 0);
     }
 }

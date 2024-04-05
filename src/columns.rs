@@ -1,5 +1,5 @@
 use crate::matricies::HasRowFiltration;
-use std::{collections::BinaryHeap, fmt::Debug};
+use std::{collections::BinaryHeap, fmt::Debug, iter::repeat};
 
 pub struct ColumnEntry<M: HasRowFiltration> {
     pub(crate) filtration_value: M::FiltrationT,
@@ -93,18 +93,12 @@ impl<M: HasRowFiltration> BHCol<M> {
         }
     }
 
+    pub fn drain_sorted<'a>(&'a mut self) -> impl Iterator<Item = ColumnEntry<M>> + 'a {
+        repeat(()).map_while(|_| self.pop_pivot())
+    }
+
     pub fn to_sorted_vec(mut self) -> Vec<ColumnEntry<M>> {
-        // Setup storage for output
-        let mut out = vec![];
-        loop {
-            let next_pivot = self.pop_pivot();
-            if let Some(pivot) = next_pivot {
-                out.push(pivot)
-            } else {
-                break;
-            }
-        }
-        return out;
+        self.drain_sorted().collect()
     }
 
     pub fn pop_pivot(&mut self) -> Option<ColumnEntry<M>> {

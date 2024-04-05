@@ -15,7 +15,6 @@ pub trait NonZeroCoefficient:
     + Add<Self, Output = Option<Self>>
     + Mul<Self, Output = Self>
 {
-    /// Is this needed?
     fn one() -> Self;
 }
 
@@ -63,6 +62,9 @@ impl NonZeroCoefficient for Z2 {
     }
 }
 
+// TODO: Make ZP generic over underlying representation
+//       Add option to macro
+
 /// Const generic struct for the finite field `Z_p`.
 /// Should ensure that `p` is prime and that `p^2` does not overflow NonZeroU8
 /// For `p=2` use [`Z2`]
@@ -107,8 +109,11 @@ impl<const P: u8> Mul<ZP<P>> for ZP<P> {
         let product = self
             .0
             .checked_mul(rhs.0)
-            .expect("Should be able to multiply Zp entries within U8");
-        ZP(product)
+            .expect("Should be able to multiply Zp entries within U8")
+            .get()
+            .rem_euclid(P);
+        ZP(NonZeroU8::new(product)
+            .expect("Product of two non-zero should be non-zero, is P prime?"))
     }
 }
 
@@ -153,3 +158,44 @@ instantiate_zp!(5, Z5);
 instantiate_zp!(7, Z7);
 instantiate_zp!(11, Z11);
 instantiate_zp!(13, Z13);
+
+#[cfg(test)]
+mod tests {
+
+    use std::num::NonZeroU8;
+
+    use crate::fields::{NonZeroCoefficient, Z3, ZP};
+
+    use super::Z2;
+
+    #[test]
+    fn test_add_mod_2() {
+        assert_eq!(Z2 + Z2, None);
+        assert_eq!(Z2 + None, Some(Z2));
+    }
+
+    #[test]
+    fn test_prod_mod_2() {
+        assert_eq!(Z2 * Z2, Z2);
+    }
+
+    #[test]
+    fn test_add_mod_3() {
+        assert_eq!(
+            Z3::one() + Z3::one(),
+            Some(Z3(ZP(unsafe { NonZeroU8::new_unchecked(2) })))
+        );
+        let two = Z3::one() + Z3::one();
+        assert_eq!(Z3::one() + two, None);
+    }
+
+    #[test]
+    fn test_prod_mod_3() {
+        let two = (Z3::one() + Z3::one()).unwrap();
+        let one = Z3::one();
+        assert_eq!(two * one, two);
+        assert_eq!(one * two, two);
+        assert_eq!(two * two, one);
+        assert_eq!(one * one, one);
+    }
+}
