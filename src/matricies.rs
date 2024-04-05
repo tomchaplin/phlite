@@ -264,6 +264,67 @@ where
     }
 }
 
+// ====== Consolidator =========================
+
+fn consolidate<Ref: Borrow<M>, M>(oracle: Ref) -> Consolidator<Ref, M> {
+    Consolidator {
+        oracle,
+        phantom: PhantomData,
+    }
+}
+
+pub struct Consolidator<Ref: Borrow<M>, M> {
+    oracle: Ref,
+    phantom: PhantomData<M>,
+}
+
+pub struct ConsolidatorColumn<'a, M: MatrixOracle> {
+    bh_col: BHCol<WithTrivialFiltration<&'a M, M>>,
+}
+
+impl<'a, M: MatrixOracle> Iterator for ConsolidatorColumn<'a, M> {
+    type Item = (M::CoefficientField, M::RowT);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let next = self.bh_col.pop_pivot()?;
+        let (coef, index, _) = next.into();
+        Some((coef, index))
+    }
+}
+
+impl<Ref: Borrow<M>, M> MatrixOracle for Consolidator<Ref, M>
+where
+    M: MatrixOracle,
+{
+    type CoefficientField = M::CoefficientField;
+    type ColT = M::ColT;
+    type RowT = M::RowT;
+    fn column(
+        &self,
+        col: Self::ColT,
+    ) -> Result<impl Iterator<Item = (Self::CoefficientField, Self::RowT)>, PhliteError> {
+        // Take all the entries in the column and store them in a binary heap
+        let bh_col = self
+            .oracle
+            .borrow()
+            .borrow_trivial_filtration()
+            .build_bhcol(col)?;
+        // This iterator will consolidate all entries with the same row index into a new iterator
+        Ok(ConsolidatorColumn { bh_col })
+    }
+}
+
+impl<Ref: Borrow<M>, M> HasRowFiltration for Consolidator<Ref, M>
+where
+    M: HasRowFiltration,
+{
+    type FiltrationT = M::FiltrationT;
+
+    fn filtration_value(&self, row: Self::RowT) -> Result<Self::FiltrationT, PhliteError> {
+        self.oracle.borrow().filtration_value(row)
+    }
+}
+
 // ======== Combinators ========================================
 
 // ====== Product ==============================
@@ -448,7 +509,7 @@ mod tests {
     use crate::fields::{NonZeroCoefficient, Z2};
     use crate::matricies::{simple_Z2_matrix, HasRowFiltration};
 
-    use super::{product, MatrixOracle};
+    use super::{consolidate, product, MatrixOracle};
     use crate::columns::BHCol;
 
     #[test]
@@ -557,5 +618,27 @@ mod tests {
         add(&mut column, 6);
         add(&mut column, 6);
         assert_eq!(column.to_sorted_vec().len(), 0);
+    }
+
+    #[test]
+    fn test_consolidate() {
+        let build_mat = || simple_Z2_matrix(vec![vec![0], vec![0, 1]]);
+        // Working over Z^2 so M^2 = Id
+
+        let build_mat4 = product(
+            product(build_mat(), build_mat()),
+            product(build_mat(), build_mat()),
+        );
+
+        let col1: Vec<_> = build_mat4.column(1).unwrap().collect();
+
+        // TODO: Why can't types be inferred when I pass in a reference?
+
+        let col2: Vec<_> = consolidate(build_mat4).column(1).unwrap().collect();
+
+        // Lots of entries adding up
+        assert_eq!(col1.len(), 5);
+        // Consolidated down to single entry
+        assert_eq!(col2.len(), 1);
     }
 }
