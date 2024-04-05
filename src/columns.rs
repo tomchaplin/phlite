@@ -1,13 +1,13 @@
-use crate::matricies::MatrixOracle;
+use crate::matricies::HasRowFiltration;
 use std::{collections::BinaryHeap, fmt::Debug};
 
-pub struct ColumnEntry<M: MatrixOracle> {
+pub struct ColumnEntry<M: HasRowFiltration> {
     pub(crate) filtration_value: M::FiltrationT,
     pub(crate) row_index: M::RowT,
     pub(crate) coeff: M::CoefficientField,
 }
 
-impl<M: MatrixOracle> Debug for ColumnEntry<M>
+impl<M: HasRowFiltration> Debug for ColumnEntry<M>
 where
     M::FiltrationT: Debug,
     M::RowT: Debug,
@@ -21,9 +21,9 @@ where
     }
 }
 
-impl<M: MatrixOracle> From<(M::FiltrationT, M::RowT, M::CoefficientField)> for ColumnEntry<M> {
+impl<M: HasRowFiltration> From<(M::CoefficientField, M::RowT, M::FiltrationT)> for ColumnEntry<M> {
     fn from(
-        (filtration_value, row_index, coeff): (M::FiltrationT, M::RowT, M::CoefficientField),
+        (coeff, row_index, filtration_value): (M::CoefficientField, M::RowT, M::FiltrationT),
     ) -> Self {
         Self {
             filtration_value,
@@ -33,16 +33,22 @@ impl<M: MatrixOracle> From<(M::FiltrationT, M::RowT, M::CoefficientField)> for C
     }
 }
 
-impl<M: MatrixOracle> PartialEq for ColumnEntry<M> {
+impl<M: HasRowFiltration> From<ColumnEntry<M>> for (M::CoefficientField, M::RowT, M::FiltrationT) {
+    fn from(entry: ColumnEntry<M>) -> Self {
+        (entry.coeff, entry.row_index, entry.filtration_value)
+    }
+}
+
+/// WARNING: Equality only checks row index - to check correct coefficient and filtration value, convert to tuple
+impl<M: HasRowFiltration> PartialEq for ColumnEntry<M> {
     // Equal row index implies equal filtration value
     fn eq(&self, other: &Self) -> bool {
         self.row_index.eq(&other.row_index)
     }
 }
+impl<M: HasRowFiltration> Eq for ColumnEntry<M> {}
 
-impl<M: MatrixOracle> Eq for ColumnEntry<M> {}
-
-impl<M: MatrixOracle> PartialOrd for ColumnEntry<M> {
+impl<M: HasRowFiltration> PartialOrd for ColumnEntry<M> {
     // Order by filtration value and then order on RowT
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         ((&self.filtration_value, &self.row_index))
@@ -50,18 +56,18 @@ impl<M: MatrixOracle> PartialOrd for ColumnEntry<M> {
     }
 }
 
-impl<M: MatrixOracle> Ord for ColumnEntry<M> {
+impl<M: HasRowFiltration> Ord for ColumnEntry<M> {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         self.partial_cmp(other)
             .expect("Since underlying implement Ord, so does ColumnEntry")
     }
 }
 
-pub struct BHCol<M: MatrixOracle> {
+pub struct BHCol<M: HasRowFiltration> {
     heap: BinaryHeap<ColumnEntry<M>>,
 }
 
-impl<M: MatrixOracle> Debug for BHCol<M>
+impl<M: HasRowFiltration> Debug for BHCol<M>
 where
     ColumnEntry<M>: Debug,
 {
@@ -70,7 +76,7 @@ where
     }
 }
 
-impl<M: MatrixOracle> Default for BHCol<M> {
+impl<M: HasRowFiltration> Default for BHCol<M> {
     fn default() -> Self {
         Self {
             heap: Default::default(),
@@ -78,15 +84,12 @@ impl<M: MatrixOracle> Default for BHCol<M> {
     }
 }
 
-impl<M: MatrixOracle> BHCol<M> {
-    pub fn add_entries(
-        &mut self,
-        entries: impl Iterator<Item = (M::FiltrationT, M::RowT, M::CoefficientField)>,
-    ) {
+impl<M: HasRowFiltration> BHCol<M> {
+    pub fn add_entries(&mut self, entries: impl Iterator<Item = ColumnEntry<M>>) {
         let (lower_bound, _) = entries.size_hint();
         self.heap.reserve(lower_bound);
         for entry in entries {
-            self.heap.push(entry.into())
+            self.heap.push(entry)
         }
     }
 

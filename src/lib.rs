@@ -7,6 +7,7 @@ pub mod matricies;
 #[derive(Debug)]
 pub enum PhliteError {
     NotInDomain,
+    NotInCodomain,
 }
 
 #[cfg(test)]

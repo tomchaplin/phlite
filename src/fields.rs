@@ -1,6 +1,6 @@
 use std::fmt::Debug;
 use std::num::NonZeroU8;
-use std::ops::Add;
+use std::ops::{Add, Mul};
 
 // TODO: Get additive inverse and multiply
 
@@ -8,7 +8,12 @@ use std::ops::Add;
 /// Instead, `0` will be represented by the absence of a summand.
 /// We avoid requiring an element for `0` to make [`Z2`] calculations more efficient.
 pub trait NonZeroCoefficient:
-    Sized + Copy + Add<Option<Self>, Output = Option<Self>> + Add<Self, Output = Option<Self>> + Eq
+    Eq
+    + Sized
+    + Copy
+    + Add<Option<Self>, Output = Option<Self>>
+    + Add<Self, Output = Option<Self>>
+    + Mul<Self, Output = Self>
 {
     /// Is this needed?
     fn one() -> Self;
@@ -22,6 +27,15 @@ impl Add<Z2> for Z2 {
 
     fn add(self, _rhs: Z2) -> Self::Output {
         None
+    }
+}
+
+impl Mul<Z2> for Z2 {
+    type Output = Z2;
+
+    // 1 * 1 = 1
+    fn mul(self, _rhs: Z2) -> Self::Output {
+        Z2
     }
 }
 
@@ -86,6 +100,18 @@ impl<const P: u8> Add<Option<ZP<P>>> for ZP<P> {
     }
 }
 
+impl<const P: u8> Mul<ZP<P>> for ZP<P> {
+    type Output = ZP<P>;
+
+    fn mul(self, rhs: ZP<P>) -> Self::Output {
+        let product = self
+            .0
+            .checked_mul(rhs.0)
+            .expect("Should be able to multiply Zp entries within U8");
+        ZP(product)
+    }
+}
+
 impl<const P: u8> NonZeroCoefficient for ZP<P> {
     fn one() -> Self {
         Self(unsafe { NonZeroU8::new_unchecked(1) })
@@ -102,6 +128,13 @@ macro_rules! instantiate_zp {
             type Output = Option<$struct_name>;
             fn add(self, rhs: $struct_name) -> Self::Output {
                 Some($struct_name(self.0.add(rhs.0)?))
+            }
+        }
+
+        impl Mul<$struct_name> for $struct_name {
+            type Output = $struct_name;
+            fn mul(self, rhs: $struct_name) -> Self::Output {
+                $struct_name(self.0.mul(rhs.0))
             }
         }
 
