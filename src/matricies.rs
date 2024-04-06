@@ -26,6 +26,8 @@ impl FiltrationT for () {}
 
 // ======== Abstract matrix oracle trait =======================
 
+// TODO: Try and get rid of Sized bounds, is there a better way to summarise ColumnEntry?
+
 pub trait MatrixOracle {
     type CoefficientField: NonZeroCoefficient;
     type ColT: BasisElement;
@@ -240,6 +242,12 @@ impl<M: MatrixRef, FT: FiltrationT, F: Fn(M::RowT) -> Result<FT, PhliteError>> H
 pub struct WithOrderedColBasis<M: MatrixRef> {
     oracle: M,
     pub col_basis: Vec<M::ColT>,
+}
+
+impl<M: MatrixRef> WithOrderedColBasis<M> {
+    pub fn new(oracle: M, col_basis: Vec<M::ColT>) -> Self {
+        Self { oracle, col_basis }
+    }
 }
 
 impl<M: MatrixRef> MatrixOracle for WithOrderedColBasis<M> {
