@@ -1,4 +1,4 @@
-use std::{borrow::Borrow, marker::PhantomData};
+use std::marker::PhantomData;
 
 use itertools::equal;
 use ordered_float::NotNan;
@@ -114,7 +114,6 @@ pub trait MatrixRef: MatrixOracle + Copy {
         WithFuncFiltration {
             oracle: self,
             filtration: filtration_function,
-            phantom: PhantomData,
         }
     }
 }
@@ -150,8 +149,6 @@ impl<'a, M> MatrixRef for &'a M where M: MatrixOracle {}
 
 // ======== Matrix oracle adaptors ============================
 
-// TODO: Convert all adaptors to accept MatrixRef
-
 // ====== WithTrivialFiltration ================
 
 pub struct WithTrivialFiltration<M: MatrixRef> {
@@ -167,7 +164,7 @@ impl<M: MatrixRef> MatrixOracle for WithTrivialFiltration<M> {
         &self,
         col: Self::ColT,
     ) -> Result<impl Iterator<Item = (Self::CoefficientField, Self::RowT)>, PhliteError> {
-        self.matrix_ref.borrow().column(col)
+        self.matrix_ref.column(col)
     }
 }
 
@@ -181,6 +178,7 @@ impl<M: MatrixRef> HasRowFiltration for WithTrivialFiltration<M> {
 
 // ====== WithFuncFiltration ===================
 
+#[derive(Clone)]
 pub struct WithFuncFiltration<
     M: MatrixRef,
     FT: FiltrationT,
@@ -188,7 +186,13 @@ pub struct WithFuncFiltration<
 > {
     oracle: M,
     filtration: F,
-    phantom: PhantomData<M>,
+}
+
+impl<M: MatrixRef, FT: FiltrationT, F: Fn(M::RowT) -> Result<FT, PhliteError>> Copy
+    for WithFuncFiltration<M, FT, F>
+where
+    F: Copy,
+{
 }
 
 impl<M: MatrixRef, FT: FiltrationT, F: Fn(M::RowT) -> Result<FT, PhliteError>>
@@ -209,8 +213,15 @@ impl<M: MatrixRef, FT: FiltrationT, F: Fn(M::RowT) -> Result<FT, PhliteError>> M
         &self,
         col: Self::ColT,
     ) -> Result<impl Iterator<Item = (Self::CoefficientField, Self::RowT)>, PhliteError> {
-        self.oracle.borrow().column(col)
+        self.oracle.column(col)
     }
+}
+
+impl<M: MatrixRef, FT: FiltrationT, F: Fn(M::RowT) -> Result<FT, PhliteError>> MatrixRef
+    for WithFuncFiltration<M, FT, F>
+where
+    F: Copy,
+{
 }
 
 impl<M: MatrixRef, FT: FiltrationT, F: Fn(M::RowT) -> Result<FT, PhliteError>> HasRowFiltration
@@ -225,12 +236,13 @@ impl<M: MatrixRef, FT: FiltrationT, F: Fn(M::RowT) -> Result<FT, PhliteError>> H
 
 // ====== WithOrderedBasis =====================
 
-pub struct WithOrderedColBasis<Ref: Borrow<M>, M: MatrixOracle> {
-    oracle: Ref,
+// TODO: Change so it only stores a ref?
+pub struct WithOrderedColBasis<M: MatrixRef> {
+    oracle: M,
     pub col_basis: Vec<M::ColT>,
 }
 
-impl<Ref: Borrow<M>, M: MatrixOracle> MatrixOracle for WithOrderedColBasis<Ref, M> {
+impl<M: MatrixRef> MatrixOracle for WithOrderedColBasis<M> {
     type CoefficientField = M::CoefficientField;
 
     type ColT = usize;
@@ -242,39 +254,36 @@ impl<Ref: Borrow<M>, M: MatrixOracle> MatrixOracle for WithOrderedColBasis<Ref, 
         col: Self::ColT,
     ) -> Result<impl Iterator<Item = (M::CoefficientField, M::RowT)>, PhliteError> {
         let col_idx = self.col_basis.get(col).ok_or(PhliteError::NotInDomain)?;
-        self.oracle.borrow().column(*col_idx)
+        self.oracle.column(*col_idx)
     }
 }
 
-impl<Ref: Borrow<M>, M: MatrixOracle> HasRowFiltration for WithOrderedColBasis<Ref, M>
+impl<M: MatrixRef> HasRowFiltration for WithOrderedColBasis<M>
 where
     M: HasRowFiltration,
 {
     type FiltrationT = M::FiltrationT;
     fn filtration_value(&self, row: Self::RowT) -> Result<Self::FiltrationT, PhliteError> {
-        self.oracle.borrow().filtration_value(row)
+        self.oracle.filtration_value(row)
     }
 }
 
 // ====== Consolidator =========================
 
-pub fn consolidate<Ref: Borrow<M>, M>(oracle: Ref) -> Consolidator<Ref, M> {
-    Consolidator {
-        oracle,
-        phantom: PhantomData,
-    }
+pub fn consolidate<M: MatrixRef>(oracle: M) -> Consolidator<M> {
+    Consolidator { oracle }
 }
 
-pub struct Consolidator<Ref: Borrow<M>, M> {
-    oracle: Ref,
-    phantom: PhantomData<M>,
+#[derive(Clone, Copy)]
+pub struct Consolidator<M: MatrixRef> {
+    oracle: M,
 }
 
-pub struct ConsolidatorColumn<'a, M: MatrixOracle> {
-    bh_col: BHCol<WithTrivialFiltration<&'a M>>,
+pub struct ConsolidatorColumn<M: MatrixRef> {
+    bh_col: BHCol<WithTrivialFiltration<M>>,
 }
 
-impl<'a, M: MatrixOracle> Iterator for ConsolidatorColumn<'a, M> {
+impl<M: MatrixRef> Iterator for ConsolidatorColumn<M> {
     type Item = (M::CoefficientField, M::RowT);
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -284,10 +293,7 @@ impl<'a, M: MatrixOracle> Iterator for ConsolidatorColumn<'a, M> {
     }
 }
 
-impl<Ref: Borrow<M>, M> MatrixOracle for Consolidator<Ref, M>
-where
-    M: MatrixOracle,
-{
+impl<M: MatrixRef> MatrixOracle for Consolidator<M> {
     type CoefficientField = M::CoefficientField;
     type ColT = M::ColT;
     type RowT = M::RowT;
@@ -296,24 +302,22 @@ where
         col: Self::ColT,
     ) -> Result<impl Iterator<Item = (Self::CoefficientField, Self::RowT)>, PhliteError> {
         // Take all the entries in the column and store them in a binary heap
-        let bh_col = self
-            .oracle
-            .borrow()
-            .with_trivial_filtration()
-            .build_bhcol(col)?;
+        let bh_col = self.oracle.with_trivial_filtration().build_bhcol(col)?;
         // This iterator will consolidate all entries with the same row index into a new iterator
         Ok(ConsolidatorColumn { bh_col })
     }
 }
 
-impl<Ref: Borrow<M>, M> HasRowFiltration for Consolidator<Ref, M>
+impl<M: MatrixRef> MatrixRef for Consolidator<M> {}
+
+impl<M: MatrixRef> HasRowFiltration for Consolidator<M>
 where
     M: HasRowFiltration,
 {
     type FiltrationT = M::FiltrationT;
 
     fn filtration_value(&self, row: Self::RowT) -> Result<Self::FiltrationT, PhliteError> {
-        self.oracle.borrow().filtration_value(row)
+        self.oracle.filtration_value(row)
     }
 }
 
@@ -321,32 +325,21 @@ where
 
 // ====== Product ==============================
 
-pub fn product<Ref1: Borrow<M1>, Ref2: Borrow<M2>, M1, M2>(
-    left: Ref1,
-    right: Ref2,
-) -> Product<Ref1, Ref2, M1, M2>
+pub fn product<M1: MatrixRef, M2: MatrixRef>(left: M1, right: M2) -> Product<M1, M2>
 where
-    M1: MatrixOracle,
     M2: MatrixOracle<CoefficientField = M1::CoefficientField, RowT = M1::ColT>,
 {
-    Product {
-        left,
-        right,
-        phantom_left: PhantomData,
-        phantom_right: PhantomData,
-    }
+    Product { left, right }
 }
 
-pub struct Product<Ref1: Borrow<M1>, Ref2: Borrow<M2>, M1, M2> {
-    left: Ref1,
-    right: Ref2,
-    phantom_left: PhantomData<M1>,
-    phantom_right: PhantomData<M2>,
+#[derive(Clone, Copy)]
+pub struct Product<M1: MatrixRef, M2: MatrixRef> {
+    left: M1,
+    right: M2,
 }
 
-impl<Ref1: Borrow<M1>, Ref2: Borrow<M2>, M1, M2> MatrixOracle for Product<Ref1, Ref2, M1, M2>
+impl<M1: MatrixRef, M2: MatrixRef> MatrixOracle for Product<M1, M2>
 where
-    M1: MatrixOracle,
     M2: MatrixOracle<CoefficientField = M1::CoefficientField, RowT = M1::ColT>,
 {
     type CoefficientField = M1::CoefficientField;
@@ -360,12 +353,12 @@ where
         col: Self::ColT,
     ) -> Result<impl Iterator<Item = (Self::CoefficientField, Self::RowT)>, PhliteError> {
         // Pull out right col
-        let right_col_entries = self.right.borrow().column(col)?;
+        let right_col_entries = self.right.column(col)?;
         // This tells us what linear combination of columns in the left matrix
         // should be formed to yield the product column
         Ok(
             right_col_entries.flat_map(|(right_coeff, right_row_index)| {
-                let left_col = self.left.borrow().column(right_row_index).unwrap();
+                let left_col = self.left.column(right_row_index).unwrap();
                 left_col.map(move |(left_coeff, left_row_index)| {
                     (left_coeff * right_coeff, left_row_index)
                 })
@@ -374,8 +367,13 @@ where
     }
 }
 
+impl<M1: MatrixRef, M2: MatrixRef> MatrixRef for Product<M1, M2> where
+    M2: MatrixOracle<CoefficientField = M1::CoefficientField, RowT = M1::ColT>
+{
+}
+
 // In product there is an obvious row filtration if the LHS has a row filtration
-impl<Ref1: Borrow<M1>, Ref2: Borrow<M2>, M1, M2> HasRowFiltration for Product<Ref1, Ref2, M1, M2>
+impl<M1: MatrixRef, M2: MatrixRef> HasRowFiltration for Product<M1, M2>
 where
     M1: HasRowFiltration,
     M2: MatrixOracle<CoefficientField = M1::CoefficientField, RowT = M1::ColT>,
@@ -383,39 +381,28 @@ where
     type FiltrationT = M1::FiltrationT;
 
     fn filtration_value(&self, row: Self::RowT) -> Result<Self::FiltrationT, PhliteError> {
-        self.left.borrow().filtration_value(row)
+        self.left.filtration_value(row)
     }
 }
 
 // ====== Sum ==================================
 
-pub fn sum<Ref1: Borrow<M1>, Ref2: Borrow<M2>, M1, M2>(
-    left: Ref1,
-    right: Ref2,
-) -> Sum<Ref1, Ref2, M1, M2>
+pub fn sum<M1: MatrixRef, M2: MatrixRef>(left: M1, right: M2) -> Sum<M1, M2>
 where
-    M1: MatrixOracle,
     M2: MatrixOracle<CoefficientField = M1::CoefficientField, ColT = M1::ColT, RowT = M1::RowT>,
 {
-    Sum {
-        left,
-        right,
-        phantom_left: PhantomData,
-        phantom_right: PhantomData,
-    }
+    Sum { left, right }
 }
 
 // Note: We don't implement has filtration in case the filtrations disagree
-pub struct Sum<Ref1: Borrow<M1>, Ref2: Borrow<M2>, M1, M2> {
-    left: Ref1,
-    right: Ref2,
-    phantom_left: PhantomData<M1>,
-    phantom_right: PhantomData<M2>,
+#[derive(Clone, Copy)]
+pub struct Sum<M1: MatrixRef, M2: MatrixRef> {
+    left: M1,
+    right: M2,
 }
 
-impl<Ref1: Borrow<M1>, Ref2: Borrow<M2>, M1, M2> MatrixOracle for Sum<Ref1, Ref2, M1, M2>
+impl<M1: MatrixRef, M2: MatrixRef> MatrixOracle for Sum<M1, M2>
 where
-    M1: MatrixOracle,
     M2: MatrixOracle<CoefficientField = M1::CoefficientField, ColT = M1::ColT, RowT = M1::RowT>,
 {
     type CoefficientField = M1::CoefficientField;
@@ -425,12 +412,13 @@ where
         &self,
         col: Self::ColT,
     ) -> Result<impl Iterator<Item = (Self::CoefficientField, Self::RowT)>, PhliteError> {
-        Ok(self
-            .left
-            .borrow()
-            .column(col)?
-            .chain(self.right.borrow().column(col)?))
+        Ok(self.left.column(col)?.chain(self.right.column(col)?))
     }
+}
+
+impl<M1: MatrixRef, M2: MatrixRef> MatrixRef for Sum<M1, M2> where
+    M2: MatrixOracle<CoefficientField = M1::CoefficientField, ColT = M1::ColT, RowT = M1::RowT>
+{
 }
 
 // ======== Default matrix oracles =============================
@@ -535,7 +523,7 @@ mod tests {
             vec![3, 4, 5],
         ]);
 
-        let matrix_r = product(matrix_d, matrix_v);
+        let matrix_r = product(&matrix_d, &matrix_v);
 
         assert!((0..=6).all(|i| matrix_r.eq_on_col(&true_matrix_r, i)))
     }
@@ -552,6 +540,7 @@ mod tests {
             vec![3, 4, 5],
         ]);
         let matrix = base_matrix.with_filtration(|idx| Ok(idx * 10));
+
         let add = |column: &mut BHCol<_>, index| {
             column.add_entries(
                 matrix
@@ -614,19 +603,14 @@ mod tests {
 
     #[test]
     fn test_consolidate() {
-        let build_mat = || simple_Z2_matrix(vec![vec![0], vec![0, 1]]);
+        let mat = simple_Z2_matrix(vec![vec![0], vec![0, 1]]);
         // Working over Z^2 so M^2 = Id
 
-        let build_mat4 = product(
-            product(build_mat(), build_mat()),
-            product(build_mat(), build_mat()),
-        );
+        let mat4 = product(product(&mat, &mat), product(&mat, &mat));
 
-        let col1: Vec<_> = build_mat4.column(1).unwrap().collect();
+        let col1: Vec<_> = mat4.column(1).unwrap().collect();
 
-        // TODO: Why can't types be inferred when I pass in a reference?
-
-        let col2: Vec<_> = consolidate(build_mat4).column(1).unwrap().collect();
+        let col2: Vec<_> = consolidate(&mat4).column(1).unwrap().collect();
 
         // Lots of entries adding up
         assert_eq!(col1.len(), 5);
