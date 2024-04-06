@@ -625,4 +625,25 @@ mod tests {
         // Consolidated down to single entry
         assert_eq!(col2.len(), 1);
     }
+
+    #[test]
+    fn test_projection() {
+        let base_matrix = simple_Z2_matrix(vec![
+            vec![4, 3, 12],
+            vec![5, 9, 4],
+            vec![0, 1, 0],
+            vec![1, 2, 4, 4],
+        ]);
+
+        // Dumb way to build - better to make custom oracle
+        let mut projection_cols = vec![vec![]; 13];
+        projection_cols[4] = vec![4];
+        let projection_matrix = simple_Z2_matrix(projection_cols);
+
+        let projected = product(&projection_matrix, &base_matrix);
+
+        let true_matrix = simple_Z2_matrix(vec![vec![4], vec![4], vec![], vec![]]);
+
+        assert!((0..4).all(|i| projected.eq_on_col(&true_matrix, i)))
+    }
 }
