@@ -16,6 +16,11 @@ pub trait NonZeroCoefficient:
     + Mul<Self, Output = Self>
 {
     fn one() -> Self;
+    fn additive_inverse(self) -> Self;
+}
+
+pub trait Invertible: NonZeroCoefficient {
+    fn inverse(self) -> Self;
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -35,6 +40,12 @@ impl Mul<Z2> for Z2 {
     // 1 * 1 = 1
     fn mul(self, _rhs: Z2) -> Self::Output {
         Z2
+    }
+}
+
+impl Invertible for Z2 {
+    fn inverse(self) -> Self {
+        Self
     }
 }
 
@@ -58,6 +69,10 @@ impl_add_options!(Z2);
 
 impl NonZeroCoefficient for Z2 {
     fn one() -> Self {
+        Self
+    }
+
+    fn additive_inverse(self) -> Self {
         Self
     }
 }
@@ -121,6 +136,10 @@ impl<const P: u8> NonZeroCoefficient for ZP<P> {
     fn one() -> Self {
         Self(unsafe { NonZeroU8::new_unchecked(1) })
     }
+
+    fn additive_inverse(self) -> Self {
+        Self(unsafe { NonZeroU8::new_unchecked(P - self.0.get()) })
+    }
 }
 
 #[macro_export]
@@ -148,6 +167,10 @@ macro_rules! instantiate_zp {
         impl NonZeroCoefficient for $struct_name {
             fn one() -> Self {
                 $struct_name(ZP::<$p>::one())
+            }
+
+            fn additive_inverse(self) -> Self {
+                $struct_name(ZP::<$p>::additive_inverse(self.0))
             }
         }
     };

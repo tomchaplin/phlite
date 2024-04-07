@@ -101,6 +101,10 @@ impl<M: HasRowFiltration> BHCol<M> {
         self.drain_sorted().collect()
     }
 
+    pub fn push(&mut self, entry: ColumnEntry<M>) {
+        self.heap.push(entry)
+    }
+
     pub fn pop_pivot(&mut self) -> Option<ColumnEntry<M>> {
         // Pull out first entry
         let Some(first_entry) = self.heap.pop() else {

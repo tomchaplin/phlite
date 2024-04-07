@@ -1,4 +1,4 @@
-use std::marker::PhantomData;
+use std::{borrow::Cow, marker::PhantomData};
 
 use itertools::equal;
 use ordered_float::NotNan;
@@ -153,6 +153,7 @@ impl<'a, M> MatrixRef for &'a M where M: MatrixOracle {}
 
 // ====== WithTrivialFiltration ================
 
+#[derive(Clone, Copy)]
 pub struct WithTrivialFiltration<M: MatrixRef> {
     matrix_ref: M,
 }
@@ -169,6 +170,8 @@ impl<M: MatrixRef> MatrixOracle for WithTrivialFiltration<M> {
         self.matrix_ref.column(col)
     }
 }
+
+impl<M: MatrixRef> MatrixRef for WithTrivialFiltration<M> {}
 
 impl<M: MatrixRef> HasRowFiltration for WithTrivialFiltration<M> {
     type FiltrationT = ();
@@ -433,17 +436,17 @@ impl<M1: MatrixRef, M2: MatrixRef> MatrixRef for Sum<M1, M2> where
 
 // ====== VecVecMatrix =========================
 
-pub struct VecVecMatrix<CF: NonZeroCoefficient, RowT: BasisElement> {
-    columns: Vec<Vec<(CF, RowT)>>,
+pub struct VecVecMatrix<'a, CF: NonZeroCoefficient, RowT: BasisElement> {
+    columns: Cow<'a, Vec<Vec<(CF, RowT)>>>,
     phantom: PhantomData<CF>,
 }
 
-impl<CF, RowT> From<Vec<Vec<(CF, RowT)>>> for VecVecMatrix<CF, RowT>
+impl<'a, CF, RowT> From<Cow<'a, Vec<Vec<(CF, RowT)>>>> for VecVecMatrix<'a, CF, RowT>
 where
     CF: NonZeroCoefficient,
     RowT: BasisElement,
 {
-    fn from(value: Vec<Vec<(CF, RowT)>>) -> Self {
+    fn from(value: Cow<'a, Vec<Vec<(CF, RowT)>>>) -> Self {
         Self {
             columns: value,
             phantom: PhantomData,
@@ -451,7 +454,33 @@ where
     }
 }
 
-impl<RowT, CF> MatrixOracle for VecVecMatrix<CF, RowT>
+impl<'a, CF, RowT> From<&'a Vec<Vec<(CF, RowT)>>> for VecVecMatrix<'a, CF, RowT>
+where
+    CF: NonZeroCoefficient,
+    RowT: BasisElement,
+{
+    fn from(value: &'a Vec<Vec<(CF, RowT)>>) -> Self {
+        Self {
+            columns: Cow::Borrowed(value),
+            phantom: PhantomData,
+        }
+    }
+}
+
+impl<'a, CF, RowT> From<Vec<Vec<(CF, RowT)>>> for VecVecMatrix<'static, CF, RowT>
+where
+    CF: NonZeroCoefficient,
+    RowT: BasisElement,
+{
+    fn from(value: Vec<Vec<(CF, RowT)>>) -> Self {
+        Self {
+            columns: Cow::Owned(value),
+            phantom: PhantomData,
+        }
+    }
+}
+
+impl<'a, RowT, CF> MatrixOracle for VecVecMatrix<'a, CF, RowT>
 where
     RowT: BasisElement,
     CF: NonZeroCoefficient,
@@ -475,18 +504,18 @@ where
     }
 }
 
-type SimpleZ2Matrix = VecVecMatrix<Z2, usize>;
-
 #[allow(non_snake_case)]
-pub fn simple_Z2_matrix(cols: Vec<Vec<usize>>) -> SimpleZ2Matrix {
-    cols.into_iter()
+pub fn simple_Z2_matrix(cols: Vec<Vec<usize>>) -> VecVecMatrix<'static, Z2, usize> {
+    let cols_with_coeffs = cols
+        .into_iter()
         .map(|col| {
             col.into_iter()
                 .map(|col_idx| (Z2::one(), col_idx))
                 .collect()
         })
-        .collect::<Vec<Vec<(Z2, usize)>>>()
-        .into()
+        .collect::<Vec<Vec<(Z2, usize)>>>();
+
+    <VecVecMatrix<'_, Z2, usize>>::from(Cow::Owned(cols_with_coeffs))
 }
 
 // ======== Tests ==============================================
