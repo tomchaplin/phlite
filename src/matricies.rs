@@ -98,6 +98,10 @@ pub trait HasRowFiltration: MatrixOracle + Sized {
     }
 }
 
+pub trait FiniteOrderedColBasis: MatrixOracle<ColT = usize> {
+    fn n_cols(&self) -> usize;
+}
+
 pub trait MatrixRef: MatrixOracle + Copy {
     fn with_trivial_filtration(self) -> WithTrivialFiltration<Self>
     where
@@ -147,6 +151,15 @@ where
     }
 }
 
+impl<'a, M> FiniteOrderedColBasis for &'a M
+where
+    M: FiniteOrderedColBasis,
+{
+    fn n_cols(&self) -> usize {
+        (*self).n_cols()
+    }
+}
+
 impl<'a, M> MatrixRef for &'a M where M: MatrixOracle {}
 
 // ======== Matrix oracle adaptors ============================
@@ -178,6 +191,15 @@ impl<M: MatrixRef> HasRowFiltration for WithTrivialFiltration<M> {
 
     fn filtration_value(&self, _row: Self::RowT) -> Result<Self::FiltrationT, PhliteError> {
         Ok(())
+    }
+}
+
+impl<M: MatrixRef> FiniteOrderedColBasis for WithTrivialFiltration<M>
+where
+    M: FiniteOrderedColBasis,
+{
+    fn n_cols(&self) -> usize {
+        self.matrix_ref.n_cols()
     }
 }
 
@@ -239,6 +261,16 @@ impl<M: MatrixRef, FT: FiltrationT, F: Fn(M::RowT) -> Result<FT, PhliteError>> H
     }
 }
 
+impl<M: MatrixRef, FT: FiltrationT, F: Fn(M::RowT) -> Result<FT, PhliteError>> FiniteOrderedColBasis
+    for WithFuncFiltration<M, FT, F>
+where
+    M: FiniteOrderedColBasis,
+{
+    fn n_cols(&self) -> usize {
+        self.oracle.n_cols()
+    }
+}
+
 // ====== WithOrderedBasis =====================
 
 // TODO: Change so it only stores a ref?
@@ -276,6 +308,12 @@ where
     type FiltrationT = M::FiltrationT;
     fn filtration_value(&self, row: Self::RowT) -> Result<Self::FiltrationT, PhliteError> {
         self.oracle.filtration_value(row)
+    }
+}
+
+impl<M: MatrixRef> FiniteOrderedColBasis for WithOrderedColBasis<M> {
+    fn n_cols(&self) -> usize {
+        self.col_basis.len()
     }
 }
 
@@ -329,6 +367,15 @@ where
 
     fn filtration_value(&self, row: Self::RowT) -> Result<Self::FiltrationT, PhliteError> {
         self.oracle.filtration_value(row)
+    }
+}
+
+impl<M: MatrixRef> FiniteOrderedColBasis for Consolidator<M>
+where
+    M: FiniteOrderedColBasis,
+{
+    fn n_cols(&self) -> usize {
+        self.oracle.n_cols()
     }
 }
 
@@ -396,6 +443,16 @@ where
     }
 }
 
+impl<M1: MatrixRef, M2: MatrixRef> FiniteOrderedColBasis for Product<M1, M2>
+where
+    M2: MatrixOracle<CoefficientField = M1::CoefficientField, RowT = M1::ColT>
+        + FiniteOrderedColBasis,
+{
+    fn n_cols(&self) -> usize {
+        self.right.n_cols()
+    }
+}
+
 // ====== Sum ==================================
 
 pub fn sum<M1: MatrixRef, M2: MatrixRef>(left: M1, right: M2) -> Sum<M1, M2>
@@ -405,7 +462,8 @@ where
     Sum { left, right }
 }
 
-// Note: We don't implement has filtration in case the filtrations disagree
+// Note: We don't implement HasRowFiltration in case the filtrations disagree
+// Note: We don't implement FiniteOrderedColBasis in case the number of cols disagrees
 #[derive(Clone, Copy)]
 pub struct Sum<M1: MatrixRef, M2: MatrixRef> {
     left: M1,
@@ -441,10 +499,8 @@ pub struct VecVecMatrix<'a, CF: NonZeroCoefficient, RowT: BasisElement> {
     phantom: PhantomData<CF>,
 }
 
-impl<'a, CF, RowT> From<Cow<'a, Vec<Vec<(CF, RowT)>>>> for VecVecMatrix<'a, CF, RowT>
-where
-    CF: NonZeroCoefficient,
-    RowT: BasisElement,
+impl<'a, CF: NonZeroCoefficient, RowT: BasisElement> From<Cow<'a, Vec<Vec<(CF, RowT)>>>>
+    for VecVecMatrix<'a, CF, RowT>
 {
     fn from(value: Cow<'a, Vec<Vec<(CF, RowT)>>>) -> Self {
         Self {
@@ -454,10 +510,8 @@ where
     }
 }
 
-impl<'a, CF, RowT> From<&'a Vec<Vec<(CF, RowT)>>> for VecVecMatrix<'a, CF, RowT>
-where
-    CF: NonZeroCoefficient,
-    RowT: BasisElement,
+impl<'a, CF: NonZeroCoefficient, RowT: BasisElement> From<&'a Vec<Vec<(CF, RowT)>>>
+    for VecVecMatrix<'a, CF, RowT>
 {
     fn from(value: &'a Vec<Vec<(CF, RowT)>>) -> Self {
         Self {
@@ -467,10 +521,8 @@ where
     }
 }
 
-impl<'a, CF, RowT> From<Vec<Vec<(CF, RowT)>>> for VecVecMatrix<'static, CF, RowT>
-where
-    CF: NonZeroCoefficient,
-    RowT: BasisElement,
+impl<'a, CF: NonZeroCoefficient, RowT: BasisElement> From<Vec<Vec<(CF, RowT)>>>
+    for VecVecMatrix<'static, CF, RowT>
 {
     fn from(value: Vec<Vec<(CF, RowT)>>) -> Self {
         Self {
@@ -480,11 +532,7 @@ where
     }
 }
 
-impl<'a, RowT, CF> MatrixOracle for VecVecMatrix<'a, CF, RowT>
-where
-    RowT: BasisElement,
-    CF: NonZeroCoefficient,
-{
+impl<'a, CF: NonZeroCoefficient, RowT: BasisElement> MatrixOracle for VecVecMatrix<'a, CF, RowT> {
     type CoefficientField = CF;
 
     type ColT = usize;
@@ -501,6 +549,14 @@ where
             .ok_or(PhliteError::NotInDomain)?
             .iter()
             .copied())
+    }
+}
+
+impl<'a, CF: NonZeroCoefficient, RowT: BasisElement> FiniteOrderedColBasis
+    for VecVecMatrix<'a, CF, RowT>
+{
+    fn n_cols(&self) -> usize {
+        self.columns.len()
     }
 }
 

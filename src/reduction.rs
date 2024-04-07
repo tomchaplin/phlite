@@ -1,19 +1,18 @@
+use std::collections::HashMap;
 use std::hash::Hash;
-use std::{borrow::Cow, collections::HashMap};
 
 use crate::{
     fields::{Invertible, NonZeroCoefficient},
-    matricies::{product, HasRowFiltration, MatrixRef, VecVecMatrix, WithOrderedColBasis},
+    matricies::{product, FiniteOrderedColBasis, HasRowFiltration, MatrixRef, VecVecMatrix},
 };
 
 // TODO:
 // 1. Convert to oracle
 // 2. Implement clearing
 // 3. Don't keep dropping and rebuilding r_col
-// 4. Add a nice trait for matricies with (immutable) bases
 
-pub fn inefficient_reduction<M>(
-    boundary: &WithOrderedColBasis<M>,
+pub fn inefficient_reduction<M: MatrixRef + FiniteOrderedColBasis>(
+    boundary: M,
 ) -> VecVecMatrix<'static, M::CoefficientField, usize>
 where
     M: MatrixRef + HasRowFiltration,
@@ -21,13 +20,13 @@ where
     M::RowT: Hash,
 {
     let mut v = vec![];
-    for i in 0..boundary.col_basis.len() {
+    for i in 0..boundary.n_cols() {
         v.push(vec![(M::CoefficientField::one(), i)]);
     }
 
     let mut low_inverse: HashMap<M::RowT, usize> = HashMap::new();
 
-    for i in 0..boundary.col_basis.len() {
+    for i in 0..boundary.n_cols() {
         // Reduce column i
         loop {
             // Build up temporary oracle for product
@@ -69,9 +68,7 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::matricies::{
-        product, simple_Z2_matrix, MatrixOracle, MatrixRef, WithOrderedColBasis,
-    };
+    use crate::matricies::{product, simple_Z2_matrix, MatrixOracle, MatrixRef};
 
     use super::inefficient_reduction;
 
@@ -97,10 +94,7 @@ mod tests {
             vec![3, 4, 5],
             vec![],
         ]);
-        let matrix_d_with_basis = WithOrderedColBasis::new(
-            matrix_d.with_trivial_filtration(),
-            vec![0, 1, 2, 3, 4, 5, 6, 7],
-        );
+        let matrix_d_with_basis = matrix_d.with_trivial_filtration();
 
         let matrix_v = inefficient_reduction(&matrix_d_with_basis);
 
