@@ -1,3 +1,4 @@
+use std::fmt::Debug;
 use std::{borrow::Cow, marker::PhantomData};
 
 use itertools::equal;
@@ -497,6 +498,12 @@ impl<M1: MatrixRef, M2: MatrixRef> MatrixRef for Sum<M1, M2> where
 pub struct VecVecMatrix<'a, CF: NonZeroCoefficient, RowT: BasisElement> {
     columns: Cow<'a, Vec<Vec<(CF, RowT)>>>,
     phantom: PhantomData<CF>,
+}
+
+impl<'a, RowT: BasisElement + Debug> Debug for VecVecMatrix<'a, Z2, RowT> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.columns.fmt(f)
+    }
 }
 
 impl<'a, CF: NonZeroCoefficient, RowT: BasisElement> From<Cow<'a, Vec<Vec<(CF, RowT)>>>>
