@@ -15,7 +15,7 @@ impl BasisElement for RipsIndex {}
 
 impl RipsIndex {
     /// Produces from least significant to most significant
-    fn to_vec(self, n_points: usize) -> Vec<usize> {
+    pub fn to_vec(self, n_points: usize) -> Vec<usize> {
         let mut vec = vec![];
         let mut working = self.0;
         while working > 0 {
@@ -26,7 +26,7 @@ impl RipsIndex {
         vec
     }
 
-    fn from_indices(indices: impl Iterator<Item = usize>, n_points: usize) -> Option<Self> {
+    pub fn from_indices(indices: impl Iterator<Item = usize>, n_points: usize) -> Option<Self> {
         let inner = indices
             .enumerate()
             .map(|(i, coeff)| (n_points + 1).pow(i as u32) * (coeff + 1))
@@ -36,6 +36,10 @@ impl RipsIndex {
         } else {
             None
         }
+    }
+
+    pub fn dimension(self, n_points: usize) -> usize {
+        self.to_vec(n_points).len() - 1
     }
 }
 
@@ -105,7 +109,7 @@ impl<CF: NonZeroCoefficient + Invertible> HasRowFiltration for RipsBoundaryMatri
         Ok(max_pairwise_distance)
     }
 
-    // TODO: Override colun with filtration because we can compute max more efficinetly
+    // TODO:Can we override column with filtration to compute more efficiently?
 }
 
 // Represents the boundary matrix for a given dimension
@@ -237,7 +241,58 @@ impl<CF: NonZeroCoefficient + Invertible> RipsBoundaryEnsemble<CF> {
             bases,
         }
     }
+
+    pub fn total_index_to_dim_index(&self, total_index: usize) -> (usize, usize) {
+        let mut working = total_index;
+        let mut dim = 0;
+        loop {
+            if working < self.bases[dim].len() {
+                break;
+            } else {
+                working -= self.bases[dim].len();
+                dim += 1;
+            }
+        }
+        (dim, working)
+    }
+
+    pub fn basis_at_total_index(&self, total_index: usize) -> (NotNan<f64>, RipsIndex) {
+        let (dim, local_index) = self.total_index_to_dim_index(total_index);
+        self.bases[dim][local_index]
+    }
 }
+
+impl<CF: NonZeroCoefficient + Invertible> MatrixOracle for RipsBoundaryEnsemble<CF> {
+    type CoefficientField = CF;
+
+    type ColT = usize;
+
+    type RowT = RipsIndex;
+
+    fn column(
+        &self,
+        col: Self::ColT,
+    ) -> Result<impl Iterator<Item = (Self::CoefficientField, Self::RowT)>, crate::PhliteError>
+    {
+        let (dim, local_index) = self.total_index_to_dim_index(col);
+        self.oracle.column(self.bases[dim][local_index].1)
+    }
+}
+
+impl<CF: NonZeroCoefficient + Invertible> HasRowFiltration for RipsBoundaryEnsemble<CF> {
+    type FiltrationT = NotNan<f64>;
+
+    fn filtration_value(&self, row: Self::RowT) -> Result<Self::FiltrationT, crate::PhliteError> {
+        self.oracle.filtration_value(row)
+    }
+}
+
+impl<CF: NonZeroCoefficient + Invertible> FiniteOrderedColBasis for RipsBoundaryEnsemble<CF> {
+    fn n_cols(&self) -> usize {
+        self.bases.iter().map(|basis| basis.len()).sum()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::collections::HashSet;
@@ -266,8 +321,7 @@ mod tests {
         assert_eq!(vec, as_vec);
     }
 
-    #[test]
-    fn test_rips() {
+    fn distance_matrix() -> Vec<Vec<NotNan<f64>>> {
         let zero = NotNan::new(0.0).unwrap();
         let one = NotNan::new(1.0).unwrap();
         let sqrt2 = NotNan::new(2.0_f64.sqrt()).unwrap();
@@ -277,71 +331,57 @@ mod tests {
             vec![sqrt2, one, zero, one],
             vec![one, sqrt2, one, zero],
         ];
+        distance_matrix
+    }
 
-        let ensemble = RipsBoundaryEnsemble::<Z2>::build(distance_matrix, 2);
-        println!("{:?}", ensemble.bases);
+    #[test]
+    fn test_rips_total() {
+        let distance_matrix = distance_matrix();
+        let n_points = distance_matrix.len();
+        let max_dim = 2;
 
-        assert_eq!(ensemble.bases[0].len(), 4);
-        assert_eq!(ensemble.bases[1].len(), 6);
-        assert_eq!(ensemble.bases[2].len(), 4);
+        // Compute column basis
+        let ensemble = RipsBoundaryEnsemble::<Z2>::build(distance_matrix, max_dim);
+        // Compute reduction matrix
+        let v = inefficient_reduction(&ensemble);
+        let r = product(&ensemble, &v);
 
-        let d0 = ensemble.dimension_matrix(0);
-        let d1 = ensemble.dimension_matrix(1);
-        let d2 = ensemble.dimension_matrix(2);
-        let v0 = inefficient_reduction(&d0);
-        let v1 = inefficient_reduction(&d1);
-        let v2 = inefficient_reduction(&d2);
-
-        let r0 = product(&d0, &v0);
-        let r1 = product(&d1, &v1);
-        let r2 = product(&d2, &v2);
-
-        println!("R0");
-        for i in 0..r0.n_cols() {
-            let r0_i = r0.build_bhcol(i).unwrap().to_sorted_vec();
-            println!("Col {i} : {r0_i:?}");
-        }
-
-        println!("R1");
-        for i in 0..r1.n_cols() {
-            let r1_i = r1.build_bhcol(i).unwrap().to_sorted_vec();
-            println!("Col {i} : {r1_i:?}");
-        }
-
-        println!("R2");
-        for i in 0..r2.n_cols() {
-            let r2_i = r2.build_bhcol(i).unwrap().to_sorted_vec();
-            println!("Col {i} : {r2_i:?}");
-        }
-
+        // Read off diagram
         let mut essential_idxs = HashSet::new();
-        for i in 0..r1.n_cols() {
-            let mut r1_i = r1.build_bhcol(i).unwrap();
-            if r1_i.pop_pivot().is_none() {
-                essential_idxs.insert(d1.basis[i].1);
+        for i in 0..r.n_cols() {
+            let mut r_i = r.build_bhcol(i).unwrap();
+            if r_i.pop_pivot().is_none() {
+                essential_idxs.insert(ensemble.basis_at_total_index(i).1);
             }
         }
 
         let mut pairings = vec![];
-        for i in 0..r2.n_cols() {
-            let mut r2_i = r2.build_bhcol(i).unwrap();
-            if let Some(piv) = r2_i.pop_pivot() {
-                pairings.push((
-                    piv.row_index,
-                    d2.basis[i].1,
-                    piv.filtration_value,
-                    d2.basis[i].0,
-                ));
+        for i in 0..r.n_cols() {
+            let mut r_i = r.build_bhcol(i).unwrap();
+            if let Some(piv) = r_i.pop_pivot() {
+                let (death_t, death_idx) = ensemble.basis_at_total_index(i);
+                pairings.push((piv.row_index, death_idx, piv.filtration_value, death_t));
                 essential_idxs.remove(&piv.row_index);
             }
         }
+
+        // Report
         println!("Essential:");
         for idx in essential_idxs {
-            println!("{idx:?}");
+            let f_val = ensemble.filtration_value(idx).unwrap();
+            let dim = idx.dimension(n_points);
+            if dim == max_dim {
+                continue;
+            }
+            println!(" dim={dim}, birth={idx:?}, f=({f_val}, ∞)");
         }
-        println!("Pairings:");
+        println!("\nPairings:");
         for tup in pairings {
-            println!("{tup:?}");
+            let dim = tup.0.dimension(n_points);
+            let idx_tup = (tup.0, tup.1);
+            let birth_f = tup.2;
+            let death_f = tup.3;
+            println!(" dim={dim}, pair={idx_tup:?}, f=({birth_f}, {death_f})");
         }
     }
 }
