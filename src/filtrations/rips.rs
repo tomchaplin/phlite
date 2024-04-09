@@ -1,4 +1,4 @@
-use std::{cmp::Reverse, iter, marker::PhantomData};
+use std::{cmp::Reverse, convert::identity, iter, marker::PhantomData};
 
 use ordered_float::NotNan;
 
@@ -245,7 +245,7 @@ where
 
 impl<CF: NonZeroCoefficient + Invertible> RipsBoundaryEnsemble<CF> {
     pub fn build(distances: Vec<Vec<NotNan<f64>>>, max_dim: usize) -> Self {
-        let bases = build_rips_bases(&distances, max_dim, |x| x);
+        let bases = build_rips_bases(&distances, max_dim, identity);
         Self {
             oracle: RipsBoundaryMatrix {
                 distances,
