@@ -1,3 +1,4 @@
+use std::cmp::Reverse;
 use std::fmt::Debug;
 use std::{borrow::Cow, marker::PhantomData};
 
@@ -24,6 +25,9 @@ impl FiltrationT for NotNan<f64> {}
 impl FiltrationT for usize {}
 impl FiltrationT for isize {}
 impl FiltrationT for () {}
+
+impl<T> BasisElement for Reverse<T> where T: BasisElement {}
+impl<T> FiltrationT for Reverse<T> where T: FiltrationT {}
 
 // ======== Abstract matrix oracle trait =======================
 
