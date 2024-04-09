@@ -1,7 +1,7 @@
 pub mod columns;
 pub mod fields;
 pub mod filtrations;
-pub mod matricies;
+pub mod matrices;
 pub mod reduction;
 
 // TODO: Consider peeling off filtration and column basis into separate object?

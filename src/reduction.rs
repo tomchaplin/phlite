@@ -5,14 +5,14 @@ use std::hash::Hash;
 use crate::{
     columns::ColumnEntry,
     fields::{Invertible, NonZeroCoefficient},
-    matricies::{FiniteOrderedColBasis, HasRowFiltration, MatrixOracle, VecVecMatrix},
+    matrices::{implementors::VecVecMatrix, FiniteOrderedColBasis, HasRowFiltration, MatrixOracle},
 };
 
 // TODO:
 // 1. Convert to oracle
 // 2. Implement clearing
 
-pub fn inefficient_reduction<M>(boundary: M) -> VecVecMatrix<'static, M::CoefficientField, usize>
+pub fn standard_algo<M>(boundary: M) -> VecVecMatrix<'static, M::CoefficientField, usize>
 where
     M: MatrixOracle + FiniteOrderedColBasis + HasRowFiltration,
     M::CoefficientField: Invertible,
@@ -84,9 +84,11 @@ where
 #[cfg(test)]
 mod tests {
 
-    use crate::matricies::{product, simple_Z2_matrix, MatrixOracle, MatrixRef};
+    use crate::matrices::{
+        combinators::product, implementors::simple_Z2_matrix, MatrixOracle, MatrixRef,
+    };
 
-    use super::inefficient_reduction;
+    use super::standard_algo;
 
     #[test]
     fn test_inefficient_reduction() {
@@ -100,7 +102,7 @@ mod tests {
             vec![3, 4, 5],
             vec![3, 4, 5],
         ]);
-        let matrix_v = inefficient_reduction(matrix_d.with_trivial_filtration());
+        let matrix_v = standard_algo(matrix_d.with_trivial_filtration());
         let matrix_r = product(&matrix_d, &matrix_v);
         let true_matrix_r = simple_Z2_matrix(vec![
             vec![],

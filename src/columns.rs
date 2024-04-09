@@ -1,4 +1,4 @@
-use crate::matricies::HasRowFiltration;
+use crate::matrices::HasRowFiltration;
 use std::{collections::BinaryHeap, fmt::Debug, iter::repeat};
 
 pub struct ColumnEntry<M: HasRowFiltration> {
