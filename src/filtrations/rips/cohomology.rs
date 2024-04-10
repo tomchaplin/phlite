@@ -200,10 +200,7 @@ mod tests {
             cohomology::{RipsCoboundary, RipsCoboundaryAllDims},
             RipsIndex,
         },
-        matrices::{
-            combinators::product, ColBasis, HasColBasis, HasRowFiltration, MatrixOracle, MatrixRef,
-            SplitByDimension,
-        },
+        matrices::{combinators::product, ColBasis, HasColBasis, HasRowFiltration, MatrixOracle},
         reduction::standard_algo,
     };
 
@@ -268,40 +265,43 @@ mod tests {
         let v = standard_algo(&ensemble);
         let r = product(&ensemble, &v);
 
-        // Read off diagram
+        // Read off diagram - we go backwards so that we only have to loop once (since we are in cohomology)
         let mut essential_idxs = HashSet::new();
-        for i in 0..r.basis().size() {
-            let mut r_i = r.build_bhcol(i).unwrap();
-            if r_i.pop_pivot().is_none() {
-                essential_idxs.insert(ensemble.basis().element(i));
-            }
-        }
-
         let mut pairings = vec![];
-        for i in 0..r.basis().size() {
+        for i in (0..r.basis().size()).rev() {
             let mut r_i = r.build_bhcol(i).unwrap();
-            if let Some(piv) = r_i.pop_pivot() {
-                let death_idx = ensemble.basis().element(i);
-                let death_t = ensemble.matrix.filtration_value(death_idx).unwrap();
-                pairings.push((piv.row_index, death_idx, piv.filtration_value, death_t));
-                essential_idxs.remove(&piv.row_index);
+            match r_i.pop_pivot() {
+                None => {
+                    essential_idxs.insert(ensemble.basis().element(i));
+                }
+                Some(piv) => {
+                    let death_idx = ensemble.basis().element(i);
+                    let death_t = ensemble.matrix.filtration_value(death_idx).unwrap();
+                    pairings.push((piv.row_index, death_idx, piv.filtration_value, death_t));
+                    essential_idxs.remove(&piv.row_index);
+                }
             }
+            if r_i.pop_pivot().is_none() {}
         }
 
         // Report
         println!("Essential:");
-        for idx in essential_idxs {
-            let f_val = ensemble.filtration_value(idx).unwrap().0;
+        for idx in essential_idxs.iter() {
+            let f_val = ensemble.filtration_value(*idx).unwrap().0;
             let dim = idx.dimension(n_points);
             println!(" dim={dim}, birth={idx:?}, f=({f_val}, ∞)");
         }
         println!("\nPairings:");
-        for tup in pairings {
+        for tup in pairings.iter() {
             let dim = tup.1.dimension(n_points);
             let idx_tup = (tup.1, tup.0);
             let birth_f = tup.3 .0;
             let death_f = tup.2 .0;
             println!(" dim={dim}, pair={idx_tup:?}, f=({birth_f}, {death_f})");
         }
+
+        // 2-dimensional void is killed without having to compute basis for C_3
+        assert_eq!(pairings.len(), 7);
+        assert_eq!(essential_idxs.len(), 1);
     }
 }

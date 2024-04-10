@@ -105,7 +105,7 @@ mod tests {
     use crate::{
         fields::Z2,
         filtrations::rips::homology::RipsBoundaryAllDims,
-        matrices::{combinators::product, ColBasis, HasColBasis, HasRowFiltration, MatrixRef},
+        matrices::{combinators::product, ColBasis, HasColBasis, HasRowFiltration},
         reduction::standard_algo,
     };
 
@@ -136,38 +136,41 @@ mod tests {
 
         // Read off diagram
         let mut essential_idxs = HashSet::new();
-        for i in 0..r.basis().size() {
-            let mut r_i = r.build_bhcol(i).unwrap();
-            if r_i.pop_pivot().is_none() {
-                essential_idxs.insert(ensemble.basis().element(i));
-            }
-        }
-
         let mut pairings = vec![];
         for i in 0..r.basis().size() {
             let mut r_i = r.build_bhcol(i).unwrap();
-            if let Some(piv) = r_i.pop_pivot() {
-                let death_idx = ensemble.basis().element(i);
-                let death_t = ensemble.matrix.filtration_value(death_idx).unwrap();
-                pairings.push((piv.row_index, death_idx, piv.filtration_value, death_t));
-                essential_idxs.remove(&piv.row_index);
+            match r_i.pop_pivot() {
+                None => {
+                    essential_idxs.insert(ensemble.basis().element(i));
+                }
+                Some(piv) => {
+                    let death_idx = ensemble.basis().element(i);
+                    let death_t = ensemble.matrix.filtration_value(death_idx).unwrap();
+                    pairings.push((piv.row_index, death_idx, piv.filtration_value, death_t));
+                    essential_idxs.remove(&piv.row_index);
+                }
             }
+            if r_i.pop_pivot().is_none() {}
         }
 
         // Report
         println!("Essential:");
-        for idx in essential_idxs {
-            let f_val = ensemble.filtration_value(idx).unwrap();
+        for idx in essential_idxs.iter() {
+            let f_val = ensemble.filtration_value(*idx).unwrap();
             let dim = idx.dimension(n_points);
             println!(" dim={dim}, birth={idx:?}, f=({f_val}, ∞)");
         }
         println!("\nPairings:");
-        for tup in pairings {
+        for tup in pairings.iter() {
             let dim = tup.0.dimension(n_points);
             let idx_tup = (tup.0, tup.1);
             let birth_f = tup.2;
             let death_f = tup.3;
             println!(" dim={dim}, pair={idx_tup:?}, f=({birth_f}, {death_f})");
         }
+
+        assert_eq!(pairings.len(), 6);
+        // Additional essential idx because we don't fill in a 2-void
+        assert_eq!(essential_idxs.len(), 2);
     }
 }
