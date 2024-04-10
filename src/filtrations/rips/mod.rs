@@ -1,6 +1,6 @@
 use ordered_float::NotNan;
 
-use crate::matrices::BasisElement;
+use crate::matrices::{BasisElement, ColBasis};
 
 pub mod cohomology;
 pub mod homology;
@@ -137,6 +137,42 @@ pub fn max_pairwise_distance(
         })
         .max()
         .unwrap()
+}
+
+// Wrapper around the default structure that contains the basis for Rips homology
+#[derive(Clone, Copy)]
+pub struct SingleDimRipsBasisWithFilt<'a, FT>(&'a Vec<(FT, RipsIndex)>);
+
+impl<'a, FT> ColBasis for SingleDimRipsBasisWithFilt<'a, FT> {
+    type ElemT = RipsIndex;
+
+    fn element(&self, index: usize) -> Self::ElemT {
+        self.0[index].1
+    }
+
+    fn size(&self) -> usize {
+        self.0.len()
+    }
+}
+
+#[derive(Clone)]
+pub struct MultiDimRipsBasisWithFilt<FT>(Vec<Vec<(FT, RipsIndex)>>);
+impl<FT> ColBasis for MultiDimRipsBasisWithFilt<FT> {
+    type ElemT = RipsIndex;
+
+    fn element(&self, index: usize) -> Self::ElemT {
+        let mut working = index;
+        let mut dim = 0;
+        while working >= self.0[dim].len() {
+            working -= self.0[dim].len();
+            dim += 1;
+        }
+        self.0[dim][working].1
+    }
+
+    fn size(&self) -> usize {
+        self.0.iter().map(|basis| basis.len()).sum()
+    }
 }
 
 #[cfg(test)]

@@ -9,7 +9,9 @@ use crate::{
     PhliteError,
 };
 
-use self::adaptors::{WithFuncFiltration, WithTrivialFiltration};
+use self::adaptors::{
+    MatrixWithBasis, UsingColBasisIndex, WithFuncFiltration, WithTrivialFiltration,
+};
 
 pub mod adaptors;
 pub mod combinators;
@@ -110,16 +112,12 @@ pub trait HasRowFiltration: MatrixOracle + Sized {
     }
 }
 
-pub trait FiniteOrderedColBasis: MatrixOracle<ColT = usize> {
-    fn n_cols(&self) -> usize;
-}
-
 pub trait MatrixRef: MatrixOracle + Copy {
     fn with_trivial_filtration(self) -> WithTrivialFiltration<Self>
     where
         Self: Sized,
     {
-        WithTrivialFiltration { matrix_ref: self }
+        WithTrivialFiltration { oracle: self }
     }
 
     fn with_filtration<FT: FiltrationT, F: Fn(Self::RowT) -> Result<FT, PhliteError>>(
@@ -134,7 +132,26 @@ pub trait MatrixRef: MatrixOracle + Copy {
             filtration: filtration_function,
         }
     }
+
+    fn with_basis<B>(self, basis: B) -> MatrixWithBasis<Self, B>
+    where
+        B: ColBasis<ElemT = Self::ColT>,
+    {
+        MatrixWithBasis {
+            matrix: self,
+            basis,
+        }
+    }
+
+    fn using_col_basis_index(self) -> UsingColBasisIndex<Self>
+    where
+        Self: HasColBasis,
+    {
+        UsingColBasisIndex { oracle: self }
+    }
 }
+
+impl<M> MatrixRef for M where M: MatrixOracle + Copy {}
 
 impl<'a, M> MatrixOracle for &'a M
 where
@@ -163,13 +180,55 @@ where
     }
 }
 
-impl<'a, M> FiniteOrderedColBasis for &'a M
+pub trait ColBasis {
+    type ElemT: BasisElement;
+    fn element(&self, index: usize) -> Self::ElemT;
+    fn size(&self) -> usize;
+}
+
+// impl<'a, B> ColBasis for &'a B
+// where
+//     B: ColBasis,
+// {
+//     type ElemT = B::ElemT;
+//
+//     fn element(&self, index: usize) -> Self::ElemT {
+//         (*self).element(index)
+//     }
+//
+//     fn size(&self) -> usize {
+//         (*self).size()
+//     }
+// }
+
+impl<T> ColBasis for Vec<T>
 where
-    M: FiniteOrderedColBasis,
+    T: BasisElement,
 {
-    fn n_cols(&self) -> usize {
-        (*self).n_cols()
+    type ElemT = T;
+
+    fn element(&self, index: usize) -> Self::ElemT {
+        self[index]
+    }
+
+    fn size(&self) -> usize {
+        self.len()
     }
 }
 
-impl<'a, M> MatrixRef for &'a M where M: MatrixOracle {}
+pub trait HasColBasis: MatrixOracle {
+    type BasisT: ColBasis<ElemT = Self::ColT>;
+
+    fn basis(&self) -> &Self::BasisT;
+}
+
+impl<'a, T> HasColBasis for &'a T
+where
+    T: HasColBasis,
+{
+    type BasisT = T::BasisT;
+
+    fn basis(&self) -> &Self::BasisT {
+        (*self).basis()
+    }
+}

@@ -6,12 +6,14 @@ use crate::{
     columns::ColumnEntry,
     fields::{Invertible, NonZeroCoefficient},
     filtrations::rips::{build_rips_bases, max_pairwise_distance, RipsIndex},
-    matrices::{FiniteOrderedColBasis, HasRowFiltration, MatrixOracle},
+    matrices::{adaptors::MatrixWithBasis, HasRowFiltration, MatrixOracle},
 };
+
+use super::{MultiDimRipsBasisWithFilt, SingleDimRipsBasisWithFilt};
 
 // TODO: distances only needs to be a reference
 
-struct RipsCoboundary<CF: NonZeroCoefficient + Invertible> {
+pub struct RipsCoboundary<CF: NonZeroCoefficient + Invertible> {
     distances: Vec<Vec<NotNan<f64>>>,
     phantom: PhantomData<CF>,
 }
@@ -160,112 +162,30 @@ impl<CF: NonZeroCoefficient + Invertible> HasRowFiltration for RipsCoboundary<CF
     }
 }
 
-pub struct RipsCoboundaryAllDims<CF: NonZeroCoefficient + Invertible> {
-    oracle: RipsCoboundary<CF>,
-    bases: Vec<Vec<(Reverse<NotNan<f64>>, RipsIndex)>>,
-}
+pub type RipsCoboundarySingleDim<'a, CF> =
+    MatrixWithBasis<&'a RipsCoboundary<CF>, SingleDimRipsBasisWithFilt<'a, Reverse<NotNan<f64>>>>;
+
+pub type RipsCoboundaryAllDims<CF> =
+    MatrixWithBasis<RipsCoboundary<CF>, MultiDimRipsBasisWithFilt<Reverse<NotNan<f64>>>>;
 
 impl<CF: NonZeroCoefficient + Invertible> RipsCoboundaryAllDims<CF> {
     pub fn build(distances: Vec<Vec<NotNan<f64>>>, max_dim: usize) -> Self {
+        // Pass in the Reverse functor to revere filtration order on columns in basis
         let bases = build_rips_bases(&distances, max_dim, Reverse);
-        Self {
-            oracle: RipsCoboundary {
+        RipsCoboundaryAllDims {
+            matrix: RipsCoboundary {
                 distances,
                 phantom: PhantomData,
             },
-            bases,
+            basis: MultiDimRipsBasisWithFilt(bases),
         }
     }
 
     pub fn dimension_matrix<'a>(&'a self, dim: usize) -> RipsCoboundarySingleDim<'a, CF> {
         RipsCoboundarySingleDim {
-            oracle: &self.oracle,
-            basis: &self.bases[dim],
+            matrix: &self.matrix,
+            basis: SingleDimRipsBasisWithFilt(&self.basis.0[dim]),
         }
-    }
-
-    pub fn total_index_to_dim_index(&self, total_index: usize) -> (usize, usize) {
-        let mut working = total_index;
-        let mut dim = 0;
-        while working >= self.bases[dim].len() {
-            working -= self.bases[dim].len();
-            dim += 1;
-        }
-        (dim, working)
-    }
-
-    pub fn basis_at_total_index(&self, total_index: usize) -> (Reverse<NotNan<f64>>, RipsIndex) {
-        let (dim, local_index) = self.total_index_to_dim_index(total_index);
-        self.bases[dim][local_index]
-    }
-}
-
-impl<CF: NonZeroCoefficient + Invertible> MatrixOracle for RipsCoboundaryAllDims<CF> {
-    type CoefficientField = CF;
-
-    type ColT = usize;
-
-    type RowT = RipsIndex;
-
-    fn column(
-        &self,
-        col: Self::ColT,
-    ) -> Result<impl Iterator<Item = (Self::CoefficientField, Self::RowT)>, crate::PhliteError>
-    {
-        let (dim, local_index) = self.total_index_to_dim_index(col);
-        self.oracle.column(self.bases[dim][local_index].1)
-    }
-}
-
-impl<CF: NonZeroCoefficient + Invertible> HasRowFiltration for RipsCoboundaryAllDims<CF> {
-    type FiltrationT = Reverse<NotNan<f64>>;
-
-    fn filtration_value(&self, row: Self::RowT) -> Result<Self::FiltrationT, crate::PhliteError> {
-        self.oracle.filtration_value(row)
-    }
-}
-
-impl<CF: NonZeroCoefficient + Invertible> FiniteOrderedColBasis for RipsCoboundaryAllDims<CF> {
-    fn n_cols(&self) -> usize {
-        self.bases.iter().map(|basis| basis.len()).sum()
-    }
-}
-
-// Represents the boundary matrix for a given dimension
-// Column basis is sorted by (filtration, index)
-#[derive(Clone, Copy)]
-pub struct RipsCoboundarySingleDim<'a, CF: NonZeroCoefficient + Invertible> {
-    oracle: &'a RipsCoboundary<CF>,
-    // bases[i] = basis for the dimension i simplices, sorted by (filtration, index) - ascending
-    basis: &'a Vec<(Reverse<NotNan<f64>>, RipsIndex)>,
-}
-
-impl<'a, CF: NonZeroCoefficient + Invertible> MatrixOracle for RipsCoboundarySingleDim<'a, CF> {
-    type CoefficientField = CF;
-    type ColT = usize;
-    type RowT = RipsIndex;
-    fn column(
-        &self,
-        col: Self::ColT,
-    ) -> Result<impl Iterator<Item = (Self::CoefficientField, Self::RowT)>, crate::PhliteError>
-    {
-        self.oracle.column(self.basis[col].1)
-    }
-}
-
-impl<'a, CF: NonZeroCoefficient + Invertible> HasRowFiltration for RipsCoboundarySingleDim<'a, CF> {
-    type FiltrationT = Reverse<NotNan<f64>>;
-
-    fn filtration_value(&self, row: Self::RowT) -> Result<Self::FiltrationT, crate::PhliteError> {
-        self.oracle.filtration_value(row)
-    }
-}
-
-impl<'a, CF: NonZeroCoefficient + Invertible> FiniteOrderedColBasis
-    for RipsCoboundarySingleDim<'a, CF>
-{
-    fn n_cols(&self) -> usize {
-        self.basis.len()
     }
 }
 
@@ -282,7 +202,9 @@ mod tests {
             cohomology::{RipsCoboundary, RipsCoboundaryAllDims},
             RipsIndex,
         },
-        matrices::{combinators::product, FiniteOrderedColBasis, HasRowFiltration, MatrixOracle},
+        matrices::{
+            combinators::product, ColBasis, HasColBasis, HasRowFiltration, MatrixOracle, MatrixRef,
+        },
         reduction::standard_algo,
     };
 
@@ -345,22 +267,23 @@ mod tests {
         let ensemble = RipsCoboundaryAllDims::<Z2>::build(distance_matrix, max_dim);
         // Compute reduction matrix
         let v = standard_algo(&ensemble);
-        let r = product(&ensemble, &v);
+        let r = product(ensemble.using_col_basis_index(), &v);
 
         // Read off diagram
         let mut essential_idxs = HashSet::new();
-        for i in 0..r.n_cols() {
+        for i in 0..r.basis().size() {
             let mut r_i = r.build_bhcol(i).unwrap();
             if r_i.pop_pivot().is_none() {
-                essential_idxs.insert(ensemble.basis_at_total_index(i).1);
+                essential_idxs.insert(ensemble.basis().element(i));
             }
         }
 
         let mut pairings = vec![];
-        for i in 0..r.n_cols() {
+        for i in 0..r.basis().size() {
             let mut r_i = r.build_bhcol(i).unwrap();
             if let Some(piv) = r_i.pop_pivot() {
-                let (death_t, death_idx) = ensemble.basis_at_total_index(i);
+                let death_idx = ensemble.basis().element(i);
+                let death_t = ensemble.matrix.filtration_value(death_idx).unwrap();
                 pairings.push((piv.row_index, death_idx, piv.filtration_value, death_t));
                 essential_idxs.remove(&piv.row_index);
             }
@@ -375,7 +298,7 @@ mod tests {
         }
         println!("\nPairings:");
         for tup in pairings {
-            let dim = tup.0.dimension(n_points);
+            let dim = tup.1.dimension(n_points);
             let idx_tup = (tup.1, tup.0);
             let birth_f = tup.3 .0;
             let death_f = tup.2 .0;

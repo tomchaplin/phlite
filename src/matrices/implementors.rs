@@ -7,7 +7,7 @@ use crate::{
     PhliteError,
 };
 
-use super::{BasisElement, FiniteOrderedColBasis, MatrixOracle};
+use super::{BasisElement, ColBasis, HasColBasis, MatrixOracle};
 
 use std::fmt::Debug;
 
@@ -16,6 +16,7 @@ use std::fmt::Debug;
 pub struct VecVecMatrix<'a, CF: NonZeroCoefficient, RowT: BasisElement> {
     columns: Cow<'a, Vec<Vec<(CF, RowT)>>>,
     phantom: PhantomData<CF>,
+    basis: StandardBasis,
 }
 
 impl<'a, RowT: BasisElement + Debug> Debug for VecVecMatrix<'a, Z2, RowT> {
@@ -29,6 +30,9 @@ impl<'a, CF: NonZeroCoefficient, RowT: BasisElement> From<Cow<'a, Vec<Vec<(CF, R
 {
     fn from(value: Cow<'a, Vec<Vec<(CF, RowT)>>>) -> Self {
         Self {
+            basis: StandardBasis {
+                n_cols: value.len(),
+            },
             columns: value,
             phantom: PhantomData,
         }
@@ -40,6 +44,9 @@ impl<'a, CF: NonZeroCoefficient, RowT: BasisElement> From<&'a Vec<Vec<(CF, RowT)
 {
     fn from(value: &'a Vec<Vec<(CF, RowT)>>) -> Self {
         Self {
+            basis: StandardBasis {
+                n_cols: value.len(),
+            },
             columns: Cow::Borrowed(value),
             phantom: PhantomData,
         }
@@ -51,6 +58,9 @@ impl<'a, CF: NonZeroCoefficient, RowT: BasisElement> From<Vec<Vec<(CF, RowT)>>>
 {
     fn from(value: Vec<Vec<(CF, RowT)>>) -> Self {
         Self {
+            basis: StandardBasis {
+                n_cols: value.len(),
+            },
             columns: Cow::Owned(value),
             phantom: PhantomData,
         }
@@ -77,11 +87,11 @@ impl<'a, CF: NonZeroCoefficient, RowT: BasisElement> MatrixOracle for VecVecMatr
     }
 }
 
-impl<'a, CF: NonZeroCoefficient, RowT: BasisElement> FiniteOrderedColBasis
-    for VecVecMatrix<'a, CF, RowT>
-{
-    fn n_cols(&self) -> usize {
-        self.columns.len()
+impl<'a, CF: NonZeroCoefficient, RowT: BasisElement> HasColBasis for VecVecMatrix<'a, CF, RowT> {
+    type BasisT = StandardBasis;
+
+    fn basis(&self) -> &Self::BasisT {
+        &self.basis
     }
 }
 
@@ -97,4 +107,27 @@ pub fn simple_Z2_matrix(cols: Vec<Vec<usize>>) -> VecVecMatrix<'static, Z2, usiz
         .collect::<Vec<Vec<(Z2, usize)>>>();
 
     <VecVecMatrix<'_, Z2, usize>>::from(Cow::Owned(cols_with_coeffs))
+}
+
+#[derive(Clone, Copy)]
+pub struct StandardBasis {
+    n_cols: usize,
+}
+
+impl StandardBasis {
+    pub fn new(n_cols: usize) -> Self {
+        Self { n_cols }
+    }
+}
+
+impl ColBasis for StandardBasis {
+    type ElemT = usize;
+
+    fn element(&self, index: usize) -> Self::ElemT {
+        index
+    }
+
+    fn size(&self) -> usize {
+        self.n_cols
+    }
 }

@@ -1,11 +1,10 @@
 use std::collections::HashMap;
-use std::fmt::Debug;
 use std::hash::Hash;
 
 use crate::{
     columns::ColumnEntry,
     fields::{Invertible, NonZeroCoefficient},
-    matrices::{implementors::VecVecMatrix, FiniteOrderedColBasis, HasRowFiltration, MatrixOracle},
+    matrices::{implementors::VecVecMatrix, ColBasis, HasColBasis, HasRowFiltration, MatrixRef},
 };
 
 // TODO:
@@ -14,23 +13,23 @@ use crate::{
 
 pub fn standard_algo<M>(boundary: M) -> VecVecMatrix<'static, M::CoefficientField, usize>
 where
-    M: MatrixOracle + FiniteOrderedColBasis + HasRowFiltration,
+    M: MatrixRef + HasRowFiltration + HasColBasis,
     M::CoefficientField: Invertible,
     M::RowT: Hash,
-    M::RowT: Debug,
 {
     let mut v = vec![];
-    for i in 0..boundary.n_cols() {
+    for i in 0..boundary.basis().size() {
         v.push(vec![(M::CoefficientField::one(), i)]);
     }
 
     // low_inverse[i]=(j, lambda) means R[j] has lowest non-zero in row i with coefficient lambda
     let mut low_inverse: HashMap<M::RowT, (usize, M::CoefficientField)> = HashMap::new();
 
-    'column_loop: for i in 0..boundary.n_cols() {
+    'column_loop: for i in 0..boundary.basis().size() {
         // Reduce column i
 
-        let mut r_col = boundary.build_bhcol(i).unwrap();
+        let basis_element = boundary.basis().element(i);
+        let mut r_col = boundary.build_bhcol(basis_element).unwrap();
 
         'reduction: loop {
             let Some(pivot_entry) = r_col.pop_pivot() else {
@@ -53,10 +52,12 @@ where
             // If so then we add a multiple of that column to cancel out the pivot in r_col
             let col_multiple = pivot_coeff.additive_inverse() * (other_col_coeff.inverse());
 
+            let other_col_basis_element = boundary.basis().element(*other_col_idx);
+
             // Add the multiple of that column
             r_col.add_entries(
                 boundary
-                    .column_with_filtration(*other_col_idx)
+                    .column_with_filtration(other_col_basis_element)
                     .unwrap()
                     .map(|e| e.unwrap())
                     .map(|entry| {
@@ -102,8 +103,8 @@ mod tests {
             vec![3, 4, 5],
             vec![3, 4, 5],
         ]);
-        let matrix_v = standard_algo(matrix_d.with_trivial_filtration());
-        let matrix_r = product(&matrix_d, &matrix_v);
+        let matrix_v = standard_algo(&matrix_d.with_trivial_filtration());
+        let matrix_r = product(matrix_d.using_col_basis_index(), &matrix_v);
         let true_matrix_r = simple_Z2_matrix(vec![
             vec![],
             vec![],

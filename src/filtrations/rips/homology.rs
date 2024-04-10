@@ -5,10 +5,12 @@ use ordered_float::NotNan;
 use crate::{
     fields::{Invertible, NonZeroCoefficient},
     filtrations::rips::{build_rips_bases, max_pairwise_distance, RipsIndex},
-    matrices::{FiniteOrderedColBasis, HasRowFiltration, MatrixOracle},
+    matrices::{adaptors::MatrixWithBasis, HasRowFiltration, MatrixOracle},
 };
 
-struct RipsBoundary<CF: NonZeroCoefficient + Invertible> {
+use super::{MultiDimRipsBasisWithFilt, SingleDimRipsBasisWithFilt};
+
+pub struct RipsBoundary<CF: NonZeroCoefficient + Invertible> {
     distances: Vec<Vec<NotNan<f64>>>,
     phantom: PhantomData<CF>,
 }
@@ -67,112 +69,29 @@ impl<CF: NonZeroCoefficient + Invertible> HasRowFiltration for RipsBoundary<CF> 
     // TODO:Can we override column with filtration to compute more efficiently?
 }
 
-// Represents the boundary matrix for a given dimension
-// Column basis is sorted by (filtration, index)
-#[derive(Clone, Copy)]
-pub struct RipsBoundarySingleDim<'a, CF: NonZeroCoefficient + Invertible> {
-    oracle: &'a RipsBoundary<CF>,
-    // bases[i] = basis for the dimension i simplices, sorted by (filtration, index) - ascending
-    basis: &'a Vec<(NotNan<f64>, RipsIndex)>,
-}
+pub type RipsBoundarySingleDim<'a, CF> =
+    MatrixWithBasis<&'a RipsBoundary<CF>, SingleDimRipsBasisWithFilt<'a, NotNan<f64>>>;
 
-impl<'a, CF: NonZeroCoefficient + Invertible> MatrixOracle for RipsBoundarySingleDim<'a, CF> {
-    type CoefficientField = CF;
-    type ColT = usize;
-    type RowT = RipsIndex;
-    fn column(
-        &self,
-        col: Self::ColT,
-    ) -> Result<impl Iterator<Item = (Self::CoefficientField, Self::RowT)>, crate::PhliteError>
-    {
-        self.oracle.column(self.basis[col].1)
-    }
-}
-
-impl<'a, CF: NonZeroCoefficient + Invertible> HasRowFiltration for RipsBoundarySingleDim<'a, CF> {
-    type FiltrationT = NotNan<f64>;
-
-    fn filtration_value(&self, row: Self::RowT) -> Result<Self::FiltrationT, crate::PhliteError> {
-        self.oracle.filtration_value(row)
-    }
-}
-
-impl<'a, CF: NonZeroCoefficient + Invertible> FiniteOrderedColBasis
-    for RipsBoundarySingleDim<'a, CF>
-{
-    fn n_cols(&self) -> usize {
-        self.basis.len()
-    }
-}
-
-pub struct RipsBoundaryAllDims<CF: NonZeroCoefficient + Invertible> {
-    oracle: RipsBoundary<CF>,
-    bases: Vec<Vec<(NotNan<f64>, RipsIndex)>>,
-}
+pub type RipsBoundaryAllDims<CF> =
+    MatrixWithBasis<RipsBoundary<CF>, MultiDimRipsBasisWithFilt<NotNan<f64>>>;
 
 impl<CF: NonZeroCoefficient + Invertible> RipsBoundaryAllDims<CF> {
     pub fn build(distances: Vec<Vec<NotNan<f64>>>, max_dim: usize) -> Self {
         let bases = build_rips_bases(&distances, max_dim, identity);
-        Self {
-            oracle: RipsBoundary {
+        RipsBoundaryAllDims {
+            matrix: RipsBoundary {
                 distances,
                 phantom: PhantomData,
             },
-            bases,
+            basis: MultiDimRipsBasisWithFilt(bases),
         }
     }
 
     pub fn dimension_matrix<'a>(&'a self, dim: usize) -> RipsBoundarySingleDim<'a, CF> {
         RipsBoundarySingleDim {
-            oracle: &self.oracle,
-            basis: &self.bases[dim],
+            matrix: &self.matrix,
+            basis: SingleDimRipsBasisWithFilt(&self.basis.0[dim]),
         }
-    }
-
-    pub fn total_index_to_dim_index(&self, total_index: usize) -> (usize, usize) {
-        let mut working = total_index;
-        let mut dim = 0;
-        while working >= self.bases[dim].len() {
-            working -= self.bases[dim].len();
-            dim += 1;
-        }
-        (dim, working)
-    }
-
-    pub fn basis_at_total_index(&self, total_index: usize) -> (NotNan<f64>, RipsIndex) {
-        let (dim, local_index) = self.total_index_to_dim_index(total_index);
-        self.bases[dim][local_index]
-    }
-}
-
-impl<CF: NonZeroCoefficient + Invertible> MatrixOracle for RipsBoundaryAllDims<CF> {
-    type CoefficientField = CF;
-
-    type ColT = usize;
-
-    type RowT = RipsIndex;
-
-    fn column(
-        &self,
-        col: Self::ColT,
-    ) -> Result<impl Iterator<Item = (Self::CoefficientField, Self::RowT)>, crate::PhliteError>
-    {
-        let (dim, local_index) = self.total_index_to_dim_index(col);
-        self.oracle.column(self.bases[dim][local_index].1)
-    }
-}
-
-impl<CF: NonZeroCoefficient + Invertible> HasRowFiltration for RipsBoundaryAllDims<CF> {
-    type FiltrationT = NotNan<f64>;
-
-    fn filtration_value(&self, row: Self::RowT) -> Result<Self::FiltrationT, crate::PhliteError> {
-        self.oracle.filtration_value(row)
-    }
-}
-
-impl<CF: NonZeroCoefficient + Invertible> FiniteOrderedColBasis for RipsBoundaryAllDims<CF> {
-    fn n_cols(&self) -> usize {
-        self.bases.iter().map(|basis| basis.len()).sum()
     }
 }
 
@@ -186,7 +105,7 @@ mod tests {
     use crate::{
         fields::Z2,
         filtrations::rips::homology::RipsBoundaryAllDims,
-        matrices::{combinators::product, FiniteOrderedColBasis, HasRowFiltration},
+        matrices::{combinators::product, ColBasis, HasColBasis, HasRowFiltration, MatrixRef},
         reduction::standard_algo,
     };
 
@@ -213,22 +132,23 @@ mod tests {
         let ensemble = RipsBoundaryAllDims::<Z2>::build(distance_matrix, max_dim);
         // Compute reduction matrix
         let v = standard_algo(&ensemble);
-        let r = product(&ensemble, &v);
+        let r = &product(ensemble.using_col_basis_index(), &v);
 
         // Read off diagram
         let mut essential_idxs = HashSet::new();
-        for i in 0..r.n_cols() {
+        for i in 0..r.basis().size() {
             let mut r_i = r.build_bhcol(i).unwrap();
             if r_i.pop_pivot().is_none() {
-                essential_idxs.insert(ensemble.basis_at_total_index(i).1);
+                essential_idxs.insert(ensemble.basis().element(i));
             }
         }
 
         let mut pairings = vec![];
-        for i in 0..r.n_cols() {
+        for i in 0..r.basis().size() {
             let mut r_i = r.build_bhcol(i).unwrap();
             if let Some(piv) = r_i.pop_pivot() {
-                let (death_t, death_idx) = ensemble.basis_at_total_index(i);
+                let death_idx = ensemble.basis().element(i);
+                let death_t = ensemble.matrix.filtration_value(death_idx).unwrap();
                 pairings.push((piv.row_index, death_idx, piv.filtration_value, death_t));
                 essential_idxs.remove(&piv.row_index);
             }

@@ -4,11 +4,11 @@
 
 use crate::{columns::BHCol, PhliteError};
 
-use super::{FiltrationT, FiniteOrderedColBasis, HasRowFiltration, MatrixOracle, MatrixRef};
+use super::{ColBasis, FiltrationT, HasColBasis, HasRowFiltration, MatrixOracle, MatrixRef};
 
 #[derive(Clone, Copy)]
 pub struct WithTrivialFiltration<M: MatrixRef> {
-    pub(crate) matrix_ref: M,
+    pub(crate) oracle: M,
 }
 
 impl<M: MatrixRef> MatrixOracle for WithTrivialFiltration<M> {
@@ -20,11 +20,9 @@ impl<M: MatrixRef> MatrixOracle for WithTrivialFiltration<M> {
         &self,
         col: Self::ColT,
     ) -> Result<impl Iterator<Item = (Self::CoefficientField, Self::RowT)>, PhliteError> {
-        self.matrix_ref.column(col)
+        self.oracle.column(col)
     }
 }
-
-impl<M: MatrixRef> MatrixRef for WithTrivialFiltration<M> {}
 
 impl<M: MatrixRef> HasRowFiltration for WithTrivialFiltration<M> {
     type FiltrationT = ();
@@ -34,18 +32,20 @@ impl<M: MatrixRef> HasRowFiltration for WithTrivialFiltration<M> {
     }
 }
 
-impl<M: MatrixRef> FiniteOrderedColBasis for WithTrivialFiltration<M>
+impl<M: MatrixRef> HasColBasis for WithTrivialFiltration<M>
 where
-    M: FiniteOrderedColBasis,
+    M: HasColBasis,
 {
-    fn n_cols(&self) -> usize {
-        self.matrix_ref.n_cols()
+    type BasisT = M::BasisT;
+
+    fn basis(&self) -> &Self::BasisT {
+        self.oracle.basis()
     }
 }
 
 // ====== WithFuncFiltration ===================
 
-#[derive(Clone)]
+#[derive(Clone, Copy)]
 pub struct WithFuncFiltration<
     M: MatrixRef,
     FT: FiltrationT,
@@ -53,13 +53,6 @@ pub struct WithFuncFiltration<
 > {
     pub(crate) oracle: M,
     pub(crate) filtration: F,
-}
-
-impl<M: MatrixRef, FT: FiltrationT, F: Fn(M::RowT) -> Result<FT, PhliteError>> Copy
-    for WithFuncFiltration<M, FT, F>
-where
-    F: Copy,
-{
 }
 
 impl<M: MatrixRef, FT: FiltrationT, F: Fn(M::RowT) -> Result<FT, PhliteError>>
@@ -84,13 +77,6 @@ impl<M: MatrixRef, FT: FiltrationT, F: Fn(M::RowT) -> Result<FT, PhliteError>> M
     }
 }
 
-impl<M: MatrixRef, FT: FiltrationT, F: Fn(M::RowT) -> Result<FT, PhliteError>> MatrixRef
-    for WithFuncFiltration<M, FT, F>
-where
-    F: Copy,
-{
-}
-
 impl<M: MatrixRef, FT: FiltrationT, F: Fn(M::RowT) -> Result<FT, PhliteError>> HasRowFiltration
     for WithFuncFiltration<M, FT, F>
 {
@@ -101,59 +87,15 @@ impl<M: MatrixRef, FT: FiltrationT, F: Fn(M::RowT) -> Result<FT, PhliteError>> H
     }
 }
 
-impl<M: MatrixRef, FT: FiltrationT, F: Fn(M::RowT) -> Result<FT, PhliteError>> FiniteOrderedColBasis
+impl<M: MatrixRef, FT: FiltrationT, F: Fn(M::RowT) -> Result<FT, PhliteError>> HasColBasis
     for WithFuncFiltration<M, FT, F>
 where
-    M: FiniteOrderedColBasis,
+    M: HasColBasis,
 {
-    fn n_cols(&self) -> usize {
-        self.oracle.n_cols()
-    }
-}
+    type BasisT = M::BasisT;
 
-// ====== WithOrderedBasis =====================
-
-// TODO: Change so it only stores a ref?
-pub struct WithOrderedColBasis<M: MatrixRef> {
-    oracle: M,
-    pub col_basis: Vec<M::ColT>,
-}
-
-impl<M: MatrixRef> WithOrderedColBasis<M> {
-    pub fn new(oracle: M, col_basis: Vec<M::ColT>) -> Self {
-        Self { oracle, col_basis }
-    }
-}
-
-impl<M: MatrixRef> MatrixOracle for WithOrderedColBasis<M> {
-    type CoefficientField = M::CoefficientField;
-
-    type ColT = usize;
-
-    type RowT = M::RowT;
-
-    fn column(
-        &self,
-        col: Self::ColT,
-    ) -> Result<impl Iterator<Item = (M::CoefficientField, M::RowT)>, PhliteError> {
-        let col_idx = self.col_basis.get(col).ok_or(PhliteError::NotInDomain)?;
-        self.oracle.column(*col_idx)
-    }
-}
-
-impl<M: MatrixRef> HasRowFiltration for WithOrderedColBasis<M>
-where
-    M: HasRowFiltration,
-{
-    type FiltrationT = M::FiltrationT;
-    fn filtration_value(&self, row: Self::RowT) -> Result<Self::FiltrationT, PhliteError> {
-        self.oracle.filtration_value(row)
-    }
-}
-
-impl<M: MatrixRef> FiniteOrderedColBasis for WithOrderedColBasis<M> {
-    fn n_cols(&self) -> usize {
-        self.col_basis.len()
+    fn basis(&self) -> &Self::BasisT {
+        self.oracle.basis()
     }
 }
 
@@ -197,8 +139,6 @@ impl<M: MatrixRef> MatrixOracle for Consolidator<M> {
     }
 }
 
-impl<M: MatrixRef> MatrixRef for Consolidator<M> {}
-
 impl<M: MatrixRef> HasRowFiltration for Consolidator<M>
 where
     M: HasRowFiltration,
@@ -210,11 +150,113 @@ where
     }
 }
 
-impl<M: MatrixRef> FiniteOrderedColBasis for Consolidator<M>
+impl<M: MatrixRef> HasColBasis for Consolidator<M>
 where
-    M: FiniteOrderedColBasis,
+    M: HasColBasis,
 {
-    fn n_cols(&self) -> usize {
-        self.oracle.n_cols()
+    type BasisT = M::BasisT;
+
+    fn basis(&self) -> &Self::BasisT {
+        self.oracle.basis()
     }
 }
+
+// ====== MatrixWithBasis ======================
+
+#[derive(Debug, Clone, Copy)]
+pub struct MatrixWithBasis<M, B>
+where
+    M: MatrixOracle,
+    B: ColBasis<ElemT = M::ColT>,
+{
+    pub matrix: M,
+    pub basis: B,
+}
+
+impl<M, B> MatrixWithBasis<M, B>
+where
+    M: MatrixOracle,
+    B: ColBasis<ElemT = M::ColT>,
+{
+    pub fn new(matrix: M, basis: B) -> Self {
+        Self { matrix, basis }
+    }
+}
+
+impl<M, B> MatrixOracle for MatrixWithBasis<M, B>
+where
+    M: MatrixOracle,
+    B: ColBasis<ElemT = M::ColT>,
+{
+    type CoefficientField = M::CoefficientField;
+    type ColT = M::ColT;
+    type RowT = M::RowT;
+    fn column(
+        &self,
+        col: Self::ColT,
+    ) -> Result<impl Iterator<Item = (Self::CoefficientField, Self::RowT)>, PhliteError> {
+        self.matrix.column(col)
+    }
+}
+
+impl<M, B> HasRowFiltration for MatrixWithBasis<M, B>
+where
+    M: MatrixOracle + HasRowFiltration,
+    B: ColBasis<ElemT = M::ColT>,
+{
+    type FiltrationT = M::FiltrationT;
+
+    fn filtration_value(&self, row: Self::RowT) -> Result<Self::FiltrationT, PhliteError> {
+        self.matrix.filtration_value(row)
+    }
+}
+
+impl<M, B> HasColBasis for MatrixWithBasis<M, B>
+where
+    M: MatrixOracle,
+    B: ColBasis<ElemT = M::ColT>,
+{
+    type BasisT = B;
+
+    fn basis(&self) -> &Self::BasisT {
+        &self.basis
+    }
+}
+
+// ====== UsingColBasisIndex ==================
+
+#[derive(Clone, Copy)]
+pub struct UsingColBasisIndex<M: MatrixRef + HasColBasis> {
+    pub(crate) oracle: M,
+}
+
+impl<M> MatrixOracle for UsingColBasisIndex<M>
+where
+    M: MatrixRef + HasColBasis,
+{
+    type CoefficientField = M::CoefficientField;
+
+    type ColT = usize;
+
+    type RowT = M::RowT;
+
+    fn column(
+        &self,
+        col: Self::ColT,
+    ) -> Result<impl Iterator<Item = (Self::CoefficientField, Self::RowT)>, PhliteError> {
+        self.oracle.column(self.oracle.basis().element(col))
+    }
+}
+
+impl<M> HasRowFiltration for UsingColBasisIndex<M>
+where
+    M: MatrixRef + HasColBasis + HasRowFiltration,
+{
+    type FiltrationT = M::FiltrationT;
+
+    fn filtration_value(&self, row: Self::RowT) -> Result<Self::FiltrationT, PhliteError> {
+        self.oracle.filtration_value(row)
+    }
+}
+
+// TODO: Should we give it the standard clumn basis?

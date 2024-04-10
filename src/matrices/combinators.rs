@@ -4,7 +4,7 @@
 
 use crate::PhliteError;
 
-use super::{FiniteOrderedColBasis, HasRowFiltration, MatrixOracle, MatrixRef};
+use super::{HasColBasis, HasRowFiltration, MatrixOracle, MatrixRef};
 
 pub fn product<M1: MatrixRef, M2: MatrixRef>(left: M1, right: M2) -> Product<M1, M2>
 where
@@ -48,11 +48,6 @@ where
     }
 }
 
-impl<M1: MatrixRef, M2: MatrixRef> MatrixRef for Product<M1, M2> where
-    M2: MatrixOracle<CoefficientField = M1::CoefficientField, RowT = M1::ColT>
-{
-}
-
 // In product there is an obvious row filtration if the LHS has a row filtration
 impl<M1: MatrixRef, M2: MatrixRef> HasRowFiltration for Product<M1, M2>
 where
@@ -66,13 +61,14 @@ where
     }
 }
 
-impl<M1: MatrixRef, M2: MatrixRef> FiniteOrderedColBasis for Product<M1, M2>
+impl<M1: MatrixRef, M2: MatrixRef> HasColBasis for Product<M1, M2>
 where
-    M2: MatrixOracle<CoefficientField = M1::CoefficientField, RowT = M1::ColT>
-        + FiniteOrderedColBasis,
+    M2: MatrixOracle<CoefficientField = M1::CoefficientField, RowT = M1::ColT> + HasColBasis,
 {
-    fn n_cols(&self) -> usize {
-        self.right.n_cols()
+    type BasisT = M2::BasisT;
+
+    fn basis(&self) -> &Self::BasisT {
+        self.right.basis()
     }
 }
 
@@ -86,7 +82,7 @@ where
 }
 
 // Note: We don't implement HasRowFiltration in case the filtrations disagree
-// Note: We don't implement FiniteOrderedColBasis in case the number of cols disagrees
+// Note: We don't implement HasColBasis in case the number of cols disagrees
 #[derive(Clone, Copy)]
 pub struct Sum<M1: MatrixRef, M2: MatrixRef> {
     left: M1,
@@ -106,9 +102,4 @@ where
     ) -> Result<impl Iterator<Item = (Self::CoefficientField, Self::RowT)>, PhliteError> {
         Ok(self.left.column(col)?.chain(self.right.column(col)?))
     }
-}
-
-impl<M1: MatrixRef, M2: MatrixRef> MatrixRef for Sum<M1, M2> where
-    M2: MatrixOracle<CoefficientField = M1::CoefficientField, ColT = M1::ColT, RowT = M1::RowT>
-{
 }
