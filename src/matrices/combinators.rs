@@ -2,7 +2,7 @@
 
 // ====== Product ==============================
 
-use crate::PhliteError;
+use crate::{columns::ColumnEntry, PhliteError};
 
 use super::{HasColBasis, HasRowFiltration, MatrixOracle, MatrixRef};
 
@@ -62,6 +62,27 @@ where
 
     fn filtration_value(&self, row: Self::RowT) -> Result<Self::FiltrationT, PhliteError> {
         self.left.filtration_value(row)
+    }
+
+    // In case left has a more efficient column with filtration, we try to use it
+    fn column_with_filtration(
+        &self,
+        col: Self::ColT,
+    ) -> Result<
+        impl Iterator<Item = Result<crate::columns::ColumnEntry<Self>, PhliteError>>,
+        PhliteError,
+    > {
+        let right_col = self.right.column(col)?;
+        Ok(right_col.flat_map(|(right_coeff, right_row_index)| {
+            let left_col = self.left.column_with_filtration(right_row_index).unwrap();
+            left_col.map(move |op_left_entry| {
+                op_left_entry.map(|left_entry| ColumnEntry {
+                    coeff: left_entry.coeff * right_coeff,
+                    row_index: left_entry.row_index,
+                    filtration_value: left_entry.filtration_value,
+                })
+            })
+        }))
     }
 }
 

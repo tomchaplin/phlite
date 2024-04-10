@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::collections::{HashMap, HashSet};
 use std::fmt::Debug;
 use std::hash::Hash;
@@ -12,26 +13,62 @@ use crate::{
 };
 use crate::{matrix_col_product, PhliteError};
 
+#[derive(Clone)]
 pub enum ReductionColumn<CF, ColT> {
     Cleared(ColT), // This gets set when (i, j) is found as a pair in which case column i can be reduced by R_j, we store j here
     Reduced(Vec<(CF, ColT)>), // The sum of columns required to reduce (minus the +1 with self index)
 }
 
-pub struct ClearedReductionMatrix<M>
+#[derive(Clone)]
+pub struct ClearedReductionMatrix<'a, M>
 where
     M: MatrixRef + SquareMatrix + HasRowFiltration + HasColBasis,
     M::CoefficientField: Invertible,
     M::ColT: Hash,
 {
     boundary: M,
-    reduction_columns: HashMap<M::ColT, ReductionColumn<M::CoefficientField, M::ColT>>,
+    reduction_columns: Cow<'a, HashMap<M::ColT, ReductionColumn<M::CoefficientField, M::ColT>>>,
 }
 
-impl<M> MatrixOracle for ClearedReductionMatrix<M>
+impl<'a, M> ClearedReductionMatrix<'a, M>
 where
     M: MatrixRef + SquareMatrix + HasRowFiltration + HasColBasis,
     M::CoefficientField: Invertible,
-    M::ColT: Hash + Debug,
+    M::ColT: Hash,
+{
+    fn build_from_ref(
+        boundary: M,
+        reduction_columns: &'a HashMap<M::ColT, ReductionColumn<M::CoefficientField, M::ColT>>,
+    ) -> Self {
+        Self {
+            boundary,
+            reduction_columns: Cow::Borrowed(reduction_columns),
+        }
+    }
+}
+
+impl<M> ClearedReductionMatrix<'static, M>
+where
+    M: MatrixRef + SquareMatrix + HasRowFiltration + HasColBasis,
+    M::CoefficientField: Invertible,
+    M::ColT: Hash,
+{
+    fn build_from_owned(
+        boundary: M,
+        reduction_columns: HashMap<M::ColT, ReductionColumn<M::CoefficientField, M::ColT>>,
+    ) -> Self {
+        Self {
+            boundary,
+            reduction_columns: Cow::Owned(reduction_columns),
+        }
+    }
+}
+
+impl<'a, M> MatrixOracle for ClearedReductionMatrix<'a, M>
+where
+    M: MatrixRef + SquareMatrix + HasRowFiltration + HasColBasis,
+    M::CoefficientField: Invertible,
+    M::ColT: Hash,
 {
     type CoefficientField = M::CoefficientField;
     type ColT = M::ColT;
@@ -39,8 +76,8 @@ where
     fn column(
         &self,
         col: Self::ColT,
-    ) -> Result<impl Iterator<Item = (Self::CoefficientField, Self::RowT)>, crate::PhliteError>
-    {
+    ) -> Result<impl Iterator<Item = (Self::CoefficientField, Self::RowT)>, PhliteError> {
+        // TODO: Check that this doesn't actually Clone!
         let reduction_col = self
             .reduction_columns
             .get(&col)
@@ -48,11 +85,12 @@ where
 
         // TODO: Is there a way to do this without Box?
 
-        let output_iter: Box<dyn Iterator<Item = (Self::CoefficientField, Self::RowT)>> =
+        let output_iter: Box<dyn Iterator<Item = (M::CoefficientField, M::RowT)>> =
             match reduction_col {
                 ReductionColumn::Cleared(death_idx) => {
                     // This returns the death_idx column of R = D V
                     let v_j = self.column(*death_idx)?;
+                    // v_j should be of the Reduced variant
                     Box::new(matrix_col_product!(self.boundary, v_j))
                 }
                 ReductionColumn::Reduced(vec) => Box::new(
@@ -67,11 +105,11 @@ where
     }
 }
 
-impl<M> HasColBasis for ClearedReductionMatrix<M>
+impl<'a, M> HasColBasis for ClearedReductionMatrix<'a, M>
 where
     M: MatrixRef + SquareMatrix + HasRowFiltration + HasColBasis,
     M::CoefficientField: Invertible,
-    M::ColT: Hash + Debug,
+    M::ColT: Hash,
 {
     type BasisT = M::BasisT;
 
@@ -80,7 +118,7 @@ where
     }
 }
 
-impl<M> ClearedReductionMatrix<M>
+impl<M> ClearedReductionMatrix<'static, M>
 where
     M: MatrixRef + SquareMatrix + HasRowFiltration + HasColBasis,
     <M as HasColBasis>::BasisT: SplitByDimension,
@@ -107,11 +145,11 @@ where
                     continue 'column_loop;
                 }
 
-                let mut v_i = vec![];
-                let mut r_col = sub_matrix.build_bhcol(basis_element).unwrap();
+                let mut v_i = boundary.with_trivial_filtration().empty_bhcol();
+                let mut r_i = sub_matrix.build_bhcol(basis_element).unwrap();
 
                 'reduction: loop {
-                    let Some(pivot_entry) = r_col.pop_pivot() else {
+                    let Some(pivot_entry) = r_i.pop_pivot() else {
                         // Column reduced to 0 -> found cycle -> move onto next column
                         break 'reduction;
                     };
@@ -120,7 +158,7 @@ where
                     let pivot_coeff = pivot_entry.coeff;
 
                     // Push the pivot back in to keep r_col coorect
-                    r_col.push(pivot_entry);
+                    r_i.push(pivot_entry);
 
                     // Check if there is a column with the same pivot
                     let Some((other_col_basis_element, other_col_coeff)) =
@@ -133,9 +171,14 @@ where
                     // If so then we add a multiple of that column to cancel out the pivot in r_col
                     let col_multiple = pivot_coeff.additive_inverse() * (other_col_coeff.inverse());
 
+                    // Get references to V and R as reduced so far
+                    let v_matrix =
+                        ClearedReductionMatrix::build_from_ref(boundary, &reduction_columns);
+                    let r_matrix = product(boundary, &v_matrix);
+
                     // Add the multiple of that column
-                    r_col.add_entries(
-                        boundary
+                    r_i.add_entries(
+                        r_matrix
                             .column_with_filtration(*other_col_basis_element)
                             .unwrap()
                             .map(|e| e.unwrap())
@@ -148,12 +191,15 @@ where
                             }),
                     );
 
+                    let v_col = v_matrix.column(*other_col_basis_element).unwrap();
                     // Update V
-                    v_i.push((col_multiple, *other_col_basis_element))
+                    v_i.add_entries(v_col.map(|(coeff, row_index)| {
+                        ColumnEntry::from((coeff * col_multiple, row_index, ()))
+                    }));
                 }
 
                 // If we have a pivot
-                if let Some(pivot_entry) = r_col.pop_pivot() {
+                if let Some(pivot_entry) = r_i.pop_pivot() {
                     // Save it to low inverse
                     low_inverse.insert(pivot_entry.row_index, (basis_element, pivot_entry.coeff));
                     // and clear out the birth column
@@ -164,14 +210,18 @@ where
                 };
 
                 // Then save v_i to reduction matrix
-                reduction_columns.insert(basis_element, ReductionColumn::Reduced(v_i));
+                reduction_columns.insert(
+                    basis_element,
+                    ReductionColumn::Reduced(
+                        v_i.drain_sorted()
+                            .map(|entry| (entry.coeff, entry.row_index))
+                            .collect(),
+                    ),
+                );
             }
         }
 
-        Self {
-            reduction_columns,
-            boundary,
-        }
+        ClearedReductionMatrix::build_from_owned(boundary, reduction_columns)
     }
 }
 
@@ -295,6 +345,7 @@ where
             let col_multiple = pivot_coeff.additive_inverse() * (other_col_coeff.inverse());
 
             // Add the multiple of that column
+            // TODO: Should be adding a multiple of other_r_col
             r_col.add_entries(
                 boundary
                     .column_with_filtration(*other_col_basis_element)
@@ -309,6 +360,7 @@ where
                     }),
             );
 
+            // TODO: Should be adding a multiple of v_col!
             // Update V
             v[i].push((col_multiple, *other_col_basis_element))
         }
