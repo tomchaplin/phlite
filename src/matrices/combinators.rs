@@ -19,6 +19,17 @@ pub struct Product<M1: MatrixRef, M2: MatrixRef> {
     right: M2,
 }
 
+#[macro_export]
+macro_rules! matrix_col_product {
+    (  $matrix: expr, $col: expr ) => {{
+        $col.flat_map(|(right_coeff, right_row_index)| {
+            let left_col = $matrix.column(right_row_index).unwrap();
+            left_col
+                .map(move |(left_coeff, left_row_index)| (left_coeff * right_coeff, left_row_index))
+        })
+    }};
+}
+
 impl<M1: MatrixRef, M2: MatrixRef> MatrixOracle for Product<M1, M2>
 where
     M2: MatrixOracle<CoefficientField = M1::CoefficientField, RowT = M1::ColT>,
@@ -34,17 +45,10 @@ where
         col: Self::ColT,
     ) -> Result<impl Iterator<Item = (Self::CoefficientField, Self::RowT)>, PhliteError> {
         // Pull out right col
-        let right_col_entries = self.right.column(col)?;
+        let right_col = self.right.column(col)?;
         // This tells us what linear combination of columns in the left matrix
         // should be formed to yield the product column
-        Ok(
-            right_col_entries.flat_map(|(right_coeff, right_row_index)| {
-                let left_col = self.left.column(right_row_index).unwrap();
-                left_col.map(move |(left_coeff, left_row_index)| {
-                    (left_coeff * right_coeff, left_row_index)
-                })
-            }),
-        )
+        Ok(matrix_col_product!(self.left, right_col))
     }
 }
 

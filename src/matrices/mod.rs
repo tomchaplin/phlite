@@ -1,4 +1,5 @@
 use std::hash::Hash;
+use std::rc::Rc;
 use std::{cmp::Reverse, collections::HashMap};
 
 use itertools::equal;
@@ -145,6 +146,22 @@ where
         col: Self::ColT,
     ) -> Result<impl Iterator<Item = (Self::CoefficientField, Self::RowT)>, PhliteError> {
         (*self).column(col)
+    }
+}
+
+impl<M> MatrixOracle for Rc<M>
+where
+    M: MatrixOracle,
+{
+    type CoefficientField = M::CoefficientField;
+    type ColT = M::ColT;
+    type RowT = M::RowT;
+
+    fn column(
+        &self,
+        col: Self::ColT,
+    ) -> Result<impl Iterator<Item = (Self::CoefficientField, Self::RowT)>, PhliteError> {
+        (**self).column(col)
     }
 }
 
