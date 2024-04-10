@@ -1,15 +1,16 @@
 use std::collections::{HashMap, HashSet};
+use std::fmt::Debug;
 use std::hash::Hash;
 use std::iter;
 
 use crate::matrices::combinators::product;
 use crate::matrices::{MatrixRef, SplitByDimension, SquareMatrix};
-use crate::matrix_col_product;
 use crate::{
     columns::ColumnEntry,
     fields::{Invertible, NonZeroCoefficient},
     matrices::{implementors::VecVecMatrix, ColBasis, HasColBasis, HasRowFiltration, MatrixOracle},
 };
+use crate::{matrix_col_product, PhliteError};
 
 pub enum ReductionColumn<CF, ColT> {
     Cleared(ColT), // This gets set when (i, j) is found as a pair in which case column i can be reduced by R_j, we store j here
@@ -30,7 +31,7 @@ impl<M> MatrixOracle for ClearedReductionMatrix<M>
 where
     M: MatrixRef + SquareMatrix + HasRowFiltration + HasColBasis,
     M::CoefficientField: Invertible,
-    M::ColT: Hash,
+    M::ColT: Hash + Debug,
 {
     type CoefficientField = M::CoefficientField;
     type ColT = M::ColT;
@@ -40,28 +41,27 @@ where
         col: Self::ColT,
     ) -> Result<impl Iterator<Item = (Self::CoefficientField, Self::RowT)>, crate::PhliteError>
     {
+        let reduction_col = self
+            .reduction_columns
+            .get(&col)
+            .ok_or(PhliteError::NotInDomain)?;
+
         // TODO: Is there a way to do this without Box?
 
-        let output_iter: Box<dyn Iterator<Item = (Self::CoefficientField, Self::RowT)>> = {
-            if let Some(reduction_col) = self.reduction_columns.get(&col) {
-                match reduction_col {
-                    ReductionColumn::Cleared(death_idx) => {
-                        // This returns the death_idx column of R = D V
-                        let v_j = self.column(*death_idx)?;
-                        Box::new(matrix_col_product!(self.boundary, v_j))
-                    }
-                    ReductionColumn::Reduced(vec) => Box::new(
-                        // We don't store the diagonal so we have to chain +1 on the diagonal to the output
-                        vec.iter()
-                            .copied()
-                            .chain(iter::once((M::CoefficientField::one(), col))),
-                    ),
+        let output_iter: Box<dyn Iterator<Item = (Self::CoefficientField, Self::RowT)>> =
+            match reduction_col {
+                ReductionColumn::Cleared(death_idx) => {
+                    // This returns the death_idx column of R = D V
+                    let v_j = self.column(*death_idx)?;
+                    Box::new(matrix_col_product!(self.boundary, v_j))
                 }
-            } else {
-                // This column was not reduced so its just the identity
-                Box::new(iter::once((M::CoefficientField::one(), col)))
-            }
-        };
+                ReductionColumn::Reduced(vec) => Box::new(
+                    // We don't store the diagonal so we have to chain +1 on the diagonal to the output
+                    vec.iter()
+                        .copied()
+                        .chain(iter::once((M::CoefficientField::one(), col))),
+                ),
+            };
 
         Ok(output_iter)
     }
@@ -71,7 +71,7 @@ impl<M> HasColBasis for ClearedReductionMatrix<M>
 where
     M: MatrixRef + SquareMatrix + HasRowFiltration + HasColBasis,
     M::CoefficientField: Invertible,
-    M::ColT: Hash,
+    M::ColT: Hash + Debug,
 {
     type BasisT = M::BasisT;
 
