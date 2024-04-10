@@ -129,10 +129,10 @@ mod tests {
         let max_dim = 2;
 
         // Compute column basis
-        let ensemble = RipsBoundaryAllDims::<Z2>::build(distance_matrix, max_dim);
+        let boundary = RipsBoundaryAllDims::<Z2>::build(distance_matrix, max_dim);
         // Compute reduction matrix
-        let v = standard_algo(&ensemble);
-        let r = &product(&ensemble, &v);
+        let v = standard_algo(&boundary);
+        let r = &product(&boundary, &v);
 
         // Read off diagram
         let mut essential_idxs = HashSet::new();
@@ -141,11 +141,11 @@ mod tests {
             let mut r_i = r.build_bhcol(i).unwrap();
             match r_i.pop_pivot() {
                 None => {
-                    essential_idxs.insert(ensemble.basis().element(i));
+                    essential_idxs.insert(boundary.basis().element(i));
                 }
                 Some(piv) => {
-                    let death_idx = ensemble.basis().element(i);
-                    let death_t = ensemble.matrix.filtration_value(death_idx).unwrap();
+                    let death_idx = boundary.basis().element(i);
+                    let death_t = boundary.filtration_value(death_idx).unwrap();
                     pairings.push((piv.row_index, death_idx, piv.filtration_value, death_t));
                     essential_idxs.remove(&piv.row_index);
                 }
@@ -156,7 +156,7 @@ mod tests {
         // Report
         println!("Essential:");
         for idx in essential_idxs.iter() {
-            let f_val = ensemble.filtration_value(*idx).unwrap();
+            let f_val = boundary.filtration_value(*idx).unwrap();
             let dim = idx.dimension(n_points);
             println!(" dim={dim}, birth={idx:?}, f=({f_val}, ∞)");
         }

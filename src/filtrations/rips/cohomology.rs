@@ -260,10 +260,10 @@ mod tests {
         let max_dim = 2;
 
         // Compute column basis
-        let ensemble = RipsCoboundaryAllDims::<Z2>::build(distance_matrix, max_dim);
+        let coboundary = RipsCoboundaryAllDims::<Z2>::build(distance_matrix, max_dim);
         // Compute reduction matrix
-        let v = standard_algo(&ensemble);
-        let r = product(&ensemble, &v);
+        let v = standard_algo(&coboundary);
+        let r = product(&coboundary, &v);
 
         // Read off diagram - we go backwards so that we only have to loop once (since we are in cohomology)
         let mut essential_idxs = HashSet::new();
@@ -272,11 +272,11 @@ mod tests {
             let mut r_i = r.build_bhcol(i).unwrap();
             match r_i.pop_pivot() {
                 None => {
-                    essential_idxs.insert(ensemble.basis().element(i));
+                    essential_idxs.insert(coboundary.basis().element(i));
                 }
                 Some(piv) => {
-                    let death_idx = ensemble.basis().element(i);
-                    let death_t = ensemble.matrix.filtration_value(death_idx).unwrap();
+                    let death_idx = coboundary.basis().element(i);
+                    let death_t = coboundary.filtration_value(death_idx).unwrap();
                     pairings.push((piv.row_index, death_idx, piv.filtration_value, death_t));
                     essential_idxs.remove(&piv.row_index);
                 }
@@ -287,7 +287,7 @@ mod tests {
         // Report
         println!("Essential:");
         for idx in essential_idxs.iter() {
-            let f_val = ensemble.filtration_value(*idx).unwrap().0;
+            let f_val = coboundary.filtration_value(*idx).unwrap().0;
             let dim = idx.dimension(n_points);
             println!(" dim={dim}, birth={idx:?}, f=({f_val}, ∞)");
         }
