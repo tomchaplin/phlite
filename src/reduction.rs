@@ -1,19 +1,97 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::hash::Hash;
 
+use crate::matrices::combinators::product;
+use crate::matrices::SquareMatrix;
 use crate::{
     columns::ColumnEntry,
     fields::{Invertible, NonZeroCoefficient},
-    matrices::{implementors::VecVecMatrix, ColBasis, HasColBasis, HasRowFiltration, MatrixRef},
+    matrices::{implementors::VecVecMatrix, ColBasis, HasColBasis, HasRowFiltration, MatrixOracle},
 };
+
+enum ReductionColumn<CF, ColT> {
+    Cleared(ColT),
+    Reduced(Vec<(CF, ColT)>),
+}
 
 // TODO:
 // 1. Convert to oracle
 // 2. Implement clearing
 
-pub fn standard_algo<M>(boundary: M) -> VecVecMatrix<'static, M::CoefficientField, M::ColT>
+#[derive(Debug, Clone)]
+pub struct Diagram<T> {
+    pub essential: HashSet<T>,
+    pub pairings: HashSet<(T, T)>,
+}
+
+pub type StandardReductionMatrix<CF, ColT> = VecVecMatrix<'static, CF, ColT>;
+
+/// If your operator goes up in column order (e.g. coboundary) then you will need to set `reverse_order=True`.
+pub fn standard_algo_with_diagram<M>(
+    boundary: M,
+    reverse_order: bool,
+) -> (
+    StandardReductionMatrix<M::CoefficientField, M::ColT>,
+    Diagram<M::ColT>,
+)
 where
-    M: MatrixRef + HasRowFiltration + HasColBasis,
+    M: SquareMatrix + HasRowFiltration + HasColBasis,
+    M::CoefficientField: Invertible,
+    M::RowT: Hash,
+{
+    let v = standard_algo(&boundary);
+    let diagram = read_off_diagram(&boundary, &v, reverse_order);
+    (v, diagram)
+}
+
+/// If your operator goes up in column order (e.g. coboundary) then you will need to set `reverse_order=True`.
+pub fn read_off_diagram<M>(
+    boundary: M,
+    reduction_matrix: &StandardReductionMatrix<M::CoefficientField, M::ColT>,
+    reverse_order: bool,
+) -> Diagram<M::ColT>
+where
+    M: SquareMatrix + HasRowFiltration + HasColBasis,
+    M::CoefficientField: Invertible,
+    M::RowT: Hash,
+{
+    let r = product(&boundary, &reduction_matrix);
+
+    let mut essential = HashSet::new();
+    let mut pairings = HashSet::new();
+
+    let col_iter: Box<dyn Iterator<Item = usize>> = if reverse_order {
+        Box::new((0..r.basis().size()).rev())
+    } else {
+        Box::new(0..r.basis().size())
+    };
+
+    for i in col_iter {
+        let mut r_i = r.build_bhcol(i).unwrap();
+        match r_i.pop_pivot() {
+            None => {
+                essential.insert(boundary.basis().element(i));
+            }
+            Some(piv) => {
+                let death_idx = boundary.basis().element(i);
+                pairings.insert((piv.row_index, death_idx));
+                essential.remove(&piv.row_index);
+            }
+        }
+        if r_i.pop_pivot().is_none() {}
+    }
+
+    let diagram = Diagram {
+        essential,
+        pairings,
+    };
+
+    diagram
+}
+
+pub fn standard_algo<M>(boundary: M) -> StandardReductionMatrix<M::CoefficientField, M::ColT>
+where
+    M: MatrixOracle + HasRowFiltration + HasColBasis,
     M::CoefficientField: Invertible,
     M::RowT: Hash,
 {
@@ -56,8 +134,6 @@ where
 
             // If so then we add a multiple of that column to cancel out the pivot in r_col
             let col_multiple = pivot_coeff.additive_inverse() * (other_col_coeff.inverse());
-
-            //let other_col_basis_element = boundary.basis().element(*other_col_idx);
 
             // Add the multiple of that column
             r_col.add_entries(

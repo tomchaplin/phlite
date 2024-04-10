@@ -98,15 +98,14 @@ impl<CF: NonZeroCoefficient + Invertible> RipsBoundaryAllDims<CF> {
 // TODO: Write some proper tests
 #[cfg(test)]
 mod tests {
-    use std::collections::HashSet;
 
     use ordered_float::NotNan;
 
     use crate::{
         fields::Z2,
         filtrations::rips::homology::RipsBoundaryAllDims,
-        matrices::{combinators::product, ColBasis, HasColBasis, HasRowFiltration},
-        reduction::standard_algo,
+        matrices::{combinators::product, HasRowFiltration},
+        reduction::standard_algo_with_diagram,
     };
 
     fn distance_matrix() -> Vec<Vec<NotNan<f64>>> {
@@ -131,46 +130,27 @@ mod tests {
         // Compute column basis
         let boundary = RipsBoundaryAllDims::<Z2>::build(distance_matrix, max_dim);
         // Compute reduction matrix
-        let v = standard_algo(&boundary);
-        let r = &product(&boundary, &v);
-
-        // Read off diagram
-        let mut essential_idxs = HashSet::new();
-        let mut pairings = vec![];
-        for i in 0..r.basis().size() {
-            let mut r_i = r.build_bhcol(i).unwrap();
-            match r_i.pop_pivot() {
-                None => {
-                    essential_idxs.insert(boundary.basis().element(i));
-                }
-                Some(piv) => {
-                    let death_idx = boundary.basis().element(i);
-                    let death_t = boundary.filtration_value(death_idx).unwrap();
-                    pairings.push((piv.row_index, death_idx, piv.filtration_value, death_t));
-                    essential_idxs.remove(&piv.row_index);
-                }
-            }
-            if r_i.pop_pivot().is_none() {}
-        }
+        let (v, diagram) = standard_algo_with_diagram(&boundary, false);
+        let _r = &product(&boundary, &v);
 
         // Report
         println!("Essential:");
-        for idx in essential_idxs.iter() {
+        for idx in diagram.essential.iter() {
             let f_val = boundary.filtration_value(*idx).unwrap();
             let dim = idx.dimension(n_points);
             println!(" dim={dim}, birth={idx:?}, f=({f_val}, ∞)");
         }
         println!("\nPairings:");
-        for tup in pairings.iter() {
+        for tup in diagram.pairings.iter() {
             let dim = tup.0.dimension(n_points);
             let idx_tup = (tup.0, tup.1);
-            let birth_f = tup.2;
-            let death_f = tup.3;
+            let birth_f = boundary.filtration_value(tup.0).unwrap();
+            let death_f = boundary.filtration_value(tup.1).unwrap();
             println!(" dim={dim}, pair={idx_tup:?}, f=({birth_f}, {death_f})");
         }
 
-        assert_eq!(pairings.len(), 6);
+        assert_eq!(diagram.pairings.len(), 6);
         // Additional essential idx because we don't fill in a 2-void
-        assert_eq!(essential_idxs.len(), 2);
+        assert_eq!(diagram.essential.len(), 2);
     }
 }

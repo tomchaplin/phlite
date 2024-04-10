@@ -1,6 +1,8 @@
 // ======== Default matrix oracles =============================
 
-use std::{borrow::Cow, marker::PhantomData};
+use std::borrow::Cow;
+use std::collections::HashMap;
+use std::hash::Hash;
 
 use crate::{
     fields::{NonZeroCoefficient, Z2},
@@ -15,7 +17,6 @@ use std::fmt::Debug;
 
 pub struct VecVecMatrix<'a, CF: NonZeroCoefficient, RowT: BasisElement> {
     columns: Cow<'a, Vec<Vec<(CF, RowT)>>>,
-    phantom: PhantomData<CF>,
     basis: StandardBasis,
 }
 
@@ -34,7 +35,6 @@ impl<'a, CF: NonZeroCoefficient, RowT: BasisElement> From<Cow<'a, Vec<Vec<(CF, R
                 n_cols: value.len(),
             },
             columns: value,
-            phantom: PhantomData,
         }
     }
 }
@@ -48,7 +48,6 @@ impl<'a, CF: NonZeroCoefficient, RowT: BasisElement> From<&'a Vec<Vec<(CF, RowT)
                 n_cols: value.len(),
             },
             columns: Cow::Borrowed(value),
-            phantom: PhantomData,
         }
     }
 }
@@ -62,7 +61,6 @@ impl<'a, CF: NonZeroCoefficient, RowT: BasisElement> From<Vec<Vec<(CF, RowT)>>>
                 n_cols: value.len(),
             },
             columns: Cow::Owned(value),
-            phantom: PhantomData,
         }
     }
 }
@@ -129,5 +127,82 @@ impl ColBasis for StandardBasis {
 
     fn size(&self) -> usize {
         self.n_cols
+    }
+}
+
+// ====== MapVecMatrix =========================
+
+// TODO: Should give this a basis.
+// Can we do this by saving a reference to the basis or do I need to use an ordered map?
+
+pub struct MapVecMatrix<'a, CF, ColT, RowT>
+where
+    CF: NonZeroCoefficient,
+    ColT: BasisElement + Hash,
+    RowT: BasisElement,
+{
+    columns: Cow<'a, HashMap<ColT, Vec<(CF, RowT)>>>,
+}
+
+impl<'a, CF, ColT, RowT> MatrixOracle for MapVecMatrix<'a, CF, ColT, RowT>
+where
+    CF: NonZeroCoefficient,
+    ColT: BasisElement + Hash,
+    RowT: BasisElement,
+{
+    type CoefficientField = CF;
+    type ColT = ColT;
+    type RowT = RowT;
+
+    fn column(
+        &self,
+        col: Self::ColT,
+    ) -> Result<impl Iterator<Item = (Self::CoefficientField, Self::RowT)>, PhliteError> {
+        Ok(self
+            .columns
+            .get(&col)
+            .ok_or(PhliteError::NotInDomain)?
+            .iter()
+            .copied())
+    }
+}
+
+impl<'a, CF, ColT, RowT> From<Cow<'a, HashMap<ColT, Vec<(CF, RowT)>>>>
+    for MapVecMatrix<'a, CF, ColT, RowT>
+where
+    CF: NonZeroCoefficient,
+    ColT: BasisElement + Hash,
+    RowT: BasisElement,
+{
+    fn from(value: Cow<'a, HashMap<ColT, Vec<(CF, RowT)>>>) -> Self {
+        Self { columns: value }
+    }
+}
+
+impl<'a, CF, ColT, RowT> From<&'a HashMap<ColT, Vec<(CF, RowT)>>>
+    for MapVecMatrix<'a, CF, ColT, RowT>
+where
+    CF: NonZeroCoefficient,
+    ColT: BasisElement + Hash,
+    RowT: BasisElement,
+{
+    fn from(value: &'a HashMap<ColT, Vec<(CF, RowT)>>) -> Self {
+        Self {
+            columns: Cow::Borrowed(value),
+        }
+    }
+}
+
+impl<'a, CF, ColT, RowT> From<HashMap<ColT, Vec<(CF, RowT)>>>
+    for MapVecMatrix<'static, CF, ColT, RowT>
+where
+    CF: NonZeroCoefficient,
+    ColT: BasisElement + Hash,
+    RowT: BasisElement,
+{
+    fn from(value: HashMap<ColT, Vec<(CF, RowT)>>) -> Self {
+        Self {
+            columns: Cow::Owned(value),
+        }
     }
 }

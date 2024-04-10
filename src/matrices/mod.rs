@@ -1,4 +1,5 @@
-use std::cmp::Reverse;
+use std::hash::Hash;
+use std::{cmp::Reverse, collections::HashMap};
 
 use itertools::equal;
 use ordered_float::NotNan;
@@ -81,6 +82,12 @@ pub trait MatrixOracle {
         equal(self_col_sorted, other_col_sorted)
     }
 }
+
+// ======== Square matrices ====================================
+
+pub trait SquareMatrix: MatrixOracle<ColT = <Self as MatrixOracle>::RowT> {}
+
+impl<M> SquareMatrix for M where M: MatrixOracle<ColT = <Self as MatrixOracle>::RowT> {}
 
 // ======== Abstract matrix oracle trait + copyable ============
 
@@ -189,6 +196,15 @@ pub trait ColBasis {
     type ElemT: BasisElement;
     fn element(&self, index: usize) -> Self::ElemT;
     fn size(&self) -> usize;
+
+    fn construct_reverse_lookup(&self) -> HashMap<Self::ElemT, usize>
+    where
+        Self::ElemT: Hash,
+    {
+        (0..(self.size()))
+            .map(|idx| (self.element(idx), idx))
+            .collect()
+    }
 }
 
 impl<T> ColBasis for Vec<T>

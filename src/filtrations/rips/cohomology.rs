@@ -190,7 +190,7 @@ impl<CF: NonZeroCoefficient + Invertible> RipsCoboundaryAllDims<CF> {
 // TODO: Write some proper tests
 #[cfg(test)]
 mod tests {
-    use std::{collections::HashSet, marker::PhantomData};
+    use std::marker::PhantomData;
 
     use ordered_float::NotNan;
 
@@ -200,8 +200,8 @@ mod tests {
             cohomology::{RipsCoboundary, RipsCoboundaryAllDims},
             RipsIndex,
         },
-        matrices::{combinators::product, ColBasis, HasColBasis, HasRowFiltration, MatrixOracle},
-        reduction::standard_algo,
+        matrices::{combinators::product, HasRowFiltration, MatrixOracle},
+        reduction::standard_algo_with_diagram,
     };
 
     #[test]
@@ -262,46 +262,27 @@ mod tests {
         // Compute column basis
         let coboundary = RipsCoboundaryAllDims::<Z2>::build(distance_matrix, max_dim);
         // Compute reduction matrix
-        let v = standard_algo(&coboundary);
-        let r = product(&coboundary, &v);
-
-        // Read off diagram - we go backwards so that we only have to loop once (since we are in cohomology)
-        let mut essential_idxs = HashSet::new();
-        let mut pairings = vec![];
-        for i in (0..r.basis().size()).rev() {
-            let mut r_i = r.build_bhcol(i).unwrap();
-            match r_i.pop_pivot() {
-                None => {
-                    essential_idxs.insert(coboundary.basis().element(i));
-                }
-                Some(piv) => {
-                    let death_idx = coboundary.basis().element(i);
-                    let death_t = coboundary.filtration_value(death_idx).unwrap();
-                    pairings.push((piv.row_index, death_idx, piv.filtration_value, death_t));
-                    essential_idxs.remove(&piv.row_index);
-                }
-            }
-            if r_i.pop_pivot().is_none() {}
-        }
+        let (v, diagram) = standard_algo_with_diagram(&coboundary, true);
+        let _r = product(&coboundary, &v);
 
         // Report
         println!("Essential:");
-        for idx in essential_idxs.iter() {
+        for idx in diagram.essential.iter() {
             let f_val = coboundary.filtration_value(*idx).unwrap().0;
             let dim = idx.dimension(n_points);
             println!(" dim={dim}, birth={idx:?}, f=({f_val}, ∞)");
         }
         println!("\nPairings:");
-        for tup in pairings.iter() {
+        for tup in diagram.pairings.iter() {
             let dim = tup.1.dimension(n_points);
             let idx_tup = (tup.1, tup.0);
-            let birth_f = tup.3 .0;
-            let death_f = tup.2 .0;
+            let birth_f = coboundary.filtration_value(tup.1).unwrap().0;
+            let death_f = coboundary.filtration_value(tup.0).unwrap().0;
             println!(" dim={dim}, pair={idx_tup:?}, f=({birth_f}, {death_f})");
         }
 
         // 2-dimensional void is killed without having to compute basis for C_3
-        assert_eq!(pairings.len(), 7);
-        assert_eq!(essential_idxs.len(), 1);
+        assert_eq!(diagram.pairings.len(), 7);
+        assert_eq!(diagram.essential.len(), 1);
     }
 }
