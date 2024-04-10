@@ -49,30 +49,35 @@ impl<CF: NonZeroCoefficient> Iterator for CoboundaryIterator<CF> {
     type Item = (CF, RipsIndex, usize);
 
     fn next(&mut self) -> Option<Self::Item> {
-        // By the ened of this loop self.next_vertex and self.insertion_position
+        // By the end of this loop self.next_vertex and self.insertion_position
         // will be setup correctly so that the next simplex
         // can be obtained by inserting self.next_vertex into index self.insertion_position (which may be the end fo self.base)
-        // TODO: Change into a match statement
         loop {
-            // Ran out of vertices to try and insert
             if self.next_vertex > self.max_vertex {
+                // Ran out of vertices to try and insert
                 return None;
             }
-            if self.insertion_position >= self.base.len() {
+            let Some(vertex_at_insert_pos) = self.base.get(self.insertion_position) else {
                 // The vertex will have to go at the end
                 break;
-            }
-            if self.base[self.insertion_position] > self.next_vertex {
-                // We have found the correct insertion position
-                break;
-            }
-            if self.base[self.insertion_position] == self.next_vertex {
-                // Vertex already appears in simplex, try next one
-                // TODO: Can I also increment insertion_position here?
-                self.next_vertex += 1;
-            }
-            if self.base[self.insertion_position] < self.next_vertex {
-                self.insertion_position += 1;
+            };
+
+            let comparison = vertex_at_insert_pos.cmp(&self.next_vertex);
+
+            match comparison {
+                std::cmp::Ordering::Less => {
+                    // next_vertex has to go afterwards
+                    self.insertion_position += 1;
+                }
+                std::cmp::Ordering::Equal => {
+                    // Vertex already appears in simplex, try and insert next vertex
+                    // TODO: Can I also increment insertion_position here?
+                    self.next_vertex += 1;
+                }
+                std::cmp::Ordering::Greater => {
+                    // We have found the correct insertion position
+                    break;
+                }
             }
         }
 
