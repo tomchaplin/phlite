@@ -70,27 +70,27 @@ impl<CF: NonZeroCoefficient + Invertible> HasRowFiltration for RipsBoundary<CF> 
 }
 
 pub type RipsBoundarySingleDim<'a, CF> =
-    MatrixWithBasis<&'a RipsBoundary<CF>, SingleDimRipsBasisWithFilt<'a, NotNan<f64>>>;
+    MatrixWithBasis<&'a RipsBoundary<CF>, &'a SingleDimRipsBasisWithFilt<NotNan<f64>>>;
 
 pub type RipsBoundaryAllDims<CF> =
     MatrixWithBasis<RipsBoundary<CF>, MultiDimRipsBasisWithFilt<NotNan<f64>>>;
 
 impl<CF: NonZeroCoefficient + Invertible> RipsBoundaryAllDims<CF> {
     pub fn build(distances: Vec<Vec<NotNan<f64>>>, max_dim: usize) -> Self {
-        let bases = build_rips_bases(&distances, max_dim, identity);
+        let basis = build_rips_bases(&distances, max_dim, identity);
         RipsBoundaryAllDims {
             matrix: RipsBoundary {
                 distances,
                 phantom: PhantomData,
             },
-            basis: MultiDimRipsBasisWithFilt(bases),
+            basis,
         }
     }
 
-    pub fn dimension_matrix<'a>(&'a self, dim: usize) -> RipsBoundarySingleDim<'a, CF> {
+    pub fn dimension_matrix(&self, dim: usize) -> RipsBoundarySingleDim<CF> {
         RipsBoundarySingleDim {
             matrix: &self.matrix,
-            basis: SingleDimRipsBasisWithFilt(&self.basis.0[dim]),
+            basis: &self.basis.0[dim],
         }
     }
 }
@@ -132,7 +132,7 @@ mod tests {
         let ensemble = RipsBoundaryAllDims::<Z2>::build(distance_matrix, max_dim);
         // Compute reduction matrix
         let v = standard_algo(&ensemble);
-        let r = &product(ensemble.using_col_basis_index(), &v);
+        let r = &product(&ensemble, &v);
 
         // Read off diagram
         let mut essential_idxs = HashSet::new();

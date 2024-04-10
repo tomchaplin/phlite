@@ -168,7 +168,7 @@ impl<CF: NonZeroCoefficient + Invertible> HasRowFiltration for RipsCoboundary<CF
 }
 
 pub type RipsCoboundarySingleDim<'a, CF> =
-    MatrixWithBasis<&'a RipsCoboundary<CF>, SingleDimRipsBasisWithFilt<'a, Reverse<NotNan<f64>>>>;
+    MatrixWithBasis<&'a RipsCoboundary<CF>, &'a SingleDimRipsBasisWithFilt<Reverse<NotNan<f64>>>>;
 
 pub type RipsCoboundaryAllDims<CF> =
     MatrixWithBasis<RipsCoboundary<CF>, MultiDimRipsBasisWithFilt<Reverse<NotNan<f64>>>>;
@@ -176,20 +176,13 @@ pub type RipsCoboundaryAllDims<CF> =
 impl<CF: NonZeroCoefficient + Invertible> RipsCoboundaryAllDims<CF> {
     pub fn build(distances: Vec<Vec<NotNan<f64>>>, max_dim: usize) -> Self {
         // Pass in the Reverse functor to revere filtration order on columns in basis
-        let bases = build_rips_bases(&distances, max_dim, Reverse);
+        let basis = build_rips_bases(&distances, max_dim, Reverse);
         RipsCoboundaryAllDims {
             matrix: RipsCoboundary {
                 distances,
                 phantom: PhantomData,
             },
-            basis: MultiDimRipsBasisWithFilt(bases),
-        }
-    }
-
-    pub fn dimension_matrix<'a>(&'a self, dim: usize) -> RipsCoboundarySingleDim<'a, CF> {
-        RipsCoboundarySingleDim {
-            matrix: &self.matrix,
-            basis: SingleDimRipsBasisWithFilt(&self.basis.0[dim]),
+            basis,
         }
     }
 }
@@ -209,6 +202,7 @@ mod tests {
         },
         matrices::{
             combinators::product, ColBasis, HasColBasis, HasRowFiltration, MatrixOracle, MatrixRef,
+            SplitByDimension,
         },
         reduction::standard_algo,
     };
@@ -272,7 +266,7 @@ mod tests {
         let ensemble = RipsCoboundaryAllDims::<Z2>::build(distance_matrix, max_dim);
         // Compute reduction matrix
         let v = standard_algo(&ensemble);
-        let r = product(ensemble.using_col_basis_index(), &v);
+        let r = product(&ensemble, &v);
 
         // Read off diagram
         let mut essential_idxs = HashSet::new();

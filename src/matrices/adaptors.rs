@@ -4,7 +4,9 @@
 
 use crate::{columns::BHCol, PhliteError};
 
-use super::{ColBasis, FiltrationT, HasColBasis, HasRowFiltration, MatrixOracle, MatrixRef};
+use super::{
+    ColBasis, FiltrationT, HasColBasis, HasRowFiltration, MatrixOracle, MatrixRef, SplitByDimension,
+};
 
 #[derive(Clone, Copy)]
 pub struct WithTrivialFiltration<M: MatrixRef> {
@@ -259,4 +261,52 @@ where
     }
 }
 
-// TODO: Should we give it the standard clumn basis?
+// TODO: Should we give it the standard column basis?
+
+// ====== WithSubBasis =========================
+
+#[derive(Clone, Copy)]
+pub struct WithSubBasis<M: MatrixRef + HasColBasis<BasisT: SplitByDimension>> {
+    pub(crate) oracle: M,
+    pub(crate) dimension: usize,
+}
+
+impl<M> MatrixOracle for WithSubBasis<M>
+where
+    M: MatrixRef + HasColBasis<BasisT: SplitByDimension>,
+{
+    type CoefficientField = M::CoefficientField;
+
+    type ColT = M::ColT;
+
+    type RowT = M::RowT;
+
+    fn column(
+        &self,
+        col: Self::ColT,
+    ) -> Result<impl Iterator<Item = (Self::CoefficientField, Self::RowT)>, PhliteError> {
+        self.oracle.column(col)
+    }
+}
+
+impl<M> HasRowFiltration for WithSubBasis<M>
+where
+    M: MatrixRef + HasColBasis<BasisT: SplitByDimension> + HasRowFiltration,
+{
+    type FiltrationT = M::FiltrationT;
+
+    fn filtration_value(&self, row: Self::RowT) -> Result<Self::FiltrationT, PhliteError> {
+        self.oracle.filtration_value(row)
+    }
+}
+
+impl<M> HasColBasis for WithSubBasis<M>
+where
+    M: MatrixRef + HasColBasis<BasisT: SplitByDimension>,
+{
+    type BasisT = <M::BasisT as SplitByDimension>::SubBasisT;
+
+    fn basis(&self) -> &Self::BasisT {
+        self.oracle.basis().in_dimension(self.dimension)
+    }
+}

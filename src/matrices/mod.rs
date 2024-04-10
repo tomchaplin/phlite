@@ -10,7 +10,7 @@ use crate::{
 };
 
 use self::adaptors::{
-    MatrixWithBasis, UsingColBasisIndex, WithFuncFiltration, WithTrivialFiltration,
+    MatrixWithBasis, UsingColBasisIndex, WithFuncFiltration, WithSubBasis, WithTrivialFiltration,
 };
 
 pub mod adaptors;
@@ -38,9 +38,6 @@ impl<T> BasisElement for Reverse<T> where T: BasisElement {}
 impl<T> FiltrationT for Reverse<T> where T: FiltrationT {}
 
 // ======== Abstract matrix oracle trait =======================
-
-// TODO: Try and get rid of Sized bounds, is there a better way to summarise ColumnEntry?
-// TODO: Work out a better set of traits for withcolbasis, want ability to access basis element in index i and then we can use that to build a ColT ourselves
 
 pub trait MatrixOracle {
     type CoefficientField: NonZeroCoefficient;
@@ -85,32 +82,7 @@ pub trait MatrixOracle {
     }
 }
 
-pub trait HasRowFiltration: MatrixOracle + Sized {
-    type FiltrationT: FiltrationT;
-    fn filtration_value(&self, row: Self::RowT) -> Result<Self::FiltrationT, PhliteError>;
-
-    fn column_with_filtration(
-        &self,
-        col: Self::ColT,
-    ) -> Result<impl Iterator<Item = Result<ColumnEntry<Self>, PhliteError>>, PhliteError> {
-        let column = self.column(col)?;
-        Ok(column.map(|(coeff, row_index)| {
-            let f_val = self.filtration_value(row_index)?;
-            let entry = (coeff, row_index, f_val).into();
-            Ok(entry)
-        }))
-    }
-
-    fn empty_bhcol(&self) -> BHCol<Self> {
-        BHCol::<Self>::default()
-    }
-
-    fn build_bhcol(&self, col: Self::ColT) -> Result<BHCol<Self>, PhliteError> {
-        let mut output = self.empty_bhcol();
-        output.add_entries(self.column_with_filtration(col)?.map(|e| e.unwrap()));
-        Ok(output)
-    }
-}
+// ======== Abstract matrix oracle trait + copyable ============
 
 pub trait MatrixRef: MatrixOracle + Copy {
     fn with_trivial_filtration(self) -> WithTrivialFiltration<Self>
@@ -169,6 +141,37 @@ where
     }
 }
 
+// ======== Filtration on rows to order them ===================
+
+// TODO: Try and get rid of Sized bounds, is there a better way to summarise ColumnEntry?
+
+pub trait HasRowFiltration: MatrixOracle + Sized {
+    type FiltrationT: FiltrationT;
+    fn filtration_value(&self, row: Self::RowT) -> Result<Self::FiltrationT, PhliteError>;
+
+    fn column_with_filtration(
+        &self,
+        col: Self::ColT,
+    ) -> Result<impl Iterator<Item = Result<ColumnEntry<Self>, PhliteError>>, PhliteError> {
+        let column = self.column(col)?;
+        Ok(column.map(|(coeff, row_index)| {
+            let f_val = self.filtration_value(row_index)?;
+            let entry = (coeff, row_index, f_val).into();
+            Ok(entry)
+        }))
+    }
+
+    fn empty_bhcol(&self) -> BHCol<Self> {
+        BHCol::<Self>::default()
+    }
+
+    fn build_bhcol(&self, col: Self::ColT) -> Result<BHCol<Self>, PhliteError> {
+        let mut output = self.empty_bhcol();
+        output.add_entries(self.column_with_filtration(col)?.map(|e| e.unwrap()));
+        Ok(output)
+    }
+}
+
 impl<'a, M> HasRowFiltration for &'a M
 where
     M: HasRowFiltration,
@@ -180,26 +183,13 @@ where
     }
 }
 
+// ======== Ordered basis on columns + arbitrary access ========
+
 pub trait ColBasis {
     type ElemT: BasisElement;
     fn element(&self, index: usize) -> Self::ElemT;
     fn size(&self) -> usize;
 }
-
-// impl<'a, B> ColBasis for &'a B
-// where
-//     B: ColBasis,
-// {
-//     type ElemT = B::ElemT;
-//
-//     fn element(&self, index: usize) -> Self::ElemT {
-//         (*self).element(index)
-//     }
-//
-//     fn size(&self) -> usize {
-//         (*self).size()
-//     }
-// }
 
 impl<T> ColBasis for Vec<T>
 where
@@ -216,10 +206,35 @@ where
     }
 }
 
+impl<'a, T> ColBasis for &'a T
+where
+    T: ColBasis,
+{
+    type ElemT = T::ElemT;
+
+    fn element(&self, index: usize) -> Self::ElemT {
+        (*self).element(index)
+    }
+
+    fn size(&self) -> usize {
+        (*self).size()
+    }
+}
+
 pub trait HasColBasis: MatrixOracle {
     type BasisT: ColBasis<ElemT = Self::ColT>;
 
     fn basis(&self) -> &Self::BasisT;
+
+    fn sub_matrix_in_dimension(&self, dimension: usize) -> WithSubBasis<&Self>
+    where
+        Self: MatrixRef + HasColBasis<BasisT: SplitByDimension>,
+    {
+        WithSubBasis {
+            oracle: self,
+            dimension,
+        }
+    }
 }
 
 impl<'a, T> HasColBasis for &'a T
@@ -231,4 +246,13 @@ where
     fn basis(&self) -> &Self::BasisT {
         (*self).basis()
     }
+}
+
+// TODO: This puts a pretty strong constraint on the ColBasis
+// In particular at must own each of the SubBasisT pre-constructed and then piece them together in order to extract its elements.
+// Is there a better way to do this?
+pub trait SplitByDimension: ColBasis {
+    type SubBasisT: ColBasis<ElemT = Self::ElemT>;
+
+    fn in_dimension(&self, dimension: usize) -> &Self::SubBasisT;
 }

@@ -11,7 +11,7 @@ use crate::{
 // 1. Convert to oracle
 // 2. Implement clearing
 
-pub fn standard_algo<M>(boundary: M) -> VecVecMatrix<'static, M::CoefficientField, usize>
+pub fn standard_algo<M>(boundary: M) -> VecVecMatrix<'static, M::CoefficientField, M::ColT>
 where
     M: MatrixRef + HasRowFiltration + HasColBasis,
     M::CoefficientField: Invertible,
@@ -19,11 +19,14 @@ where
 {
     let mut v = vec![];
     for i in 0..boundary.basis().size() {
-        v.push(vec![(M::CoefficientField::one(), i)]);
+        v.push(vec![(
+            M::CoefficientField::one(),
+            boundary.basis().element(i),
+        )]);
     }
 
     // low_inverse[i]=(j, lambda) means R[j] has lowest non-zero in row i with coefficient lambda
-    let mut low_inverse: HashMap<M::RowT, (usize, M::CoefficientField)> = HashMap::new();
+    let mut low_inverse: HashMap<M::RowT, (M::ColT, M::CoefficientField)> = HashMap::new();
 
     'column_loop: for i in 0..boundary.basis().size() {
         // Reduce column i
@@ -44,7 +47,9 @@ where
             r_col.push(pivot_entry);
 
             // Check if there is a column with the same pivot
-            let Some((other_col_idx, other_col_coeff)) = low_inverse.get(&pivot_row_index) else {
+            let Some((other_col_basis_element, other_col_coeff)) =
+                low_inverse.get(&pivot_row_index)
+            else {
                 // Cannot reduce further -> found boundary -> break and save pivot
                 break 'reduction;
             };
@@ -52,12 +57,12 @@ where
             // If so then we add a multiple of that column to cancel out the pivot in r_col
             let col_multiple = pivot_coeff.additive_inverse() * (other_col_coeff.inverse());
 
-            let other_col_basis_element = boundary.basis().element(*other_col_idx);
+            //let other_col_basis_element = boundary.basis().element(*other_col_idx);
 
             // Add the multiple of that column
             r_col.add_entries(
                 boundary
-                    .column_with_filtration(other_col_basis_element)
+                    .column_with_filtration(*other_col_basis_element)
                     .unwrap()
                     .map(|e| e.unwrap())
                     .map(|entry| {
@@ -70,12 +75,12 @@ where
             );
 
             // Update V
-            v[i].push((col_multiple, *other_col_idx))
+            v[i].push((col_multiple, *other_col_basis_element))
         }
 
         // Save pivot if we have one
         if let Some(pivot_entry) = r_col.pop_pivot() {
-            low_inverse.insert(pivot_entry.row_index, (i, pivot_entry.coeff));
+            low_inverse.insert(pivot_entry.row_index, (basis_element, pivot_entry.coeff));
         };
     }
 
@@ -115,6 +120,7 @@ mod tests {
             vec![3, 4, 5],
             vec![],
         ]);
+
         assert!((0..=7).all(|idx| matrix_r.eq_on_col(&true_matrix_r, idx)))
     }
 }
