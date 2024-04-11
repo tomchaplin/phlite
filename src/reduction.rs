@@ -5,11 +5,12 @@ use std::hash::Hash;
 use std::iter;
 
 use crate::matrices::combinators::product;
+use crate::matrices::implementors::MapVecMatrix;
 use crate::matrices::{MatrixRef, SplitByDimension, SquareMatrix};
 use crate::{
     columns::ColumnEntry,
     fields::{Invertible, NonZeroCoefficient},
-    matrices::{implementors::VecVecMatrix, ColBasis, HasColBasis, HasRowFiltration, MatrixOracle},
+    matrices::{ColBasis, HasColBasis, HasRowFiltration, MatrixOracle},
 };
 use crate::{matrix_col_product, PhliteError};
 
@@ -233,7 +234,7 @@ pub struct Diagram<T> {
 
 // TODO: Convert to a MapVecMatrix so that we can use a common diagram read off
 
-pub type StandardReductionMatrix<CF, ColT> = VecVecMatrix<'static, CF, ColT>;
+pub type StandardReductionMatrix<CF, ColT> = MapVecMatrix<'static, CF, ColT, ColT>;
 
 /// If your operator goes up in column order (e.g. coboundary) then you will need to set `reverse_order=True`.
 pub fn standard_algo_with_diagram<M>(
@@ -270,20 +271,20 @@ where
     let mut pairings = HashSet::new();
 
     let col_iter: Box<dyn Iterator<Item = usize>> = if reverse_order {
-        Box::new((0..r.basis().size()).rev())
+        Box::new((0..boundary.basis().size()).rev())
     } else {
-        Box::new(0..r.basis().size())
+        Box::new(0..boundary.basis().size())
     };
 
     for i in col_iter {
-        let mut r_i = r.build_bhcol(i).unwrap();
+        let basis_element = boundary.basis().element(i);
+        let mut r_i = r.build_bhcol(basis_element).unwrap();
         match r_i.pop_pivot() {
             None => {
-                essential.insert(boundary.basis().element(i));
+                essential.insert(basis_element);
             }
             Some(piv) => {
-                let death_idx = boundary.basis().element(i);
-                pairings.insert((piv.row_index, death_idx));
+                pairings.insert((piv.row_index, basis_element));
                 essential.remove(&piv.row_index);
             }
         }
@@ -300,31 +301,32 @@ where
 
 pub fn standard_algo<M>(boundary: M) -> StandardReductionMatrix<M::CoefficientField, M::ColT>
 where
-    M: MatrixOracle + HasRowFiltration + HasColBasis,
+    M: MatrixOracle + HasRowFiltration + HasColBasis + SquareMatrix,
     M::CoefficientField: Invertible,
     M::RowT: Hash,
 {
-    let mut v = vec![];
-    for i in 0..boundary.basis().size() {
-        v.push(vec![(
-            M::CoefficientField::one(),
-            boundary.basis().element(i),
-        )]);
-    }
+    let mut v = HashMap::new();
 
     // low_inverse[i]=(j, lambda) means R[j] has lowest non-zero in row i with coefficient lambda
     let mut low_inverse: HashMap<M::RowT, (M::ColT, M::CoefficientField)> = HashMap::new();
 
-    'column_loop: for i in 0..boundary.basis().size() {
+    for i in 0..boundary.basis().size() {
         // Reduce column i
 
         let basis_element = boundary.basis().element(i);
+
+        let mut v_i = boundary.with_trivial_filtration().empty_bhcol();
+        v_i.add_entries(iter::once(ColumnEntry::from((
+            M::CoefficientField::one(),
+            basis_element,
+            (),
+        ))));
         let mut r_col = boundary.build_bhcol(basis_element).unwrap();
 
         'reduction: loop {
             let Some(pivot_entry) = r_col.pop_pivot() else {
                 // Column reduced to 0 -> found cycle -> move onto next column
-                continue 'column_loop;
+                break 'reduction;
             };
 
             let pivot_row_index = pivot_entry.row_index;
@@ -344,10 +346,12 @@ where
             // If so then we add a multiple of that column to cancel out the pivot in r_col
             let col_multiple = pivot_coeff.additive_inverse() * (other_col_coeff.inverse());
 
+            let v_matrix = MapVecMatrix::from(&v);
+            let r_matrix = product(&boundary, &v_matrix);
+
             // Add the multiple of that column
-            // TODO: Should be adding a multiple of other_r_col
             r_col.add_entries(
-                boundary
+                r_matrix
                     .column_with_filtration(*other_col_basis_element)
                     .unwrap()
                     .map(|e| e.unwrap())
@@ -360,18 +364,30 @@ where
                     }),
             );
 
-            // TODO: Should be adding a multiple of v_col!
             // Update V
-            v[i].push((col_multiple, *other_col_basis_element))
+            v_i.add_entries(
+                v_matrix
+                    .column(*other_col_basis_element)
+                    .unwrap()
+                    .map(|(coeff, row_index)| ColumnEntry::from((coeff, row_index, ()))),
+            )
         }
 
         // Save pivot if we have one
         if let Some(pivot_entry) = r_col.pop_pivot() {
             low_inverse.insert(pivot_entry.row_index, (basis_element, pivot_entry.coeff));
         };
+
+        // Save V
+        v.insert(
+            basis_element,
+            v_i.drain_sorted()
+                .map(|entry| (entry.coeff, entry.row_index))
+                .collect(),
+        );
     }
 
-    VecVecMatrix::from(v)
+    MapVecMatrix::from(v)
 }
 
 #[cfg(test)]
