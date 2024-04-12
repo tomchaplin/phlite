@@ -8,6 +8,8 @@ use phlite::{
     reduction::ClearedReductionMatrix,
 };
 
+// TODO: Make a nice CLI using clap that accepts standard formats (akin to Ripser) and outputs diagram, optional plot?
+
 pub fn main() {
     let mut rdr = csv::ReaderBuilder::new()
         .has_headers(false)
@@ -23,7 +25,13 @@ pub fn main() {
         .collect();
 
     let n_points = distance_matrix.len();
-    let max_dim = 1;
+    let max_dim = std::env::args()
+        .nth(1)
+        .map(|arg| {
+            arg.parse()
+                .expect("First argument should be the maximum homology dimension")
+        })
+        .unwrap_or(1);
 
     // Compute column basis
     let coboundary = RipsCoboundaryAllDims::<Z2>::build(distance_matrix, max_dim);
