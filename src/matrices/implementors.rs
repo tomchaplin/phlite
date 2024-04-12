@@ -1,8 +1,9 @@
 // ======== Default matrix oracles =============================
 
 use std::borrow::Cow;
-use std::collections::HashMap;
 use std::hash::Hash;
+
+use rustc_hash::FxHashMap;
 
 use crate::{
     fields::{NonZeroCoefficient, Z2},
@@ -141,7 +142,7 @@ where
     ColT: BasisElement + Hash,
     RowT: BasisElement,
 {
-    columns: Cow<'a, HashMap<ColT, Vec<(CF, RowT)>>>,
+    columns: Cow<'a, FxHashMap<ColT, Vec<(CF, RowT)>>>,
 }
 
 impl<'a, CF, ColT, RowT> MatrixOracle for MapVecMatrix<'a, CF, ColT, RowT>
@@ -167,40 +168,40 @@ where
     }
 }
 
-impl<'a, CF, ColT, RowT> From<Cow<'a, HashMap<ColT, Vec<(CF, RowT)>>>>
+impl<'a, CF, ColT, RowT> From<Cow<'a, FxHashMap<ColT, Vec<(CF, RowT)>>>>
     for MapVecMatrix<'a, CF, ColT, RowT>
 where
     CF: NonZeroCoefficient,
     ColT: BasisElement + Hash,
     RowT: BasisElement,
 {
-    fn from(value: Cow<'a, HashMap<ColT, Vec<(CF, RowT)>>>) -> Self {
+    fn from(value: Cow<'a, FxHashMap<ColT, Vec<(CF, RowT)>>>) -> Self {
         Self { columns: value }
     }
 }
 
-impl<'a, CF, ColT, RowT> From<&'a HashMap<ColT, Vec<(CF, RowT)>>>
+impl<'a, CF, ColT, RowT> From<&'a FxHashMap<ColT, Vec<(CF, RowT)>>>
     for MapVecMatrix<'a, CF, ColT, RowT>
 where
     CF: NonZeroCoefficient,
     ColT: BasisElement + Hash,
     RowT: BasisElement,
 {
-    fn from(value: &'a HashMap<ColT, Vec<(CF, RowT)>>) -> Self {
+    fn from(value: &'a FxHashMap<ColT, Vec<(CF, RowT)>>) -> Self {
         Self {
             columns: Cow::Borrowed(value),
         }
     }
 }
 
-impl<'a, CF, ColT, RowT> From<HashMap<ColT, Vec<(CF, RowT)>>>
+impl<'a, CF, ColT, RowT> From<FxHashMap<ColT, Vec<(CF, RowT)>>>
     for MapVecMatrix<'static, CF, ColT, RowT>
 where
     CF: NonZeroCoefficient,
     ColT: BasisElement + Hash,
     RowT: BasisElement,
 {
-    fn from(value: HashMap<ColT, Vec<(CF, RowT)>>) -> Self {
+    fn from(value: FxHashMap<ColT, Vec<(CF, RowT)>>) -> Self {
         Self {
             columns: Cow::Owned(value),
         }

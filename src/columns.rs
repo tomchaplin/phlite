@@ -1,10 +1,11 @@
 use crate::matrices::HasRowFiltration;
 use std::{collections::BinaryHeap, fmt::Debug, iter::repeat};
 
+#[derive(Clone, Copy)]
 pub struct ColumnEntry<M: HasRowFiltration> {
-    pub(crate) filtration_value: M::FiltrationT,
-    pub(crate) row_index: M::RowT,
-    pub(crate) coeff: M::CoefficientField,
+    pub filtration_value: M::FiltrationT,
+    pub row_index: M::RowT,
+    pub coeff: M::CoefficientField,
 }
 
 impl<M: HasRowFiltration> Debug for ColumnEntry<M>
@@ -103,6 +104,25 @@ impl<M: HasRowFiltration> BHCol<M> {
 
     pub fn push(&mut self, entry: ColumnEntry<M>) {
         self.heap.push(entry)
+    }
+
+    pub fn clone_pivot(&mut self) -> Option<ColumnEntry<M>>
+    where
+        ColumnEntry<M>: Clone,
+    {
+        let pivot = self.pop_pivot();
+        if let Some(pivot) = pivot {
+            let ret = Some(pivot.clone());
+            self.push(pivot);
+            ret
+        } else {
+            None
+        }
+    }
+
+    /// WARNING: Only valid if previously called `clone_pivot` or pushed the new pivot.
+    pub fn peek_pivot(&self) -> Option<&ColumnEntry<M>> {
+        self.heap.peek()
     }
 
     pub fn pop_pivot(&mut self) -> Option<ColumnEntry<M>> {
