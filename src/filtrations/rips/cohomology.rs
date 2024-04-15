@@ -88,8 +88,7 @@ impl<CF: NonZeroCoefficient> Iterator for CoboundaryIterator<CF> {
             .chain(vertices_after.iter())
             .copied();
         let index = RipsIndex::from_indices(new_simplex, self.max_vertex + 1).unwrap();
-        // TODO: Double check that this is correct
-        let coeff = if self.next_vertex % 2 == 0 {
+        let coeff = if self.insertion_position % 2 == 0 {
             CF::one()
         } else {
             CF::one().additive_inverse()
