@@ -44,6 +44,7 @@ impl<CF: NonZeroCoefficient> CoboundaryIterator<CF> {
     }
 }
 
+// TODO: Check whether it is better to produce cobundaries in the opposite order for heap insertion
 impl<CF: NonZeroCoefficient> Iterator for CoboundaryIterator<CF> {
     // Coefficient, RipsIndex, inserted vertex
     type Item = (CF, RipsIndex, usize);

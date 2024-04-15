@@ -44,9 +44,22 @@ Given such an implementation, `phlite` provides memory-efficient methods for com
 In line with Ripser's approach, the output of these methods is an oracle for the matrix $V$, from which $R$ can be readily computed.
 In particular, when the implementation of $D$ satisfies sufficient constraints, `phlite` provides an implementation of the _clearing_ optimisation (first introduced in [[2]](#2)).
 
-
-
 For more details, please refer to the documentation.
+
+## TODO
+
+- [ ] Investigate apparent and emergent pairs
+- [ ] Documentation all traits and APIs
+- [ ] Explain Rips implementation in docs
+- [ ] Write some Rust examples
+- [ ] Tests (unit + integration + property)
+- [ ] Improve handling of binary-heap column addition
+- [ ] Implement magnitude homology
+- [ ] Implement (grounded) (persistent) path homology
+- [ ] Compute involuted persistent homology cycle representatives
+- [ ] Ripser comaptible CLI?
+- [ ] Web interface for Rips?
+- [ ] Python bindings?
 
 ## References
 
