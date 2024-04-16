@@ -1,3 +1,2 @@
-#[cfg(feature = "grpph")]
-pub mod grpph;
+#[cfg(feature = "build-binary")]
 pub mod rips;

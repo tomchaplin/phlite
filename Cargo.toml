@@ -23,7 +23,4 @@ rustc-hash = "1.1.0"
 
 [features]
 build-binary = ["csv"]
-grpph = []
 
-[dev-dependencies]
-petgraph = "0.6.4"
