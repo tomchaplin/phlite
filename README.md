@@ -55,11 +55,11 @@ For more details, please refer to the documentation.
 - [ ] Tests (unit + integration + property)
 - [ ] Improve handling of binary-heap column addition
 - [ ] Implement magnitude homology
-- [ ] Implement (grounded) (persistent) path homology
 - [ ] Compute involuted persistent homology cycle representatives
 - [ ] Ripser comaptible CLI?
 - [ ] Web interface for Rips?
 - [ ] Python bindings?
+- [ ] Serialisation of V matrices
 
 ## References
 

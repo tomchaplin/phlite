@@ -22,5 +22,6 @@ ordered-float = "4.2.0"
 rustc-hash = "1.1.0"
 
 [features]
+default = ["build-binary"]
 build-binary = ["csv"]
 

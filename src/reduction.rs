@@ -438,16 +438,8 @@ where
 #[cfg(test)]
 mod tests {
 
-    use ordered_float::NotNan;
-
-    use crate::{
-        fields::Z2,
-        filtrations::rips::cohomology::RipsCoboundaryAllDims,
-        matrices::{
-            combinators::product, implementors::simple_Z2_matrix, HasRowFiltration, MatrixOracle,
-            MatrixRef,
-        },
-        reduction::ClearedReductionMatrix,
+    use crate::matrices::{
+        combinators::product, implementors::simple_Z2_matrix, MatrixOracle, MatrixRef,
     };
 
     use super::standard_algo;
@@ -478,51 +470,5 @@ mod tests {
         ]);
 
         assert!((0..=7).all(|idx| matrix_r.eq_on_col(&true_matrix_r, idx)))
-    }
-
-    fn distance_matrix() -> Vec<Vec<NotNan<f64>>> {
-        let zero = NotNan::new(0.0).unwrap();
-        let one = NotNan::new(1.0).unwrap();
-        let sqrt2 = NotNan::new(2.0_f64.sqrt()).unwrap();
-        let distance_matrix: Vec<Vec<NotNan<f64>>> = vec![
-            vec![zero, one, sqrt2, one],
-            vec![one, zero, one, sqrt2],
-            vec![sqrt2, one, zero, one],
-            vec![one, sqrt2, one, zero],
-        ];
-        distance_matrix
-    }
-
-    #[test]
-    fn test_clearing() {
-        let distance_matrix = distance_matrix();
-        let n_points = distance_matrix.len();
-        let max_dim = 1;
-
-        // Compute column basis
-        let coboundary = RipsCoboundaryAllDims::<Z2>::build(distance_matrix, max_dim);
-        // Compute reduction matrix, in increasing dimension
-        let (v, diagram) = ClearedReductionMatrix::build_with_diagram(&coboundary, 0..=max_dim);
-        let _r = product(&coboundary, &v);
-
-        // Report
-        println!("Essential:");
-        for idx in diagram.essential.iter() {
-            let f_val = coboundary.filtration_value(*idx).unwrap().0;
-            let dim = idx.dimension(n_points);
-            println!(" dim={dim}, birth={idx:?}, f=({f_val}, ∞)");
-        }
-        println!("\nPairings:");
-        for tup in diagram.pairings.iter() {
-            let dim = tup.1.dimension(n_points);
-            let idx_tup = (tup.1, tup.0);
-            let birth_f = coboundary.filtration_value(tup.1).unwrap().0;
-            let death_f = coboundary.filtration_value(tup.0).unwrap().0;
-            println!(" dim={dim}, pair={idx_tup:?}, f=({birth_f}, {death_f})");
-        }
-
-        // Ignored 2-dimensional void
-        assert_eq!(diagram.pairings.len(), 6);
-        assert_eq!(diagram.essential.len(), 1);
     }
 }

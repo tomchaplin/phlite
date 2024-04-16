@@ -201,7 +201,7 @@ mod tests {
             RipsIndex,
         },
         matrices::{combinators::product, HasRowFiltration, MatrixOracle},
-        reduction::standard_algo_with_diagram,
+        reduction::{standard_algo_with_diagram, ClearedReductionMatrix},
     };
 
     #[test]
@@ -283,6 +283,39 @@ mod tests {
 
         // 2-dimensional void is killed without having to compute basis for C_3
         assert_eq!(diagram.pairings.len(), 7);
+        assert_eq!(diagram.essential.len(), 1);
+    }
+
+    #[test]
+    fn test_clearing() {
+        let distance_matrix = distance_matrix();
+        let n_points = distance_matrix.len();
+        let max_dim = 1;
+
+        // Compute column basis
+        let coboundary = RipsCoboundaryAllDims::<Z2>::build(distance_matrix, max_dim);
+        // Compute reduction matrix, in increasing dimension
+        let (v, diagram) = ClearedReductionMatrix::build_with_diagram(&coboundary, 0..=max_dim);
+        let _r = product(&coboundary, &v);
+
+        // Report
+        println!("Essential:");
+        for idx in diagram.essential.iter() {
+            let f_val = coboundary.filtration_value(*idx).unwrap().0;
+            let dim = idx.dimension(n_points);
+            println!(" dim={dim}, birth={idx:?}, f=({f_val}, ∞)");
+        }
+        println!("\nPairings:");
+        for tup in diagram.pairings.iter() {
+            let dim = tup.1.dimension(n_points);
+            let idx_tup = (tup.1, tup.0);
+            let birth_f = coboundary.filtration_value(tup.1).unwrap().0;
+            let death_f = coboundary.filtration_value(tup.0).unwrap().0;
+            println!(" dim={dim}, pair={idx_tup:?}, f=({birth_f}, {death_f})");
+        }
+
+        // Ignored 2-dimensional void
+        assert_eq!(diagram.pairings.len(), 6);
         assert_eq!(diagram.essential.len(), 1);
     }
 }
