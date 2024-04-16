@@ -35,7 +35,6 @@ pub fn main() {
 
     // Compute column basis
     let coboundary = RipsCoboundaryAllDims::<Z2>::build(distance_matrix, max_dim);
-    println!("Built basis");
     println!("Basis sizes:");
     for dim in 0..=max_dim {
         let basis_size = coboundary.basis().in_dimension(dim).size();
@@ -48,7 +47,7 @@ pub fn main() {
     let _r = product(&coboundary, &v);
 
     // Report
-    println!("Essential:");
+    println!("\nEssential:");
     for idx in diagram.essential.iter() {
         let f_val = coboundary.filtration_value(*idx).unwrap().0;
         let dim = idx.dimension(n_points);
