@@ -260,7 +260,6 @@ where
                     ),
                 );
             }
-            println!("Finished reducing dimension {dim}");
         }
 
         let diagram = Diagram {
