@@ -60,6 +60,8 @@ For more details, please refer to the documentation.
 - [ ] Web interface for Rips?
 - [ ] Python bindings?
 - [ ] Serialisation of V matrices
+- [ ] Add optional logging
+- [ ] Add reverse filtration and reverse basis adaptors?
 
 ## References
 
