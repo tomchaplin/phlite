@@ -136,8 +136,9 @@ where
     }
 }
 
-// TODO: Experiment with how to represent cleared columns - by death idx or store all of R_j?
 // TODO: Experiment with different Hashers, maybe nohash_hash? Make generic over ColT hashser?
+// TODO: Experiment with occasionally consolidating v_i and r_i
+//       This will take some time but reduce memory usage - maybe make configurable?
 impl<M> ClearedReductionMatrix<'static, M>
 where
     M: MatrixRef + SquareMatrix + HasRowFiltration + HasColBasis,

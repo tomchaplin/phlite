@@ -48,20 +48,31 @@ For more details, please refer to the documentation.
 
 ## TODO
 
+### High Priority
+
 - [ ] Investigate apparent and emergent pairs
 - [ ] Documentation all traits and APIs
-- [ ] Explain Rips implementation in docs
-- [ ] Write some Rust examples
-- [ ] Tests (unit + integration + property)
-- [ ] Improve handling of binary-heap column addition
-- [ ] Implement magnitude homology
 - [ ] Compute involuted persistent homology cycle representatives
+- [ ] Tests (unit + integration + property)
+- [ ] Explain Rips implementation in docs
+
+### Medium priority
+
+- [ ] Improve handling of binary-heap column addition
+- [ ] Improve organisation of clearing algorithm (implement as a builder?)
+- [ ] Add reverse filtration and reverse basis adaptors?
+- [ ] Implement lockfree reduction algo
+
+### Low priority
+
+- [ ] Add optional logging
+- [ ] Write some Rust examples
 - [ ] Ripser comaptible CLI?
 - [ ] Web interface for Rips?
 - [ ] Python bindings?
 - [ ] Serialisation of V matrices
-- [ ] Add optional logging
-- [ ] Add reverse filtration and reverse basis adaptors?
+- [ ] Implement magnitude homology
+
 
 ## References
 
