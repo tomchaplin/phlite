@@ -3,10 +3,10 @@ use std::io;
 use ordered_float::NotNan;
 use phlite::{
     fields::Z2,
-    filtrations::rips::cohomology::RipsCoboundaryAllDims,
     matrices::{combinators::product, ColBasis, HasColBasis, HasRowFiltration, SplitByDimension},
     reduction::ClearedReductionMatrix,
 };
+use phlite_rips::cohomology::RipsCoboundaryAllDims;
 
 // TODO: Make a nice CLI using clap that accepts standard formats (akin to Ripser) and outputs diagram, optional plot?
 

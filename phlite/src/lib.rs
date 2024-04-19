@@ -1,6 +1,5 @@
 pub mod columns;
 pub mod fields;
-pub mod filtrations;
 pub mod matrices;
 pub mod reduction;
 

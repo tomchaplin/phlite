@@ -1,9 +1,8 @@
-use ordered_float::NotNan;
-
-use crate::matrices::{BasisElement, ColBasis, SplitByDimension};
-
 pub mod cohomology;
 pub mod homology;
+
+use ordered_float::NotNan;
+use phlite::matrices::{BasisElement, ColBasis, SplitByDimension};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct RipsIndex(usize);
@@ -188,7 +187,7 @@ impl<FT> SplitByDimension for MultiDimRipsBasisWithFilt<FT> {
 
 #[cfg(test)]
 mod tests {
-    use crate::filtrations::rips::RipsIndex;
+    use crate::RipsIndex;
 
     #[test]
     fn test_rips_index() {

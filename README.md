@@ -46,6 +46,12 @@ In particular, when the implementation of $D$ satisfies sufficient constraints, 
 
 For more details, please refer to the documentation.
 
+## Crates
+
+* `phlite` - Core library, matrix oracle traits, reduction algorithms.
+* `phlite_rips` - Implementation of VR filtration, à la Ripser. Rust library + basic CLI.
+* `phlite_grpph` - Implementation of GrPPH [[7]](#7). Rust library + Python bindings via PyO3.
+
 ## TODO
 
 ### High Priority
@@ -93,3 +99,8 @@ Tralie, Christopher, Nathaniel Saul, and Rann Bar-On. "Ripser. py: A lean persis
 
 <a id="6">[6]</a>
 Čufar, Matija. "Ripserer. jl: flexible and efficient persistent homology computation in Julia." Journal of Open Source Software 5.54 (2020): 2614. [Github repo.](https://github.com/mtsch/Ripserer.jl) [Docs.](https://mtsch.github.io/Ripserer.jl/dev/)
+
+<a id="7">[7]</a>
+Chaplin, T., Harrington, H.A. and Tillmann, U., 2022.
+Grounded persistent path homology: a stable, topological descriptor for weighted digraphs.
+arXiv preprint [arXiv:2210.11274](https://arxiv.org/abs/2210.11274).

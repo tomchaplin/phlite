@@ -2,13 +2,13 @@ use std::{convert::identity, marker::PhantomData};
 
 use ordered_float::NotNan;
 
-use crate::{
+use crate::{build_rips_bases, max_pairwise_distance, RipsIndex};
+use phlite::{
     fields::{Invertible, NonZeroCoefficient},
-    filtrations::rips::{build_rips_bases, max_pairwise_distance, RipsIndex},
-    matrices::{adaptors::MatrixWithBasis, HasRowFiltration, MatrixOracle},
+    matrices::{adaptors::MatrixWithBasis, HasColBasis, HasRowFiltration, MatrixOracle},
 };
 
-use super::{MultiDimRipsBasisWithFilt, SingleDimRipsBasisWithFilt};
+use super::MultiDimRipsBasisWithFilt;
 
 pub struct RipsBoundary<CF: NonZeroCoefficient + Invertible> {
     distances: Vec<Vec<NotNan<f64>>>,
@@ -31,7 +31,7 @@ impl<CF: NonZeroCoefficient + Invertible> MatrixOracle for RipsBoundary<CF> {
     fn column(
         &self,
         col: Self::ColT,
-    ) -> Result<impl Iterator<Item = (Self::CoefficientField, Self::RowT)>, crate::PhliteError>
+    ) -> Result<impl Iterator<Item = (Self::CoefficientField, Self::RowT)>, phlite::PhliteError>
     {
         let index_as_vec = col.to_vec(self.n_points());
         let parity = |i: usize| {
@@ -61,7 +61,7 @@ impl<CF: NonZeroCoefficient + Invertible> MatrixOracle for RipsBoundary<CF> {
 impl<CF: NonZeroCoefficient + Invertible> HasRowFiltration for RipsBoundary<CF> {
     type FiltrationT = NotNan<f64>;
 
-    fn filtration_value(&self, row: Self::RowT) -> Result<Self::FiltrationT, crate::PhliteError> {
+    fn filtration_value(&self, row: Self::RowT) -> Result<Self::FiltrationT, phlite::PhliteError> {
         let as_vec = row.to_vec(self.n_points());
         Ok(max_pairwise_distance(&as_vec, &self.distances))
     }
@@ -69,29 +69,64 @@ impl<CF: NonZeroCoefficient + Invertible> HasRowFiltration for RipsBoundary<CF> 
     // TODO:Can we override column with filtration to compute more efficiently?
 }
 
-pub type RipsBoundarySingleDim<'a, CF> =
-    MatrixWithBasis<&'a RipsBoundary<CF>, &'a SingleDimRipsBasisWithFilt<NotNan<f64>>>;
+pub struct RipsBoundaryAllDims<CF: Invertible>(
+    MatrixWithBasis<RipsBoundary<CF>, MultiDimRipsBasisWithFilt<NotNan<f64>>>,
+);
 
-pub type RipsBoundaryAllDims<CF> =
-    MatrixWithBasis<RipsBoundary<CF>, MultiDimRipsBasisWithFilt<NotNan<f64>>>;
+impl<CF: Invertible> MatrixOracle for RipsBoundaryAllDims<CF> {
+    type CoefficientField = CF;
+
+    type ColT = <MatrixWithBasis<
+        RipsBoundary<CF>,
+        MultiDimRipsBasisWithFilt<NotNan<f64>>,
+    > as MatrixOracle>::ColT;
+
+    type RowT = <MatrixWithBasis<
+        RipsBoundary<CF>,
+        MultiDimRipsBasisWithFilt<NotNan<f64>>,
+    > as MatrixOracle>::RowT;
+
+    fn column(
+        &self,
+        col: Self::ColT,
+    ) -> Result<impl Iterator<Item = (Self::CoefficientField, Self::RowT)>, phlite::PhliteError>
+    {
+        self.0.column(col)
+    }
+}
+
+impl<CF: Invertible> HasRowFiltration for RipsBoundaryAllDims<CF> {
+    type FiltrationT = <MatrixWithBasis<
+        RipsBoundary<CF>,
+        MultiDimRipsBasisWithFilt<NotNan<f64>>,
+    > as HasRowFiltration>::FiltrationT;
+
+    fn filtration_value(&self, row: Self::RowT) -> Result<Self::FiltrationT, phlite::PhliteError> {
+        self.0.filtration_value(row)
+    }
+}
+
+impl<CF: Invertible> HasColBasis for RipsBoundaryAllDims<CF> {
+    type BasisT = <MatrixWithBasis<
+        RipsBoundary<CF>,
+        MultiDimRipsBasisWithFilt<NotNan<f64>>,
+    > as HasColBasis>::BasisT;
+
+    fn basis(&self) -> &Self::BasisT {
+        self.0.basis()
+    }
+}
 
 impl<CF: NonZeroCoefficient + Invertible> RipsBoundaryAllDims<CF> {
     pub fn build(distances: Vec<Vec<NotNan<f64>>>, max_dim: usize) -> Self {
         let basis = build_rips_bases(&distances, max_dim, identity);
-        RipsBoundaryAllDims {
+        RipsBoundaryAllDims(MatrixWithBasis {
             matrix: RipsBoundary {
                 distances,
                 phantom: PhantomData,
             },
             basis,
-        }
-    }
-
-    pub fn dimension_matrix(&self, dim: usize) -> RipsBoundarySingleDim<CF> {
-        RipsBoundarySingleDim {
-            matrix: &self.matrix,
-            basis: &self.basis.0[dim],
-        }
+        })
     }
 }
 
@@ -101,9 +136,9 @@ mod tests {
 
     use ordered_float::NotNan;
 
-    use crate::{
+    use crate::homology::RipsBoundaryAllDims;
+    use phlite::{
         fields::Z2,
-        filtrations::rips::homology::RipsBoundaryAllDims,
         matrices::{combinators::product, HasRowFiltration},
         reduction::standard_algo_with_diagram,
     };

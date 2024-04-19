@@ -2,14 +2,14 @@ use std::{cmp::Reverse, iter, marker::PhantomData};
 
 use ordered_float::NotNan;
 
-use crate::{
+use crate::{build_rips_bases, max_pairwise_distance, RipsIndex};
+use phlite::{
     columns::ColumnEntry,
     fields::{Invertible, NonZeroCoefficient},
-    filtrations::rips::{build_rips_bases, max_pairwise_distance, RipsIndex},
-    matrices::{adaptors::MatrixWithBasis, HasRowFiltration, MatrixOracle},
+    matrices::{adaptors::MatrixWithBasis, HasColBasis, HasRowFiltration, MatrixOracle},
 };
 
-use super::{MultiDimRipsBasisWithFilt, SingleDimRipsBasisWithFilt};
+use super::MultiDimRipsBasisWithFilt;
 
 // TODO: distances only needs to be a reference
 
@@ -114,7 +114,7 @@ impl<CF: NonZeroCoefficient + Invertible> MatrixOracle for RipsCoboundary<CF> {
     fn column(
         &self,
         col: Self::ColT,
-    ) -> Result<impl Iterator<Item = (Self::CoefficientField, Self::RowT)>, crate::PhliteError>
+    ) -> Result<impl Iterator<Item = (Self::CoefficientField, Self::RowT)>, phlite::PhliteError>
     {
         let n_points = self.n_points();
         Ok(CoboundaryIterator::new(col.to_vec(n_points), n_points)
@@ -126,7 +126,7 @@ impl<CF: NonZeroCoefficient + Invertible> HasRowFiltration for RipsCoboundary<CF
     // Reverse filtration to anti-transpose
     type FiltrationT = Reverse<NotNan<f64>>;
 
-    fn filtration_value(&self, row: Self::RowT) -> Result<Self::FiltrationT, crate::PhliteError> {
+    fn filtration_value(&self, row: Self::RowT) -> Result<Self::FiltrationT, phlite::PhliteError> {
         let as_vec = row.to_vec(self.n_points());
         Ok(Reverse(max_pairwise_distance(&as_vec, &self.distances)))
     }
@@ -136,8 +136,8 @@ impl<CF: NonZeroCoefficient + Invertible> HasRowFiltration for RipsCoboundary<CF
         &self,
         col: Self::ColT,
     ) -> Result<
-        impl Iterator<Item = Result<crate::columns::ColumnEntry<Self>, crate::PhliteError>>,
-        crate::PhliteError,
+        impl Iterator<Item = Result<phlite::columns::ColumnEntry<Self>, phlite::PhliteError>>,
+        phlite::PhliteError,
     > {
         let n_points = self.n_points();
         let coboundary_iterator = CoboundaryIterator::new(col.to_vec(n_points), n_points);
@@ -167,23 +167,67 @@ impl<CF: NonZeroCoefficient + Invertible> HasRowFiltration for RipsCoboundary<CF
     }
 }
 
-pub type RipsCoboundarySingleDim<'a, CF> =
-    MatrixWithBasis<&'a RipsCoboundary<CF>, &'a SingleDimRipsBasisWithFilt<Reverse<NotNan<f64>>>>;
-
-pub type RipsCoboundaryAllDims<CF> =
-    MatrixWithBasis<RipsCoboundary<CF>, MultiDimRipsBasisWithFilt<Reverse<NotNan<f64>>>>;
+pub struct RipsCoboundaryAllDims<CF: Invertible>(
+    MatrixWithBasis<RipsCoboundary<CF>, MultiDimRipsBasisWithFilt<Reverse<NotNan<f64>>>>,
+);
 
 impl<CF: NonZeroCoefficient + Invertible> RipsCoboundaryAllDims<CF> {
     pub fn build(distances: Vec<Vec<NotNan<f64>>>, max_dim: usize) -> Self {
         // Pass in the Reverse functor to revere filtration order on columns in basis
         let basis = build_rips_bases(&distances, max_dim, Reverse);
-        RipsCoboundaryAllDims {
+        RipsCoboundaryAllDims(MatrixWithBasis {
             matrix: RipsCoboundary {
                 distances,
                 phantom: PhantomData,
             },
             basis,
-        }
+        })
+    }
+}
+
+// TODO: Convert this into a macro!
+
+impl<CF: Invertible> MatrixOracle for RipsCoboundaryAllDims<CF> {
+    type CoefficientField = CF;
+
+    type ColT = <MatrixWithBasis<
+        RipsCoboundary<CF>,
+        MultiDimRipsBasisWithFilt<Reverse<NotNan<f64>>>,
+    > as MatrixOracle>::ColT;
+
+    type RowT = <MatrixWithBasis<
+        RipsCoboundary<CF>,
+        MultiDimRipsBasisWithFilt<Reverse<NotNan<f64>>>,
+    > as MatrixOracle>::RowT;
+
+    fn column(
+        &self,
+        col: Self::ColT,
+    ) -> Result<impl Iterator<Item = (Self::CoefficientField, Self::RowT)>, phlite::PhliteError>
+    {
+        self.0.column(col)
+    }
+}
+
+impl<CF: Invertible> HasRowFiltration for RipsCoboundaryAllDims<CF> {
+    type FiltrationT = <MatrixWithBasis<
+        RipsCoboundary<CF>,
+        MultiDimRipsBasisWithFilt<Reverse<NotNan<f64>>>,
+    > as HasRowFiltration>::FiltrationT;
+
+    fn filtration_value(&self, row: Self::RowT) -> Result<Self::FiltrationT, phlite::PhliteError> {
+        self.0.filtration_value(row)
+    }
+}
+
+impl<CF: Invertible> HasColBasis for RipsCoboundaryAllDims<CF> {
+    type BasisT = <MatrixWithBasis<
+        RipsCoboundary<CF>,
+        MultiDimRipsBasisWithFilt<Reverse<NotNan<f64>>>,
+    > as HasColBasis>::BasisT;
+
+    fn basis(&self) -> &Self::BasisT {
+        self.0.basis()
     }
 }
 
@@ -195,11 +239,11 @@ mod tests {
     use ordered_float::NotNan;
 
     use crate::{
+        cohomology::{RipsCoboundary, RipsCoboundaryAllDims},
+        RipsIndex,
+    };
+    use phlite::{
         fields::Z2,
-        filtrations::rips::{
-            cohomology::{RipsCoboundary, RipsCoboundaryAllDims},
-            RipsIndex,
-        },
         matrices::{combinators::product, HasRowFiltration, MatrixOracle},
         reduction::{standard_algo_with_diagram, ClearedReductionMatrix},
     };
