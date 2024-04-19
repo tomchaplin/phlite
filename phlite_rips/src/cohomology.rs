@@ -6,7 +6,7 @@ use crate::{build_rips_bases, max_pairwise_distance, RipsIndex};
 use phlite::{
     columns::ColumnEntry,
     fields::{Invertible, NonZeroCoefficient},
-    matrices::{adaptors::MatrixWithBasis, HasColBasis, HasRowFiltration, MatrixOracle},
+    matrices::{adaptors::MatrixWithBasis, HasRowFiltration, MatrixOracle},
 };
 
 use super::MultiDimRipsBasisWithFilt;
@@ -167,70 +167,23 @@ impl<CF: NonZeroCoefficient + Invertible> HasRowFiltration for RipsCoboundary<CF
     }
 }
 
-pub struct RipsCoboundaryAllDims<CF: Invertible>(
-    MatrixWithBasis<RipsCoboundary<CF>, MultiDimRipsBasisWithFilt<Reverse<NotNan<f64>>>>,
-);
+pub type RipsCoboundaryAllDims<CF> =
+    MatrixWithBasis<RipsCoboundary<CF>, MultiDimRipsBasisWithFilt<Reverse<NotNan<f64>>>>;
 
-impl<CF: NonZeroCoefficient + Invertible> RipsCoboundaryAllDims<CF> {
-    pub fn build(distances: Vec<Vec<NotNan<f64>>>, max_dim: usize) -> Self {
-        // Pass in the Reverse functor to revere filtration order on columns in basis
-        let basis = build_rips_bases(&distances, max_dim, Reverse);
-        RipsCoboundaryAllDims(MatrixWithBasis {
-            matrix: RipsCoboundary {
-                distances,
-                phantom: PhantomData,
-            },
-            basis,
-        })
+pub fn build_rips_coboundary_matrix<CF: Invertible>(
+    distances: Vec<Vec<NotNan<f64>>>,
+    max_dim: usize,
+) -> RipsCoboundaryAllDims<CF> {
+    // Pass in the Reverse functor to revere filtration order on columns in basis
+    let basis = build_rips_bases(&distances, max_dim, Reverse);
+    RipsCoboundaryAllDims {
+        matrix: RipsCoboundary {
+            distances,
+            phantom: PhantomData,
+        },
+        basis,
     }
 }
-
-// TODO: Convert this into a macro!
-
-impl<CF: Invertible> MatrixOracle for RipsCoboundaryAllDims<CF> {
-    type CoefficientField = CF;
-
-    type ColT = <MatrixWithBasis<
-        RipsCoboundary<CF>,
-        MultiDimRipsBasisWithFilt<Reverse<NotNan<f64>>>,
-    > as MatrixOracle>::ColT;
-
-    type RowT = <MatrixWithBasis<
-        RipsCoboundary<CF>,
-        MultiDimRipsBasisWithFilt<Reverse<NotNan<f64>>>,
-    > as MatrixOracle>::RowT;
-
-    fn column(
-        &self,
-        col: Self::ColT,
-    ) -> Result<impl Iterator<Item = (Self::CoefficientField, Self::RowT)>, phlite::PhliteError>
-    {
-        self.0.column(col)
-    }
-}
-
-impl<CF: Invertible> HasRowFiltration for RipsCoboundaryAllDims<CF> {
-    type FiltrationT = <MatrixWithBasis<
-        RipsCoboundary<CF>,
-        MultiDimRipsBasisWithFilt<Reverse<NotNan<f64>>>,
-    > as HasRowFiltration>::FiltrationT;
-
-    fn filtration_value(&self, row: Self::RowT) -> Result<Self::FiltrationT, phlite::PhliteError> {
-        self.0.filtration_value(row)
-    }
-}
-
-impl<CF: Invertible> HasColBasis for RipsCoboundaryAllDims<CF> {
-    type BasisT = <MatrixWithBasis<
-        RipsCoboundary<CF>,
-        MultiDimRipsBasisWithFilt<Reverse<NotNan<f64>>>,
-    > as HasColBasis>::BasisT;
-
-    fn basis(&self) -> &Self::BasisT {
-        self.0.basis()
-    }
-}
-
 // TODO: Write some proper tests
 #[cfg(test)]
 mod tests {
@@ -239,7 +192,7 @@ mod tests {
     use ordered_float::NotNan;
 
     use crate::{
-        cohomology::{RipsCoboundary, RipsCoboundaryAllDims},
+        cohomology::{build_rips_coboundary_matrix, RipsCoboundary},
         RipsIndex,
     };
     use phlite::{
@@ -304,7 +257,7 @@ mod tests {
         let max_dim = 2;
 
         // Compute column basis
-        let coboundary = RipsCoboundaryAllDims::<Z2>::build(distance_matrix, max_dim);
+        let coboundary = build_rips_coboundary_matrix::<Z2>(distance_matrix, max_dim);
         // Compute reduction matrix
         let (v, diagram) = standard_algo_with_diagram(&coboundary, true);
         let _r = product(&coboundary, &v);
@@ -337,7 +290,7 @@ mod tests {
         let max_dim = 1;
 
         // Compute column basis
-        let coboundary = RipsCoboundaryAllDims::<Z2>::build(distance_matrix, max_dim);
+        let coboundary = build_rips_coboundary_matrix::<Z2>(distance_matrix, max_dim);
         // Compute reduction matrix, in increasing dimension
         let (v, diagram) = ClearedReductionMatrix::build_with_diagram(&coboundary, 0..=max_dim);
         let _r = product(&coboundary, &v);

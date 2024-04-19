@@ -5,7 +5,7 @@ use ordered_float::NotNan;
 use crate::{build_rips_bases, max_pairwise_distance, RipsIndex};
 use phlite::{
     fields::{Invertible, NonZeroCoefficient},
-    matrices::{adaptors::MatrixWithBasis, HasColBasis, HasRowFiltration, MatrixOracle},
+    matrices::{adaptors::MatrixWithBasis, HasRowFiltration, MatrixOracle},
 };
 
 use super::MultiDimRipsBasisWithFilt;
@@ -69,64 +69,20 @@ impl<CF: NonZeroCoefficient + Invertible> HasRowFiltration for RipsBoundary<CF> 
     // TODO:Can we override column with filtration to compute more efficiently?
 }
 
-pub struct RipsBoundaryAllDims<CF: Invertible>(
-    MatrixWithBasis<RipsBoundary<CF>, MultiDimRipsBasisWithFilt<NotNan<f64>>>,
-);
+pub type RipsBoundaryAllDims<CF> =
+    MatrixWithBasis<RipsBoundary<CF>, MultiDimRipsBasisWithFilt<NotNan<f64>>>;
 
-impl<CF: Invertible> MatrixOracle for RipsBoundaryAllDims<CF> {
-    type CoefficientField = CF;
-
-    type ColT = <MatrixWithBasis<
-        RipsBoundary<CF>,
-        MultiDimRipsBasisWithFilt<NotNan<f64>>,
-    > as MatrixOracle>::ColT;
-
-    type RowT = <MatrixWithBasis<
-        RipsBoundary<CF>,
-        MultiDimRipsBasisWithFilt<NotNan<f64>>,
-    > as MatrixOracle>::RowT;
-
-    fn column(
-        &self,
-        col: Self::ColT,
-    ) -> Result<impl Iterator<Item = (Self::CoefficientField, Self::RowT)>, phlite::PhliteError>
-    {
-        self.0.column(col)
-    }
-}
-
-impl<CF: Invertible> HasRowFiltration for RipsBoundaryAllDims<CF> {
-    type FiltrationT = <MatrixWithBasis<
-        RipsBoundary<CF>,
-        MultiDimRipsBasisWithFilt<NotNan<f64>>,
-    > as HasRowFiltration>::FiltrationT;
-
-    fn filtration_value(&self, row: Self::RowT) -> Result<Self::FiltrationT, phlite::PhliteError> {
-        self.0.filtration_value(row)
-    }
-}
-
-impl<CF: Invertible> HasColBasis for RipsBoundaryAllDims<CF> {
-    type BasisT = <MatrixWithBasis<
-        RipsBoundary<CF>,
-        MultiDimRipsBasisWithFilt<NotNan<f64>>,
-    > as HasColBasis>::BasisT;
-
-    fn basis(&self) -> &Self::BasisT {
-        self.0.basis()
-    }
-}
-
-impl<CF: NonZeroCoefficient + Invertible> RipsBoundaryAllDims<CF> {
-    pub fn build(distances: Vec<Vec<NotNan<f64>>>, max_dim: usize) -> Self {
-        let basis = build_rips_bases(&distances, max_dim, identity);
-        RipsBoundaryAllDims(MatrixWithBasis {
-            matrix: RipsBoundary {
-                distances,
-                phantom: PhantomData,
-            },
-            basis,
-        })
+pub fn build_rips_boundary_matrix<CF: Invertible>(
+    distances: Vec<Vec<NotNan<f64>>>,
+    max_dim: usize,
+) -> RipsBoundaryAllDims<CF> {
+    let basis = build_rips_bases(&distances, max_dim, identity);
+    RipsBoundaryAllDims {
+        matrix: RipsBoundary {
+            distances,
+            phantom: PhantomData,
+        },
+        basis,
     }
 }
 
@@ -136,7 +92,7 @@ mod tests {
 
     use ordered_float::NotNan;
 
-    use crate::homology::RipsBoundaryAllDims;
+    use crate::homology::build_rips_boundary_matrix;
     use phlite::{
         fields::Z2,
         matrices::{combinators::product, HasRowFiltration},
@@ -163,7 +119,7 @@ mod tests {
         let max_dim = 2;
 
         // Compute column basis
-        let boundary = RipsBoundaryAllDims::<Z2>::build(distance_matrix, max_dim);
+        let boundary = build_rips_boundary_matrix::<Z2>(distance_matrix, max_dim);
         // Compute reduction matrix
         let (v, diagram) = standard_algo_with_diagram(&boundary, false);
         let _r = &product(&boundary, &v);

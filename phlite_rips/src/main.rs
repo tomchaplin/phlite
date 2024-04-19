@@ -6,7 +6,7 @@ use phlite::{
     matrices::{combinators::product, ColBasis, HasColBasis, HasRowFiltration, SplitByDimension},
     reduction::ClearedReductionMatrix,
 };
-use phlite_rips::cohomology::RipsCoboundaryAllDims;
+use phlite_rips::cohomology::build_rips_coboundary_matrix;
 
 // TODO: Make a nice CLI using clap that accepts standard formats (akin to Ripser) and outputs diagram, optional plot?
 
@@ -34,7 +34,7 @@ pub fn main() {
         .unwrap_or(1);
 
     // Compute column basis
-    let coboundary = RipsCoboundaryAllDims::<Z2>::build(distance_matrix, max_dim);
+    let coboundary = build_rips_coboundary_matrix::<Z2>(distance_matrix, max_dim);
     println!("Basis sizes:");
     for dim in 0..=max_dim {
         let basis_size = coboundary.basis().in_dimension(dim).size();
