@@ -1,5 +1,5 @@
 use crate::matrices::HasRowFiltration;
-use std::{collections::BinaryHeap, fmt::Debug, iter::repeat};
+use std::{collections::BinaryHeap, fmt::Debug, iter::repeat, ops::Mul};
 
 #[derive(Clone, Copy)]
 pub struct ColumnEntry<M: HasRowFiltration> {
@@ -64,6 +64,18 @@ impl<M: HasRowFiltration> Ord for ColumnEntry<M> {
     }
 }
 
+impl<M: HasRowFiltration> Mul<M::CoefficientField> for ColumnEntry<M> {
+    type Output = Self;
+
+    fn mul(self, rhs: M::CoefficientField) -> Self::Output {
+        ColumnEntry {
+            coeff: self.coeff * rhs,
+            filtration_value: self.filtration_value,
+            row_index: self.row_index,
+        }
+    }
+}
+
 pub struct BHCol<M: HasRowFiltration> {
     heap: BinaryHeap<ColumnEntry<M>>,
 }
@@ -86,12 +98,30 @@ impl<M: HasRowFiltration> Default for BHCol<M> {
 }
 
 impl<M: HasRowFiltration> BHCol<M> {
-    pub fn add_entries(&mut self, entries: impl Iterator<Item = ColumnEntry<M>>) {
-        let (lower_bound, _) = entries.size_hint();
+    pub fn add_entries<M2>(&mut self, entries: impl Iterator<Item = ColumnEntry<M2>>)
+    where
+        M2: HasRowFiltration<
+            FiltrationT = M::FiltrationT,
+            CoefficientField = M::CoefficientField,
+            RowT = M::RowT,
+        >,
+    {
+        self.add_tuples(entries.map(|e| e.into()))
+    }
+
+    pub fn add_tuples(
+        &mut self,
+        tuples: impl Iterator<Item = (M::CoefficientField, M::RowT, M::FiltrationT)>,
+    ) {
+        let (lower_bound, _) = tuples.size_hint();
         self.heap.reserve(lower_bound);
-        for entry in entries {
-            self.heap.push(entry)
+        for tuple in tuples {
+            self.heap.push(tuple.into())
         }
+    }
+
+    pub fn add_tuple(&mut self, tuple: (M::CoefficientField, M::RowT, M::FiltrationT)) {
+        self.heap.push(tuple.into())
     }
 
     pub fn drain_sorted<'a>(&'a mut self) -> impl Iterator<Item = ColumnEntry<M>> + 'a {

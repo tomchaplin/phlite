@@ -7,6 +7,7 @@ use phlite::{
     columns::ColumnEntry,
     fields::{Invertible, NonZeroCoefficient},
     matrices::{adaptors::MatrixWithBasis, HasRowFiltration, MatrixOracle},
+    PhliteError,
 };
 
 use super::MultiDimRipsBasisWithFilt;
@@ -135,10 +136,7 @@ impl<CF: NonZeroCoefficient + Invertible> HasRowFiltration for RipsCoboundary<CF
     fn column_with_filtration(
         &self,
         col: Self::ColT,
-    ) -> Result<
-        impl Iterator<Item = Result<phlite::columns::ColumnEntry<Self>, phlite::PhliteError>>,
-        phlite::PhliteError,
-    > {
+    ) -> Result<impl Iterator<Item = ColumnEntry<Self>>, PhliteError> {
         let n_points = self.n_points();
         let coboundary_iterator = CoboundaryIterator::new(col.to_vec(n_points), n_points);
 
@@ -157,11 +155,11 @@ impl<CF: NonZeroCoefficient + Invertible> HasRowFiltration for RipsCoboundary<CF
                 let filtration_value = max_pd_amongst_col.max(max_to_inserted);
                 let filtration_value = Reverse(filtration_value);
 
-                Ok(ColumnEntry {
+                ColumnEntry {
                     filtration_value,
                     row_index,
                     coeff,
-                })
+                }
             }),
         )
     }

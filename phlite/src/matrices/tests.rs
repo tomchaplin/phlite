@@ -58,12 +58,7 @@ fn test_matrix_bhcol_interface() {
     let matrix = base_matrix.with_filtration(|idx| Ok(idx * 10));
 
     let add = |column: &mut BHCol<_>, index| {
-        column.add_entries(
-            matrix
-                .column_with_filtration(index)
-                .unwrap()
-                .map(|e| e.unwrap()),
-        );
+        column.add_entries(matrix.column_with_filtration(index).unwrap());
     };
 
     let mut column = matrix.empty_bhcol();
@@ -83,12 +78,7 @@ fn test_matrix_bhcol_interface() {
     let opp_matrix =
         matrix.with_filtration(|idx| Ok(-(matrix.filtration_value(idx).unwrap() as isize)));
     let opp_add = |column: &mut BHCol<_>, index| {
-        column.add_entries(
-            opp_matrix
-                .column_with_filtration(index)
-                .unwrap()
-                .map(|e| e.unwrap()),
-        );
+        column.add_entries(opp_matrix.column_with_filtration(index).unwrap());
     };
     let mut column = opp_matrix.empty_bhcol();
     opp_add(&mut column, 5);

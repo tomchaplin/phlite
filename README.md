@@ -66,7 +66,6 @@ If you need support implementing `phlite` traits for your specific application, 
 ### Medium priority
 
 - [ ] Improve handling of binary-heap column addition
-- [ ] Improve organisation of clearing algorithm (implement as a builder?)
 - [ ] Add reverse filtration and reverse basis adaptors?
 - [ ] Implement lockfree reduction algo
 

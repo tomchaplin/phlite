@@ -3,11 +3,12 @@ use std::fmt::Debug;
 use std::hash::Hash;
 use std::iter;
 
+use crate::columns::BHCol;
+use crate::matrices::adaptors::WithTrivialFiltration;
 use crate::matrices::combinators::product;
 use crate::matrices::implementors::MapVecMatrix;
 use crate::matrices::{MatrixRef, SplitByDimension, SquareMatrix};
 use crate::{
-    columns::ColumnEntry,
     fields::{Invertible, NonZeroCoefficient},
     matrices::{ColBasis, HasColBasis, HasRowFiltration, MatrixOracle},
 };
@@ -136,6 +137,163 @@ where
     }
 }
 
+struct CRMBuilder<M, DimIter, RowT, CF> {
+    boundary: M,
+    dimension_order: DimIter,
+    diagram: Diagram<RowT>,
+    reduction_columns: FxHashMap<RowT, ReductionColumn<CF, RowT>>,
+}
+
+impl<M, DimIter> CRMBuilder<M, DimIter, M::RowT, M::CoefficientField>
+where
+    M: MatrixRef + SquareMatrix + HasRowFiltration + HasColBasis,
+    <M as HasColBasis>::BasisT: SplitByDimension,
+    M::CoefficientField: Invertible,
+    M::ColT: Hash + Debug,
+    DimIter: Iterator<Item = usize>,
+{
+    fn init(boundary: M, dimension_order: DimIter) -> Self {
+        let essential = FxHashSet::default();
+        let pairings = FxHashSet::default();
+        let diagram = Diagram {
+            essential,
+            pairings,
+        };
+
+        let reduction_columns: FxHashMap<M::ColT, ReductionColumn<M::CoefficientField, M::ColT>> =
+            FxHashMap::default();
+        Self {
+            boundary,
+            dimension_order,
+            diagram,
+            reduction_columns,
+        }
+    }
+
+    fn reduce_column(
+        &self,
+        low_inverse: &FxHashMap<M::RowT, (M::ColT, M::CoefficientField)>,
+        r_i: &mut BHCol<M>,
+        v_i: &mut BHCol<WithTrivialFiltration<M>>,
+    ) {
+        loop {
+            let Some(pivot_entry) = r_i.clone_pivot() else {
+                // Column reduced to 0 -> found cycle -> move onto next column
+                return;
+            };
+
+            // Check if there is a column with the same pivot
+            let Some((j_basis_element, j_coeff)) = low_inverse.get(&pivot_entry.row_index) else {
+                // Cannot reduce further -> found boundary -> break and save pivot
+                return;
+            };
+
+            // If so then we add a multiple of that column to cancel out the pivot in r_i
+            let col_multiple = pivot_entry.coeff.additive_inverse() * (j_coeff.inverse());
+
+            // Get references to V and R as reduced so far
+            let v_matrix =
+                ClearedReductionMatrix::build_from_ref(self.boundary, &self.reduction_columns);
+            let v_matrix = v_matrix.with_trivial_filtration();
+            let r_matrix = product(self.boundary, &v_matrix);
+
+            // Add the multiple of that column to r_i and v_i
+            r_i.add_entries(
+                r_matrix
+                    .column_with_filtration(*j_basis_element)
+                    .unwrap()
+                    .map(|entry| (entry * col_multiple)),
+            );
+
+            v_i.add_entries(
+                v_matrix
+                    .column_with_filtration(*j_basis_element)
+                    .unwrap()
+                    .map(|entry| entry * col_multiple),
+            );
+        }
+    }
+
+    fn save_column(
+        &mut self,
+        basis_element: M::ColT,
+        low_inverse: &mut FxHashMap<M::RowT, (M::ColT, M::CoefficientField)>,
+        r_i: BHCol<M>,
+        mut v_i: BHCol<WithTrivialFiltration<M>>,
+    ) {
+        // If we have a pivot
+        if let Some(pivot_entry) = r_i.peek_pivot().cloned() {
+            // NOTE: Safe to call peek_pivot because we only ever break after calling clone_pivot
+            // Save it to low inverse
+            low_inverse.insert(pivot_entry.row_index, (basis_element, pivot_entry.coeff));
+
+            // and clear out the birth column
+            self.reduction_columns.insert(
+                pivot_entry.row_index,
+                ReductionColumn::Cleared(basis_element),
+            );
+
+            // Update diagram
+            // Don't need to remove any essential because we assume the dimension_order
+            // is provided sensibly so that we see pairings first
+            self.diagram
+                .pairings
+                .insert((pivot_entry.row_index, basis_element));
+        } else {
+            // Update diagram
+            self.diagram.essential.insert(basis_element);
+        }
+
+        // Then save v_i to reduction matrix
+        // TODO: Add option to only store this column when pivot is Some
+        // Because otherwise we will never need the column again during reduction
+        self.reduction_columns.insert(
+            basis_element,
+            ReductionColumn::Reduced(
+                v_i.drain_sorted()
+                    .map(|entry| (entry.coeff, entry.row_index))
+                    .collect(),
+            ),
+        );
+    }
+
+    fn reduce_dimension(&mut self, dim: usize) {
+        // low_inverse[i]=(j, lambda) means R[j] has lowest non-zero in row i with coefficient lambda
+        // We build a new one for each dimension
+        let mut low_inverse: FxHashMap<M::RowT, (M::ColT, M::CoefficientField)> =
+            FxHashMap::default();
+
+        let basis_size = self.boundary.sub_matrix_in_dimension(dim).basis().size();
+
+        'column_loop: for i in 0..basis_size {
+            // Reduce column i
+            let basis_element = self
+                .boundary
+                .sub_matrix_in_dimension(dim)
+                .basis()
+                .element(i);
+
+            // First check whether already cleared
+            if self.reduction_columns.contains_key(&basis_element) {
+                continue 'column_loop;
+            }
+
+            // Otheewise clear and update the builder accordingly
+            let mut v_i = self.boundary.with_trivial_filtration().empty_bhcol();
+            let mut r_i = self.boundary.build_bhcol(basis_element).unwrap();
+            self.reduce_column(&low_inverse, &mut r_i, &mut v_i);
+            self.save_column(basis_element, &mut low_inverse, r_i, v_i);
+        }
+    }
+
+    fn reduce_all_dimension(&mut self) {
+        // TODO: Surely there's a nicer way to write this iteration?
+        while let Some(dim) = self.dimension_order.next() {
+            self.reduce_dimension(dim);
+        }
+    }
+}
+
 // TODO: Experiment with different Hashers, maybe nohash_hash? Make generic over ColT hashser?
 // TODO: Experiment with occasionally consolidating v_i and r_i
 //       This will take some time but reduce memory usage - maybe make configurable?
@@ -146,132 +304,23 @@ where
     M::CoefficientField: Invertible,
     M::ColT: Hash + Debug,
 {
-    pub fn build_with_diagram(
+    pub fn build_with_diagram<DimIter>(
         boundary: M,
-        dimension_order: impl Iterator<Item = usize>,
-    ) -> (Self, Diagram<M::ColT>) {
-        let mut essential = FxHashSet::default();
-        let mut pairings = FxHashSet::default();
-
-        let mut reduction_columns: FxHashMap<
-            M::ColT,
-            ReductionColumn<M::CoefficientField, M::ColT>,
-        > = FxHashMap::default();
-
-        for dim in dimension_order {
-            let sub_matrix = boundary.sub_matrix_in_dimension(dim);
-            // Reduce submatrix
-
-            // low_inverse[i]=(j, lambda) means R[j] has lowest non-zero in row i with coefficient lambda
-            let mut low_inverse: FxHashMap<M::RowT, (M::ColT, M::CoefficientField)> =
-                FxHashMap::default();
-
-            'column_loop: for i in 0..sub_matrix.basis().size() {
-                // Reduce column i
-                let basis_element = sub_matrix.basis().element(i);
-
-                // First check whether already cleared
-                if reduction_columns.contains_key(&basis_element) {
-                    continue 'column_loop;
-                }
-
-                let mut v_i = boundary.with_trivial_filtration().empty_bhcol();
-                let mut r_i = sub_matrix.build_bhcol(basis_element).unwrap();
-
-                'reduction: loop {
-                    // TODO: Work out why this is so slow for last column :()
-                    let Some(pivot_entry) = r_i.clone_pivot() else {
-                        // Column reduced to 0 -> found cycle -> move onto next column
-                        break 'reduction;
-                        // TODO: In this case, we won't need this column of V again so no point storing!
-                        // Unless we want representatives
-                    };
-
-                    // Check if there is a column with the same pivot
-                    let Some((other_col_basis_element, other_col_coeff)) =
-                        low_inverse.get(&pivot_entry.row_index)
-                    else {
-                        // Cannot reduce further -> found boundary -> break and save pivot
-                        break 'reduction;
-                    };
-
-                    // If so then we add a multiple of that column to cancel out the pivot in r_col
-                    let col_multiple =
-                        pivot_entry.coeff.additive_inverse() * (other_col_coeff.inverse());
-
-                    // Get references to V and R as reduced so far
-                    let v_matrix =
-                        ClearedReductionMatrix::build_from_ref(boundary, &reduction_columns);
-                    let r_matrix = product(boundary, &v_matrix);
-
-                    // TODO : Make this nicer
-
-                    // Add the multiple of that column
-                    r_i.add_entries(
-                        r_matrix
-                            .column_with_filtration(*other_col_basis_element)
-                            .unwrap()
-                            .map(|e| e.unwrap())
-                            .map(|entry| {
-                                ColumnEntry::from((
-                                    entry.coeff * col_multiple,
-                                    entry.row_index,
-                                    entry.filtration_value,
-                                ))
-                            }),
-                    );
-
-                    let v_col = v_matrix.column(*other_col_basis_element).unwrap();
-                    // Update V
-                    v_i.add_entries(v_col.map(|(coeff, row_index)| {
-                        ColumnEntry::from((coeff * col_multiple, row_index, ()))
-                    }));
-                }
-
-                // If we have a pivot
-                if let Some(pivot_entry) = r_i.peek_pivot().cloned() {
-                    // NOTE: Safe to call peek_pivot because we only ever break after calling clone_pivot
-                    // Save it to low inverse
-                    low_inverse.insert(pivot_entry.row_index, (basis_element, pivot_entry.coeff));
-
-                    // and clear out the birth column
-                    reduction_columns.insert(
-                        pivot_entry.row_index,
-                        ReductionColumn::Cleared(basis_element),
-                    );
-
-                    // and update diagram
-                    // Don't need to remove any essential because we assume the dimension_order
-                    // is provided sensibly so that we see pairings first
-                    pairings.insert((pivot_entry.row_index, basis_element));
-                } else {
-                    // update diagram
-                    essential.insert(basis_element);
-                }
-
-                // TODO: Add option to only store this column when pivot is Some
-                // Because otherwise we will never need the column again during reduction
-                // Then save v_i to reduction matrix
-                reduction_columns.insert(
-                    basis_element,
-                    ReductionColumn::Reduced(
-                        v_i.drain_sorted()
-                            .map(|entry| (entry.coeff, entry.row_index))
-                            .collect(),
-                    ),
-                );
-            }
-        }
-
-        let diagram = Diagram {
-            essential,
-            pairings,
-        };
-        let v = ClearedReductionMatrix::build_from_owned(boundary, reduction_columns);
+        dimension_order: DimIter,
+    ) -> (Self, Diagram<M::ColT>)
+    where
+        DimIter: Iterator<Item = usize>,
+    {
+        let mut builder = CRMBuilder::init(boundary, dimension_order);
+        builder.reduce_all_dimension();
+        let v =
+            ClearedReductionMatrix::build_from_owned(builder.boundary, builder.reduction_columns);
+        let diagram = builder.diagram;
         (v, diagram)
     }
 }
 
+// TODO: Should this be just a vec to make construction quicker?
 #[derive(Debug, Clone)]
 pub struct Diagram<T> {
     pub essential: FxHashSet<T>,
@@ -362,65 +411,53 @@ where
         let basis_element = boundary.basis().element(i);
 
         let mut v_i = boundary.with_trivial_filtration().empty_bhcol();
-        v_i.add_entries(iter::once(ColumnEntry::from((
-            M::CoefficientField::one(),
-            basis_element,
-            (),
-        ))));
-        let mut r_col = boundary.build_bhcol(basis_element).unwrap();
+        v_i.add_tuple((M::CoefficientField::one(), basis_element, ()));
+        let mut r_i = boundary.build_bhcol(basis_element).unwrap();
 
         'reduction: loop {
-            let Some(pivot_entry) = r_col.pop_pivot() else {
+            let Some(pivot_entry) = r_i.pop_pivot() else {
                 // Column reduced to 0 -> found cycle -> move onto next column
                 break 'reduction;
             };
 
-            let pivot_row_index = pivot_entry.row_index;
+            let pivot_j = pivot_entry.row_index;
             let pivot_coeff = pivot_entry.coeff;
 
             // Push the pivot back in to keep r_col coorect
-            r_col.push(pivot_entry);
+            r_i.push(pivot_entry);
 
             // Check if there is a column with the same pivot
-            let Some((other_col_basis_element, other_col_coeff)) =
-                low_inverse.get(&pivot_row_index)
-            else {
+            let Some((j_basis_element, j_coeff)) = low_inverse.get(&pivot_j) else {
                 // Cannot reduce further -> found boundary -> break and save pivot
                 break 'reduction;
             };
 
             // If so then we add a multiple of that column to cancel out the pivot in r_col
-            let col_multiple = pivot_coeff.additive_inverse() * (other_col_coeff.inverse());
+            let col_multiple = pivot_coeff.additive_inverse() * (j_coeff.inverse());
 
             let v_matrix = MapVecMatrix::from(&v);
+            let v_matrix = v_matrix.with_trivial_filtration();
             let r_matrix = product(&boundary, &v_matrix);
 
             // Add the multiple of that column
-            r_col.add_entries(
+            r_i.add_entries(
                 r_matrix
-                    .column_with_filtration(*other_col_basis_element)
+                    .column_with_filtration(*j_basis_element)
                     .unwrap()
-                    .map(|e| e.unwrap())
-                    .map(|entry| {
-                        ColumnEntry::from((
-                            entry.coeff * col_multiple,
-                            entry.row_index,
-                            entry.filtration_value,
-                        ))
-                    }),
+                    .map(|entry| entry * col_multiple),
             );
 
             // Update V
             v_i.add_entries(
                 v_matrix
-                    .column(*other_col_basis_element)
+                    .column_with_filtration(*j_basis_element)
                     .unwrap()
-                    .map(|(coeff, row_index)| ColumnEntry::from((coeff, row_index, ()))),
+                    .map(|entry| entry * col_multiple),
             )
         }
 
         // Save pivot if we have one
-        if let Some(pivot_entry) = r_col.pop_pivot() {
+        if let Some(pivot_entry) = r_i.pop_pivot() {
             low_inverse.insert(pivot_entry.row_index, (basis_element, pivot_entry.coeff));
         };
 

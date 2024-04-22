@@ -519,16 +519,14 @@ impl<CF: NonZeroCoefficient, F: DigraphFiltration> HasRowFiltration for GrPPHCob
     fn column_with_filtration(
         &self,
         col: Self::ColT,
-    ) -> Result<impl Iterator<Item = Result<ColumnEntry<Self>, PhliteError>>, PhliteError> {
-        let boundary: Box<dyn Iterator<Item = Result<ColumnEntry<Self>, PhliteError>>> = match col {
+    ) -> Result<impl Iterator<Item = ColumnEntry<Self>>, PhliteError> {
+        let boundary: Box<dyn Iterator<Item = ColumnEntry<Self>>> = match col {
             PathHomCell::Node(s) => Box::new(
                 produce_node_total_coboundary(&self.filtration, &self.edge_set, self.n_vertices, s)
-                    .map(|(coeff, cell, time)| {
-                        Ok(ColumnEntry {
-                            filtration_value: Reverse(time),
-                            row_index: cell,
-                            coeff,
-                        })
+                    .map(|(coeff, cell, time)| ColumnEntry {
+                        filtration_value: Reverse(time),
+                        row_index: cell,
+                        coeff,
                     }),
             ),
             PathHomCell::Edge(s, t) => Box::new(
@@ -539,12 +537,10 @@ impl<CF: NonZeroCoefficient, F: DigraphFiltration> HasRowFiltration for GrPPHCob
                     s,
                     t,
                 )
-                .map(|(coeff, cell, time)| {
-                    Ok(ColumnEntry {
-                        filtration_value: Reverse(time),
-                        row_index: PathHomCell::TwoCell(cell),
-                        coeff,
-                    })
+                .map(|(coeff, cell, time)| ColumnEntry {
+                    filtration_value: Reverse(time),
+                    row_index: PathHomCell::TwoCell(cell),
+                    coeff,
                 }),
             ),
             PathHomCell::TwoCell(_) => return Err(PhliteError::NotInDomain),

@@ -68,19 +68,14 @@ where
     fn column_with_filtration(
         &self,
         col: Self::ColT,
-    ) -> Result<
-        impl Iterator<Item = Result<crate::columns::ColumnEntry<Self>, PhliteError>>,
-        PhliteError,
-    > {
+    ) -> Result<impl Iterator<Item = ColumnEntry<Self>>, PhliteError> {
         let right_col = self.right.column(col)?;
         Ok(right_col.flat_map(|(right_coeff, right_row_index)| {
             let left_col = self.left.column_with_filtration(right_row_index).unwrap();
-            left_col.map(move |op_left_entry| {
-                op_left_entry.map(|left_entry| ColumnEntry {
-                    coeff: left_entry.coeff * right_coeff,
-                    row_index: left_entry.row_index,
-                    filtration_value: left_entry.filtration_value,
-                })
+            left_col.map(move |left_entry| ColumnEntry {
+                coeff: left_entry.coeff * right_coeff,
+                row_index: left_entry.row_index,
+                filtration_value: left_entry.filtration_value,
             })
         }))
     }

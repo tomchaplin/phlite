@@ -176,12 +176,14 @@ pub trait HasRowFiltration: MatrixOracle + Sized {
     fn column_with_filtration(
         &self,
         col: Self::ColT,
-    ) -> Result<impl Iterator<Item = Result<ColumnEntry<Self>, PhliteError>>, PhliteError> {
+    ) -> Result<impl Iterator<Item = ColumnEntry<Self>>, PhliteError> {
         let column = self.column(col)?;
         Ok(column.map(|(coeff, row_index)| {
-            let f_val = self.filtration_value(row_index)?;
+            let f_val = self
+                .filtration_value(row_index)
+                .expect("Rows should all have filtration values");
             let entry = (coeff, row_index, f_val).into();
-            Ok(entry)
+            entry
         }))
     }
 
@@ -191,7 +193,7 @@ pub trait HasRowFiltration: MatrixOracle + Sized {
 
     fn build_bhcol(&self, col: Self::ColT) -> Result<BHCol<Self>, PhliteError> {
         let mut output = self.empty_bhcol();
-        output.add_entries(self.column_with_filtration(col)?.map(|e| e.unwrap()));
+        output.add_entries(self.column_with_filtration(col)?);
         Ok(output)
     }
 }
