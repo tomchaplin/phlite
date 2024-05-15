@@ -1,12 +1,16 @@
 // ======== Tests ==============================================
 
+use std::cmp::Reverse;
+
 use crate::fields::{NonZeroCoefficient, Z2};
-use crate::matrices::adaptors::consolidate;
+use crate::matrices::adaptors::{consolidate, ReverseMatrix};
 use crate::matrices::combinators::product;
 use crate::matrices::MatrixOracle;
 use crate::matrices::{implementors::simple_Z2_matrix, HasRowFiltration, MatrixRef};
 
 use crate::columns::BHCol;
+
+use super::{ColBasis, HasColBasis};
 
 #[test]
 fn test_matrix_product() {
@@ -143,4 +147,40 @@ fn test_projection() {
     let true_matrix = simple_Z2_matrix(vec![vec![4], vec![4], vec![], vec![]]);
 
     assert!((0..4).all(|i| projected.eq_on_col(&true_matrix, i)))
+}
+
+#[test]
+fn test_basis_reverse() {
+    let base_matrix = simple_Z2_matrix(vec![
+        vec![4, 3, 12],
+        vec![5, 9, 4],
+        vec![0, 1, 0],
+        vec![1, 2, 4, 4],
+    ]);
+    let base_matrix = base_matrix.with_basis(vec![0, 1, 3]);
+    let rev_matrix = base_matrix.reverse();
+
+    let elem = base_matrix.basis().element(2);
+    assert_eq!(elem, 3);
+
+    let rev_elem = rev_matrix.basis().element(0);
+    assert_eq!(rev_elem, Reverse(3));
+    let rev_elem = rev_matrix.basis().element(1);
+    assert_eq!(rev_elem, Reverse(1));
+    let rev_elem = rev_matrix.basis().element(2);
+    assert_eq!(rev_elem, Reverse(0));
+
+    let rev_col: Vec<_> = rev_matrix
+        .with_trivial_filtration()
+        .build_bhcol(rev_matrix.basis().element(2))
+        .unwrap()
+        .to_sorted_vec();
+    println!("{:?}", rev_col);
+
+    let forward_col: Vec<_> = base_matrix
+        .with_trivial_filtration()
+        .build_bhcol(base_matrix.basis().element(0))
+        .unwrap()
+        .to_sorted_vec();
+    println!("{:?}", forward_col);
 }

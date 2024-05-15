@@ -2,7 +2,12 @@
 
 // ====== WithTrivialFiltration ================
 
-use crate::{columns::BHCol, PhliteError};
+use std::cmp::Reverse;
+
+use crate::{
+    columns::{BHCol, ColumnEntry},
+    PhliteError,
+};
 
 use super::{
     ColBasis, FiltrationT, HasColBasis, HasRowFiltration, MatrixOracle, MatrixRef, SplitByDimension,
@@ -308,5 +313,96 @@ where
 
     fn basis(&self) -> &Self::BasisT {
         self.oracle.basis().in_dimension(self.dimension)
+    }
+}
+
+// ====== ReverseMatrix ========================
+
+pub struct ReverseMatrix<M> {
+    pub(crate) oracle: M,
+}
+
+impl<M> MatrixOracle for ReverseMatrix<M>
+where
+    M: MatrixOracle,
+{
+    type CoefficientField = M::CoefficientField;
+
+    type ColT = Reverse<M::ColT>;
+
+    type RowT = Reverse<M::RowT>;
+
+    fn column(
+        &self,
+        col: Self::ColT,
+    ) -> Result<impl Iterator<Item = (Self::CoefficientField, Self::RowT)>, PhliteError> {
+        let normal_col = self.oracle.column(col.0)?;
+        let reverse_col = normal_col.map(|(coeff, row)| (coeff, Reverse(row)));
+        Ok(reverse_col)
+    }
+}
+
+impl<M> HasRowFiltration for ReverseMatrix<M>
+where
+    M: MatrixOracle + HasRowFiltration,
+{
+    type FiltrationT = Reverse<M::FiltrationT>;
+
+    fn filtration_value(&self, row: Self::RowT) -> Result<Self::FiltrationT, PhliteError> {
+        Ok(Reverse(self.oracle.filtration_value(row.0)?))
+    }
+
+    fn column_with_filtration(
+        &self,
+        col: Self::ColT,
+    ) -> Result<impl Iterator<Item = crate::columns::ColumnEntry<Self>>, PhliteError> {
+        let normal_col = self.oracle.column_with_filtration(col.0)?;
+        let reverse_col = normal_col.map(|entry| ColumnEntry {
+            filtration_value: Reverse(entry.filtration_value),
+            row_index: Reverse(entry.row_index),
+            coeff: entry.coeff,
+        });
+        Ok(reverse_col)
+    }
+}
+
+impl<M> HasColBasis for ReverseMatrix<M>
+where
+    M: MatrixOracle + HasColBasis,
+{
+    type BasisT = ReverseBasis<M::BasisT>;
+
+    fn basis(&self) -> &Self::BasisT {
+        unsafe { std::mem::transmute(self.oracle.basis()) }
+    }
+}
+
+#[repr(transparent)]
+/// Note that layout is `repr(transparent)` so can transmute references.
+pub struct ReverseBasis<B>(pub B);
+
+impl<B> ColBasis for ReverseBasis<B>
+where
+    B: ColBasis,
+{
+    type ElemT = Reverse<B::ElemT>;
+
+    fn element(&self, index: usize) -> Self::ElemT {
+        Reverse(self.0.element(self.0.size() - 1 - index))
+    }
+
+    fn size(&self) -> usize {
+        self.0.size()
+    }
+}
+
+impl<B> SplitByDimension for ReverseBasis<B>
+where
+    B: SplitByDimension,
+{
+    type SubBasisT = ReverseBasis<B::SubBasisT>;
+
+    fn in_dimension(&self, dimension: usize) -> &Self::SubBasisT {
+        unsafe { std::mem::transmute(self.0.in_dimension(dimension)) }
     }
 }

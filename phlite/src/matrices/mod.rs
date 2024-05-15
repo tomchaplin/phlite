@@ -12,7 +12,8 @@ use crate::{
 };
 
 use self::adaptors::{
-    MatrixWithBasis, UsingColBasisIndex, WithFuncFiltration, WithSubBasis, WithTrivialFiltration,
+    MatrixWithBasis, ReverseMatrix, UsingColBasisIndex, WithFuncFiltration, WithSubBasis,
+    WithTrivialFiltration,
 };
 
 pub mod adaptors;
@@ -128,6 +129,10 @@ pub trait MatrixRef: MatrixOracle + Copy {
         Self: HasColBasis,
     {
         UsingColBasisIndex { oracle: self }
+    }
+
+    fn reverse(self) -> ReverseMatrix<Self> {
+        ReverseMatrix { oracle: self }
     }
 }
 
