@@ -1,56 +1,50 @@
-from phlite_grpph import grpph
+from phlite_grpph import grpph, grpph_with_involution
 from pprint import pprint
 import time
 
+
 def do_complete(N):
     essential, pairings = grpph(
-        N,
-        [
-            (i, j, 1.0)
-            for i in range(N)
-            for j in range(N)
-            if i != j
-        ] 
+        N, [(i, j, 1.0) for i in range(N) for j in range(N) if i != j]
     )
 
     assert len(essential[0]) == 1
     assert len(essential[1]) == 0
     assert len(pairings[0]) == 0
-    assert len(pairings[1]) == N * (N-1) - N + 1
+    assert len(pairings[1]) == N * (N - 1) - N + 1
 
     print("Done complete")
 
-def do_cycle(N):
-    essential, pairings = grpph(
-        N,
-        [
-            (i, (i+1)%N, 1.0)
-            for i in range(N)
-        ] 
-    )
+
+def do_cycle(N, with_reps=False):
+    if with_reps:
+        essential, pairings, reps = grpph_with_involution(
+            N, [(i, (i + 1) % N, 1.0) for i in range(N)]
+        )
+        assert len(reps) == 1
+        assert len(reps[0]) == N
+    else:
+        essential, pairings = grpph(N, [(i, (i + 1) % N, 1.0) for i in range(N)])
 
     assert len(essential[0]) == 1
     assert len(essential[1]) == 0
     assert len(pairings[0]) == 0
     assert len(pairings[1]) == 1
-    print("Done cycle")
 
-#do_complete(100)
-N=100
-do_cycle(100)
-involution_size = N * (N-1) - N + 1
-o2_size = N * (N-1) * (N-1) # Eventually every 2paths is allowed
-assert N == o2_size/involution_size
-print(involution_size)
+    if with_reps:
+        return essential, pairings, reps
+    else:
+        return essential, pairings
 
-# benchmarks = []
-# N_range = [10,15, 20,25, 30,40, 50, 100,120, 140, 150,180, 200, 220, 250, 280, 300, 350, 400, 500]
-# 
-# for N in N_range:
-#     tic = time.time()
-#     do_cycle(N)
-#     toc = time.time()
-#     benchmarks.append(toc - tic)
-# 
-# for N,t in zip(N_range, benchmarks):
-#     print(f'{N},{t:.3f}')
+
+N = 400
+
+tic0 = time.time()
+do_cycle(N, with_reps=False)
+tic1 = time.time()
+print(f"Without reps: {tic1 - tic0}")
+
+tic2 = time.time()
+do_cycle(N, with_reps=True)
+tic3 = time.time()
+print(f"With reps   : {tic3 - tic2}")

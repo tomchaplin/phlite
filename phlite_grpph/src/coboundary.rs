@@ -5,6 +5,7 @@ use ordered_float::NotNan;
 use rustc_hash::{FxHashMap, FxHashSet};
 
 // TODO: Restructure this code and give everything better names
+// TODO: Double check parity (doesn't matter over Z2)
 
 use phlite::{
     columns::ColumnEntry,
@@ -71,7 +72,7 @@ where
     }
 }
 
-fn two_path_time(
+pub fn two_path_time(
     filtration: impl DigraphFiltrationRef,
     a: &u16,
     b: &u16,
@@ -302,15 +303,15 @@ pub fn produce_node_total_coboundary<'a, CF: NonZeroCoefficient>(
 }
 
 #[derive(Debug, Clone)]
-pub struct PathHomSingleBasis(Vec<(NotNan<f64>, PathHomCell)>);
+pub struct PathHomSingleBasis(pub Vec<(NotNan<f64>, PathHomCell)>);
 #[derive(Debug, Clone)]
 pub struct PathHomMultiBasis(Vec<PathHomSingleBasis>);
 
 // TODO: Make this generic over (edge_set, n_vertices, filtration) which is a digraph with filtration
-pub struct GrPPHCoboundary<CF, F: DigraphFiltration> {
+pub struct GrPPHCoboundary<'a, CF, F: DigraphFiltration> {
     filtration: F,
     bridge_map: PrimaryBridgeMap,
-    edge_set: DigraphEdgeSet,
+    edge_set: &'a DigraphEdgeSet,
     n_vertices: u16,
     phantom: PhantomData<CF>,
     //pub basis: PathHomMultiBasis,
@@ -418,10 +419,10 @@ impl SplitByDimension for PathHomMultiBasis {
     }
 }
 
-impl<CF: NonZeroCoefficient, F: DigraphFiltration> GrPPHCoboundary<CF, F> {
+impl<'a, CF: NonZeroCoefficient, F: DigraphFiltration> GrPPHCoboundary<'a, CF, F> {
     pub fn build(
         filtration: F,
-        edge_set: DigraphEdgeSet,
+        edge_set: &'a DigraphEdgeSet,
         n_vertices: u16,
     ) -> MatrixWithBasis<Self, PathHomMultiBasis> {
         let bridge_map = build_primary_bridge_map(&filtration, n_vertices);
@@ -439,7 +440,7 @@ impl<CF: NonZeroCoefficient, F: DigraphFiltration> GrPPHCoboundary<CF, F> {
     }
 }
 
-impl<CF: NonZeroCoefficient, F: DigraphFiltration> MatrixOracle for GrPPHCoboundary<CF, F> {
+impl<'a, CF: NonZeroCoefficient, F: DigraphFiltration> MatrixOracle for GrPPHCoboundary<'a, CF, F> {
     type CoefficientField = CF;
 
     type ColT = PathHomCell;
@@ -471,7 +472,9 @@ impl<CF: NonZeroCoefficient, F: DigraphFiltration> MatrixOracle for GrPPHCobound
     }
 }
 
-impl<CF: NonZeroCoefficient, F: DigraphFiltration> HasRowFiltration for GrPPHCoboundary<CF, F> {
+impl<'a, CF: NonZeroCoefficient, F: DigraphFiltration> HasRowFiltration
+    for GrPPHCoboundary<'a, CF, F>
+{
     type FiltrationT = NotNan<f64>;
 
     fn filtration_value(&self, row: Self::RowT) -> Result<Self::FiltrationT, PhliteError> {
@@ -551,7 +554,7 @@ mod tests {
     use crate::coboundary::{produce_edge_total_coboundary, PathHomCell};
     use phlite::{
         fields::{Z2, Z3},
-        matrices::HasRowFiltration,
+        matrices::{HasRowFiltration, MatrixRef},
         reduction::ClearedReductionMatrix,
     };
 
@@ -596,7 +599,8 @@ mod tests {
             }
         }
 
-        let d = GrPPHCoboundary::<Z2, _>::build(filtration, edge_set, n);
+        let d = GrPPHCoboundary::<Z2, _>::build(&filtration, &edge_set, n);
+        let d = d.reverse();
 
         let (_v, diagram) = ClearedReductionMatrix::build_with_diagram(&d, 0..=1);
 
@@ -605,14 +609,14 @@ mod tests {
         // Report
         println!("Essential:");
         for idx in diagram.essential.iter() {
-            let f_val = d.filtration_value(*idx).unwrap().into_inner();
+            let f_val = d.filtration_value(*idx).unwrap().0.into_inner();
             println!(" birth={idx:?}, f=({f_val}, ∞)");
         }
         println!("\nPairings:");
         for tup in diagram.pairings.iter() {
             let idx_tup = (tup.1, tup.0);
-            let birth_f = d.filtration_value(tup.1).unwrap().into_inner();
-            let death_f = d.filtration_value(tup.0).unwrap().into_inner();
+            let birth_f = d.filtration_value(tup.1).unwrap().0.into_inner();
+            let death_f = d.filtration_value(tup.0).unwrap().0.into_inner();
             if death_f == birth_f {
                 continue;
             }
@@ -642,7 +646,8 @@ mod tests {
             }
         }
 
-        let d = GrPPHCoboundary::<Z2, _>::build(filtration, edge_set, n);
+        let d = GrPPHCoboundary::<Z2, _>::build(&filtration, &edge_set, n);
+        let d = d.reverse();
 
         let (_v, diagram) = ClearedReductionMatrix::build_with_diagram(&d, 0..=1);
 
@@ -651,14 +656,14 @@ mod tests {
         // Report
         println!("Essential:");
         for idx in diagram.essential.iter() {
-            let f_val = d.filtration_value(*idx).unwrap().into_inner();
+            let f_val = d.filtration_value(*idx).unwrap().0.into_inner();
             println!(" birth={idx:?}, f=({f_val}, ∞)");
         }
         println!("\nPairings:");
         for tup in diagram.pairings.iter() {
             let idx_tup = (tup.1, tup.0);
-            let birth_f = d.filtration_value(tup.1).unwrap().into_inner();
-            let death_f = d.filtration_value(tup.0).unwrap().into_inner();
+            let birth_f = d.filtration_value(tup.1).unwrap().0.into_inner();
+            let death_f = d.filtration_value(tup.0).unwrap().0.into_inner();
             if death_f == birth_f {
                 continue;
             }
