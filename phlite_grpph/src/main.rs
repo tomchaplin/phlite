@@ -2,11 +2,15 @@ use phlite_grpph::coboundary::GrPPHCoboundary;
 
 use ordered_float::NotNan;
 use petgraph::{algo::dijkstra, graph::NodeIndex, Graph};
-use phlite::{fields::Z2, matrices::HasRowFiltration, reduction::ClearedReductionMatrix};
+use phlite::{
+    fields::Z2,
+    matrices::{HasRowFiltration, MatrixRef},
+    reduction::ClearedReductionMatrix,
+};
 use rustc_hash::FxHashSet;
 
 fn main() {
-    let n = 500;
+    let n = 100;
 
     let mut g = Graph::<(), f64>::new();
 
@@ -45,24 +49,25 @@ fn main() {
         .collect();
 
     let d = GrPPHCoboundary::<Z2, _>::build(filtration, edge_set, n as u16);
+    let d_rev = d.reverse();
 
     println!("Built coboundary matrix");
 
-    let (_v, diagram) = ClearedReductionMatrix::build_with_diagram(&d, 0..=1);
+    let (_v, diagram) = ClearedReductionMatrix::build_with_diagram(&d_rev, 0..=1);
 
     let mut count = 0;
 
     // Report
     println!("Essential:");
     for idx in diagram.essential.iter() {
-        let f_val = d.filtration_value(*idx).unwrap().0;
+        let f_val = d.filtration_value(idx.0).unwrap().into_inner();
         println!(" birth={idx:?}, f=({f_val}, ∞)");
     }
     println!("\nPairings:");
     for tup in diagram.pairings.iter() {
         let idx_tup = (tup.1, tup.0);
-        let birth_f = d.filtration_value(tup.1).unwrap().0;
-        let death_f = d.filtration_value(tup.0).unwrap().0;
+        let birth_f = d.filtration_value(tup.1 .0).unwrap().into_inner();
+        let death_f = d.filtration_value(tup.0 .0).unwrap().into_inner();
         if death_f == birth_f {
             continue;
         }

@@ -1,5 +1,5 @@
-use phlite::PhliteError;
-use std::{cmp::Reverse, marker::PhantomData};
+use phlite::{matrices::adaptors::MatrixWithBasis, PhliteError};
+use std::marker::PhantomData;
 
 use ordered_float::NotNan;
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -9,9 +9,7 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use phlite::{
     columns::ColumnEntry,
     fields::NonZeroCoefficient,
-    matrices::{
-        BasisElement, ColBasis, HasColBasis, HasRowFiltration, MatrixOracle, SplitByDimension,
-    },
+    matrices::{BasisElement, ColBasis, HasRowFiltration, MatrixOracle, SplitByDimension},
 };
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -304,7 +302,7 @@ pub fn produce_node_total_coboundary<'a, CF: NonZeroCoefficient>(
 }
 
 #[derive(Debug, Clone)]
-pub struct PathHomSingleBasis(Vec<(Reverse<NotNan<f64>>, PathHomCell)>);
+pub struct PathHomSingleBasis(Vec<(NotNan<f64>, PathHomCell)>);
 #[derive(Debug, Clone)]
 pub struct PathHomMultiBasis(Vec<PathHomSingleBasis>);
 
@@ -315,7 +313,7 @@ pub struct GrPPHCoboundary<CF, F: DigraphFiltration> {
     edge_set: DigraphEdgeSet,
     n_vertices: u16,
     phantom: PhantomData<CF>,
-    pub basis: PathHomMultiBasis,
+    //pub basis: PathHomMultiBasis,
 }
 
 // TODO: Compute this in parallel
@@ -351,18 +349,13 @@ fn build_basis(
     n_vertices: u16,
 ) -> PathHomMultiBasis {
     let mut degree_0: Vec<_> = (0..n_vertices)
-        .map(|i| {
-            (
-                Reverse(unsafe { NotNan::new_unchecked(0.0) }),
-                PathHomCell::Node(i),
-            )
-        })
+        .map(|i| (unsafe { NotNan::new_unchecked(0.0) }, PathHomCell::Node(i)))
         .collect();
     let mut degree_1: Vec<_> = edge_set
         .iter()
         .map(|(i, j)| {
             (
-                Reverse(unsafe { NotNan::new_unchecked(0.0) }),
+                unsafe { NotNan::new_unchecked(0.0) },
                 PathHomCell::Edge(*i, *j),
             )
         })
@@ -376,7 +369,7 @@ fn build_basis(
             let Some(time) = filtration.edge_time(&i, &j) else {
                 continue;
             };
-            degree_1.push((Reverse(time), PathHomCell::Edge(edge.0, edge.1)));
+            degree_1.push((time, PathHomCell::Edge(edge.0, edge.1)));
         }
     }
     degree_0.sort_unstable();
@@ -426,16 +419,22 @@ impl SplitByDimension for PathHomMultiBasis {
 }
 
 impl<CF: NonZeroCoefficient, F: DigraphFiltration> GrPPHCoboundary<CF, F> {
-    pub fn build(filtration: F, edge_set: DigraphEdgeSet, n_vertices: u16) -> Self {
+    pub fn build(
+        filtration: F,
+        edge_set: DigraphEdgeSet,
+        n_vertices: u16,
+    ) -> MatrixWithBasis<Self, PathHomMultiBasis> {
         let bridge_map = build_primary_bridge_map(&filtration, n_vertices);
         let basis = build_basis(&filtration, &edge_set, n_vertices);
-        Self {
-            filtration,
-            bridge_map,
-            edge_set,
-            n_vertices,
+        MatrixWithBasis {
+            matrix: Self {
+                filtration,
+                bridge_map,
+                edge_set,
+                n_vertices,
+                phantom: PhantomData,
+            },
             basis,
-            phantom: PhantomData,
         }
     }
 }
@@ -472,45 +471,37 @@ impl<CF: NonZeroCoefficient, F: DigraphFiltration> MatrixOracle for GrPPHCobound
     }
 }
 
-impl<CF: NonZeroCoefficient, F: DigraphFiltration> HasColBasis for GrPPHCoboundary<CF, F> {
-    type BasisT = PathHomMultiBasis;
-
-    fn basis(&self) -> &Self::BasisT {
-        &self.basis
-    }
-}
-
 impl<CF: NonZeroCoefficient, F: DigraphFiltration> HasRowFiltration for GrPPHCoboundary<CF, F> {
-    type FiltrationT = Reverse<NotNan<f64>>;
+    type FiltrationT = NotNan<f64>;
 
     fn filtration_value(&self, row: Self::RowT) -> Result<Self::FiltrationT, PhliteError> {
         match row {
-            PathHomCell::Node(_s) => Ok(Reverse(unsafe { NotNan::new_unchecked(0.0) })),
+            PathHomCell::Node(_s) => Ok(unsafe { NotNan::new_unchecked(0.0) }),
             PathHomCell::Edge(s, t) => {
                 // This is the grounding - edges in graph are born at 0
                 if self.edge_set.contains(&(s, t)) {
-                    Ok(Reverse(unsafe { NotNan::new_unchecked(0.0) }))
+                    Ok(unsafe { NotNan::new_unchecked(0.0) })
                 } else if let Some(time) = (&self.filtration).edge_time(&s, &t) {
-                    Ok(Reverse(time))
+                    Ok(time)
                 } else {
                     Err(PhliteError::NotInCodomain)
                 }
             }
             PathHomCell::TwoCell(cell) => match cell {
-                PathHom2Cell::DoubleEdge(a, b) => Ok(Reverse(
-                    two_path_time(&self.filtration, &a, &b, &a).unwrap(),
-                )),
+                PathHom2Cell::DoubleEdge(a, b) => {
+                    Ok(two_path_time(&self.filtration, &a, &b, &a).unwrap())
+                }
                 PathHom2Cell::DirectedTriangle(a, b, c) => {
                     let abc_time = two_path_time(&self.filtration, &a, &b, &c).unwrap();
                     let ac_time = (&self.filtration).edge_time(&a, &c).unwrap();
                     let arrival_time = abc_time.max(ac_time);
-                    Ok(Reverse(arrival_time))
+                    Ok(arrival_time)
                 }
                 PathHom2Cell::LongSquare(a, b, c, d) => {
                     let abd_time = two_path_time(&self.filtration, &a, &b, &d).unwrap();
                     let acd_time = two_path_time(&self.filtration, &a, &c, &d).unwrap();
                     let arrival_time = abd_time.max(acd_time);
-                    Ok(Reverse(arrival_time))
+                    Ok(arrival_time)
                 }
             },
         }
@@ -524,7 +515,7 @@ impl<CF: NonZeroCoefficient, F: DigraphFiltration> HasRowFiltration for GrPPHCob
             PathHomCell::Node(s) => Box::new(
                 produce_node_total_coboundary(&self.filtration, &self.edge_set, self.n_vertices, s)
                     .map(|(coeff, cell, time)| ColumnEntry {
-                        filtration_value: Reverse(time),
+                        filtration_value: time,
                         row_index: cell,
                         coeff,
                     }),
@@ -538,7 +529,7 @@ impl<CF: NonZeroCoefficient, F: DigraphFiltration> HasRowFiltration for GrPPHCob
                     t,
                 )
                 .map(|(coeff, cell, time)| ColumnEntry {
-                    filtration_value: Reverse(time),
+                    filtration_value: time,
                     row_index: PathHomCell::TwoCell(cell),
                     coeff,
                 }),
@@ -614,14 +605,14 @@ mod tests {
         // Report
         println!("Essential:");
         for idx in diagram.essential.iter() {
-            let f_val = d.filtration_value(*idx).unwrap().0;
+            let f_val = d.filtration_value(*idx).unwrap().into_inner();
             println!(" birth={idx:?}, f=({f_val}, ∞)");
         }
         println!("\nPairings:");
         for tup in diagram.pairings.iter() {
             let idx_tup = (tup.1, tup.0);
-            let birth_f = d.filtration_value(tup.1).unwrap().0;
-            let death_f = d.filtration_value(tup.0).unwrap().0;
+            let birth_f = d.filtration_value(tup.1).unwrap().into_inner();
+            let death_f = d.filtration_value(tup.0).unwrap().into_inner();
             if death_f == birth_f {
                 continue;
             }
@@ -660,14 +651,14 @@ mod tests {
         // Report
         println!("Essential:");
         for idx in diagram.essential.iter() {
-            let f_val = d.filtration_value(*idx).unwrap().0;
+            let f_val = d.filtration_value(*idx).unwrap().into_inner();
             println!(" birth={idx:?}, f=({f_val}, ∞)");
         }
         println!("\nPairings:");
         for tup in diagram.pairings.iter() {
             let idx_tup = (tup.1, tup.0);
-            let birth_f = d.filtration_value(tup.1).unwrap().0;
-            let death_f = d.filtration_value(tup.0).unwrap().0;
+            let birth_f = d.filtration_value(tup.1).unwrap().into_inner();
+            let death_f = d.filtration_value(tup.0).unwrap().into_inner();
             if death_f == birth_f {
                 continue;
             }
