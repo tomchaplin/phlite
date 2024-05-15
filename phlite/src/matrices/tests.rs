@@ -3,7 +3,7 @@
 use std::cmp::Reverse;
 
 use crate::fields::{NonZeroCoefficient, Z2};
-use crate::matrices::adaptors::{consolidate, ReverseMatrix};
+use crate::matrices::adaptors::consolidate;
 use crate::matrices::combinators::product;
 use crate::matrices::MatrixOracle;
 use crate::matrices::{implementors::simple_Z2_matrix, HasRowFiltration, MatrixRef};

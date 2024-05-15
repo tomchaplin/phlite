@@ -10,7 +10,8 @@ use crate::{
 };
 
 use super::{
-    ColBasis, FiltrationT, HasColBasis, HasRowFiltration, MatrixOracle, MatrixRef, SplitByDimension,
+    BasisElement, ColBasis, FiltrationT, HasColBasis, HasRowFiltration, MatrixOracle, MatrixRef,
+    SplitByDimension,
 };
 
 #[derive(Clone, Copy)]
@@ -322,6 +323,12 @@ pub struct ReverseMatrix<M> {
     pub(crate) oracle: M,
 }
 
+impl<M> ReverseMatrix<M> {
+    pub fn unreverse(self) -> M {
+        self.oracle
+    }
+}
+
 impl<M> MatrixOracle for ReverseMatrix<M>
 where
     M: MatrixOracle,
@@ -404,5 +411,114 @@ where
 
     fn in_dimension(&self, dimension: usize) -> &Self::SubBasisT {
         unsafe { std::mem::transmute(self.0.in_dimension(dimension)) }
+    }
+}
+
+// ====== UnreverseMatrix ======================
+// Used to un-reverse a matrix/basis that is indexed + filtered by Reverse<T>
+// Returns a matrix/basis that is index + filtered by T
+// If you naively call reverse again, you will not be able to multiply matrices because
+// Reverse<Reverse<T>> != T
+// Could we fix this by just requiring Into<ColT> on traits?
+
+pub struct UnreverseMatrix<M> {
+    pub(crate) oracle: M,
+}
+
+impl<M, ColT, RowT> MatrixOracle for UnreverseMatrix<M>
+where
+    M: MatrixOracle<ColT = Reverse<ColT>, RowT = Reverse<RowT>>,
+    RowT: BasisElement,
+    ColT: BasisElement,
+{
+    type CoefficientField = M::CoefficientField;
+
+    type ColT = ColT;
+
+    type RowT = RowT;
+
+    fn column(
+        &self,
+        col: Self::ColT,
+    ) -> Result<impl Iterator<Item = (Self::CoefficientField, Self::RowT)>, PhliteError> {
+        let reversed = self.oracle.column(Reverse(col))?;
+        Ok(reversed.map(|(coeff, rev_row)| (coeff, rev_row.0)))
+    }
+}
+
+impl<M, ColT, RowT, FilT> HasRowFiltration for UnreverseMatrix<M>
+where
+    M: MatrixOracle<ColT = Reverse<ColT>, RowT = Reverse<RowT>>,
+    RowT: BasisElement,
+    ColT: BasisElement,
+    M: HasRowFiltration<FiltrationT = Reverse<FilT>>,
+    FilT: FiltrationT,
+{
+    type FiltrationT = FilT;
+
+    fn filtration_value(&self, row: Self::RowT) -> Result<Self::FiltrationT, PhliteError> {
+        self.oracle.filtration_value(Reverse(row)).map(|ft| ft.0)
+    }
+
+    fn column_with_filtration(
+        &self,
+        col: Self::ColT,
+    ) -> Result<impl Iterator<Item = ColumnEntry<Self>>, PhliteError> {
+        let rev_col = self.oracle.column_with_filtration(Reverse(col))?;
+        Ok(rev_col.map(|entry| ColumnEntry {
+            filtration_value: entry.filtration_value.0,
+            row_index: entry.row_index.0,
+            coeff: entry.coeff,
+        }))
+    }
+}
+
+impl<M, ColT, RowT, BasisT> HasColBasis for UnreverseMatrix<M>
+where
+    M: MatrixOracle<ColT = Reverse<ColT>, RowT = Reverse<RowT>>,
+    RowT: BasisElement,
+    ColT: BasisElement,
+    M: HasColBasis<BasisT = BasisT>,
+    BasisT: ColBasis<ElemT = Reverse<ColT>>,
+{
+    type BasisT = UnreverseBasis<BasisT>;
+
+    fn basis(&self) -> &Self::BasisT {
+        let rev_basis = self.oracle.basis();
+        unsafe { std::mem::transmute(rev_basis) }
+    }
+}
+
+#[repr(transparent)]
+pub struct UnreverseBasis<B>(pub B);
+
+impl<B, T> ColBasis for UnreverseBasis<B>
+where
+    B: ColBasis<ElemT = Reverse<T>>,
+    T: BasisElement,
+{
+    type ElemT = T;
+
+    fn element(&self, index: usize) -> Self::ElemT {
+        let reversed = self.0.element(index);
+        reversed.0
+    }
+
+    fn size(&self) -> usize {
+        self.0.size()
+    }
+}
+
+impl<B, T, SbT> SplitByDimension for UnreverseBasis<B>
+where
+    B: ColBasis<ElemT = Reverse<T>>,
+    B: SplitByDimension<SubBasisT = SbT>,
+    SbT: ColBasis<ElemT = Reverse<T>>,
+    T: BasisElement,
+{
+    type SubBasisT = UnreverseBasis<SbT>;
+    fn in_dimension(&self, dimension: usize) -> &Self::SubBasisT {
+        let reversed = self.0.in_dimension(dimension);
+        unsafe { std::mem::transmute(reversed) }
     }
 }
