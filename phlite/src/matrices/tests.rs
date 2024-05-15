@@ -160,8 +160,12 @@ fn test_basis_reverse() {
     let base_matrix = base_matrix.with_basis(vec![0, 1, 3]);
     let rev_matrix = base_matrix.reverse();
 
-    let elem = base_matrix.basis().element(2);
-    assert_eq!(elem, 3);
+    let base_elem = base_matrix.basis().element(0);
+    assert_eq!(base_elem, 0);
+    let base_elem = base_matrix.basis().element(1);
+    assert_eq!(base_elem, 1);
+    let base_elem = base_matrix.basis().element(2);
+    assert_eq!(base_elem, 3);
 
     let rev_elem = rev_matrix.basis().element(0);
     assert_eq!(rev_elem, Reverse(3));
@@ -170,12 +174,13 @@ fn test_basis_reverse() {
     let rev_elem = rev_matrix.basis().element(2);
     assert_eq!(rev_elem, Reverse(0));
 
-    let rev_col: Vec<_> = rev_matrix
-        .with_trivial_filtration()
-        .build_bhcol(rev_matrix.basis().element(2))
-        .unwrap()
-        .to_sorted_vec();
-    println!("{:?}", rev_col);
+    let unrev_matrix = (&rev_matrix).unreverse();
+    let unrev_elem = unrev_matrix.basis().element(0);
+    assert_eq!(unrev_elem, 0);
+    let unrev_elem = unrev_matrix.basis().element(1);
+    assert_eq!(unrev_elem, 1);
+    let unrev_elem = unrev_matrix.basis().element(2);
+    assert_eq!(unrev_elem, 3);
 
     let forward_col: Vec<_> = base_matrix
         .with_trivial_filtration()
@@ -183,4 +188,16 @@ fn test_basis_reverse() {
         .unwrap()
         .to_sorted_vec();
     println!("{:?}", forward_col);
+    let rev_col: Vec<_> = rev_matrix
+        .with_trivial_filtration()
+        .build_bhcol(rev_matrix.basis().element(2))
+        .unwrap()
+        .to_sorted_vec();
+    println!("{:?}", rev_col);
+    let unrev_col = unrev_matrix
+        .with_trivial_filtration()
+        .build_bhcol(unrev_matrix.basis().element(0))
+        .unwrap()
+        .to_sorted_vec();
+    println!("{:?}", unrev_col);
 }

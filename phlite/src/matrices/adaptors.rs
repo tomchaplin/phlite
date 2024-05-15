@@ -500,7 +500,7 @@ where
     type ElemT = T;
 
     fn element(&self, index: usize) -> Self::ElemT {
-        let reversed = self.0.element(index);
+        let reversed = self.0.element(self.0.size() - 1 - index);
         reversed.0
     }
 
