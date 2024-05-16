@@ -180,7 +180,7 @@ fn grpph_with_involution(
 
 /// A Python module implemented in Rust.
 #[pymodule]
-fn phlite_grpph(_py: Python, m: &PyModule) -> PyResult<()> {
+fn phlite_grpph(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(grpph, m)?)?;
     m.add_function(wrap_pyfunction!(grpph_with_involution, m)?)?;
     Ok(())
