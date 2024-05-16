@@ -49,7 +49,6 @@ impl Invertible for Z2 {
     }
 }
 
-#[macro_export]
 macro_rules! impl_add_options {
     ($cf:ident) => {
         impl Add<Option<$cf>> for $cf {
@@ -142,7 +141,6 @@ impl<const P: u8> NonZeroCoefficient for ZP<P> {
     }
 }
 
-#[macro_export]
 macro_rules! instantiate_zp {
     (  $p:expr, $struct_name:ident  ) => {
         #[derive(Debug, Clone, Copy, PartialEq, Eq)]
