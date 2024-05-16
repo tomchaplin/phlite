@@ -2,6 +2,7 @@ pub mod boundary;
 pub mod coboundary;
 
 use coboundary::PathHomCell;
+use log::info;
 use ordered_float::NotNan;
 use petgraph::{adj::NodeIndex, algo::dijkstra, Graph};
 use phlite::{
@@ -61,14 +62,13 @@ fn grpph(n_vertices: u32, edges: Vec<(u32, u32, f64)>) -> (Vec<Vec<f64>>, Vec<Ve
     // Build coboundary
     // Absolute PcoH
     let d = GrPPHCoboundary::<Z2, _>::build(&filtration, &edge_set, n_vertices as u16);
+    info!("Built coboundary matrix");
     // Relative PcoH
     let d_rev = d.reverse();
 
     // Reduce
-    let (v, diagram) = ClearedReductionMatrix::build_with_diagram(&d_rev, 0..=1);
-
-    let _r_rev = product(&d_rev, &v);
-    let _r = product(&d, &v.unreverse());
+    let (_v, diagram) = ClearedReductionMatrix::build_with_diagram(&d_rev, 0..=1);
+    info!("Reduced coboundary matrix");
 
     // Translate diagram to Python compatible types
     let mut essential = vec![vec![], vec![]];
@@ -91,6 +91,7 @@ fn grpph(n_vertices: u32, edges: Vec<(u32, u32, f64)>) -> (Vec<Vec<f64>>, Vec<Ve
         }
         pairings[dimension].push((birth_f.into_inner(), death_f.into_inner()));
     }
+    info!("Translated persistence diagram");
 
     (essential, pairings)
 }
@@ -107,14 +108,13 @@ fn grpph_with_involution(
     // Build coboundary
     // Absolute PcoH
     let d = GrPPHCoboundary::<Z2, _>::build(&filtration, &edge_set, n_vertices as u16);
+    info!("Built coboundary matrix");
     // Relative PcoH
     let d_rev = d.reverse();
 
     // Reduce
-    let (v, diagram) = ClearedReductionMatrix::build_with_diagram(&d_rev, 0..=1);
-
-    let _r_rev = product(&d_rev, &v);
-    let _r = product(&d, &v.unreverse());
+    let (_v, diagram) = ClearedReductionMatrix::build_with_diagram(&d_rev, 0..=1);
+    info!("Reduced coboundary matrix");
 
     // Translate diagram to Python compatible types
     let mut essential = vec![vec![], vec![]];
@@ -141,14 +141,17 @@ fn grpph_with_involution(
         }
         pairings[dimension].push((birth_f.into_inner(), death_f.into_inner()));
     }
+    info!("Translated persistence diagram");
 
     // Sort involution basis
     involution_basis.sort_unstable();
     let involution_basis = PathHomSingleBasis(involution_basis);
+    info!("Sorted involution basis");
 
     // Decompose boundary matrix restricted to involution basis
     let d_boundary = GrPPHBoundary::<Z2, _>::build(&filtration, &edge_set, involution_basis);
     let (v_boundary, boundary_diagram) = standard_algo_with_diagram(&d_boundary, false);
+    info!("Reduced involution boundary matrix");
     let r_boundary = product(&d_boundary, &v_boundary);
 
     // Read off reps from pairings
@@ -174,6 +177,7 @@ fn grpph_with_involution(
             .collect();
         reps.push(new_rep)
     }
+    info!("Built up representatives");
 
     (essential, pairings, reps)
 }
@@ -181,6 +185,8 @@ fn grpph_with_involution(
 /// A Python module implemented in Rust.
 #[pymodule]
 fn phlite_grpph(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
+    pyo3_log::init();
+
     m.add_function(wrap_pyfunction!(grpph, m)?)?;
     m.add_function(wrap_pyfunction!(grpph_with_involution, m)?)?;
     Ok(())

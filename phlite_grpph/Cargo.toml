@@ -13,6 +13,7 @@ name = "phlite_grpph_cli"
 path = "src/main.rs"
 
 [dependencies]
+log = "0.4.21"
 ordered-float = "4.2.0"
 petgraph = "0.6.4"
 phlite = { version = "0.1.0", default-features = false, path = "../phlite" }

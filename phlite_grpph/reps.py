@@ -1,4 +1,10 @@
 from phlite_grpph import grpph_with_involution
+import logging
+from pprint import pprint
+
+FORMAT = '%(levelname)s %(name)s %(asctime)-15s %(filename)s:%(lineno)d %(message)s'
+logging.basicConfig(format=FORMAT)
+logging.getLogger().setLevel(logging.INFO)
 
 essential, pairings, reps = grpph_with_involution(
     6,
@@ -16,4 +22,4 @@ essential, pairings, reps = grpph_with_involution(
 
 print(essential)
 print(pairings)
-print(reps)
+pprint(reps)

@@ -215,6 +215,7 @@ dependencies = [
 name = "phlite_grpph"
 version = "0.1.0"
 dependencies = [
+ "log",
  "ordered-float",
  "petgraph",
  "phlite",
