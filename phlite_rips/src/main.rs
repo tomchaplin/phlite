@@ -3,7 +3,9 @@ use std::io;
 use ordered_float::NotNan;
 use phlite::{
     fields::Z2,
-    matrices::{combinators::product, ColBasis, HasColBasis, HasRowFiltration, SplitByDimension},
+    matrices::{
+        combinators::product, ColBasis, HasColBasis, HasRowFiltration, MatrixRef, SplitByDimension,
+    },
     reduction::ClearedReductionMatrix,
 };
 use phlite_rips::cohomology::build_rips_coboundary_matrix;
@@ -35,6 +37,7 @@ pub fn main() {
 
     // Compute column basis
     let coboundary = build_rips_coboundary_matrix::<Z2>(distance_matrix, max_dim);
+    let coboundary = coboundary.reverse();
     println!("Basis sizes:");
     for dim in 0..=max_dim {
         let basis_size = coboundary.basis().in_dimension(dim).size();
@@ -50,12 +53,12 @@ pub fn main() {
     println!("\nEssential:");
     for idx in diagram.essential.iter() {
         let f_val = coboundary.filtration_value(*idx).unwrap().0;
-        let dim = idx.dimension(n_points);
+        let dim = idx.0.dimension(n_points);
         println!(" dim={dim}, birth={idx:?}, f=({f_val}, ∞)");
     }
     println!("\nPairings:");
     for tup in diagram.pairings.iter() {
-        let dim = tup.1.dimension(n_points);
+        let dim = tup.1 .0.dimension(n_points);
         let idx_tup = (tup.1, tup.0);
         let birth_f = coboundary.filtration_value(tup.1).unwrap().0.into_inner();
         let death_f = coboundary.filtration_value(tup.0).unwrap().0.into_inner();
