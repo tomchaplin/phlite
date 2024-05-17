@@ -1,3 +1,4 @@
+/// Binary heap representations of matrix columns, essentially corresponding to linear combinations with a leading term.
 use crate::matrices::HasRowFiltration;
 use std::{collections::BinaryHeap, fmt::Debug, iter::repeat, ops::Mul};
 

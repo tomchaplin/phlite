@@ -1,3 +1,6 @@
+/// The core framework for implementing lazy oracles for sparse matrices.
+/// Provides matrix traits that should be implemented by users.
+/// Also provides various wrappers to attach additional data to matrices, change their indexing types or multiply two matrices.
 use std::hash::Hash;
 use std::rc::Rc;
 use std::{cmp::Reverse, collections::HashMap};
