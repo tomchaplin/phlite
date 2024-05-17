@@ -1,4 +1,4 @@
-use std::{cmp::Reverse, convert::identity, iter, marker::PhantomData};
+use std::{convert::identity, iter, marker::PhantomData};
 
 use ordered_float::NotNan;
 
