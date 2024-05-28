@@ -127,7 +127,7 @@ impl<M: MatrixRef> Iterator for ConsolidatorColumn<M> {
 
     fn next(&mut self) -> Option<Self::Item> {
         let next = self.bh_col.pop_pivot()?;
-        let (coef, index, _) = next.into();
+        let (coef, index, ()) = next.into();
         Some((coef, index))
     }
 }
@@ -380,7 +380,9 @@ where
     type BasisT = ReverseBasis<M::BasisT>;
 
     fn basis(&self) -> &Self::BasisT {
-        unsafe { std::mem::transmute(self.oracle.basis()) }
+        let original_basis: *const _ = self.oracle.basis();
+        let rev_basis = original_basis.cast();
+        unsafe { &*rev_basis }
     }
 }
 
@@ -410,7 +412,9 @@ where
     type SubBasisT = ReverseBasis<B::SubBasisT>;
 
     fn in_dimension(&self, dimension: usize) -> &Self::SubBasisT {
-        unsafe { std::mem::transmute(self.0.in_dimension(dimension)) }
+        let original_basis: *const _ = self.0.in_dimension(dimension);
+        let rev_basis = original_basis.cast();
+        unsafe { &*rev_basis }
     }
 }
 
@@ -484,8 +488,9 @@ where
     type BasisT = UnreverseBasis<BasisT>;
 
     fn basis(&self) -> &Self::BasisT {
-        let rev_basis = self.oracle.basis();
-        unsafe { std::mem::transmute(rev_basis) }
+        let rev_basis: *const _ = self.oracle.basis();
+        let unrev_basis = rev_basis.cast();
+        unsafe { &*unrev_basis }
     }
 }
 
@@ -518,7 +523,8 @@ where
 {
     type SubBasisT = UnreverseBasis<SbT>;
     fn in_dimension(&self, dimension: usize) -> &Self::SubBasisT {
-        let reversed = self.0.in_dimension(dimension);
-        unsafe { std::mem::transmute(reversed) }
+        let rev_basis: *const _ = self.0.in_dimension(dimension);
+        let unrev_basis = rev_basis.cast();
+        unsafe { &*unrev_basis }
     }
 }

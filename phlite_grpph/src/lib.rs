@@ -18,10 +18,7 @@ use crate::{
     coboundary::{GrPPHCoboundary, PathHomSingleBasis},
 };
 
-fn build_filtration(
-    n_vertices: u32,
-    edges: &Vec<(u32, u32, f64)>,
-) -> Vec<Vec<Option<NotNan<f64>>>> {
+fn build_filtration(n_vertices: u32, edges: &[(u32, u32, f64)]) -> Vec<Vec<Option<NotNan<f64>>>> {
     // Build graph
     let mut g = Graph::<(), f64>::new();
     g.extend_with_edges(edges.iter());
@@ -54,8 +51,13 @@ fn build_edge_set(edges: Vec<(u32, u32, f64)>) -> FxHashSet<(u16, u16)> {
         .collect()
 }
 
+type EssentialBars = Vec<Vec<f64>>;
+type PairingBars = Vec<Vec<(f64, f64)>>;
+// List of 1D persistent homology reps (each of which is a sum of edges)
+type RepList = Vec<Vec<(u16, u16)>>;
+
 #[pyfunction]
-fn grpph(n_vertices: u32, edges: Vec<(u32, u32, f64)>) -> (Vec<Vec<f64>>, Vec<Vec<(f64, f64)>>) {
+fn grpph(n_vertices: u32, edges: Vec<(u32, u32, f64)>) -> (EssentialBars, PairingBars) {
     let filtration = build_filtration(n_vertices, &edges);
     let edge_set = build_edge_set(edges);
 
@@ -97,11 +99,12 @@ fn grpph(n_vertices: u32, edges: Vec<(u32, u32, f64)>) -> (Vec<Vec<f64>>, Vec<Ve
 }
 
 // TODO: This only find the infinite reps, add in essential reps too!
+
 #[pyfunction]
 fn grpph_with_involution(
     n_vertices: u32,
     edges: Vec<(u32, u32, f64)>,
-) -> (Vec<Vec<f64>>, Vec<Vec<(f64, f64)>>, Vec<Vec<(u16, u16)>>) {
+) -> (EssentialBars, PairingBars, RepList) {
     let filtration = build_filtration(n_vertices, &edges);
     let edge_set = build_edge_set(edges);
 

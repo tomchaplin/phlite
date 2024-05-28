@@ -53,7 +53,7 @@ impl<'a, CF: NonZeroCoefficient, RowT: BasisElement> From<&'a Vec<Vec<(CF, RowT)
     }
 }
 
-impl<'a, CF: NonZeroCoefficient, RowT: BasisElement> From<Vec<Vec<(CF, RowT)>>>
+impl<CF: NonZeroCoefficient, RowT: BasisElement> From<Vec<Vec<(CF, RowT)>>>
     for VecVecMatrix<'static, CF, RowT>
 {
     fn from(value: Vec<Vec<(CF, RowT)>>) -> Self {
@@ -194,7 +194,7 @@ where
     }
 }
 
-impl<'a, CF, ColT, RowT> From<FxHashMap<ColT, Vec<(CF, RowT)>>>
+impl<CF, ColT, RowT> From<FxHashMap<ColT, Vec<(CF, RowT)>>>
     for MapVecMatrix<'static, CF, ColT, RowT>
 where
     CF: NonZeroCoefficient,

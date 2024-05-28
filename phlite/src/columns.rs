@@ -1,4 +1,4 @@
-/// Binary heap representations of matrix columns, essentially corresponding to linear combinations with a leading term.
+//! Binary heap representations of matrix columns, essentially corresponding to linear combinations with a leading term.
 use crate::matrices::HasRowFiltration;
 use std::{collections::BinaryHeap, fmt::Debug, iter::repeat, ops::Mul};
 
@@ -53,15 +53,13 @@ impl<M: HasRowFiltration> Eq for ColumnEntry<M> {}
 impl<M: HasRowFiltration> PartialOrd for ColumnEntry<M> {
     // Order by filtration value and then order on RowT
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        ((&self.filtration_value, &self.row_index))
-            .partial_cmp(&(&other.filtration_value, &other.row_index))
+        Some(self.cmp(other))
     }
 }
 
 impl<M: HasRowFiltration> Ord for ColumnEntry<M> {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.partial_cmp(other)
-            .expect("Since underlying implement Ord, so does ColumnEntry")
+        (&self.filtration_value, &self.row_index).cmp(&(&other.filtration_value, &other.row_index))
     }
 }
 
@@ -93,7 +91,7 @@ where
 impl<M: HasRowFiltration> Default for BHCol<M> {
     fn default() -> Self {
         Self {
-            heap: Default::default(),
+            heap: BinaryHeap::default(),
         }
     }
 }
@@ -107,7 +105,7 @@ impl<M: HasRowFiltration> BHCol<M> {
             RowT = M::RowT,
         >,
     {
-        self.add_tuples(entries.map(|e| e.into()))
+        self.add_tuples(entries.map(Into::into));
     }
 
     pub fn add_tuples(
@@ -117,16 +115,16 @@ impl<M: HasRowFiltration> BHCol<M> {
         let (lower_bound, _) = tuples.size_hint();
         self.heap.reserve(lower_bound);
         for tuple in tuples {
-            self.heap.push(tuple.into())
+            self.heap.push(tuple.into());
         }
     }
 
     pub fn add_tuple(&mut self, tuple: (M::CoefficientField, M::RowT, M::FiltrationT)) {
-        self.heap.push(tuple.into())
+        self.heap.push(tuple.into());
     }
 
-    pub fn drain_sorted<'a>(&'a mut self) -> impl Iterator<Item = ColumnEntry<M>> + 'a {
-        repeat(()).map_while(|_| self.pop_pivot())
+    pub fn drain_sorted(&mut self) -> impl Iterator<Item = ColumnEntry<M>> + '_ {
+        repeat(()).map_while(|()| self.pop_pivot())
     }
 
     pub fn to_sorted_vec(mut self) -> Vec<ColumnEntry<M>> {
@@ -134,7 +132,7 @@ impl<M: HasRowFiltration> BHCol<M> {
     }
 
     pub fn push(&mut self, entry: ColumnEntry<M>) {
-        self.heap.push(entry)
+        self.heap.push(entry);
     }
 
     pub fn clone_pivot(&mut self) -> Option<ColumnEntry<M>>
@@ -158,9 +156,7 @@ impl<M: HasRowFiltration> BHCol<M> {
 
     pub fn pop_pivot(&mut self) -> Option<ColumnEntry<M>> {
         // Pull out first entry
-        let Some(first_entry) = self.heap.pop() else {
-            return None;
-        };
+        let first_entry = self.heap.pop()?;
         let mut working_index: M::RowT = first_entry.row_index;
         let mut working_sum: Option<M::CoefficientField> = Some(first_entry.coeff);
         let mut working_filtration = first_entry.filtration_value;
@@ -188,13 +184,10 @@ impl<M: HasRowFiltration> BHCol<M> {
             working_sum = next_entry.coeff + working_sum;
         }
 
-        match working_sum {
-            Some(coeff) => Some(ColumnEntry {
-                row_index: working_index,
-                filtration_value: working_filtration,
-                coeff,
-            }),
-            None => None,
-        }
+        working_sum.map(|coeff| ColumnEntry {
+            row_index: working_index,
+            filtration_value: working_filtration,
+            coeff,
+        })
     }
 }

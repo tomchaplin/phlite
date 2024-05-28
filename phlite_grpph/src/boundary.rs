@@ -98,7 +98,7 @@ where
                 // This is the grounding - edges in graph are born at 0
                 if self.edge_set.contains(&(s, t)) {
                     Ok(unsafe { NotNan::new_unchecked(0.0) })
-                } else if let Some(time) = (&self.filtration).edge_time(&s, &t) {
+                } else if let Some(time) = self.filtration.edge_time(&s, &t) {
                     Ok(time)
                 } else {
                     Err(PhliteError::NotInCodomain)
@@ -110,7 +110,7 @@ where
                 }
                 PathHom2Cell::DirectedTriangle(a, b, c) => {
                     let abc_time = two_path_time(&self.filtration, &a, &b, &c).unwrap();
-                    let ac_time = (&self.filtration).edge_time(&a, &c).unwrap();
+                    let ac_time = self.filtration.edge_time(&a, &c).unwrap();
                     let arrival_time = abc_time.max(ac_time);
                     Ok(arrival_time)
                 }

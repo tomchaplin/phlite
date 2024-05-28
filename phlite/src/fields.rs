@@ -80,7 +80,7 @@ impl NonZeroCoefficient for Z2 {
 //       Add option to macro
 
 /// Const generic struct for the finite field `Z_p`.
-/// Should ensure that `p` is prime and that `p^2` does not overflow NonZeroU8
+/// Should ensure that `p` is prime and that `p^2` does not overflow `NonZeroU8`
 /// For `p=2` use [`Z2`]
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub struct ZP<const P: u8>(NonZeroU8);
@@ -95,13 +95,13 @@ impl<const P: u8> Add<ZP<P>> for ZP<P> {
     type Output = Option<ZP<P>>;
 
     fn add(self, rhs: ZP<P>) -> Self::Output {
-        let res = self
+        let result = self
             .0
             .checked_add(rhs.0.get())
             .expect("Should be able to add Zp entries within U8")
             .get()
             .rem_euclid(P);
-        Some(ZP(NonZeroU8::new(res)?))
+        Some(ZP(NonZeroU8::new(result)?))
     }
 }
 

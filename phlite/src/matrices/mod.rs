@@ -1,6 +1,9 @@
-/// The core framework for implementing lazy oracles for sparse matrices.
-/// Provides matrix traits that should be implemented by users.
-/// Also provides various wrappers to attach additional data to matrices, change their indexing types or multiply two matrices.
+//! The core framework for implementing lazy oracles for sparse matrices.
+//! Provides matrix traits that should be implemented by users.
+//! Also provides various wrappers to attach additional data to matrices, change their indexing types or multiply two matrices.
+
+// TODO: Add reasonable constraints to reverse and unreverse methods on bases and matrices
+
 use std::hash::Hash;
 use std::rc::Rc;
 use std::{cmp::Reverse, collections::HashMap};
@@ -78,11 +81,11 @@ pub trait MatrixOracle {
         let mut self_col = self_trivial.build_bhcol(col).unwrap();
         let self_col_sorted = self_col
             .drain_sorted()
-            .map(|e| Into::<(Self::CoefficientField, Self::RowT, ())>::into(e));
+            .map(Into::<(Self::CoefficientField, Self::RowT, ())>::into);
         let mut other_col = other_trivial.build_bhcol(col).unwrap();
         let other_col_sorted = other_col
             .drain_sorted()
-            .map(|e| Into::<(Self::CoefficientField, Self::RowT, ())>::into(e));
+            .map(Into::<(Self::CoefficientField, Self::RowT, ())>::into);
 
         equal(self_col_sorted, other_col_sorted)
     }
@@ -194,8 +197,7 @@ pub trait HasRowFiltration: MatrixOracle + Sized {
             let f_val = self
                 .filtration_value(row_index)
                 .expect("Rows should all have filtration values");
-            let entry = (coeff, row_index, f_val).into();
-            entry
+            (coeff, row_index, f_val).into()
         }))
     }
 
