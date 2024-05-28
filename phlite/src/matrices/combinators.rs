@@ -6,9 +6,10 @@ use crate::{columns::ColumnEntry, PhliteError};
 
 use super::{HasColBasis, HasRowFiltration, MatrixOracle, MatrixRef};
 
-pub fn product<M1: MatrixRef, M2: MatrixRef>(left: M1, right: M2) -> Product<M1, M2>
+pub fn product<M1, M2>(left: M1, right: M2) -> Product<M1, M2>
 where
-    M2: MatrixOracle<CoefficientField = M1::CoefficientField, RowT = M1::ColT>,
+    M1: MatrixRef,
+    M2: MatrixOracle<CoefficientField = M1::CoefficientField, RowT = M1::ColT> + MatrixRef,
 {
     Product { left, right }
 }
@@ -94,9 +95,11 @@ where
 
 // ====== Sum ==================================
 
-pub fn sum<M1: MatrixRef, M2: MatrixRef>(left: M1, right: M2) -> Sum<M1, M2>
+pub fn sum<M1, M2>(left: M1, right: M2) -> Sum<M1, M2>
 where
-    M2: MatrixOracle<CoefficientField = M1::CoefficientField, ColT = M1::ColT, RowT = M1::RowT>,
+    M1: MatrixRef,
+    M2: MatrixOracle<CoefficientField = M1::CoefficientField, ColT = M1::ColT, RowT = M1::RowT>
+        + MatrixRef,
 {
     Sum { left, right }
 }

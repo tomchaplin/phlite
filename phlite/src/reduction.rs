@@ -17,10 +17,14 @@ use crate::{matrix_col_product, PhliteError};
 use rustc_hash::{FxHashMap, FxHashSet};
 
 #[derive(Clone)]
+#[allow(clippy::module_name_repetitions)]
 pub enum ReductionColumn<CF, ColT> {
     Cleared(ColT), // This gets set when (i, j) is found as a pair in which case column i can be reduced by R_j, we store j here
     Reduced(Vec<(CF, ColT)>), // The sum of columns required to reduce (minus the +1 with self index)
 }
+
+type ReductionCols<'a, ColT, CoefficientField> =
+    Cow<'a, FxHashMap<ColT, ReductionColumn<CoefficientField, ColT>>>;
 
 #[derive(Clone)]
 pub struct ClearedReductionMatrix<'a, M>
@@ -30,7 +34,7 @@ where
     M::ColT: Hash,
 {
     boundary: M,
-    reduction_columns: Cow<'a, FxHashMap<M::ColT, ReductionColumn<M::CoefficientField, M::ColT>>>,
+    reduction_columns: ReductionCols<'a, M::ColT, M::CoefficientField>,
 }
 
 impl<'a, M> ClearedReductionMatrix<'a, M>
@@ -218,11 +222,11 @@ where
         &mut self,
         basis_element: M::ColT,
         low_inverse: &mut FxHashMap<M::RowT, (M::ColT, M::CoefficientField)>,
-        r_i: BHCol<M>,
+        r_i: &BHCol<M>,
         mut v_i: BHCol<WithTrivialFiltration<M>>,
     ) {
         // If we have a pivot
-        if let Some(pivot_entry) = r_i.peek_pivot().cloned() {
+        if let Some(pivot_entry) = r_i.peek_pivot().copied() {
             // NOTE: Safe to call peek_pivot because we only ever break after calling clone_pivot
             // Save it to low inverse
             low_inverse.insert(pivot_entry.row_index, (basis_element, pivot_entry.coeff));
@@ -282,7 +286,7 @@ where
             let mut v_i = self.boundary.with_trivial_filtration().empty_bhcol();
             let mut r_i = self.boundary.build_bhcol(basis_element).unwrap();
             self.reduce_column(&low_inverse, &mut r_i, &mut v_i);
-            self.save_column(basis_element, &mut low_inverse, r_i, v_i);
+            self.save_column(basis_element, &mut low_inverse, &r_i, v_i);
         }
     }
 
@@ -332,6 +336,7 @@ pub struct Diagram<T> {
 pub type StandardReductionMatrix<CF, ColT> = MapVecMatrix<'static, CF, ColT, ColT>;
 
 /// If your operator goes up in column order (e.g. coboundary) then you will need to set `reverse_order=True`.
+#[allow(clippy::type_complexity)]
 pub fn standard_algo_with_diagram<M>(
     boundary: M,
     reverse_order: bool,
@@ -386,12 +391,10 @@ where
         if r_i.pop_pivot().is_none() {}
     }
 
-    let diagram = Diagram {
+    Diagram {
         essential,
         pairings,
-    };
-
-    diagram
+    }
 }
 
 pub fn standard_algo<M>(boundary: M) -> StandardReductionMatrix<M::CoefficientField, M::ColT>
@@ -453,7 +456,7 @@ where
                     .column_with_filtration(*j_basis_element)
                     .unwrap()
                     .map(|entry| entry * col_multiple),
-            )
+            );
         }
 
         // Save pivot if we have one

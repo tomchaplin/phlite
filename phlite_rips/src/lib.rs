@@ -112,22 +112,22 @@ where
             &mut bases,
             &mut simplex,
             NotNan::new(0 as f64).unwrap(),
-            &distances,
+            distances,
             max_dim,
             &functor,
         );
     }
 
-    for dim in 0..=max_dim {
+    for basis in bases.iter_mut().take(max_dim + 1) {
         // Sort by filtration value then index
-        bases[dim].0.sort_unstable();
+        basis.0.sort_unstable();
     }
     MultiDimRipsBasisWithFilt(bases)
 }
 
 pub(crate) fn max_pairwise_distance(
-    vertices: &Vec<usize>,
-    distances: &Vec<Vec<NotNan<f64>>>,
+    vertices: &[usize],
+    distances: &[Vec<NotNan<f64>>],
 ) -> NotNan<f64> {
     let n_vertices = vertices.len();
     (0..n_vertices)

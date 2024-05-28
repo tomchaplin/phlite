@@ -159,6 +159,7 @@ fn test_basis_reverse() {
     ]);
     let base_matrix = base_matrix.with_basis(vec![0, 1, 3]);
     let rev_matrix = base_matrix.reverse();
+    let unrev_matrix = (&rev_matrix).unreverse();
 
     let base_elem = base_matrix.basis().element(0);
     assert_eq!(base_elem, 0);
@@ -174,7 +175,6 @@ fn test_basis_reverse() {
     let rev_elem = rev_matrix.basis().element(2);
     assert_eq!(rev_elem, Reverse(0));
 
-    let unrev_matrix = (&rev_matrix).unreverse();
     let unrev_elem = unrev_matrix.basis().element(0);
     assert_eq!(unrev_elem, 0);
     let unrev_elem = unrev_matrix.basis().element(1);

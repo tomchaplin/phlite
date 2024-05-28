@@ -280,10 +280,10 @@ pub fn produce_node_total_coboundary<'a, CF: NonZeroCoefficient>(
                 PathHomCell::Edge(s, j),
                 unsafe { NotNan::new_unchecked(0.0) },
             ))
-        } else if let Some(time) = filtration.edge_time(&s, &j) {
-            Some((CF::one().additive_inverse(), PathHomCell::Edge(s, j), time))
         } else {
-            None
+            // If no time return None
+            let time = filtration.edge_time(&s, &j)?;
+            Some((CF::one().additive_inverse(), PathHomCell::Edge(s, j), time))
         }
     });
 
@@ -293,10 +293,10 @@ pub fn produce_node_total_coboundary<'a, CF: NonZeroCoefficient>(
             Some((CF::one(), PathHomCell::Edge(j, s), unsafe {
                 NotNan::new_unchecked(0.0)
             }))
-        } else if let Some(time) = filtration.edge_time(&j, &s) {
-            Some((CF::one(), PathHomCell::Edge(j, s), time))
         } else {
-            None
+            // If no time return None
+            let time = filtration.edge_time(&j, &s)?;
+            Some((CF::one(), PathHomCell::Edge(j, s), time))
         }
     });
     outgoing.chain(incoming)
@@ -426,7 +426,7 @@ impl<'a, CF: NonZeroCoefficient, F: DigraphFiltration> GrPPHCoboundary<'a, CF, F
         n_vertices: u16,
     ) -> MatrixWithBasis<Self, PathHomMultiBasis> {
         let bridge_map = build_primary_bridge_map(&filtration, n_vertices);
-        let basis = build_basis(&filtration, &edge_set, n_vertices);
+        let basis = build_basis(&filtration, edge_set, n_vertices);
         MatrixWithBasis {
             matrix: Self {
                 filtration,
@@ -453,7 +453,7 @@ impl<'a, CF: NonZeroCoefficient, F: DigraphFiltration> MatrixOracle for GrPPHCob
     ) -> Result<impl Iterator<Item = (Self::CoefficientField, Self::RowT)>, PhliteError> {
         let boundary: Box<dyn Iterator<Item = (Self::CoefficientField, Self::RowT)>> = match col {
             PathHomCell::Node(s) => Box::new(
-                produce_node_total_coboundary(&self.filtration, &self.edge_set, self.n_vertices, s)
+                produce_node_total_coboundary(&self.filtration, self.edge_set, self.n_vertices, s)
                     .map(|(coeff, cell, _time)| (coeff, cell)),
             ),
             PathHomCell::Edge(s, t) => Box::new(
@@ -484,7 +484,7 @@ impl<'a, CF: NonZeroCoefficient, F: DigraphFiltration> HasRowFiltration
                 // This is the grounding - edges in graph are born at 0
                 if self.edge_set.contains(&(s, t)) {
                     Ok(unsafe { NotNan::new_unchecked(0.0) })
-                } else if let Some(time) = (&self.filtration).edge_time(&s, &t) {
+                } else if let Some(time) = self.filtration.edge_time(&s, &t) {
                     Ok(time)
                 } else {
                     Err(PhliteError::NotInCodomain)
@@ -496,7 +496,7 @@ impl<'a, CF: NonZeroCoefficient, F: DigraphFiltration> HasRowFiltration
                 }
                 PathHom2Cell::DirectedTriangle(a, b, c) => {
                     let abc_time = two_path_time(&self.filtration, &a, &b, &c).unwrap();
-                    let ac_time = (&self.filtration).edge_time(&a, &c).unwrap();
+                    let ac_time = self.filtration.edge_time(&a, &c).unwrap();
                     let arrival_time = abc_time.max(ac_time);
                     Ok(arrival_time)
                 }
@@ -516,7 +516,7 @@ impl<'a, CF: NonZeroCoefficient, F: DigraphFiltration> HasRowFiltration
     ) -> Result<impl Iterator<Item = ColumnEntry<Self>>, PhliteError> {
         let boundary: Box<dyn Iterator<Item = ColumnEntry<Self>>> = match col {
             PathHomCell::Node(s) => Box::new(
-                produce_node_total_coboundary(&self.filtration, &self.edge_set, self.n_vertices, s)
+                produce_node_total_coboundary(&self.filtration, self.edge_set, self.n_vertices, s)
                     .map(|(coeff, cell, time)| ColumnEntry {
                         filtration_value: time,
                         row_index: cell,
