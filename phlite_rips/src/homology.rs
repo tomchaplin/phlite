@@ -1,14 +1,20 @@
-use std::{convert::identity, marker::PhantomData};
-
-use ordered_float::NotNan;
-
+use super::MultiDimRipsBasisWithFilt;
 use crate::{build_rips_bases, max_pairwise_distance, RipsIndex};
+use ordered_float::NotNan;
 use phlite::{
     fields::{Invertible, NonZeroCoefficient},
     matrices::{adaptors::MatrixWithBasis, HasRowFiltration, MatrixOracle},
 };
+use std::marker::PhantomData;
 
-use super::MultiDimRipsBasisWithFilt;
+// TUTORIAL:
+// Now we get into the nitty-gritty of implementing the boundary matrix.
+// Note, we do not store the column basis in the following stuct.
+// Instead, we just store the distance matrix since given a simplex, this all we need to compute its boundary.
+// We will attach the column basis later on!
+//
+// We add the phantom because we want to be generic over coefficient type
+// but they don't appear anywhere else in the struct so the compiler must be appeased.
 
 pub struct RipsBoundary<CF: NonZeroCoefficient + Invertible> {
     distances: Vec<Vec<NotNan<f64>>>,
@@ -20,6 +26,16 @@ impl<CF: NonZeroCoefficient + Invertible> RipsBoundary<CF> {
         self.distances.len()
     }
 }
+
+// TUTORIAL:
+// Now we implement `MatrixOracle` - this is where we implicity describe the boundary matrix.
+// We have to choose:
+// * The coefficient type - we are generic over this;
+// * The index type for rows and columns - we use `RipsIndex` for both.
+//
+// Finally, we have to describe each column by providing an iterator over its non-zero entries.
+// An entry is described by the row index and the value of the coefficient.
+// There is no requirement on the order in which the entries are produced.
 
 impl<CF: NonZeroCoefficient + Invertible> MatrixOracle for RipsBoundary<CF> {
     type CoefficientField = CF;
@@ -58,6 +74,13 @@ impl<CF: NonZeroCoefficient + Invertible> MatrixOracle for RipsBoundary<CF> {
     }
 }
 
+// TUTORIAL:
+// Since we have stored the distance matrix, this boundary matrix also naturally has a filtration on the columns.
+// We describe this here by implementing `HasRowFiltration`.
+// In your application, it might make sense to implement a boundary matrix without a row filtration
+// then wrap it in an additional struct that has the filtration information.
+// In these cases, consider using `phlite::matricies::MatrixRef::with_filtration`.
+
 impl<CF: NonZeroCoefficient + Invertible> HasRowFiltration for RipsBoundary<CF> {
     type FiltrationT = NotNan<f64>;
 
@@ -69,14 +92,18 @@ impl<CF: NonZeroCoefficient + Invertible> HasRowFiltration for RipsBoundary<CF> 
     // TODO:Can we override column with filtration to compute more efficiently?
 }
 
-pub type RipsBoundaryAllDims<CF> =
-    MatrixWithBasis<RipsBoundary<CF>, MultiDimRipsBasisWithFilt<NotNan<f64>>>;
+// TUTORIAL:
+// Now we provide a type that encapsulates our boundary matrix (which has a built-in row filtration) alongside our column basis.
+// For this we use `MatrixWithBasis` which is provided by `phltie`.
+// We also provide a helper function for constructing such a thing directly from a distance matrix.
+
+pub type RipsBoundaryAllDims<CF> = MatrixWithBasis<RipsBoundary<CF>, MultiDimRipsBasisWithFilt>;
 
 pub fn build_rips_boundary_matrix<CF: Invertible>(
     distances: Vec<Vec<NotNan<f64>>>,
     max_dim: usize,
 ) -> RipsBoundaryAllDims<CF> {
-    let basis = build_rips_bases(&distances, max_dim, identity);
+    let basis = build_rips_bases(&distances, max_dim);
     RipsBoundaryAllDims {
         matrix: RipsBoundary {
             distances,
@@ -85,6 +112,14 @@ pub fn build_rips_boundary_matrix<CF: Invertible>(
         basis,
     }
 }
+
+// TUTORIAL:
+// Now it's time to choose your own adventure!
+// 1. Head over to coboundary.rs to see how we implement the coboundary matrix.
+//    The structure is pretty similar but implementation is a bit more complicated and can be optimised.
+// 2. Head over to main.rs to see how we use the reduction algorithms.
+//    We actually decompose the (reversed) coboundary matrix since its more efficient.
+//    However, rewriting main.rs to use the boundary matrix could be instructive!
 
 // TODO: Write some proper tests
 #[cfg(test)]

@@ -1,3 +1,6 @@
+//! R=DV reduction algorithms for `phlite` matrices.
+//! Includes the standard algorithm as well as the clearing algorithm.
+
 use std::borrow::Cow;
 use std::fmt::Debug;
 use std::hash::Hash;

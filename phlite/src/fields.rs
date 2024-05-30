@@ -1,3 +1,6 @@
+//! Traits for types that represent non-zero coefficients in a matrix.
+//! Implementations of finite fields up to Z13 are provided.
+
 use std::fmt::Debug;
 use std::num::NonZeroU8;
 use std::ops::{Add, Mul};

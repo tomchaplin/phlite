@@ -20,6 +20,14 @@ pub struct Product<M1: MatrixRef, M2: MatrixRef> {
     right: M2,
 }
 
+/// Given a matrix `M` and a column `v`, returns an iterator over the entries in the column vector `Mv`.
+///
+/// Inputs:
+/// * `$matrix` - Should implement [`MatrixOracle`].
+/// * `$col` - Should implement
+/// `Iterator<Item=($matrix::CoefficientField, $matrix::ColT)>`
+/// so that types align and matrix multiplication can be performed.
+/// Usually obtained by calling [`column`](MatrixOracle::column) on another matrix.
 #[macro_export]
 macro_rules! matrix_col_product {
     (  $matrix: expr, $col: expr ) => {{
