@@ -35,6 +35,9 @@ pub trait FiltrationT: Ord + Copy {}
 
 // Default implementors
 
+// NOTE: We do not blanket impl because we want to catch errors
+//       where we index with the wrong type.
+
 impl BasisElement for usize {}
 impl BasisElement for isize {}
 impl FiltrationT for NotNan<f32> {}

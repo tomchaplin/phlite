@@ -1,4 +1,4 @@
-use std::{convert::identity, iter, marker::PhantomData};
+use std::{iter, marker::PhantomData};
 
 use ordered_float::NotNan;
 
@@ -164,15 +164,14 @@ impl<CF: NonZeroCoefficient + Invertible> HasRowFiltration for RipsCoboundary<CF
     }
 }
 
-pub type RipsCoboundaryAllDims<CF> =
-    MatrixWithBasis<RipsCoboundary<CF>, MultiDimRipsBasisWithFilt<NotNan<f64>>>;
+pub type RipsCoboundaryAllDims<CF> = MatrixWithBasis<RipsCoboundary<CF>, MultiDimRipsBasisWithFilt>;
 
 pub fn build_rips_coboundary_matrix<CF: Invertible>(
     distances: Vec<Vec<NotNan<f64>>>,
     max_dim: usize,
 ) -> RipsCoboundaryAllDims<CF> {
     // Pass in the Reverse functor to revere filtration order on columns in basis
-    let basis = build_rips_bases(&distances, max_dim, identity);
+    let basis = build_rips_bases(&distances, max_dim);
     RipsCoboundaryAllDims {
         matrix: RipsCoboundary {
             distances,
