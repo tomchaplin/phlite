@@ -4,7 +4,8 @@ use ordered_float::NotNan;
 use phlite::{
     fields::Z2,
     matrices::{
-        combinators::product, ColBasis, HasColBasis, HasRowFiltration, MatrixRef, SplitByDimension,
+        combinators::product, ColBasis, HasColBasis, HasRowFiltration, MatrixOracle,
+        SplitByDimension,
     },
     reduction::ClearedReductionMatrix,
 };

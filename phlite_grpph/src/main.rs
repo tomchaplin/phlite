@@ -4,7 +4,7 @@ use ordered_float::NotNan;
 use petgraph::{algo::dijkstra, graph::NodeIndex, Graph};
 use phlite::{
     fields::Z2,
-    matrices::{HasRowFiltration, MatrixRef},
+    matrices::{HasRowFiltration, MatrixOracle},
     reduction::ClearedReductionMatrix,
 };
 use rustc_hash::FxHashSet;
@@ -49,7 +49,7 @@ fn main() {
         .collect();
 
     let d = GrPPHCoboundary::<Z2, _>::build(&filtration, &edge_set, n as u16);
-    let d_rev = d.reverse();
+    let d_rev = (&d).reverse();
 
     println!("Built coboundary matrix");
 

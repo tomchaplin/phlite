@@ -513,8 +513,13 @@ impl<'a, CF: NonZeroCoefficient, F: DigraphFiltration> HasRowFiltration
     fn column_with_filtration(
         &self,
         col: Self::ColT,
-    ) -> Result<impl Iterator<Item = ColumnEntry<Self>>, PhliteError> {
-        let boundary: Box<dyn Iterator<Item = ColumnEntry<Self>>> = match col {
+    ) -> Result<
+        impl Iterator<Item = ColumnEntry<Self::FiltrationT, Self::RowT, Self::CoefficientField>>,
+        PhliteError,
+    > {
+        let boundary: Box<
+            dyn Iterator<Item = ColumnEntry<Self::FiltrationT, Self::RowT, Self::CoefficientField>>,
+        > = match col {
             PathHomCell::Node(s) => Box::new(
                 produce_node_total_coboundary(&self.filtration, self.edge_set, self.n_vertices, s)
                     .map(|(coeff, cell, time)| ColumnEntry {
@@ -554,7 +559,7 @@ mod tests {
     use crate::coboundary::{produce_edge_total_coboundary, PathHomCell};
     use phlite::{
         fields::{Z2, Z3},
-        matrices::{HasRowFiltration, MatrixRef},
+        matrices::{HasRowFiltration, MatrixOracle},
         reduction::ClearedReductionMatrix,
     };
 
@@ -600,7 +605,7 @@ mod tests {
         }
 
         let d = GrPPHCoboundary::<Z2, _>::build(&filtration, &edge_set, n);
-        let d = d.reverse();
+        let d = (&d).reverse();
 
         let (_v, diagram) = ClearedReductionMatrix::build_with_diagram(&d, 0..=1);
 

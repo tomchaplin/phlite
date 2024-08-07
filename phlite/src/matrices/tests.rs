@@ -6,7 +6,7 @@ use crate::fields::{NonZeroCoefficient, Z2};
 use crate::matrices::adaptors::consolidate;
 use crate::matrices::combinators::product;
 use crate::matrices::MatrixOracle;
-use crate::matrices::{implementors::simple_Z2_matrix, HasRowFiltration, MatrixRef};
+use crate::matrices::{implementors::simple_Z2_matrix, HasRowFiltration};
 
 use crate::columns::BHCol;
 
@@ -61,7 +61,7 @@ fn test_matrix_bhcol_interface() {
     ]);
     let matrix = base_matrix.with_filtration(|idx| Ok(idx * 10));
 
-    let add = |column: &mut BHCol<_>, index| {
+    let add = |column: &mut BHCol<_, _, _>, index| {
         column.add_entries(matrix.column_with_filtration(index).unwrap());
     };
 
@@ -80,8 +80,8 @@ fn test_matrix_bhcol_interface() {
 
     // Opposite filtration
     let opp_matrix =
-        matrix.with_filtration(|idx| Ok(-(matrix.filtration_value(idx).unwrap() as isize)));
-    let opp_add = |column: &mut BHCol<_>, index| {
+        (&matrix).with_filtration(|idx| Ok(-(matrix.filtration_value(idx).unwrap() as isize)));
+    let opp_add = |column: &mut BHCol<_, _, _>, index| {
         column.add_entries(opp_matrix.column_with_filtration(index).unwrap());
     };
     let mut column = opp_matrix.empty_bhcol();
@@ -158,7 +158,7 @@ fn test_basis_reverse() {
         vec![1, 2, 4, 4],
     ]);
     let base_matrix = base_matrix.with_basis(vec![0, 1, 3]);
-    let rev_matrix = base_matrix.reverse();
+    let rev_matrix = (&base_matrix).reverse();
     let unrev_matrix = (&rev_matrix).unreverse();
 
     let base_elem = base_matrix.basis().element(0);
@@ -182,19 +182,19 @@ fn test_basis_reverse() {
     let unrev_elem = unrev_matrix.basis().element(2);
     assert_eq!(unrev_elem, 3);
 
-    let forward_col: Vec<_> = base_matrix
+    let forward_col: Vec<_> = (&base_matrix)
         .with_trivial_filtration()
         .build_bhcol(base_matrix.basis().element(0))
         .unwrap()
         .to_sorted_vec();
     println!("{:?}", forward_col);
-    let rev_col: Vec<_> = rev_matrix
+    let rev_col: Vec<_> = (&rev_matrix)
         .with_trivial_filtration()
         .build_bhcol(rev_matrix.basis().element(2))
         .unwrap()
         .to_sorted_vec();
     println!("{:?}", rev_col);
-    let unrev_col = unrev_matrix
+    let unrev_col = (&unrev_matrix)
         .with_trivial_filtration()
         .build_bhcol(unrev_matrix.basis().element(0))
         .unwrap()

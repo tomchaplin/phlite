@@ -4,18 +4,18 @@
 
 use crate::{columns::ColumnEntry, PhliteError};
 
-use super::{HasColBasis, HasRowFiltration, MatrixOracle, MatrixRef};
+use super::{HasColBasis, HasRowFiltration, MatrixOracle};
 
 pub fn product<M1, M2>(left: M1, right: M2) -> Product<M1, M2>
 where
-    M1: MatrixRef,
-    M2: MatrixOracle<CoefficientField = M1::CoefficientField, RowT = M1::ColT> + MatrixRef,
+    M1: MatrixOracle,
+    M2: MatrixOracle<CoefficientField = M1::CoefficientField, RowT = M1::ColT> + MatrixOracle,
 {
     Product { left, right }
 }
 
 #[derive(Clone, Copy)]
-pub struct Product<M1: MatrixRef, M2: MatrixRef> {
+pub struct Product<M1: MatrixOracle, M2: MatrixOracle> {
     left: M1,
     right: M2,
 }
@@ -39,7 +39,7 @@ macro_rules! matrix_col_product {
     }};
 }
 
-impl<M1: MatrixRef, M2: MatrixRef> MatrixOracle for Product<M1, M2>
+impl<M1: MatrixOracle, M2: MatrixOracle> MatrixOracle for Product<M1, M2>
 where
     M2: MatrixOracle<CoefficientField = M1::CoefficientField, RowT = M1::ColT>,
 {
@@ -62,7 +62,7 @@ where
 }
 
 // In product there is an obvious row filtration if the LHS has a row filtration
-impl<M1: MatrixRef, M2: MatrixRef> HasRowFiltration for Product<M1, M2>
+impl<M1: MatrixOracle, M2: MatrixOracle> HasRowFiltration for Product<M1, M2>
 where
     M1: HasRowFiltration,
     M2: MatrixOracle<CoefficientField = M1::CoefficientField, RowT = M1::ColT>,
@@ -77,7 +77,10 @@ where
     fn column_with_filtration(
         &self,
         col: Self::ColT,
-    ) -> Result<impl Iterator<Item = ColumnEntry<Self>>, PhliteError> {
+    ) -> Result<
+        impl Iterator<Item = ColumnEntry<M1::FiltrationT, M1::RowT, M1::CoefficientField>>,
+        PhliteError,
+    > {
         let right_col = self.right.column(col)?;
         Ok(right_col.flat_map(|(right_coeff, right_row_index)| {
             let left_col = self.left.column_with_filtration(right_row_index).unwrap();
@@ -90,7 +93,7 @@ where
     }
 }
 
-impl<M1: MatrixRef, M2: MatrixRef> HasColBasis for Product<M1, M2>
+impl<M1: MatrixOracle, M2: MatrixOracle> HasColBasis for Product<M1, M2>
 where
     M2: MatrixOracle<CoefficientField = M1::CoefficientField, RowT = M1::ColT> + HasColBasis,
 {
@@ -105,9 +108,9 @@ where
 
 pub fn sum<M1, M2>(left: M1, right: M2) -> Sum<M1, M2>
 where
-    M1: MatrixRef,
+    M1: MatrixOracle,
     M2: MatrixOracle<CoefficientField = M1::CoefficientField, ColT = M1::ColT, RowT = M1::RowT>
-        + MatrixRef,
+        + MatrixOracle,
 {
     Sum { left, right }
 }
@@ -115,12 +118,12 @@ where
 // Note: We don't implement HasRowFiltration in case the filtrations disagree
 // Note: We don't implement HasColBasis in case the number of cols disagrees
 #[derive(Clone, Copy)]
-pub struct Sum<M1: MatrixRef, M2: MatrixRef> {
+pub struct Sum<M1: MatrixOracle, M2: MatrixOracle> {
     left: M1,
     right: M2,
 }
 
-impl<M1: MatrixRef, M2: MatrixRef> MatrixOracle for Sum<M1, M2>
+impl<M1: MatrixOracle, M2: MatrixOracle> MatrixOracle for Sum<M1, M2>
 where
     M2: MatrixOracle<CoefficientField = M1::CoefficientField, ColT = M1::ColT, RowT = M1::RowT>,
 {

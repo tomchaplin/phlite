@@ -12,7 +12,6 @@ use std::ops::{Add, Mul};
 /// We avoid requiring an element for `0` to make [`Z2`] calculations more efficient.
 pub trait NonZeroCoefficient:
     Eq
-    + Sized
     + Copy
     + Add<Option<Self>, Output = Option<Self>>
     + Add<Self, Output = Option<Self>>

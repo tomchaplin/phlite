@@ -6,6 +6,7 @@
 
 use std::hash::Hash;
 use std::rc::Rc;
+use std::sync::Arc;
 use std::{cmp::Reverse, collections::HashMap};
 
 use itertools::equal;
@@ -73,10 +74,10 @@ pub trait MatrixOracle {
     where
         Self: Sized,
         M2: MatrixOracle<
-                CoefficientField = Self::CoefficientField,
-                ColT = Self::ColT,
-                RowT = Self::RowT,
-            > + Sized,
+            CoefficientField = Self::CoefficientField,
+            ColT = Self::ColT,
+            RowT = Self::RowT,
+        >,
     {
         let self_trivial = self.with_trivial_filtration();
         let other_trivial = other.with_trivial_filtration();
@@ -92,17 +93,7 @@ pub trait MatrixOracle {
 
         equal(self_col_sorted, other_col_sorted)
     }
-}
 
-// ======== Square matrices ====================================
-
-pub trait SquareMatrix: MatrixOracle<ColT = <Self as MatrixOracle>::RowT> {}
-
-impl<M> SquareMatrix for M where M: MatrixOracle<ColT = <Self as MatrixOracle>::RowT> {}
-
-// ======== Abstract matrix oracle trait + copyable ============
-
-pub trait MatrixRef: MatrixOracle + Copy {
     fn with_trivial_filtration(self) -> WithTrivialFiltration<Self>
     where
         Self: Sized,
@@ -125,6 +116,7 @@ pub trait MatrixRef: MatrixOracle + Copy {
 
     fn with_basis<B>(self, basis: B) -> MatrixWithBasis<Self, B>
     where
+        Self: Sized,
         B: ColBasis<ElemT = Self::ColT>,
     {
         MatrixWithBasis {
@@ -135,21 +127,33 @@ pub trait MatrixRef: MatrixOracle + Copy {
 
     fn using_col_basis_index(self) -> UsingColBasisIndex<Self>
     where
-        Self: HasColBasis,
+        Self: Sized + HasColBasis,
     {
         UsingColBasisIndex { oracle: self }
     }
 
-    fn reverse(self) -> ReverseMatrix<Self> {
+    fn reverse(self) -> ReverseMatrix<Self>
+    where
+        Self: Sized,
+    {
         ReverseMatrix { oracle: self }
     }
 
-    fn unreverse(self) -> UnreverseMatrix<Self> {
+    fn unreverse(self) -> UnreverseMatrix<Self>
+    where
+        Self: Sized,
+    {
         UnreverseMatrix { oracle: self }
     }
 }
 
-impl<M> MatrixRef for M where M: MatrixOracle + Copy {}
+// ======== Square matrices ====================================
+
+pub trait SquareMatrix: MatrixOracle<ColT = <Self as MatrixOracle>::RowT> {}
+
+impl<M> SquareMatrix for M where M: MatrixOracle<ColT = <Self as MatrixOracle>::RowT> {}
+
+// ======== Default implementors ===============================
 
 impl<'a, M> MatrixOracle for &'a M
 where
@@ -183,18 +187,51 @@ where
     }
 }
 
+impl<M> MatrixOracle for Arc<M>
+where
+    M: MatrixOracle,
+{
+    type CoefficientField = M::CoefficientField;
+    type ColT = M::ColT;
+    type RowT = M::RowT;
+
+    fn column(
+        &self,
+        col: Self::ColT,
+    ) -> Result<impl Iterator<Item = (Self::CoefficientField, Self::RowT)>, PhliteError> {
+        (**self).column(col)
+    }
+}
+
+impl<M> MatrixOracle for Box<M>
+where
+    M: MatrixOracle,
+{
+    type CoefficientField = M::CoefficientField;
+    type ColT = M::ColT;
+    type RowT = M::RowT;
+
+    fn column(
+        &self,
+        col: Self::ColT,
+    ) -> Result<impl Iterator<Item = (Self::CoefficientField, Self::RowT)>, PhliteError> {
+        (**self).column(col)
+    }
+}
+
 // ======== Filtration on rows to order them ===================
 
-// TODO: Try and get rid of Sized bounds, is there a better way to summarise ColumnEntry?
-
-pub trait HasRowFiltration: MatrixOracle + Sized {
+pub trait HasRowFiltration: MatrixOracle {
     type FiltrationT: FiltrationT;
     fn filtration_value(&self, row: Self::RowT) -> Result<Self::FiltrationT, PhliteError>;
 
     fn column_with_filtration(
         &self,
         col: Self::ColT,
-    ) -> Result<impl Iterator<Item = ColumnEntry<Self>>, PhliteError> {
+    ) -> Result<
+        impl Iterator<Item = ColumnEntry<Self::FiltrationT, Self::RowT, Self::CoefficientField>>,
+        PhliteError,
+    > {
         let column = self.column(col)?;
         Ok(column.map(|(coeff, row_index)| {
             let f_val = self
@@ -204,11 +241,14 @@ pub trait HasRowFiltration: MatrixOracle + Sized {
         }))
     }
 
-    fn empty_bhcol(&self) -> BHCol<Self> {
-        BHCol::<Self>::default()
+    fn empty_bhcol(&self) -> BHCol<Self::FiltrationT, Self::RowT, Self::CoefficientField> {
+        BHCol::default()
     }
 
-    fn build_bhcol(&self, col: Self::ColT) -> Result<BHCol<Self>, PhliteError> {
+    fn build_bhcol(
+        &self,
+        col: Self::ColT,
+    ) -> Result<BHCol<Self::FiltrationT, Self::RowT, Self::CoefficientField>, PhliteError> {
         let mut output = self.empty_bhcol();
         output.add_entries(self.column_with_filtration(col)?);
         Ok(output)
@@ -292,9 +332,9 @@ pub trait HasColBasis: MatrixOracle {
 
     fn basis(&self) -> &Self::BasisT;
 
-    fn sub_matrix_in_dimension(&self, dimension: usize) -> WithSubBasis<&Self>
+    fn sub_matrix_in_dimension(self, dimension: usize) -> WithSubBasis<Self>
     where
-        Self: MatrixRef + HasColBasis<BasisT: SplitByDimension>,
+        Self: MatrixOracle + HasColBasis<BasisT: SplitByDimension> + Sized,
     {
         WithSubBasis {
             oracle: self,

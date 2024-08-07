@@ -6,11 +6,10 @@ use std::fmt::Debug;
 use std::hash::Hash;
 use std::iter;
 
-use crate::columns::BHCol;
-use crate::matrices::adaptors::WithTrivialFiltration;
+use crate::columns::{BHCol, ColumnEntry};
 use crate::matrices::combinators::product;
 use crate::matrices::implementors::MapVecMatrix;
-use crate::matrices::{MatrixRef, SplitByDimension, SquareMatrix};
+use crate::matrices::{SplitByDimension, SquareMatrix};
 use crate::{
     fields::{Invertible, NonZeroCoefficient},
     matrices::{ColBasis, HasColBasis, HasRowFiltration, MatrixOracle},
@@ -32,7 +31,7 @@ type ReductionCols<'a, ColT, CoefficientField> =
 #[derive(Clone)]
 pub struct ClearedReductionMatrix<'a, M>
 where
-    M: MatrixRef + SquareMatrix + HasRowFiltration + HasColBasis,
+    M: MatrixOracle + SquareMatrix + HasRowFiltration + HasColBasis,
     M::CoefficientField: Invertible,
     M::ColT: Hash,
 {
@@ -42,7 +41,7 @@ where
 
 impl<'a, M> ClearedReductionMatrix<'a, M>
 where
-    M: MatrixRef + SquareMatrix + HasRowFiltration + HasColBasis,
+    M: MatrixOracle + SquareMatrix + HasRowFiltration + HasColBasis,
     M::CoefficientField: Invertible,
     M::ColT: Hash,
 {
@@ -74,7 +73,7 @@ where
 
 impl<M> ClearedReductionMatrix<'static, M>
 where
-    M: MatrixRef + SquareMatrix + HasRowFiltration + HasColBasis,
+    M: MatrixOracle + SquareMatrix + HasRowFiltration + HasColBasis,
     M::CoefficientField: Invertible,
     M::ColT: Hash,
 {
@@ -91,7 +90,7 @@ where
 
 impl<'a, M> MatrixOracle for ClearedReductionMatrix<'a, M>
 where
-    M: MatrixRef + SquareMatrix + HasRowFiltration + HasColBasis,
+    M: MatrixOracle + SquareMatrix + HasRowFiltration + HasColBasis,
     M::CoefficientField: Invertible,
     M::ColT: Hash,
 {
@@ -133,7 +132,7 @@ where
 
 impl<'a, M> HasColBasis for ClearedReductionMatrix<'a, M>
 where
-    M: MatrixRef + SquareMatrix + HasRowFiltration + HasColBasis,
+    M: MatrixOracle + SquareMatrix + HasRowFiltration + HasColBasis,
     M::CoefficientField: Invertible,
     M::ColT: Hash,
 {
@@ -153,11 +152,12 @@ struct CRMBuilder<M, DimIter, RowT, CF> {
 
 impl<M, DimIter> CRMBuilder<M, DimIter, M::RowT, M::CoefficientField>
 where
-    M: MatrixRef + SquareMatrix + HasRowFiltration + HasColBasis,
+    M: MatrixOracle + SquareMatrix + HasRowFiltration + HasColBasis,
     <M as HasColBasis>::BasisT: SplitByDimension,
     M::CoefficientField: Invertible,
     M::ColT: Hash + Debug,
     DimIter: Iterator<Item = usize>,
+    ColumnEntry<M::FiltrationT, M::RowT, M::CoefficientField>: Clone,
 {
     fn init(boundary: M, dimension_order: DimIter) -> Self {
         let essential = FxHashSet::default();
@@ -180,8 +180,8 @@ where
     fn reduce_column(
         &self,
         low_inverse: &FxHashMap<M::RowT, (M::ColT, M::CoefficientField)>,
-        r_i: &mut BHCol<M>,
-        v_i: &mut BHCol<WithTrivialFiltration<M>>,
+        r_i: &mut BHCol<M::FiltrationT, M::RowT, M::CoefficientField>,
+        v_i: &mut BHCol<(), M::RowT, M::CoefficientField>,
     ) {
         loop {
             let Some(pivot_entry) = r_i.clone_pivot() else {
@@ -200,9 +200,9 @@ where
 
             // Get references to V and R as reduced so far
             let v_matrix =
-                ClearedReductionMatrix::build_from_ref(self.boundary, &self.reduction_columns);
+                ClearedReductionMatrix::build_from_ref(&self.boundary, &self.reduction_columns);
             let v_matrix = v_matrix.with_trivial_filtration();
-            let r_matrix = product(self.boundary, &v_matrix);
+            let r_matrix = product(&self.boundary, &v_matrix);
 
             // Add the multiple of that column to r_i and v_i
             r_i.add_entries(
@@ -225,11 +225,11 @@ where
         &mut self,
         basis_element: M::ColT,
         low_inverse: &mut FxHashMap<M::RowT, (M::ColT, M::CoefficientField)>,
-        r_i: &BHCol<M>,
-        mut v_i: BHCol<WithTrivialFiltration<M>>,
+        r_i: &BHCol<M::FiltrationT, M::RowT, M::CoefficientField>,
+        mut v_i: BHCol<(), M::RowT, M::CoefficientField>,
     ) {
         // If we have a pivot
-        if let Some(pivot_entry) = r_i.peek_pivot().copied() {
+        if let Some(pivot_entry) = r_i.peek_pivot().cloned() {
             // NOTE: Safe to call peek_pivot because we only ever break after calling clone_pivot
             // Save it to low inverse
             low_inverse.insert(pivot_entry.row_index, (basis_element, pivot_entry.coeff));
@@ -270,12 +270,15 @@ where
         let mut low_inverse: FxHashMap<M::RowT, (M::ColT, M::CoefficientField)> =
             FxHashMap::default();
 
-        let basis_size = self.boundary.sub_matrix_in_dimension(dim).basis().size();
+        let basis_size = (&self.boundary)
+            .sub_matrix_in_dimension(dim)
+            .basis()
+            .size()
+            .clone();
 
         'column_loop: for i in 0..basis_size {
             // Reduce column i
-            let basis_element = self
-                .boundary
+            let basis_element = (&self.boundary)
                 .sub_matrix_in_dimension(dim)
                 .basis()
                 .element(i);
@@ -286,8 +289,16 @@ where
             }
 
             // Otheewise clear and update the builder accordingly
-            let mut v_i = self.boundary.with_trivial_filtration().empty_bhcol();
-            let mut r_i = self.boundary.build_bhcol(basis_element).unwrap();
+            let mut v_i = {
+                let self_borrow = &self.boundary;
+                let v_i = self_borrow.with_trivial_filtration().empty_bhcol();
+                v_i
+            };
+            let mut r_i = {
+                let self_borrow = &self.boundary;
+                let r_i = self_borrow.build_bhcol(basis_element).unwrap();
+                r_i
+            };
             self.reduce_column(&low_inverse, &mut r_i, &mut v_i);
             self.save_column(basis_element, &mut low_inverse, &r_i, v_i);
         }
@@ -306,10 +317,11 @@ where
 //       This will take some time but reduce memory usage - maybe make configurable?
 impl<M> ClearedReductionMatrix<'static, M>
 where
-    M: MatrixRef + SquareMatrix + HasRowFiltration + HasColBasis,
+    M: MatrixOracle + SquareMatrix + HasRowFiltration + HasColBasis,
     <M as HasColBasis>::BasisT: SplitByDimension,
     M::CoefficientField: Invertible,
     M::ColT: Hash + Debug,
+    ColumnEntry<M::FiltrationT, M::RowT, M::CoefficientField>: Clone,
 {
     pub fn build_with_diagram<DimIter>(
         boundary: M,
@@ -416,7 +428,7 @@ where
 
         let basis_element = boundary.basis().element(i);
 
-        let mut v_i = boundary.with_trivial_filtration().empty_bhcol();
+        let mut v_i = (&boundary).with_trivial_filtration().empty_bhcol();
         v_i.add_tuple((M::CoefficientField::one(), basis_element, ()));
         let mut r_i = boundary.build_bhcol(basis_element).unwrap();
 
@@ -482,9 +494,7 @@ where
 #[cfg(test)]
 mod tests {
 
-    use crate::matrices::{
-        combinators::product, implementors::simple_Z2_matrix, MatrixOracle, MatrixRef,
-    };
+    use crate::matrices::{combinators::product, implementors::simple_Z2_matrix, MatrixOracle};
 
     use super::standard_algo;
 
@@ -500,7 +510,7 @@ mod tests {
             vec![3, 4, 5],
             vec![3, 4, 5],
         ]);
-        let matrix_v = standard_algo(matrix_d.with_trivial_filtration());
+        let matrix_v = standard_algo((&matrix_d).with_trivial_filtration());
         let matrix_r = product(&matrix_d, &matrix_v);
         let true_matrix_r = simple_Z2_matrix(vec![
             vec![],
