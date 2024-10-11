@@ -61,7 +61,7 @@ pub fn main() {
     // We get back the reduction matrix `v` and the persistence diagram `diagram`.
     // If you want access to R, we can just take the product of the coboundary matrix and V.
     // Note all the indexing/filtration types are reversed.
-    // Calling `phlite::matrices::MatrixRef::unreverse` can resolve this.
+    // Calling `phlite::matrices::MatrixOracle::unreverse` can resolve this.
 
     // Compute reduction matrix, in increasing dimension
     let (v, diagram) = ClearedReductionMatrix::build_with_diagram(&coboundary, 0..=max_dim);

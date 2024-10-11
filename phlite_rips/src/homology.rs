@@ -115,7 +115,7 @@ pub fn build_rips_boundary_matrix<CF: Invertible>(
 
 // TUTORIAL:
 // Now it's time to choose your own adventure!
-// 1. Head over to coboundary.rs to see how we implement the coboundary matrix.
+// 1. Head over to cohomology.rs to see how we implement the coboundary matrix.
 //    The structure is pretty similar but implementation is a bit more complicated and can be optimised.
 // 2. Head over to main.rs to see how we use the reduction algorithms.
 //    We actually decompose the (reversed) coboundary matrix since its more efficient.
