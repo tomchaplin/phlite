@@ -113,7 +113,7 @@ where
             match reduction_col {
                 ReductionColumn::Cleared(death_idx) => {
                     // This returns the death_idx column of R = D V
-                    let v_j = self.column(*death_idx)?;
+                    let v_j = self.column(death_idx.clone())?;
                     // v_j should be of the Reduced variant
                     Box::new(matrix_col_product!(self.boundary, v_j))
                     //Box::new(vec.iter().copied())
@@ -121,7 +121,7 @@ where
                 ReductionColumn::Reduced(vec) => Box::new(
                     // We don't store the diagonal so we have to chain +1 on the diagonal to the output
                     vec.iter()
-                        .copied()
+                        .cloned()
                         .chain(iter::once((M::CoefficientField::one(), col))),
                 ),
             };
@@ -207,14 +207,14 @@ where
             // Add the multiple of that column to r_i and v_i
             r_i.add_entries(
                 r_matrix
-                    .column_with_filtration(*j_basis_element)
+                    .column_with_filtration(j_basis_element.clone())
                     .unwrap()
                     .map(|entry| (entry * col_multiple)),
             );
 
             v_i.add_entries(
                 v_matrix
-                    .column_with_filtration(*j_basis_element)
+                    .column_with_filtration(j_basis_element.clone())
                     .unwrap()
                     .map(|entry| entry * col_multiple),
             );
@@ -232,12 +232,15 @@ where
         if let Some(pivot_entry) = r_i.peek_pivot().cloned() {
             // NOTE: Safe to call peek_pivot because we only ever break after calling clone_pivot
             // Save it to low inverse
-            low_inverse.insert(pivot_entry.row_index, (basis_element, pivot_entry.coeff));
+            low_inverse.insert(
+                pivot_entry.row_index.clone(),
+                (basis_element.clone(), pivot_entry.coeff),
+            );
 
             // and clear out the birth column
             self.reduction_columns.insert(
-                pivot_entry.row_index,
-                ReductionColumn::Cleared(basis_element),
+                pivot_entry.row_index.clone(),
+                ReductionColumn::Cleared(basis_element.clone()),
             );
 
             // Update diagram
@@ -245,10 +248,10 @@ where
             // is provided sensibly so that we see pairings first
             self.diagram
                 .pairings
-                .insert((pivot_entry.row_index, basis_element));
+                .insert((pivot_entry.row_index, basis_element.clone()));
         } else {
             // Update diagram
-            self.diagram.essential.insert(basis_element);
+            self.diagram.essential.insert(basis_element.clone());
         }
 
         // Then save v_i to reduction matrix
@@ -296,7 +299,7 @@ where
             };
             let mut r_i = {
                 let self_borrow = &self.boundary;
-                let r_i = self_borrow.build_bhcol(basis_element).unwrap();
+                let r_i = self_borrow.build_bhcol(basis_element.clone()).unwrap();
                 r_i
             };
             self.reduce_column(&low_inverse, &mut r_i, &mut v_i);
@@ -393,13 +396,13 @@ where
 
     for i in col_iter {
         let basis_element = boundary.basis().element(i);
-        let mut r_i = r.build_bhcol(basis_element).unwrap();
+        let mut r_i = r.build_bhcol(basis_element.clone()).unwrap();
         match r_i.pop_pivot() {
             None => {
                 essential.insert(basis_element);
             }
             Some(piv) => {
-                pairings.insert((piv.row_index, basis_element));
+                pairings.insert((piv.row_index.clone(), basis_element));
                 essential.remove(&piv.row_index);
             }
         }
@@ -429,8 +432,8 @@ where
         let basis_element = boundary.basis().element(i);
 
         let mut v_i = (&boundary).with_trivial_filtration().empty_bhcol();
-        v_i.add_tuple((M::CoefficientField::one(), basis_element, ()));
-        let mut r_i = boundary.build_bhcol(basis_element).unwrap();
+        v_i.add_tuple((M::CoefficientField::one(), basis_element.clone(), ()));
+        let mut r_i = boundary.build_bhcol(basis_element.clone()).unwrap();
 
         'reduction: loop {
             let Some(pivot_entry) = r_i.pop_pivot() else {
@@ -438,7 +441,7 @@ where
                 break 'reduction;
             };
 
-            let pivot_j = pivot_entry.row_index;
+            let pivot_j = pivot_entry.row_index.clone();
             let pivot_coeff = pivot_entry.coeff;
 
             // Push the pivot back in to keep r_col coorect
@@ -460,7 +463,7 @@ where
             // Add the multiple of that column
             r_i.add_entries(
                 r_matrix
-                    .column_with_filtration(*j_basis_element)
+                    .column_with_filtration(j_basis_element.clone())
                     .unwrap()
                     .map(|entry| entry * col_multiple),
             );
@@ -468,7 +471,7 @@ where
             // Update V
             v_i.add_entries(
                 v_matrix
-                    .column_with_filtration(*j_basis_element)
+                    .column_with_filtration(j_basis_element.clone())
                     .unwrap()
                     .map(|entry| entry * col_multiple),
             );
@@ -476,7 +479,10 @@ where
 
         // Save pivot if we have one
         if let Some(pivot_entry) = r_i.pop_pivot() {
-            low_inverse.insert(pivot_entry.row_index, (basis_element, pivot_entry.coeff));
+            low_inverse.insert(
+                pivot_entry.row_index,
+                (basis_element.clone(), pivot_entry.coeff),
+            );
         };
 
         // Save V

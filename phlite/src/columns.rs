@@ -182,9 +182,9 @@ impl<FilT: FiltrationT, RowT: BasisElement, CF> BHCol<FilT, RowT, CF> {
                     break;
                 }
                 // Otherwise we prepare to start adding the next largest index
-                working_index = next_entry.row_index;
+                working_index = next_entry.row_index.clone();
                 working_sum = None;
-                working_filtration = next_entry.filtration_value;
+                working_filtration = next_entry.filtration_value.clone();
             }
 
             // Actually remove from heap

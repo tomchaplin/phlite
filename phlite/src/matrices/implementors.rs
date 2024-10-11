@@ -82,7 +82,7 @@ impl<'a, CF: NonZeroCoefficient, RowT: BasisElement> MatrixOracle for VecVecMatr
             .get(col)
             .ok_or(PhliteError::NotInDomain)?
             .iter()
-            .copied())
+            .cloned())
     }
 }
 
@@ -164,7 +164,7 @@ where
             .get(&col)
             .ok_or(PhliteError::NotInDomain)?
             .iter()
-            .copied())
+            .cloned())
     }
 }
 

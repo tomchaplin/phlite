@@ -134,6 +134,9 @@ where
         &self,
         col: Self::ColT,
     ) -> Result<impl Iterator<Item = (Self::CoefficientField, Self::RowT)>, PhliteError> {
-        Ok(self.left.column(col)?.chain(self.right.column(col)?))
+        Ok(self
+            .left
+            .column(col.clone())?
+            .chain(self.right.column(col)?))
     }
 }

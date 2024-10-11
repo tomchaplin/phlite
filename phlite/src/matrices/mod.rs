@@ -31,8 +31,8 @@ mod tests;
 
 // ========= Traits for matrix indices and filtrations =========
 
-pub trait BasisElement: Ord + Copy {}
-pub trait FiltrationT: Ord + Copy {}
+pub trait BasisElement: Ord + Clone {}
+pub trait FiltrationT: Ord + Clone {}
 
 // Default implementors
 
@@ -82,7 +82,7 @@ pub trait MatrixOracle {
         let self_trivial = self.with_trivial_filtration();
         let other_trivial = other.with_trivial_filtration();
 
-        let mut self_col = self_trivial.build_bhcol(col).unwrap();
+        let mut self_col = self_trivial.build_bhcol(col.clone()).unwrap();
         let self_col_sorted = self_col
             .drain_sorted()
             .map(Into::<(Self::CoefficientField, Self::RowT, ())>::into);
@@ -235,7 +235,7 @@ pub trait HasRowFiltration: MatrixOracle {
         let column = self.column(col)?;
         Ok(column.map(|(coeff, row_index)| {
             let f_val = self
-                .filtration_value(row_index)
+                .filtration_value(row_index.clone())
                 .expect("Rows should all have filtration values");
             (coeff, row_index, f_val).into()
         }))
@@ -304,7 +304,7 @@ where
     type ElemT = T;
 
     fn element(&self, index: usize) -> Self::ElemT {
-        self[index]
+        self[index].clone()
     }
 
     fn size(&self) -> usize {

@@ -17,6 +17,6 @@ log = "0.4.21"
 ordered-float = "4.2.0"
 petgraph = "0.6.4"
 phlite = { version = "0.1.0", default-features = false, path = "../phlite" }
-pyo3 = "0.21.2"
-pyo3-log = "0.10.0"
+pyo3 = "0.22.3"
+pyo3-log = "0.11.0"
 rustc-hash = "1.1.0"
