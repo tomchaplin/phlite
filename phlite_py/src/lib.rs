@@ -1,5 +1,3 @@
-use std::borrow::Borrow;
-
 use log::info;
 use phlite::{
     fields::{NonZeroCoefficient, Z2},
@@ -51,24 +49,20 @@ impl MatrixOracle for PyMatrix {
     fn column(
         &self,
         col: Self::ColT,
-    ) -> Result<impl Iterator<Item = (Self::CoefficientField, Self::RowT)>, phlite::PhliteError>
-    {
+    ) -> impl Iterator<Item = (Self::CoefficientField, Self::RowT)> {
         Python::with_gil(|py| {
             // Collect entire column into a vec on the Rust side
             // This allows us to decouple the column iterator from the GIL
-            Some(
-                self.0
-                    .call_method1(py, intern!(py, "column"), (col,))
-                    .ok()?
-                    .into_bound(py)
-                    .iter()
-                    .ok()?
-                    .map(|i| (Z2::one(), PyBasisElement(i.unwrap().unbind())))
-                    .collect::<Vec<_>>()
-                    .into_iter(),
-            )
+            self.0
+                .call_method1(py, intern!(py, "column"), (col,))
+                .unwrap()
+                .into_bound(py)
+                .iter()
+                .unwrap()
+                .map(|i| (Z2::one(), PyBasisElement(i.unwrap().unbind())))
+                .collect::<Vec<_>>()
+                .into_iter()
         })
-        .ok_or(phlite::PhliteError::NotInDomain)
     }
 }
 

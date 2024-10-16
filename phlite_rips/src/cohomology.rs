@@ -7,7 +7,6 @@ use phlite::{
     columns::ColumnEntry,
     fields::{Invertible, NonZeroCoefficient},
     matrices::{adaptors::MatrixWithBasis, HasRowFiltration, MatrixOracle},
-    PhliteError,
 };
 
 use super::MultiDimRipsBasisWithFilt;
@@ -115,11 +114,10 @@ impl<CF: NonZeroCoefficient + Invertible> MatrixOracle for RipsCoboundary<CF> {
     fn column(
         &self,
         col: Self::ColT,
-    ) -> Result<impl Iterator<Item = (Self::CoefficientField, Self::RowT)>, phlite::PhliteError>
-    {
+    ) -> impl Iterator<Item = (Self::CoefficientField, Self::RowT)> {
         let n_points = self.n_points();
-        Ok(CoboundaryIterator::new(col.to_vec(n_points), n_points)
-            .map(|(coeff, idx, _inserted_vertex)| (coeff, idx)))
+        CoboundaryIterator::new(col.to_vec(n_points), n_points)
+            .map(|(coeff, idx, _inserted_vertex)| (coeff, idx))
     }
 }
 
@@ -136,10 +134,8 @@ impl<CF: NonZeroCoefficient + Invertible> HasRowFiltration for RipsCoboundary<CF
     fn column_with_filtration(
         &self,
         col: Self::ColT,
-    ) -> Result<
-        impl Iterator<Item = ColumnEntry<Self::FiltrationT, Self::RowT, Self::CoefficientField>>,
-        PhliteError,
-    > {
+    ) -> impl Iterator<Item = ColumnEntry<Self::FiltrationT, Self::RowT, Self::CoefficientField>>
+    {
         let n_points = self.n_points();
         let coboundary_iterator = CoboundaryIterator::new(col.to_vec(n_points), n_points);
 
@@ -147,23 +143,21 @@ impl<CF: NonZeroCoefficient + Invertible> HasRowFiltration for RipsCoboundary<CF
 
         let max_pd_amongst_col = max_pairwise_distance(&col_vertices, &self.distances);
 
-        Ok(
-            coboundary_iterator.map(move |(coeff, row_index, inserted_vertex)| {
-                let max_to_inserted = col_vertices
-                    .iter()
-                    .map(|v| self.distances[*v][inserted_vertex])
-                    .max()
-                    .unwrap();
+        coboundary_iterator.map(move |(coeff, row_index, inserted_vertex)| {
+            let max_to_inserted = col_vertices
+                .iter()
+                .map(|v| self.distances[*v][inserted_vertex])
+                .max()
+                .unwrap();
 
-                let filtration_value = max_pd_amongst_col.max(max_to_inserted);
+            let filtration_value = max_pd_amongst_col.max(max_to_inserted);
 
-                ColumnEntry {
-                    filtration_value,
-                    row_index,
-                    coeff,
-                }
-            }),
-        )
+            ColumnEntry {
+                filtration_value,
+                row_index,
+                coeff,
+            }
+        })
     }
 }
 
@@ -209,7 +203,7 @@ mod tests {
         };
 
         let smplx = RipsIndex::from_indices(vec![1, 2, 3].into_iter(), 4).unwrap();
-        let coboundary_vec: Vec<_> = coboundary.column(smplx).unwrap().collect();
+        let coboundary_vec: Vec<_> = coboundary.column(smplx).collect();
         assert_eq!(coboundary_vec.len(), 1);
         println!("{coboundary_vec:?}");
         for entry in coboundary_vec {
@@ -218,7 +212,7 @@ mod tests {
         }
 
         let smplx = RipsIndex::from_indices(vec![0, 3].into_iter(), 4).unwrap();
-        let coboundary_vec: Vec<_> = coboundary.column(smplx).unwrap().collect();
+        let coboundary_vec: Vec<_> = coboundary.column(smplx).collect();
         assert_eq!(coboundary_vec.len(), 2);
         println!("{coboundary_vec:?}");
         for entry in coboundary_vec {
@@ -227,7 +221,7 @@ mod tests {
         }
 
         let smplx = RipsIndex::from_indices(vec![1].into_iter(), 4).unwrap();
-        let coboundary_vec: Vec<_> = coboundary.column(smplx).unwrap().collect();
+        let coboundary_vec: Vec<_> = coboundary.column(smplx).collect();
         assert_eq!(coboundary_vec.len(), 3);
         println!("{coboundary_vec:?}");
         for entry in coboundary_vec {

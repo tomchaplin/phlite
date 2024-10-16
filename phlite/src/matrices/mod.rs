@@ -5,6 +5,7 @@
 // TODO: Add reasonable constraints to reverse and unreverse methods on bases and matrices
 
 use std::hash::Hash;
+use std::ops::Deref;
 use std::rc::Rc;
 use std::sync::Arc;
 use std::{cmp::Reverse, collections::HashMap};
@@ -26,8 +27,6 @@ use self::adaptors::{
 pub mod adaptors;
 pub mod combinators;
 pub mod implementors;
-#[cfg(test)]
-mod tests;
 
 // ========= Traits for matrix indices and filtrations =========
 
@@ -64,10 +63,8 @@ pub trait MatrixOracle {
     /// It is dis-advantageous to produce the rows in ascending order because inserting into binary heaps would require traversing the full height (see [`BinaryHeap::push`](std::collections::BinaryHeap::push)).
     /// Since checking and sorting by filtration values is typically slow, prefer to produce in descending order with respect to the ordering on [`RowT`](Self::RowT).
     /// Lower bounds on iterator size provided via [`Iterator::size_hint`] will be used to preallocate.
-    fn column(
-        &self,
-        col: Self::ColT,
-    ) -> Result<impl Iterator<Item = (Self::CoefficientField, Self::RowT)>, PhliteError>;
+    fn column(&self, col: Self::ColT)
+        -> impl Iterator<Item = (Self::CoefficientField, Self::RowT)>;
 
     /// Checks that the matricies are equal on the specified col, ignoring ordering due to filtration values
     fn eq_on_col<M2>(&self, other: &M2, col: Self::ColT) -> bool
@@ -82,11 +79,11 @@ pub trait MatrixOracle {
         let self_trivial = self.with_trivial_filtration();
         let other_trivial = other.with_trivial_filtration();
 
-        let mut self_col = self_trivial.build_bhcol(col.clone()).unwrap();
+        let mut self_col = self_trivial.build_bhcol(col.clone());
         let self_col_sorted = self_col
             .drain_sorted()
             .map(Into::<(Self::CoefficientField, Self::RowT, ())>::into);
-        let mut other_col = other_trivial.build_bhcol(col).unwrap();
+        let mut other_col = other_trivial.build_bhcol(col);
         let other_col_sorted = other_col
             .drain_sorted()
             .map(Into::<(Self::CoefficientField, Self::RowT, ())>::into);
@@ -166,7 +163,7 @@ where
     fn column(
         &self,
         col: Self::ColT,
-    ) -> Result<impl Iterator<Item = (Self::CoefficientField, Self::RowT)>, PhliteError> {
+    ) -> impl Iterator<Item = (Self::CoefficientField, Self::RowT)> {
         (*self).column(col)
     }
 }
@@ -182,7 +179,7 @@ where
     fn column(
         &self,
         col: Self::ColT,
-    ) -> Result<impl Iterator<Item = (Self::CoefficientField, Self::RowT)>, PhliteError> {
+    ) -> impl Iterator<Item = (Self::CoefficientField, Self::RowT)> {
         (**self).column(col)
     }
 }
@@ -198,7 +195,7 @@ where
     fn column(
         &self,
         col: Self::ColT,
-    ) -> Result<impl Iterator<Item = (Self::CoefficientField, Self::RowT)>, PhliteError> {
+    ) -> impl Iterator<Item = (Self::CoefficientField, Self::RowT)> {
         (**self).column(col)
     }
 }
@@ -214,7 +211,7 @@ where
     fn column(
         &self,
         col: Self::ColT,
-    ) -> Result<impl Iterator<Item = (Self::CoefficientField, Self::RowT)>, PhliteError> {
+    ) -> impl Iterator<Item = (Self::CoefficientField, Self::RowT)> {
         (**self).column(col)
     }
 }
@@ -228,17 +225,15 @@ pub trait HasRowFiltration: MatrixOracle {
     fn column_with_filtration(
         &self,
         col: Self::ColT,
-    ) -> Result<
-        impl Iterator<Item = ColumnEntry<Self::FiltrationT, Self::RowT, Self::CoefficientField>>,
-        PhliteError,
-    > {
-        let column = self.column(col)?;
-        Ok(column.map(|(coeff, row_index)| {
+    ) -> impl Iterator<Item = ColumnEntry<Self::FiltrationT, Self::RowT, Self::CoefficientField>>
+    {
+        let column = self.column(col);
+        column.map(|(coeff, row_index)| {
             let f_val = self
                 .filtration_value(row_index.clone())
                 .expect("Rows should all have filtration values");
             (coeff, row_index, f_val).into()
-        }))
+        })
     }
 
     fn empty_bhcol(&self) -> BHCol<Self::FiltrationT, Self::RowT, Self::CoefficientField> {
@@ -248,10 +243,10 @@ pub trait HasRowFiltration: MatrixOracle {
     fn build_bhcol(
         &self,
         col: Self::ColT,
-    ) -> Result<BHCol<Self::FiltrationT, Self::RowT, Self::CoefficientField>, PhliteError> {
+    ) -> BHCol<Self::FiltrationT, Self::RowT, Self::CoefficientField> {
         let mut output = self.empty_bhcol();
-        output.add_entries(self.column_with_filtration(col)?);
-        Ok(output)
+        output.add_entries(self.column_with_filtration(col));
+        output
     }
 }
 
@@ -329,8 +324,11 @@ where
 
 pub trait HasColBasis: MatrixOracle {
     type BasisT: ColBasis<ElemT = Self::ColT>;
+    type BasisRef<'a>: Deref<Target = Self::BasisT>
+    where
+        Self: 'a;
 
-    fn basis(&self) -> &Self::BasisT;
+    fn basis<'a>(&'a self) -> Self::BasisRef<'a>;
 
     fn sub_matrix_in_dimension(self, dimension: usize) -> WithSubBasis<Self>
     where
@@ -348,8 +346,12 @@ where
     T: HasColBasis,
 {
     type BasisT = T::BasisT;
+    type BasisRef<'b>
+        = T::BasisRef<'b>
+    where
+        Self: 'b;
 
-    fn basis(&self) -> &Self::BasisT {
+    fn basis<'b>(&'b self) -> Self::BasisRef<'b> {
         (*self).basis()
     }
 }
@@ -357,8 +359,20 @@ where
 // TODO: This puts a pretty strong constraint on the ColBasis
 // In particular at must own each of the SubBasisT pre-constructed and then piece them together in order to extract its elements.
 // Is there a better way to do this?
+// TODO: Repeat what we did with HasColBasis, allow arbitrary ref type
 pub trait SplitByDimension: ColBasis {
     type SubBasisT: ColBasis<ElemT = Self::ElemT>;
 
     fn in_dimension(&self, dimension: usize) -> &Self::SubBasisT;
+}
+
+impl<'a, T> SplitByDimension for &'a T
+where
+    T: SplitByDimension,
+{
+    type SubBasisT = T::SubBasisT;
+
+    fn in_dimension(&self, dimension: usize) -> &Self::SubBasisT {
+        (*self).in_dimension(dimension)
+    }
 }

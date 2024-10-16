@@ -32,7 +32,7 @@ pub struct Product<M1: MatrixOracle, M2: MatrixOracle> {
 macro_rules! matrix_col_product {
     (  $matrix: expr, $col: expr ) => {{
         $col.flat_map(|(right_coeff, right_row_index)| {
-            let left_col = $matrix.column(right_row_index).unwrap();
+            let left_col = $matrix.column(right_row_index);
             left_col
                 .map(move |(left_coeff, left_row_index)| (left_coeff * right_coeff, left_row_index))
         })
@@ -52,12 +52,12 @@ where
     fn column(
         &self,
         col: Self::ColT,
-    ) -> Result<impl Iterator<Item = (Self::CoefficientField, Self::RowT)>, PhliteError> {
+    ) -> impl Iterator<Item = (Self::CoefficientField, Self::RowT)> {
         // Pull out right col
-        let right_col = self.right.column(col)?;
+        let right_col = self.right.column(col);
         // This tells us what linear combination of columns in the left matrix
         // should be formed to yield the product column
-        Ok(matrix_col_product!(self.left, right_col))
+        matrix_col_product!(self.left, right_col)
     }
 }
 
@@ -77,19 +77,16 @@ where
     fn column_with_filtration(
         &self,
         col: Self::ColT,
-    ) -> Result<
-        impl Iterator<Item = ColumnEntry<M1::FiltrationT, M1::RowT, M1::CoefficientField>>,
-        PhliteError,
-    > {
-        let right_col = self.right.column(col)?;
-        Ok(right_col.flat_map(|(right_coeff, right_row_index)| {
-            let left_col = self.left.column_with_filtration(right_row_index).unwrap();
+    ) -> impl Iterator<Item = ColumnEntry<M1::FiltrationT, M1::RowT, M1::CoefficientField>> {
+        let right_col = self.right.column(col);
+        right_col.flat_map(|(right_coeff, right_row_index)| {
+            let left_col = self.left.column_with_filtration(right_row_index);
             left_col.map(move |left_entry| ColumnEntry {
                 coeff: left_entry.coeff * right_coeff,
                 row_index: left_entry.row_index,
                 filtration_value: left_entry.filtration_value,
             })
-        }))
+        })
     }
 }
 
@@ -98,8 +95,12 @@ where
     M2: MatrixOracle<CoefficientField = M1::CoefficientField, RowT = M1::ColT> + HasColBasis,
 {
     type BasisT = M2::BasisT;
+    type BasisRef<'a>
+        = M2::BasisRef<'a>
+    where
+        Self: 'a;
 
-    fn basis(&self) -> &Self::BasisT {
+    fn basis(&self) -> Self::BasisRef<'_> {
         self.right.basis()
     }
 }
@@ -133,10 +134,7 @@ where
     fn column(
         &self,
         col: Self::ColT,
-    ) -> Result<impl Iterator<Item = (Self::CoefficientField, Self::RowT)>, PhliteError> {
-        Ok(self
-            .left
-            .column(col.clone())?
-            .chain(self.right.column(col)?))
+    ) -> impl Iterator<Item = (Self::CoefficientField, Self::RowT)> {
+        self.left.column(col.clone()).chain(self.right.column(col))
     }
 }

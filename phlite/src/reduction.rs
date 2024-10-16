@@ -64,7 +64,7 @@ where
             ReductionColumn::Cleared(_) => Ok(true),
             ReductionColumn::Reduced(_) => {
                 let r_matrix = product(&self.boundary, &self);
-                let mut r_col = r_matrix.build_bhcol(col)?;
+                let mut r_col = r_matrix.build_bhcol(col);
                 Ok(r_col.pop_pivot().is_none())
             }
         }
@@ -100,12 +100,9 @@ where
     fn column(
         &self,
         col: Self::ColT,
-    ) -> Result<impl Iterator<Item = (Self::CoefficientField, Self::RowT)>, PhliteError> {
+    ) -> impl Iterator<Item = (Self::CoefficientField, Self::RowT)> {
         // TODO: Check that this doesn't actually Clone!
-        let reduction_col = self
-            .reduction_columns
-            .get(&col)
-            .ok_or(PhliteError::NotInDomain)?;
+        let reduction_col = self.reduction_columns.get(&col).unwrap();
 
         // TODO: Is there a way to do this without Box?
 
@@ -113,7 +110,7 @@ where
             match reduction_col {
                 ReductionColumn::Cleared(death_idx) => {
                     // This returns the death_idx column of R = D V
-                    let v_j = self.column(death_idx.clone())?;
+                    let v_j = self.column(death_idx.clone());
                     // v_j should be of the Reduced variant
                     Box::new(matrix_col_product!(self.boundary, v_j))
                     //Box::new(vec.iter().copied())
@@ -126,7 +123,7 @@ where
                 ),
             };
 
-        Ok(output_iter)
+        output_iter
     }
 }
 
@@ -137,8 +134,12 @@ where
     M::ColT: Hash,
 {
     type BasisT = M::BasisT;
+    type BasisRef<'b>
+        = M::BasisRef<'b>
+    where
+        Self: 'b;
 
-    fn basis(&self) -> &Self::BasisT {
+    fn basis(&self) -> Self::BasisRef<'_> {
         self.boundary.basis()
     }
 }
@@ -208,14 +209,12 @@ where
             r_i.add_entries(
                 r_matrix
                     .column_with_filtration(j_basis_element.clone())
-                    .unwrap()
                     .map(|entry| (entry * col_multiple)),
             );
 
             v_i.add_entries(
                 v_matrix
                     .column_with_filtration(j_basis_element.clone())
-                    .unwrap()
                     .map(|entry| entry * col_multiple),
             );
         }
@@ -299,7 +298,7 @@ where
             };
             let mut r_i = {
                 let self_borrow = &self.boundary;
-                let r_i = self_borrow.build_bhcol(basis_element.clone()).unwrap();
+                let r_i = self_borrow.build_bhcol(basis_element.clone());
                 r_i
             };
             self.reduce_column(&low_inverse, &mut r_i, &mut v_i);
@@ -396,7 +395,7 @@ where
 
     for i in col_iter {
         let basis_element = boundary.basis().element(i);
-        let mut r_i = r.build_bhcol(basis_element.clone()).unwrap();
+        let mut r_i = r.build_bhcol(basis_element.clone());
         match r_i.pop_pivot() {
             None => {
                 essential.insert(basis_element);
@@ -433,7 +432,7 @@ where
 
         let mut v_i = (&boundary).with_trivial_filtration().empty_bhcol();
         v_i.add_tuple((M::CoefficientField::one(), basis_element.clone(), ()));
-        let mut r_i = boundary.build_bhcol(basis_element.clone()).unwrap();
+        let mut r_i = boundary.build_bhcol(basis_element.clone());
 
         'reduction: loop {
             let Some(pivot_entry) = r_i.pop_pivot() else {
@@ -464,7 +463,6 @@ where
             r_i.add_entries(
                 r_matrix
                     .column_with_filtration(j_basis_element.clone())
-                    .unwrap()
                     .map(|entry| entry * col_multiple),
             );
 
@@ -472,7 +470,6 @@ where
             v_i.add_entries(
                 v_matrix
                     .column_with_filtration(j_basis_element.clone())
-                    .unwrap()
                     .map(|entry| entry * col_multiple),
             );
         }

@@ -5,10 +5,7 @@ use std::hash::Hash;
 
 use rustc_hash::FxHashMap;
 
-use crate::{
-    fields::{NonZeroCoefficient, Z2},
-    PhliteError,
-};
+use crate::fields::{NonZeroCoefficient, Z2};
 
 use super::{BasisElement, ColBasis, HasColBasis, MatrixOracle};
 
@@ -76,20 +73,19 @@ impl<'a, CF: NonZeroCoefficient, RowT: BasisElement> MatrixOracle for VecVecMatr
     fn column(
         &self,
         col: Self::ColT,
-    ) -> Result<impl Iterator<Item = (Self::CoefficientField, Self::RowT)>, PhliteError> {
-        Ok(self
-            .columns
-            .get(col)
-            .ok_or(PhliteError::NotInDomain)?
-            .iter()
-            .cloned())
+    ) -> impl Iterator<Item = (Self::CoefficientField, Self::RowT)> {
+        self.columns.get(col).unwrap().iter().cloned()
     }
 }
 
 impl<'a, CF: NonZeroCoefficient, RowT: BasisElement> HasColBasis for VecVecMatrix<'a, CF, RowT> {
     type BasisT = StandardBasis;
+    type BasisRef<'b>
+        = &'b StandardBasis
+    where
+        Self: 'b;
 
-    fn basis(&self) -> &Self::BasisT {
+    fn basis(&self) -> Self::BasisRef<'_> {
         &self.basis
     }
 }
@@ -158,13 +154,8 @@ where
     fn column(
         &self,
         col: Self::ColT,
-    ) -> Result<impl Iterator<Item = (Self::CoefficientField, Self::RowT)>, PhliteError> {
-        Ok(self
-            .columns
-            .get(&col)
-            .ok_or(PhliteError::NotInDomain)?
-            .iter()
-            .cloned())
+    ) -> impl Iterator<Item = (Self::CoefficientField, Self::RowT)> {
+        self.columns.get(&col).unwrap().iter().cloned()
     }
 }
 

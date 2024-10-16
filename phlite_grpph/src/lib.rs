@@ -167,7 +167,7 @@ fn grpph_with_involution(
         if death_f == birth_f {
             continue;
         }
-        let mut rep = r_boundary.build_bhcol(death_cell).unwrap();
+        let mut rep = r_boundary.build_bhcol(death_cell);
         let new_rep: Vec<_> = rep
             .drain_sorted()
             .map(|entry| {

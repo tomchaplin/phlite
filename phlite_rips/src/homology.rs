@@ -47,8 +47,7 @@ impl<CF: NonZeroCoefficient + Invertible> MatrixOracle for RipsBoundary<CF> {
     fn column(
         &self,
         col: Self::ColT,
-    ) -> Result<impl Iterator<Item = (Self::CoefficientField, Self::RowT)>, phlite::PhliteError>
-    {
+    ) -> impl Iterator<Item = (Self::CoefficientField, Self::RowT)> {
         let index_as_vec = col.to_vec(self.n_points());
         let parity = |i: usize| {
             if i % 2 == 0 {
@@ -59,7 +58,7 @@ impl<CF: NonZeroCoefficient + Invertible> MatrixOracle for RipsBoundary<CF> {
         };
         let n_points = self.n_points();
         // TODO: Return early if n_points == 0
-        Ok((0..(index_as_vec.len())).filter_map(move |i| {
+        (0..(index_as_vec.len())).filter_map(move |i| {
             // Iterator over all but the ith vertices
             let smplx = index_as_vec
                 .iter()
@@ -70,7 +69,7 @@ impl<CF: NonZeroCoefficient + Invertible> MatrixOracle for RipsBoundary<CF> {
             let index = RipsIndex::from_indices(smplx, n_points)?;
             let coeff = parity(i);
             Some((coeff, index))
-        }))
+        })
     }
 }
 

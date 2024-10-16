@@ -118,9 +118,9 @@ fn test_consolidate() {
 
     let mat4 = product(product(&mat, &mat), product(&mat, &mat));
 
-    let col1: Vec<_> = mat4.column(1).unwrap().collect();
+    let col1: Vec<_> = mat4.column(1).collect();
 
-    let col2: Vec<_> = consolidate(&mat4).column(1).unwrap().collect();
+    let col2: Vec<_> = consolidate(&mat4).column(1).collect();
 
     // Lots of entries adding up
     assert_eq!(col1.len(), 5);

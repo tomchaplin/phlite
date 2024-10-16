@@ -450,7 +450,7 @@ impl<'a, CF: NonZeroCoefficient, F: DigraphFiltration> MatrixOracle for GrPPHCob
     fn column(
         &self,
         col: Self::ColT,
-    ) -> Result<impl Iterator<Item = (Self::CoefficientField, Self::RowT)>, PhliteError> {
+    ) -> impl Iterator<Item = (Self::CoefficientField, Self::RowT)> {
         let boundary: Box<dyn Iterator<Item = (Self::CoefficientField, Self::RowT)>> = match col {
             PathHomCell::Node(s) => Box::new(
                 produce_node_total_coboundary(&self.filtration, self.edge_set, self.n_vertices, s)
@@ -466,9 +466,9 @@ impl<'a, CF: NonZeroCoefficient, F: DigraphFiltration> MatrixOracle for GrPPHCob
                 )
                 .map(|(coeff, cell, _time)| (coeff, PathHomCell::TwoCell(cell))),
             ),
-            PathHomCell::TwoCell(_) => return Err(PhliteError::NotInDomain),
+            PathHomCell::TwoCell(_) => panic!(),
         };
-        Ok(boundary)
+        boundary
     }
 }
 
@@ -513,10 +513,8 @@ impl<'a, CF: NonZeroCoefficient, F: DigraphFiltration> HasRowFiltration
     fn column_with_filtration(
         &self,
         col: Self::ColT,
-    ) -> Result<
-        impl Iterator<Item = ColumnEntry<Self::FiltrationT, Self::RowT, Self::CoefficientField>>,
-        PhliteError,
-    > {
+    ) -> impl Iterator<Item = ColumnEntry<Self::FiltrationT, Self::RowT, Self::CoefficientField>>
+    {
         let boundary: Box<
             dyn Iterator<Item = ColumnEntry<Self::FiltrationT, Self::RowT, Self::CoefficientField>>,
         > = match col {
@@ -542,9 +540,9 @@ impl<'a, CF: NonZeroCoefficient, F: DigraphFiltration> HasRowFiltration
                     coeff,
                 }),
             ),
-            PathHomCell::TwoCell(_) => return Err(PhliteError::NotInDomain),
+            PathHomCell::TwoCell(_) => panic!(),
         };
-        Ok(boundary)
+        boundary
     }
 }
 

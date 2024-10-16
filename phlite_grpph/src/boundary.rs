@@ -50,8 +50,7 @@ where
     fn column(
         &self,
         col: Self::ColT,
-    ) -> Result<impl Iterator<Item = (Self::CoefficientField, Self::RowT)>, phlite::PhliteError>
-    {
+    ) -> impl Iterator<Item = (Self::CoefficientField, Self::RowT)> {
         let boundary: Box<dyn Iterator<Item = (Self::CoefficientField, Self::RowT)>> = match col {
             PathHomCell::Node(_n) => Box::new(iter::empty()),
             PathHomCell::Edge(s, t) => {
@@ -80,7 +79,7 @@ where
                 }
             },
         };
-        Ok(boundary)
+        boundary
     }
 }
 
