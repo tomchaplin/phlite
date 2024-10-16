@@ -127,7 +127,7 @@ where
     }
 }
 
-impl<'a, M> HasColBasis for ClearedReductionMatrix<'a, M>
+impl<M> HasColBasis for ClearedReductionMatrix<'_, M>
 where
     M: MatrixOracle + SquareMatrix + HasRowFiltration + HasColBasis,
     M::CoefficientField: Invertible,
@@ -272,11 +272,7 @@ where
         let mut low_inverse: FxHashMap<M::RowT, (M::ColT, M::CoefficientField)> =
             FxHashMap::default();
 
-        let basis_size = (&self.boundary)
-            .sub_matrix_in_dimension(dim)
-            .basis()
-            .size()
-            .clone();
+        let basis_size = self.boundary.basis().in_dimension(dim).size();
 
         'column_loop: for i in 0..basis_size {
             // Reduce column i
@@ -293,13 +289,11 @@ where
             // Otheewise clear and update the builder accordingly
             let mut v_i = {
                 let self_borrow = &self.boundary;
-                let v_i = self_borrow.with_trivial_filtration().empty_bhcol();
-                v_i
+                self_borrow.with_trivial_filtration().empty_bhcol()
             };
             let mut r_i = {
                 let self_borrow = &self.boundary;
-                let r_i = self_borrow.build_bhcol(basis_element.clone());
-                r_i
+                self_borrow.build_bhcol(basis_element.clone())
             };
             self.reduce_column(&low_inverse, &mut r_i, &mut v_i);
             self.save_column(basis_element, &mut low_inverse, &r_i, v_i);

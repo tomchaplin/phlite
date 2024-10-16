@@ -7,6 +7,8 @@ use std::ops::{Add, Mul};
 
 // TODO: Get additive inverse and multiply
 
+/// Represents a **non-zero** coefficient in a matrix.
+///
 /// Ensure that you are unable to construct an element that represents `0`.
 /// Instead, `0` will be represented by the absence of a summand.
 /// We avoid requiring an element for `0` to make [`Z2`] calculations more efficient.

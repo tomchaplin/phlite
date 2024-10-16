@@ -1,5 +1,6 @@
 //! The core framework for implementing lazy oracles for sparse matrices.
-//! Provides matrix traits that should be implemented by users.
+//!
+//! This module provides matrix traits that should be implemented by users.
 //! Also provides various wrappers to attach additional data to matrices, change their indexing types or multiply two matrices.
 
 // TODO: Add reasonable constraints to reverse and unreverse methods on bases and matrices
@@ -10,13 +11,13 @@ use std::rc::Rc;
 use std::sync::Arc;
 use std::{cmp::Reverse, collections::HashMap};
 
+use adaptors::Consolidator;
 use itertools::equal;
 use ordered_float::NotNan;
 
 use crate::{
     columns::{BHCol, ColumnEntry},
     fields::NonZeroCoefficient,
-    PhliteError,
 };
 
 use self::adaptors::{
@@ -27,6 +28,8 @@ use self::adaptors::{
 pub mod adaptors;
 pub mod combinators;
 pub mod implementors;
+#[cfg(test)]
+mod tests;
 
 // ========= Traits for matrix indices and filtrations =========
 
@@ -51,18 +54,37 @@ impl<T> FiltrationT for Reverse<T> where T: FiltrationT {}
 
 // ======== Abstract matrix oracle trait =======================
 
+/// A type implementing [`MatrixOracle`] represents a linear transformation, together with a *choice* of basis for both the target and domain.
+///
+/// First, there are a number of associated types:
+/// * [`ColT`](MatrixOracle::ColT) represents elements in the domain basis;
+/// * [`RowT`](MatrixOracle::RowT) represents elements in the target basis;
+/// * [`CoefficientField`](MatrixOracle::CoefficientField) represents the non-zero elements in the field over which we are doing linear algebra.
+///
+/// In order to implement [`MatrixOracle`] for your matrix, you must decide on these types and also provide an implementation of [`column`](MatrixOracle::column).
+/// Some important things to note:
+/// * While you must have enough information in `T` to have *chosen* the basis, you do not necessarily need the basis to hand in order to implement [`MatrixOracle`]. Indeed, it is probably more memory-efficient *not* to store the row basis, whilst the column basis will be provided via the separate [`HasColBasis`] trait.
+/// * It is up to you to ensure that we never construct a [`ColT`](MatrixOracle::ColT) or [`RowT`](MatrixOracle::RowT) that doesn't correspond to an element of the chosen bases.
+/// * An object of type [`CoefficientField`](MatrixOracle::CoefficientField) should represent a *non-zero* coefficient; ideally `0` is un-representable in this type. Since we essentially represent our columns as linear combinations of the row basis, `0` is represented by the *absence* of that basis element in the combination, i.e. `None` rather than `Some`. A good choice is [`Z2`](phlite::fields::Z2).
+///
 pub trait MatrixOracle {
+    /// Represents the non-zero elements in the field over which we are doing linear algebra.   
     type CoefficientField: NonZeroCoefficient;
+    /// Represents elements in the domain basis.
     type ColT: BasisElement;
+    /// Represents elements in the target basis.
     type RowT: BasisElement;
 
-    /// Implement your oracle on the widest range of [`ColT`](Self::ColT) possible.
-    /// To specify a given matrix, you will later provide an oracle, alongside a basis for the column space.
-    /// If you are unable to produce a column, please return [`PhliteError::NotInDomain`].
+    /// Given an element `col` in the domain basis, express the image of `col` under the linear transformation as a linear combination of elements in the target basis.
+    /// You should provide this combination is an iterator of `(coeff, row)` tuples where each `row` is an element of the target basis.
+    /// If `coeff` is `0` then **omit this term** from the linear combination.
     ///
+    /// # Performance Notes
     /// It is dis-advantageous to produce the rows in ascending order because inserting into binary heaps would require traversing the full height (see [`BinaryHeap::push`](std::collections::BinaryHeap::push)).
     /// Since checking and sorting by filtration values is typically slow, prefer to produce in descending order with respect to the ordering on [`RowT`](Self::RowT).
     /// Lower bounds on iterator size provided via [`Iterator::size_hint`] will be used to preallocate.
+    ///
+    /// In principle, you can repeat the same [`RowT`](Self::RowT) multiple times, but fewer terms is better for memory and performance.
     fn column(&self, col: Self::ColT)
         -> impl Iterator<Item = (Self::CoefficientField, Self::RowT)>;
 
@@ -91,6 +113,7 @@ pub trait MatrixOracle {
         equal(self_col_sorted, other_col_sorted)
     }
 
+    /// Endows `self` with a filtration in which all rows have the same filtration value: `()`.
     fn with_trivial_filtration(self) -> WithTrivialFiltration<Self>
     where
         Self: Sized,
@@ -98,7 +121,8 @@ pub trait MatrixOracle {
         WithTrivialFiltration { oracle: self }
     }
 
-    fn with_filtration<FT: FiltrationT, F: Fn(Self::RowT) -> Result<FT, PhliteError>>(
+    /// Endows `self` with the filtration given by the provided `filtration_function`.
+    fn with_filtration<FT: FiltrationT, F: Fn(Self::RowT) -> FT>(
         self,
         filtration_function: F,
     ) -> WithFuncFiltration<Self, FT, F>
@@ -111,6 +135,7 @@ pub trait MatrixOracle {
         }
     }
 
+    /// Endows `self` with the basis `basis`.
     fn with_basis<B>(self, basis: B) -> MatrixWithBasis<Self, B>
     where
         Self: Sized,
@@ -122,6 +147,7 @@ pub trait MatrixOracle {
         }
     }
 
+    /// Turns `self` into a matrix indexed by `usize`, using the attached basis.
     fn using_col_basis_index(self) -> UsingColBasisIndex<Self>
     where
         Self: Sized + HasColBasis,
@@ -129,6 +155,8 @@ pub trait MatrixOracle {
         UsingColBasisIndex { oracle: self }
     }
 
+    /// Takes the anti-transpose matrix.
+    /// Both the indices and the filtration values are now the [`Reverse`] of their previous type.
     fn reverse(self) -> ReverseMatrix<Self>
     where
         Self: Sized,
@@ -136,16 +164,35 @@ pub trait MatrixOracle {
         ReverseMatrix { oracle: self }
     }
 
-    fn unreverse(self) -> UnreverseMatrix<Self>
+    /// Takes the anti-transpose matrix
+    /// Can only be called when the indices are of the form `Reverse<ColT>` and `Reverse<RowT>`
+    /// Returns a matrix indexed by `ColT` and `RowT`.
+    /// Additionally, the filtration value can be 'unreversed'.
+    /// Can be useful when `self` was obtained by reducing a [`reverse`](Self::reverse)d matrix.
+    fn unreverse<ColT, RowT>(self) -> UnreverseMatrix<Self>
+    where
+        Self: Sized,
+        Self: MatrixOracle<RowT = Reverse<RowT>, ColT = Reverse<ColT>>,
+    {
+        UnreverseMatrix { oracle: self }
+    }
+
+    /// When accessing a [`column`](Self::column) of the [`consolidate`](Self::consolidate)d matrix, the corresponding column of `self` will be requested and stored into a binary heap.
+    /// An iterator through this binary heap is then returned.
+    ///
+    /// Essentailly, if we view the output of [`column`](Self::column) as a [`CF`](Self::CoefficientField)-weighted sum of row basis elements, this simplifies this sum by combining all of the summand with the same basis element.
+    /// This can reduce memory usage when computing products/sums of large matrices (see Flagser's dynamic heap for an alternative approach).
+    fn consolidate(self) -> Consolidator<Self>
     where
         Self: Sized,
     {
-        UnreverseMatrix { oracle: self }
+        Consolidator { oracle: self }
     }
 }
 
 // ======== Square matrices ====================================
 
+/// Alias for a matrix whose column and row types match.
 pub trait SquareMatrix: MatrixOracle<ColT = <Self as MatrixOracle>::RowT> {}
 
 impl<M> SquareMatrix for M where M: MatrixOracle<ColT = <Self as MatrixOracle>::RowT> {}
@@ -220,7 +267,7 @@ where
 
 pub trait HasRowFiltration: MatrixOracle {
     type FiltrationT: FiltrationT;
-    fn filtration_value(&self, row: Self::RowT) -> Result<Self::FiltrationT, PhliteError>;
+    fn filtration_value(&self, row: Self::RowT) -> Self::FiltrationT;
 
     fn column_with_filtration(
         &self,
@@ -229,9 +276,7 @@ pub trait HasRowFiltration: MatrixOracle {
     {
         let column = self.column(col);
         column.map(|(coeff, row_index)| {
-            let f_val = self
-                .filtration_value(row_index.clone())
-                .expect("Rows should all have filtration values");
+            let f_val = self.filtration_value(row_index.clone());
             (coeff, row_index, f_val).into()
         })
     }
@@ -250,13 +295,13 @@ pub trait HasRowFiltration: MatrixOracle {
     }
 }
 
-impl<'a, M> HasRowFiltration for &'a M
+impl<M> HasRowFiltration for &M
 where
     M: HasRowFiltration,
 {
     type FiltrationT = M::FiltrationT;
 
-    fn filtration_value(&self, row: Self::RowT) -> Result<Self::FiltrationT, PhliteError> {
+    fn filtration_value(&self, row: Self::RowT) -> Self::FiltrationT {
         (*self).filtration_value(row)
     }
 }
@@ -307,7 +352,7 @@ where
     }
 }
 
-impl<'a, T> ColBasis for &'a T
+impl<T> ColBasis for &T
 where
     T: ColBasis,
 {
@@ -328,7 +373,7 @@ pub trait HasColBasis: MatrixOracle {
     where
         Self: 'a;
 
-    fn basis<'a>(&'a self) -> Self::BasisRef<'a>;
+    fn basis(&self) -> Self::BasisRef<'_>;
 
     fn sub_matrix_in_dimension(self, dimension: usize) -> WithSubBasis<Self>
     where
@@ -341,7 +386,7 @@ pub trait HasColBasis: MatrixOracle {
     }
 }
 
-impl<'a, T> HasColBasis for &'a T
+impl<T> HasColBasis for &T
 where
     T: HasColBasis,
 {
@@ -351,7 +396,7 @@ where
     where
         Self: 'b;
 
-    fn basis<'b>(&'b self) -> Self::BasisRef<'b> {
+    fn basis(&self) -> Self::BasisRef<'_> {
         (*self).basis()
     }
 }
@@ -366,7 +411,7 @@ pub trait SplitByDimension: ColBasis {
     fn in_dimension(&self, dimension: usize) -> &Self::SubBasisT;
 }
 
-impl<'a, T> SplitByDimension for &'a T
+impl<T> SplitByDimension for &T
 where
     T: SplitByDimension,
 {

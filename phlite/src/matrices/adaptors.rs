@@ -1,13 +1,14 @@
+//! Contains matrix adaptors which alter the behaviour of existing matrices, e.g. reversing indices or adding a filtration/basis.
+//!
+//! All structs in this submodule should be constructed by calling the relevant provided methods on [`MatrixOracle`].
+
 // ======== Matrix oracle adaptors ============================
 
 // ====== WithTrivialFiltration ================
 
 use std::{cmp::Reverse, marker::PhantomData, ops::Deref};
 
-use crate::{
-    columns::{BHCol, ColumnEntry},
-    PhliteError,
-};
+use crate::columns::{BHCol, ColumnEntry};
 
 use super::{
     BasisElement, ColBasis, FiltrationT, HasColBasis, HasRowFiltration, MatrixOracle,
@@ -35,9 +36,7 @@ impl<M: MatrixOracle> MatrixOracle for WithTrivialFiltration<M> {
 impl<M: MatrixOracle> HasRowFiltration for WithTrivialFiltration<M> {
     type FiltrationT = ();
 
-    fn filtration_value(&self, _row: Self::RowT) -> Result<Self::FiltrationT, PhliteError> {
-        Ok(())
-    }
+    fn filtration_value(&self, _row: Self::RowT) -> Self::FiltrationT {}
 }
 
 impl<M: MatrixOracle> HasColBasis for WithTrivialFiltration<M>
@@ -58,24 +57,18 @@ where
 // ====== WithFuncFiltration ===================
 
 #[derive(Clone, Copy, Debug)]
-pub struct WithFuncFiltration<
-    M: MatrixOracle,
-    FT: FiltrationT,
-    F: Fn(M::RowT) -> Result<FT, PhliteError>,
-> {
+pub struct WithFuncFiltration<M: MatrixOracle, FT: FiltrationT, F: Fn(M::RowT) -> FT> {
     pub(crate) oracle: M,
     pub(crate) filtration: F,
 }
 
-impl<M: MatrixOracle, FT: FiltrationT, F: Fn(M::RowT) -> Result<FT, PhliteError>>
-    WithFuncFiltration<M, FT, F>
-{
+impl<M: MatrixOracle, FT: FiltrationT, F: Fn(M::RowT) -> FT> WithFuncFiltration<M, FT, F> {
     pub fn discard_filtration(self) -> M {
         self.oracle
     }
 }
 
-impl<M: MatrixOracle, FT: FiltrationT, F: Fn(M::RowT) -> Result<FT, PhliteError>> MatrixOracle
+impl<M: MatrixOracle, FT: FiltrationT, F: Fn(M::RowT) -> FT> MatrixOracle
     for WithFuncFiltration<M, FT, F>
 {
     type CoefficientField = M::CoefficientField;
@@ -89,17 +82,17 @@ impl<M: MatrixOracle, FT: FiltrationT, F: Fn(M::RowT) -> Result<FT, PhliteError>
     }
 }
 
-impl<M: MatrixOracle, FT: FiltrationT, F: Fn(M::RowT) -> Result<FT, PhliteError>> HasRowFiltration
+impl<M: MatrixOracle, FT: FiltrationT, F: Fn(M::RowT) -> FT> HasRowFiltration
     for WithFuncFiltration<M, FT, F>
 {
     type FiltrationT = FT;
 
-    fn filtration_value(&self, row: Self::RowT) -> Result<Self::FiltrationT, PhliteError> {
+    fn filtration_value(&self, row: Self::RowT) -> Self::FiltrationT {
         (self.filtration)(row)
     }
 }
 
-impl<M: MatrixOracle, FT: FiltrationT, F: Fn(M::RowT) -> Result<FT, PhliteError>> HasColBasis
+impl<M: MatrixOracle, FT: FiltrationT, F: Fn(M::RowT) -> FT> HasColBasis
     for WithFuncFiltration<M, FT, F>
 where
     M: HasColBasis,
@@ -117,15 +110,12 @@ where
 
 // ====== Consolidator =========================
 
-pub fn consolidate<M: MatrixOracle>(oracle: M) -> Consolidator<M> {
-    Consolidator { oracle }
-}
-
 #[derive(Clone, Copy, Debug)]
 pub struct Consolidator<M: MatrixOracle> {
-    oracle: M,
+    pub(crate) oracle: M,
 }
 
+/// Return type of [`Consolidator::column`]
 #[derive(Debug, Clone)]
 pub struct ConsolidatorColumn<M: MatrixOracle> {
     bh_col: BHCol<(), M::RowT, M::CoefficientField>,
@@ -162,7 +152,7 @@ where
 {
     type FiltrationT = M::FiltrationT;
 
-    fn filtration_value(&self, row: Self::RowT) -> Result<Self::FiltrationT, PhliteError> {
+    fn filtration_value(&self, row: Self::RowT) -> Self::FiltrationT {
         self.oracle.filtration_value(row)
     }
 }
@@ -227,7 +217,7 @@ where
 {
     type FiltrationT = M::FiltrationT;
 
-    fn filtration_value(&self, row: Self::RowT) -> Result<Self::FiltrationT, PhliteError> {
+    fn filtration_value(&self, row: Self::RowT) -> Self::FiltrationT {
         self.matrix.filtration_value(row)
     }
 }
@@ -279,7 +269,7 @@ where
 {
     type FiltrationT = M::FiltrationT;
 
-    fn filtration_value(&self, row: Self::RowT) -> Result<Self::FiltrationT, PhliteError> {
+    fn filtration_value(&self, row: Self::RowT) -> Self::FiltrationT {
         self.oracle.filtration_value(row)
     }
 }
@@ -318,7 +308,7 @@ where
 {
     type FiltrationT = M::FiltrationT;
 
-    fn filtration_value(&self, row: Self::RowT) -> Result<Self::FiltrationT, PhliteError> {
+    fn filtration_value(&self, row: Self::RowT) -> Self::FiltrationT {
         self.oracle.filtration_value(row)
     }
 }
@@ -329,7 +319,7 @@ struct SubBasisRefInner<'a, B, Ref> {
     phantom: PhantomData<&'a B>,
 }
 
-impl<'a, B, Ref> Deref for SubBasisRefInner<'a, B, Ref>
+impl<B, Ref> Deref for SubBasisRefInner<'_, B, Ref>
 where
     Ref: Deref<Target = B>,
     B: SplitByDimension,
@@ -368,7 +358,7 @@ where
         SubBasisRef(SubBasisRefInner {
             total_basis: self.oracle.basis(),
             dimension: self.dimension,
-            phantom: PhantomData::default(),
+            phantom: PhantomData,
         })
     }
 }
@@ -401,8 +391,7 @@ where
         col: Self::ColT,
     ) -> impl Iterator<Item = (Self::CoefficientField, Self::RowT)> {
         let normal_col = self.oracle.column(col.0);
-        let reverse_col = normal_col.map(|(coeff, row)| (coeff, Reverse(row)));
-        reverse_col
+        normal_col.map(|(coeff, row)| (coeff, Reverse(row)))
     }
 }
 
@@ -412,8 +401,8 @@ where
 {
     type FiltrationT = Reverse<M::FiltrationT>;
 
-    fn filtration_value(&self, row: Self::RowT) -> Result<Self::FiltrationT, PhliteError> {
-        Ok(Reverse(self.oracle.filtration_value(row.0)?))
+    fn filtration_value(&self, row: Self::RowT) -> Self::FiltrationT {
+        Reverse(self.oracle.filtration_value(row.0))
     }
 
     fn column_with_filtration(
@@ -422,12 +411,11 @@ where
     ) -> impl Iterator<Item = ColumnEntry<Self::FiltrationT, Self::RowT, Self::CoefficientField>>
     {
         let normal_col = self.oracle.column_with_filtration(col.0);
-        let reverse_col = normal_col.map(|entry| ColumnEntry {
+        normal_col.map(|entry| ColumnEntry {
             filtration_value: Reverse(entry.filtration_value),
             row_index: Reverse(entry.row_index),
             coeff: entry.coeff,
-        });
-        reverse_col
+        })
     }
 }
 
@@ -537,8 +525,8 @@ where
 {
     type FiltrationT = FilT;
 
-    fn filtration_value(&self, row: Self::RowT) -> Result<Self::FiltrationT, PhliteError> {
-        self.oracle.filtration_value(Reverse(row)).map(|ft| ft.0)
+    fn filtration_value(&self, row: Self::RowT) -> Self::FiltrationT {
+        self.oracle.filtration_value(Reverse(row)).0
     }
 
     fn column_with_filtration(
@@ -589,6 +577,7 @@ where
     }
 }
 
+/// Note that layout is `repr(transparent)` so can transmute references.
 #[derive(Clone, Copy, Debug)]
 #[repr(transparent)]
 pub struct UnreverseBasis<B>(pub B);

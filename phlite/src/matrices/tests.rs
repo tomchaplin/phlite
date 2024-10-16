@@ -3,7 +3,6 @@
 use std::cmp::Reverse;
 
 use crate::fields::{NonZeroCoefficient, Z2};
-use crate::matrices::adaptors::consolidate;
 use crate::matrices::combinators::product;
 use crate::matrices::MatrixOracle;
 use crate::matrices::{implementors::simple_Z2_matrix, HasRowFiltration};
@@ -59,10 +58,10 @@ fn test_matrix_bhcol_interface() {
         vec![0, 2],
         vec![3, 4, 5],
     ]);
-    let matrix = base_matrix.with_filtration(|idx| Ok(idx * 10));
+    let matrix = base_matrix.with_filtration(|idx| idx * 10);
 
     let add = |column: &mut BHCol<_, _, _>, index| {
-        column.add_entries(matrix.column_with_filtration(index).unwrap());
+        column.add_entries(matrix.column_with_filtration(index));
     };
 
     let mut column = matrix.empty_bhcol();
@@ -79,10 +78,9 @@ fn test_matrix_bhcol_interface() {
     assert_eq!(column.pop_pivot(), None);
 
     // Opposite filtration
-    let opp_matrix =
-        (&matrix).with_filtration(|idx| Ok(-(matrix.filtration_value(idx).unwrap() as isize)));
+    let opp_matrix = (&matrix).with_filtration(|idx| -(matrix.filtration_value(idx) as isize));
     let opp_add = |column: &mut BHCol<_, _, _>, index| {
-        column.add_entries(opp_matrix.column_with_filtration(index).unwrap());
+        column.add_entries(opp_matrix.column_with_filtration(index));
     };
     let mut column = opp_matrix.empty_bhcol();
     opp_add(&mut column, 5);
@@ -120,7 +118,7 @@ fn test_consolidate() {
 
     let col1: Vec<_> = mat4.column(1).collect();
 
-    let col2: Vec<_> = consolidate(&mat4).column(1).collect();
+    let col2: Vec<_> = mat4.consolidate().column(1).collect();
 
     // Lots of entries adding up
     assert_eq!(col1.len(), 5);
@@ -185,19 +183,16 @@ fn test_basis_reverse() {
     let forward_col: Vec<_> = (&base_matrix)
         .with_trivial_filtration()
         .build_bhcol(base_matrix.basis().element(0))
-        .unwrap()
         .to_sorted_vec();
     println!("{:?}", forward_col);
     let rev_col: Vec<_> = (&rev_matrix)
         .with_trivial_filtration()
         .build_bhcol(rev_matrix.basis().element(2))
-        .unwrap()
         .to_sorted_vec();
     println!("{:?}", rev_col);
     let unrev_col = (&unrev_matrix)
         .with_trivial_filtration()
         .build_bhcol(unrev_matrix.basis().element(0))
-        .unwrap()
         .to_sorted_vec();
     println!("{:?}", unrev_col);
 }

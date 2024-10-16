@@ -60,14 +60,14 @@ fn main() {
     // Report
     println!("Essential:");
     for idx in diagram.essential.iter() {
-        let f_val = d.filtration_value(idx.0).unwrap().into_inner();
+        let f_val = d.filtration_value(idx.0).into_inner();
         println!(" birth={idx:?}, f=({f_val}, ∞)");
     }
     println!("\nPairings:");
     for tup in diagram.pairings.iter() {
         let idx_tup = (tup.1, tup.0);
-        let birth_f = d.filtration_value(tup.1 .0).unwrap().into_inner();
-        let death_f = d.filtration_value(tup.0 .0).unwrap().into_inner();
+        let birth_f = d.filtration_value(tup.1 .0).into_inner();
+        let death_f = d.filtration_value(tup.0 .0).into_inner();
         if death_f == birth_f {
             continue;
         }

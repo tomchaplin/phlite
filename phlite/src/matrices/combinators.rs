@@ -2,7 +2,7 @@
 
 // ====== Product ==============================
 
-use crate::{columns::ColumnEntry, PhliteError};
+use crate::columns::ColumnEntry;
 
 use super::{HasColBasis, HasRowFiltration, MatrixOracle};
 
@@ -24,10 +24,7 @@ pub struct Product<M1: MatrixOracle, M2: MatrixOracle> {
 ///
 /// Inputs:
 /// * `$matrix` - Should implement [`MatrixOracle`].
-/// * `$col` - Should implement
-/// `Iterator<Item=($matrix::CoefficientField, $matrix::ColT)>`
-/// so that types align and matrix multiplication can be performed.
-/// Usually obtained by calling [`column`](MatrixOracle::column) on another matrix.
+/// * `$col` - Should implement `Iterator<Item=($matrix::CoefficientField, $matrix::ColT)>` so that types align and matrix multiplication can be performed. Usually obtained by calling [`column`](MatrixOracle::column) on another matrix.
 #[macro_export]
 macro_rules! matrix_col_product {
     (  $matrix: expr, $col: expr ) => {{
@@ -69,7 +66,7 @@ where
 {
     type FiltrationT = M1::FiltrationT;
 
-    fn filtration_value(&self, row: Self::RowT) -> Result<Self::FiltrationT, PhliteError> {
+    fn filtration_value(&self, row: Self::RowT) -> Self::FiltrationT {
         self.left.filtration_value(row)
     }
 

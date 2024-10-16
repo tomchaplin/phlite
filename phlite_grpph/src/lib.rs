@@ -77,15 +77,15 @@ fn grpph(n_vertices: u32, edges: Vec<(u32, u32, f64)>) -> (EssentialBars, Pairin
 
     for idx in diagram.essential.iter() {
         let idx = idx.0; //Pull out of reverse
-        let f_val = d.filtration_value(idx).unwrap().into_inner();
+        let f_val = d.filtration_value(idx).into_inner();
         let dimension = idx.dimension();
         essential[dimension].push(f_val);
     }
 
     let mut pairings = vec![vec![], vec![]];
     for (death_cell, birth_cell) in diagram.pairings.iter() {
-        let birth_f = d.filtration_value(birth_cell.0).unwrap();
-        let death_f = d.filtration_value(death_cell.0).unwrap();
+        let birth_f = d.filtration_value(birth_cell.0);
+        let death_f = d.filtration_value(death_cell.0);
         let dimension = birth_cell.0.dimension();
 
         if death_f == birth_f {
@@ -124,7 +124,7 @@ fn grpph_with_involution(
 
     for idx in diagram.essential.iter() {
         let idx = idx.0; //Pull out of reverse
-        let f_val = d.filtration_value(idx).unwrap().into_inner();
+        let f_val = d.filtration_value(idx).into_inner();
         let dimension = idx.dimension();
         essential[dimension].push(f_val);
     }
@@ -132,8 +132,8 @@ fn grpph_with_involution(
     let mut involution_basis = vec![];
     let mut pairings = vec![vec![], vec![]];
     for (death_cell, birth_cell) in diagram.pairings.iter() {
-        let birth_f = d.filtration_value(birth_cell.0).unwrap();
-        let death_f = d.filtration_value(death_cell.0).unwrap();
+        let birth_f = d.filtration_value(birth_cell.0);
+        let death_f = d.filtration_value(death_cell.0);
         let dimension = birth_cell.0.dimension();
         if dimension == 1 {
             involution_basis.push((death_f, death_cell.0));
@@ -162,8 +162,8 @@ fn grpph_with_involution(
     for pairing in boundary_diagram.pairings {
         let birth_cell = pairing.0;
         let death_cell = pairing.1;
-        let birth_f = (&d).filtration_value(birth_cell).unwrap();
-        let death_f = (&d).filtration_value(death_cell).unwrap();
+        let birth_f = d.filtration_value(birth_cell);
+        let death_f = d.filtration_value(death_cell);
         if death_f == birth_f {
             continue;
         }
@@ -174,7 +174,9 @@ fn grpph_with_involution(
                 let row = entry.row_index;
                 match row {
                     PathHomCell::Edge(a, b) => (a, b),
-                    _ => panic!(),
+                    _ => {
+                        unreachable!("death_cell is a 2-cell so boundary should be a sum of edges")
+                    }
                 }
             })
             .collect();

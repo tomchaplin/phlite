@@ -73,7 +73,7 @@ impl<FilT: FiltrationT, RowT: BasisElement, CF: NonZeroCoefficient> Mul<CF>
 {
     type Output = Self;
 
-    fn mul(self: Self, rhs: CF) -> Self::Output {
+    fn mul(self, rhs: CF) -> Self::Output {
         ColumnEntry {
             coeff: self.coeff * rhs,
             filtration_value: self.filtration_value,

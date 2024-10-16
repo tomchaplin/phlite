@@ -70,7 +70,7 @@ pub fn main() {
     // Report
     println!("\nEssential:");
     for idx in diagram.essential.iter() {
-        let f_val = coboundary.filtration_value(*idx).unwrap().0;
+        let f_val = coboundary.filtration_value(*idx).0;
         let dim = idx.0.dimension(n_points);
         println!(" dim={dim}, birth={idx:?}, f=({f_val}, ∞)");
     }
@@ -78,8 +78,8 @@ pub fn main() {
     for tup in diagram.pairings.iter() {
         let dim = tup.1 .0.dimension(n_points);
         let idx_tup = (tup.1, tup.0);
-        let birth_f = coboundary.filtration_value(tup.1).unwrap().0.into_inner();
-        let death_f = coboundary.filtration_value(tup.0).unwrap().0.into_inner();
+        let birth_f = coboundary.filtration_value(tup.1).0.into_inner();
+        let death_f = coboundary.filtration_value(tup.0).0.into_inner();
         let difference = death_f - birth_f;
         if difference > 0.01 {
             println!(" dim={dim}, pair={idx_tup:?}, f=({birth_f}, {death_f})");

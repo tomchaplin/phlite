@@ -1,12 +1,15 @@
-use log::info;
+use std::ops::Deref;
+
 use phlite::{
     fields::{NonZeroCoefficient, Z2},
-    matrices::{BasisElement, MatrixOracle},
+    matrices::{BasisElement, ColBasis, HasColBasis, MatrixOracle, SplitByDimension},
 };
 use pyo3::intern;
-use pyo3::{prelude::*, types::PyIterator};
+use pyo3::prelude::*;
 
 struct PyMatrix(PyObject);
+#[repr(transparent)]
+struct PyBasis(PyObject);
 struct PyBasisElement(PyObject);
 
 impl IntoPy<PyObject> for PyBasisElement {
@@ -22,16 +25,16 @@ impl Clone for PyBasisElement {
 }
 impl PartialOrd for PyBasisElement {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        todo!()
+        Some(self.cmp(other))
     }
 }
 impl Ord for PyBasisElement {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+    fn cmp(&self, _other: &Self) -> std::cmp::Ordering {
         todo!()
     }
 }
 impl PartialEq for PyBasisElement {
-    fn eq(&self, other: &Self) -> bool {
+    fn eq(&self, _other: &Self) -> bool {
         todo!()
     }
 }
@@ -66,12 +69,69 @@ impl MatrixOracle for PyMatrix {
     }
 }
 
+impl ColBasis for PyBasis {
+    type ElemT = PyBasisElement;
+
+    fn element(&self, index: usize) -> Self::ElemT {
+        PyBasisElement(
+            Python::with_gil(|py| self.0.call_method1(py, intern!(py, "element"), (index,)))
+                .unwrap(),
+        )
+    }
+
+    fn size(&self) -> usize {
+        Python::with_gil(|py| {
+            self.0
+                .call_method0(py, intern!(py, "size"))
+                .unwrap()
+                .extract(py)
+                .unwrap()
+        })
+    }
+}
+
+struct BasisRef(PyObject);
+
+impl Deref for BasisRef {
+    type Target = PyBasis;
+
+    fn deref(&self) -> &Self::Target {
+        let ptr: *const _ = self.0.as_any();
+        let basis_ptr = ptr.cast();
+        unsafe { &*basis_ptr }
+    }
+}
+
+impl HasColBasis for PyMatrix {
+    type BasisT = PyBasis;
+
+    type BasisRef<'a>
+        = BasisRef
+    where
+        Self: 'a;
+
+    fn basis(&self) -> Self::BasisRef<'_> {
+        BasisRef(Python::with_gil(|py| {
+            self.0.call_method0(py, intern!(py, "basis")).unwrap()
+        }))
+    }
+}
+
+impl SplitByDimension for PyBasis {
+    type SubBasisT = PyBasis;
+
+    // Perhaps we need add a lookup table to PyBasis which we can populate with subbases
+    fn in_dimension(&self, _dimension: usize) -> &Self::SubBasisT {
+        todo!()
+    }
+}
+
 pub fn add(left: u64, right: u64) -> u64 {
     left + right
 }
 
 #[pymodule(name = "phlite")]
-fn phlite_py(m: &Bound<'_, PyModule>) -> PyResult<()> {
+fn phlite_py(_m: &Bound<'_, PyModule>) -> PyResult<()> {
     pyo3_log::init();
 
     Ok(())

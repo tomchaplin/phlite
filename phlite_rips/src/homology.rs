@@ -83,9 +83,9 @@ impl<CF: NonZeroCoefficient + Invertible> MatrixOracle for RipsBoundary<CF> {
 impl<CF: NonZeroCoefficient + Invertible> HasRowFiltration for RipsBoundary<CF> {
     type FiltrationT = NotNan<f64>;
 
-    fn filtration_value(&self, row: Self::RowT) -> Result<Self::FiltrationT, phlite::PhliteError> {
+    fn filtration_value(&self, row: Self::RowT) -> Self::FiltrationT {
         let as_vec = row.to_vec(self.n_points());
-        Ok(max_pairwise_distance(&as_vec, &self.distances))
+        max_pairwise_distance(&as_vec, &self.distances)
     }
 
     // TODO:Can we override column with filtration to compute more efficiently?
@@ -161,7 +161,7 @@ mod tests {
         // Report
         println!("Essential:");
         for idx in diagram.essential.iter() {
-            let f_val = boundary.filtration_value(*idx).unwrap();
+            let f_val = boundary.filtration_value(*idx);
             let dim = idx.dimension(n_points);
             println!(" dim={dim}, birth={idx:?}, f=({f_val}, ∞)");
         }
@@ -169,8 +169,8 @@ mod tests {
         for tup in diagram.pairings.iter() {
             let dim = tup.0.dimension(n_points);
             let idx_tup = (tup.0, tup.1);
-            let birth_f = boundary.filtration_value(tup.0).unwrap();
-            let death_f = boundary.filtration_value(tup.1).unwrap();
+            let birth_f = boundary.filtration_value(tup.0);
+            let death_f = boundary.filtration_value(tup.1);
             println!(" dim={dim}, pair={idx_tup:?}, f=({birth_f}, {death_f})");
         }
 

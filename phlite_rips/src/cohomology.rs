@@ -125,9 +125,9 @@ impl<CF: NonZeroCoefficient + Invertible> HasRowFiltration for RipsCoboundary<CF
     // Reverse filtration to anti-transpose
     type FiltrationT = NotNan<f64>;
 
-    fn filtration_value(&self, row: Self::RowT) -> Result<Self::FiltrationT, phlite::PhliteError> {
+    fn filtration_value(&self, row: Self::RowT) -> Self::FiltrationT {
         let as_vec = row.to_vec(self.n_points());
-        Ok(max_pairwise_distance(&as_vec, &self.distances))
+        max_pairwise_distance(&as_vec, &self.distances)
     }
 
     // We can speed this up by pre-computing the max of most elements
@@ -259,7 +259,7 @@ mod tests {
         // Report
         println!("Essential:");
         for idx in diagram.essential.iter() {
-            let f_val = coboundary.filtration_value(*idx).unwrap().0;
+            let f_val = coboundary.filtration_value(*idx).0;
             let dim = idx.0.dimension(n_points);
             println!(" dim={dim}, birth={idx:?}, f=({f_val}, ∞)");
         }
@@ -267,8 +267,8 @@ mod tests {
         for tup in diagram.pairings.iter() {
             let dim = tup.1 .0.dimension(n_points);
             let idx_tup = (tup.1, tup.0);
-            let birth_f = coboundary.filtration_value(tup.1).unwrap().0;
-            let death_f = coboundary.filtration_value(tup.0).unwrap().0;
+            let birth_f = coboundary.filtration_value(tup.1).0;
+            let death_f = coboundary.filtration_value(tup.0).0;
             println!(" dim={dim}, pair={idx_tup:?}, f=({birth_f}, {death_f})");
         }
 
@@ -293,7 +293,7 @@ mod tests {
         // Report
         println!("Essential:");
         for idx in diagram.essential.iter() {
-            let f_val = coboundary.filtration_value(*idx).unwrap().0;
+            let f_val = coboundary.filtration_value(*idx).0;
             let dim = idx.0.dimension(n_points);
             println!(" dim={dim}, birth={idx:?}, f=({f_val}, ∞)");
         }
@@ -301,8 +301,8 @@ mod tests {
         for tup in diagram.pairings.iter() {
             let dim = tup.1 .0.dimension(n_points);
             let idx_tup = (tup.1, tup.0);
-            let birth_f = coboundary.filtration_value(tup.1).unwrap().0;
-            let death_f = coboundary.filtration_value(tup.0).unwrap().0;
+            let birth_f = coboundary.filtration_value(tup.1).0;
+            let death_f = coboundary.filtration_value(tup.0).0;
             println!(" dim={dim}, pair={idx_tup:?}, f=({birth_f}, {death_f})");
         }
 

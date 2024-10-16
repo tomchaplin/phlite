@@ -7,7 +7,6 @@ use ordered_float::NotNan;
 use phlite::{
     fields::NonZeroCoefficient,
     matrices::{adaptors::MatrixWithBasis, HasRowFiltration, MatrixOracle},
-    PhliteError,
 };
 
 use crate::coboundary::{
@@ -83,41 +82,39 @@ where
     }
 }
 
-impl<'a, CF, F> HasRowFiltration for GrPPHBoundary<'a, CF, F>
+impl<CF, F> HasRowFiltration for GrPPHBoundary<'_, CF, F>
 where
     CF: NonZeroCoefficient,
     F: DigraphFiltration,
 {
     type FiltrationT = NotNan<f64>;
 
-    fn filtration_value(&self, row: Self::RowT) -> Result<Self::FiltrationT, PhliteError> {
+    fn filtration_value(&self, row: Self::RowT) -> Self::FiltrationT {
         match row {
-            PathHomCell::Node(_s) => Ok(unsafe { NotNan::new_unchecked(0.0) }),
+            PathHomCell::Node(_s) => unsafe { NotNan::new_unchecked(0.0) },
             PathHomCell::Edge(s, t) => {
                 // This is the grounding - edges in graph are born at 0
                 if self.edge_set.contains(&(s, t)) {
-                    Ok(unsafe { NotNan::new_unchecked(0.0) })
+                    unsafe { NotNan::new_unchecked(0.0) }
                 } else if let Some(time) = self.filtration.edge_time(&s, &t) {
-                    Ok(time)
+                    time
                 } else {
-                    Err(PhliteError::NotInCodomain)
+                    panic!("Asked for filtration value of unknown edge.")
                 }
             }
             PathHomCell::TwoCell(cell) => match cell {
                 PathHom2Cell::DoubleEdge(a, b) => {
-                    Ok(two_path_time(&self.filtration, &a, &b, &a).unwrap())
+                    two_path_time(&self.filtration, &a, &b, &a).unwrap()
                 }
                 PathHom2Cell::DirectedTriangle(a, b, c) => {
                     let abc_time = two_path_time(&self.filtration, &a, &b, &c).unwrap();
                     let ac_time = self.filtration.edge_time(&a, &c).unwrap();
-                    let arrival_time = abc_time.max(ac_time);
-                    Ok(arrival_time)
+                    abc_time.max(ac_time)
                 }
                 PathHom2Cell::LongSquare(a, b, c, d) => {
                     let abd_time = two_path_time(&self.filtration, &a, &b, &d).unwrap();
                     let acd_time = two_path_time(&self.filtration, &a, &c, &d).unwrap();
-                    let arrival_time = abd_time.max(acd_time);
-                    Ok(arrival_time)
+                    abd_time.max(acd_time)
                 }
             },
         }
