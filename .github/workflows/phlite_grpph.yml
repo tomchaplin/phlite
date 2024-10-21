@@ -6,8 +6,8 @@
 name: phlite_grpph CI
 
 on:
-  release:
-    types: [published]
+  push:
+    tags: [ 'phlite_grpph_v*.*.*' ]
 
 permissions:
   contents: read
