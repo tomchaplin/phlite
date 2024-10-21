@@ -155,10 +155,10 @@ fn produce_long_squares_with_primary_bridge<'a>(
     b: u16,
     c: u16,
 ) -> impl Iterator<Item = (PathHom2Cell, NotNan<f64>)> + 'a {
-    // WARNING: This fails if anything has filtration time f64::MAX
+    // WARNING: This fails if anything has filtration time f64::INFINITY
     let ac_time = filtration
         .edge_time(&a, &c)
-        .unwrap_or(NotNan::new(f64::MAX).unwrap());
+        .unwrap_or(NotNan::new(f64::INFINITY).unwrap());
     (0..n_vertices)
         .filter(move |&i| i != a)
         .filter(move |&i| i != b)

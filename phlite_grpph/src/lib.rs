@@ -19,9 +19,9 @@ use crate::{
 };
 
 fn build_filtration(n_vertices: u32, edges: &[(u32, u32, f64)]) -> Vec<Vec<Option<NotNan<f64>>>> {
-    // Build graph
+    // Build graph (don't add edges with infinite edge filtration)
     let mut g = Graph::<(), f64>::new();
-    g.extend_with_edges(edges.iter());
+    g.extend_with_edges(edges.iter().filter(|(_i, _j, t)| *t < f64::INFINITY));
 
     // Compute shortest path filtration
     let mut filtration: Vec<Vec<_>> = vec![];
