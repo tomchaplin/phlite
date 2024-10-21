@@ -13,14 +13,5 @@ pub mod reduction;
 // TODO: Implement a more efficient matrix reduction algorithm + oracle
 // TODO: Documentation
 
-/// The unified error type for all `phlite` traits and functions.
-#[derive(Debug)]
-pub enum PhliteError {
-    /// The requested column is not in the domain of the matrix (column space)
-    NotInDomain,
-    /// The requested column is not in the codomain of the matrix (row space)
-    NotInCodomain,
-}
-
 #[cfg(test)]
 mod tests {}

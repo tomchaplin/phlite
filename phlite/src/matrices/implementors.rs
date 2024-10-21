@@ -1,3 +1,5 @@
+//! Concrete types that implement [`MatrixOracle`].
+
 // ======== Default matrix oracles =============================
 
 use std::hash::Hash;

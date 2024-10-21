@@ -473,6 +473,9 @@ impl<'a, CF: NonZeroCoefficient, F: DigraphFiltration> MatrixOracle for GrPPHCob
 }
 
 // Union type of two iterators
+// TODO: Benchmark how does this compare to just Boxing each of the iterators?
+// Only pay the Box cost once when calling column but have to pay the match cost at each iteration.
+// Does the A/B match get compiled away?
 enum IterEnum<Iter1, Iter2> {
     A(Iter1),
     B(Iter2),

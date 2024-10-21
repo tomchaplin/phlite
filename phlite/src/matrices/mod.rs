@@ -33,8 +33,14 @@ mod tests;
 
 // ========= Traits for matrix indices and filtrations =========
 
+/// Row and column indices must explicity implement this (see [`MatrixOracle`](MatrixOracle::ColT)).
+///
+/// Ideally [`clone`](Clone::clone) should be *very* cheap as it is called regularly, [`Copy`] would be ideal.
 pub trait BasisElement: Ord + Clone {}
-pub trait FiltrationT: Ord + Clone {}
+/// Filtration types must explicity implement this (see [`HasRowFiltration`](HasRowFiltration::FiltrationT)).
+///
+/// Ideally [`clone`](Clone::clone) should be *very* cheap as it is called regularly, [`Copy`] would be ideal.
+pub trait FiltrationValue: Ord + Clone {}
 
 // Default implementors
 
@@ -43,14 +49,14 @@ pub trait FiltrationT: Ord + Clone {}
 
 impl BasisElement for usize {}
 impl BasisElement for isize {}
-impl FiltrationT for NotNan<f32> {}
-impl FiltrationT for NotNan<f64> {}
-impl FiltrationT for usize {}
-impl FiltrationT for isize {}
-impl FiltrationT for () {}
+impl FiltrationValue for NotNan<f32> {}
+impl FiltrationValue for NotNan<f64> {}
+impl FiltrationValue for usize {}
+impl FiltrationValue for isize {}
+impl FiltrationValue for () {}
 
 impl<T> BasisElement for Reverse<T> where T: BasisElement {}
-impl<T> FiltrationT for Reverse<T> where T: FiltrationT {}
+impl<T> FiltrationValue for Reverse<T> where T: FiltrationValue {}
 
 // ======== Abstract matrix oracle trait =======================
 
@@ -65,8 +71,7 @@ impl<T> FiltrationT for Reverse<T> where T: FiltrationT {}
 /// Some important things to note:
 /// * While you must have enough information in `T` to have *chosen* the basis, you do not necessarily need the basis to hand in order to implement [`MatrixOracle`]. Indeed, it is probably more memory-efficient *not* to store the row basis, whilst the column basis will be provided via the separate [`HasColBasis`] trait.
 /// * It is up to you to ensure that we never construct a [`ColT`](MatrixOracle::ColT) or [`RowT`](MatrixOracle::RowT) that doesn't correspond to an element of the chosen bases.
-/// * An object of type [`CoefficientField`](MatrixOracle::CoefficientField) should represent a *non-zero* coefficient; ideally `0` is un-representable in this type. Since we essentially represent our columns as linear combinations of the row basis, `0` is represented by the *absence* of that basis element in the combination, i.e. `None` rather than `Some`. A good choice is [`Z2`](phlite::fields::Z2).
-///
+/// * An object of type [`CoefficientField`](MatrixOracle::CoefficientField) should represent a *non-zero* coefficient; ideally `0` is un-representable in this type. Since we essentially represent our columns as linear combinations of the row basis, `0` is represented by the *absence* of that basis element in the combination, i.e. `None` rather than `Some`. A good choice is [`Z2`](crate::fields::Z2).
 pub trait MatrixOracle {
     /// Represents the non-zero elements in the field over which we are doing linear algebra.   
     type CoefficientField: NonZeroCoefficient;
@@ -113,6 +118,9 @@ pub trait MatrixOracle {
         equal(self_col_sorted, other_col_sorted)
     }
 
+    // TODO: Change all these to accept &self
+    // Then implement constructors for each of the structs so we can consume self if we want to.
+
     /// Endows `self` with a filtration in which all rows have the same filtration value: `()`.
     fn with_trivial_filtration(self) -> WithTrivialFiltration<Self>
     where
@@ -122,7 +130,7 @@ pub trait MatrixOracle {
     }
 
     /// Endows `self` with the filtration given by the provided `filtration_function`.
-    fn with_filtration<FT: FiltrationT, F: Fn(Self::RowT) -> FT>(
+    fn with_filtration<FT: FiltrationValue, F: Fn(Self::RowT) -> FT>(
         self,
         filtration_function: F,
     ) -> WithFuncFiltration<Self, FT, F>
@@ -266,7 +274,7 @@ where
 // ======== Filtration on rows to order them ===================
 
 pub trait HasRowFiltration: MatrixOracle {
-    type FiltrationT: FiltrationT;
+    type FiltrationT: FiltrationValue;
     fn filtration_value(&self, row: Self::RowT) -> Self::FiltrationT;
 
     fn column_with_filtration(

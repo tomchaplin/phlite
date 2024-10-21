@@ -1,5 +1,8 @@
 //! Traits for types that represent non-zero coefficients in a matrix.
 //! Implementations of finite fields up to Z13 are provided.
+//!
+//! There is no implementaion of the field of real numbers.
+//! Due to floating point error, this would require additional support in the [`reduction`](crate::reduction) module to ensure that pivots are properly cleared.
 
 use std::fmt::Debug;
 use std::num::NonZeroU8;
@@ -19,14 +22,19 @@ pub trait NonZeroCoefficient:
     + Add<Self, Output = Option<Self>>
     + Mul<Self, Output = Self>
 {
+    /// Return the multiplicative unit, i.e. `1`.
     fn one() -> Self;
+    /// Return the additive inverse of `self`, i.e. `-self`.
     fn additive_inverse(self) -> Self;
 }
 
+/// Represents the ability to take a multiplicative inverse.
 pub trait Invertible: NonZeroCoefficient {
-    fn inverse(self) -> Self;
+    /// Return the multiplicative inverse of `self`, i.e. `1/self`.
+    fn mult_inverse(self) -> Self;
 }
 
+/// The finite field with 2 elements.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Z2;
 
@@ -48,7 +56,7 @@ impl Mul<Z2> for Z2 {
 }
 
 impl Invertible for Z2 {
-    fn inverse(self) -> Self {
+    fn mult_inverse(self) -> Self {
         Self
     }
 }
@@ -84,7 +92,7 @@ impl NonZeroCoefficient for Z2 {
 //       Add option to macro
 
 /// Const generic struct for the finite field `Z_p`.
-/// Should ensure that `p` is prime and that `p^2` does not overflow `NonZeroU8`
+/// Should ensure that `p` is prime and that `(p-1)^2` does not overflow `NonZeroU8`
 /// For `p=2` use [`Z2`]
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub struct ZP<const P: u8>(NonZeroU8);
@@ -145,44 +153,95 @@ impl<const P: u8> NonZeroCoefficient for ZP<P> {
     }
 }
 
-macro_rules! instantiate_zp {
-    (  $p:expr, $struct_name:ident  ) => {
-        #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-        pub struct $struct_name(ZP<$p>);
+/// The finite field with 3 elements.
+pub type Z3 = ZP<3>;
+/// The finite field with 5 elements.
+pub type Z5 = ZP<5>;
+/// The finite field with 7 elements.
+pub type Z7 = ZP<7>;
+/// The finite field with 11 elements.
+pub type Z11 = ZP<11>;
+/// The finite field with 13 elements.
+pub type Z13 = ZP<13>;
 
-        impl Add<$struct_name> for $struct_name {
-            type Output = Option<$struct_name>;
-            fn add(self, rhs: $struct_name) -> Self::Output {
-                Some($struct_name(self.0.add(rhs.0)?))
-            }
+impl Invertible for Z3 {
+    fn mult_inverse(self) -> Self {
+        let inner: u8 = self.0.into();
+        match inner {
+            1 => ZP(unsafe { NonZeroU8::new_unchecked(1) }),
+            2 => ZP(unsafe { NonZeroU8::new_unchecked(2) }),
+            _ => panic!("Not in Z3"),
         }
-
-        impl Mul<$struct_name> for $struct_name {
-            type Output = $struct_name;
-            fn mul(self, rhs: $struct_name) -> Self::Output {
-                $struct_name(self.0.mul(rhs.0))
-            }
-        }
-
-        impl_add_options!($struct_name);
-
-        impl NonZeroCoefficient for $struct_name {
-            fn one() -> Self {
-                $struct_name(ZP::<$p>::one())
-            }
-
-            fn additive_inverse(self) -> Self {
-                $struct_name(ZP::<$p>::additive_inverse(self.0))
-            }
-        }
-    };
+    }
 }
 
-instantiate_zp!(3, Z3);
-instantiate_zp!(5, Z5);
-instantiate_zp!(7, Z7);
-instantiate_zp!(11, Z11);
-instantiate_zp!(13, Z13);
+impl Invertible for Z5 {
+    fn mult_inverse(self) -> Self {
+        let inner: u8 = self.0.into();
+        match inner {
+            1 => ZP(unsafe { NonZeroU8::new_unchecked(1) }),
+            2 => ZP(unsafe { NonZeroU8::new_unchecked(3) }),
+            3 => ZP(unsafe { NonZeroU8::new_unchecked(2) }),
+            4 => ZP(unsafe { NonZeroU8::new_unchecked(4) }),
+            _ => panic!("Not in Z5"),
+        }
+    }
+}
+
+impl Invertible for Z7 {
+    fn mult_inverse(self) -> Self {
+        let inner: u8 = self.0.into();
+        match inner {
+            1 => ZP(unsafe { NonZeroU8::new_unchecked(1) }),
+            2 => ZP(unsafe { NonZeroU8::new_unchecked(4) }),
+            3 => ZP(unsafe { NonZeroU8::new_unchecked(5) }),
+            4 => ZP(unsafe { NonZeroU8::new_unchecked(2) }),
+            5 => ZP(unsafe { NonZeroU8::new_unchecked(3) }),
+            6 => ZP(unsafe { NonZeroU8::new_unchecked(6) }),
+            _ => panic!("Not in Z7"),
+        }
+    }
+}
+
+impl Invertible for Z11 {
+    fn mult_inverse(self) -> Self {
+        let inner: u8 = self.0.into();
+        match inner {
+            1 => ZP(unsafe { NonZeroU8::new_unchecked(1) }),
+            2 => ZP(unsafe { NonZeroU8::new_unchecked(6) }),
+            3 => ZP(unsafe { NonZeroU8::new_unchecked(4) }),
+            4 => ZP(unsafe { NonZeroU8::new_unchecked(3) }),
+            5 => ZP(unsafe { NonZeroU8::new_unchecked(9) }),
+            6 => ZP(unsafe { NonZeroU8::new_unchecked(2) }),
+            7 => ZP(unsafe { NonZeroU8::new_unchecked(8) }),
+            8 => ZP(unsafe { NonZeroU8::new_unchecked(7) }),
+            9 => ZP(unsafe { NonZeroU8::new_unchecked(5) }),
+            10 => ZP(unsafe { NonZeroU8::new_unchecked(10) }),
+            _ => panic!("Not in Z11"),
+        }
+    }
+}
+
+impl Invertible for Z13 {
+    fn mult_inverse(self) -> Self {
+        let inner: u8 = self.0.into();
+        match inner {
+            1 => ZP(unsafe { NonZeroU8::new_unchecked(1) }),
+            2 => ZP(unsafe { NonZeroU8::new_unchecked(7) }),
+            3 => ZP(unsafe { NonZeroU8::new_unchecked(9) }),
+            4 => ZP(unsafe { NonZeroU8::new_unchecked(10) }),
+            5 => ZP(unsafe { NonZeroU8::new_unchecked(8) }),
+            6 => ZP(unsafe { NonZeroU8::new_unchecked(11) }),
+            7 => ZP(unsafe { NonZeroU8::new_unchecked(2) }),
+            8 => ZP(unsafe { NonZeroU8::new_unchecked(5) }),
+            9 => ZP(unsafe { NonZeroU8::new_unchecked(3) }),
+            10 => ZP(unsafe { NonZeroU8::new_unchecked(4) }),
+            11 => ZP(unsafe { NonZeroU8::new_unchecked(6) }),
+            12 => ZP(unsafe { NonZeroU8::new_unchecked(12) }),
+            _ => panic!("Not in Z13"),
+        }
+    }
+}
 
 #[cfg(test)]
 mod tests {
@@ -208,7 +267,7 @@ mod tests {
     fn test_add_mod_3() {
         assert_eq!(
             Z3::one() + Z3::one(),
-            Some(Z3(ZP(unsafe { NonZeroU8::new_unchecked(2) })))
+            Some(ZP(unsafe { NonZeroU8::new_unchecked(2) }))
         );
         let two = Z3::one() + Z3::one();
         assert_eq!(Z3::one() + two, None);

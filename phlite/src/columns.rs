@@ -1,18 +1,18 @@
 //! Binary heap representations of matrix columns, essentially corresponding to linear combinations with a leading term.
 use crate::{
     fields::NonZeroCoefficient,
-    matrices::{BasisElement, FiltrationT},
+    matrices::{BasisElement, FiltrationValue},
 };
 use std::{collections::BinaryHeap, fmt::Debug, iter::repeat, ops::Mul};
 
 #[derive(Clone, Copy)]
-pub struct ColumnEntry<FilT: FiltrationT, RowT: BasisElement, CF> {
+pub struct ColumnEntry<FilT: FiltrationValue, RowT: BasisElement, CF> {
     pub filtration_value: FilT,
     pub row_index: RowT,
     pub coeff: CF,
 }
 
-impl<FilT: FiltrationT, RowT: BasisElement, CF> Debug for ColumnEntry<FilT, RowT, CF>
+impl<FilT: FiltrationValue, RowT: BasisElement, CF> Debug for ColumnEntry<FilT, RowT, CF>
 where
     FilT: Debug,
     RowT: Debug,
@@ -26,7 +26,7 @@ where
     }
 }
 
-impl<FilT: FiltrationT, RowT: BasisElement, CF> From<(CF, RowT, FilT)>
+impl<FilT: FiltrationValue, RowT: BasisElement, CF> From<(CF, RowT, FilT)>
     for ColumnEntry<FilT, RowT, CF>
 {
     fn from((coeff, row_index, filtration_value): (CF, RowT, FilT)) -> Self {
@@ -38,7 +38,7 @@ impl<FilT: FiltrationT, RowT: BasisElement, CF> From<(CF, RowT, FilT)>
     }
 }
 
-impl<FilT: FiltrationT, RowT: BasisElement, CF> From<ColumnEntry<FilT, RowT, CF>>
+impl<FilT: FiltrationValue, RowT: BasisElement, CF> From<ColumnEntry<FilT, RowT, CF>>
     for (CF, RowT, FilT)
 {
     fn from(entry: ColumnEntry<FilT, RowT, CF>) -> Self {
@@ -46,29 +46,33 @@ impl<FilT: FiltrationT, RowT: BasisElement, CF> From<ColumnEntry<FilT, RowT, CF>
     }
 }
 
-/// WARNING: Equality only checks row index - to check correct coefficient and filtration value, convert to tuple
-impl<FilT: FiltrationT, RowT: BasisElement, CF> PartialEq for ColumnEntry<FilT, RowT, CF> {
+/// <div class="warning">
+///
+/// Equality only checks row index - to check correct coefficient and filtration value, convert to tuple.
+///
+/// </div>
+impl<FilT: FiltrationValue, RowT: BasisElement, CF> PartialEq for ColumnEntry<FilT, RowT, CF> {
     // Equal row index implies equal filtration value
     fn eq(&self, other: &Self) -> bool {
         self.row_index.eq(&other.row_index)
     }
 }
-impl<FilT: FiltrationT, RowT: BasisElement, CF> Eq for ColumnEntry<FilT, RowT, CF> {}
+impl<FilT: FiltrationValue, RowT: BasisElement, CF> Eq for ColumnEntry<FilT, RowT, CF> {}
 
-impl<FilT: FiltrationT, RowT: BasisElement, CF> PartialOrd for ColumnEntry<FilT, RowT, CF> {
+impl<FilT: FiltrationValue, RowT: BasisElement, CF> PartialOrd for ColumnEntry<FilT, RowT, CF> {
     // Order by filtration value and then order on RowT
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         Some(self.cmp(other))
     }
 }
 
-impl<FilT: FiltrationT, RowT: BasisElement, CF> Ord for ColumnEntry<FilT, RowT, CF> {
+impl<FilT: FiltrationValue, RowT: BasisElement, CF> Ord for ColumnEntry<FilT, RowT, CF> {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         (&self.filtration_value, &self.row_index).cmp(&(&other.filtration_value, &other.row_index))
     }
 }
 
-impl<FilT: FiltrationT, RowT: BasisElement, CF: NonZeroCoefficient> Mul<CF>
+impl<FilT: FiltrationValue, RowT: BasisElement, CF: NonZeroCoefficient> Mul<CF>
     for ColumnEntry<FilT, RowT, CF>
 {
     type Output = Self;
@@ -83,11 +87,11 @@ impl<FilT: FiltrationT, RowT: BasisElement, CF: NonZeroCoefficient> Mul<CF>
 }
 
 #[derive(Clone)]
-pub struct BHCol<FilT: FiltrationT, RowT: BasisElement, CF> {
+pub struct BHCol<FilT: FiltrationValue, RowT: BasisElement, CF> {
     heap: BinaryHeap<ColumnEntry<FilT, RowT, CF>>,
 }
 
-impl<FilT: FiltrationT, RowT: BasisElement, CF> Debug for BHCol<FilT, RowT, CF>
+impl<FilT: FiltrationValue, RowT: BasisElement, CF> Debug for BHCol<FilT, RowT, CF>
 where
     ColumnEntry<FilT, RowT, CF>: Debug,
 {
@@ -96,7 +100,7 @@ where
     }
 }
 
-impl<FilT: FiltrationT, RowT: BasisElement, CF> Default for BHCol<FilT, RowT, CF> {
+impl<FilT: FiltrationValue, RowT: BasisElement, CF> Default for BHCol<FilT, RowT, CF> {
     fn default() -> Self {
         Self {
             heap: BinaryHeap::default(),
@@ -104,7 +108,7 @@ impl<FilT: FiltrationT, RowT: BasisElement, CF> Default for BHCol<FilT, RowT, CF
     }
 }
 
-impl<FilT: FiltrationT, RowT: BasisElement, CF> BHCol<FilT, RowT, CF> {
+impl<FilT: FiltrationValue, RowT: BasisElement, CF> BHCol<FilT, RowT, CF> {
     pub fn add_entries(&mut self, entries: impl Iterator<Item = ColumnEntry<FilT, RowT, CF>>) {
         self.add_tuples(entries.map(Into::into));
     }
@@ -154,7 +158,11 @@ impl<FilT: FiltrationT, RowT: BasisElement, CF> BHCol<FilT, RowT, CF> {
         }
     }
 
-    /// WARNING: Only valid if previously called `clone_pivot` or pushed the new pivot.
+    /// <div class="warning">
+    ///
+    /// Only valid if previously called [`clone_pivot`](BHCol::clone_pivot) or [`push`](BHCol::push)ed the new pivot.
+    ///
+    /// </div>
     pub fn peek_pivot(&self) -> Option<&ColumnEntry<FilT, RowT, CF>> {
         self.heap.peek()
     }

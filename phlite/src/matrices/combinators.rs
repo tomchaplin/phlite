@@ -1,3 +1,5 @@
+//! Provides functions for combining matrices, i.e. taking a product or sum.
+
 // ======== Combinators ========================================
 
 // ====== Product ==============================
@@ -6,6 +8,12 @@ use crate::columns::ColumnEntry;
 
 use super::{HasColBasis, HasRowFiltration, MatrixOracle};
 
+/// Returns a matrix representing the product of the two input matrices.
+/// This is a *lazy* oracle so no computation is completed until a column is requested.
+///
+/// Note that the row type of the right must match the column type of the left.
+/// Also note that, in [`column`](Product::column), no attempt is made to gather terms of the same basis element.
+/// The product retains the row filtration of the left and the column basis of the right.
 pub fn product<M1, M2>(left: M1, right: M2) -> Product<M1, M2>
 where
     M1: MatrixOracle,
@@ -14,6 +22,7 @@ where
     Product { left, right }
 }
 
+/// Return type of [`product`].
 #[derive(Clone, Copy)]
 pub struct Product<M1: MatrixOracle, M2: MatrixOracle> {
     left: M1,
@@ -104,6 +113,12 @@ where
 
 // ====== Sum ==================================
 
+/// Returns a matrix representing sum of the two input matrices.
+/// This is a *lazy* oracle so no computation is completed until a column is requested.
+///
+/// Note that the column and row types of the two matrices must match.
+/// Also note that, in [`column`](Sum::column), no attempt is made to gather terms of the same basis element.
+/// The product ignores any row filtrations or column bases on the provided matrices.
 pub fn sum<M1, M2>(left: M1, right: M2) -> Sum<M1, M2>
 where
     M1: MatrixOracle,
@@ -113,8 +128,9 @@ where
     Sum { left, right }
 }
 
-// Note: We don't implement HasRowFiltration in case the filtrations disagree
-// Note: We don't implement HasColBasis in case the number of cols disagrees
+/// Return type of [`sum`].
+///
+/// Note: We don't implement [`HasRowFiltration`] or [`HasColBasis`] in case the filtrations or bases disagree.
 #[derive(Clone, Copy)]
 pub struct Sum<M1: MatrixOracle, M2: MatrixOracle> {
     left: M1,

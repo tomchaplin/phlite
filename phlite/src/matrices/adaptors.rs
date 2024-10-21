@@ -1,6 +1,7 @@
 //! Contains matrix adaptors which alter the behaviour of existing matrices, e.g. reversing indices or adding a filtration/basis.
 //!
-//! All structs in this submodule should be constructed by calling the relevant provided methods on [`MatrixOracle`].
+//! All structs in this submodule should be constructed by calling the relevant provided methods on [`MatrixOracle`] or [`HasColBasis`].
+//! Their utility is explained in the documentation for these constructors.
 
 // ======== Matrix oracle adaptors ============================
 
@@ -11,10 +12,11 @@ use std::{cmp::Reverse, marker::PhantomData, ops::Deref};
 use crate::columns::{BHCol, ColumnEntry};
 
 use super::{
-    BasisElement, ColBasis, FiltrationT, HasColBasis, HasRowFiltration, MatrixOracle,
+    BasisElement, ColBasis, FiltrationValue, HasColBasis, HasRowFiltration, MatrixOracle,
     SplitByDimension,
 };
 
+/// Return type of [`MatrixOracle::with_trivial_filtration`].
 #[derive(Clone, Copy, Debug)]
 pub struct WithTrivialFiltration<M: MatrixOracle> {
     pub(crate) oracle: M,
@@ -56,19 +58,21 @@ where
 
 // ====== WithFuncFiltration ===================
 
+/// Return type of [`MatrixOracle::with_filtration`].
 #[derive(Clone, Copy, Debug)]
-pub struct WithFuncFiltration<M: MatrixOracle, FT: FiltrationT, F: Fn(M::RowT) -> FT> {
+pub struct WithFuncFiltration<M: MatrixOracle, FT: FiltrationValue, F: Fn(M::RowT) -> FT> {
     pub(crate) oracle: M,
     pub(crate) filtration: F,
 }
 
-impl<M: MatrixOracle, FT: FiltrationT, F: Fn(M::RowT) -> FT> WithFuncFiltration<M, FT, F> {
+impl<M: MatrixOracle, FT: FiltrationValue, F: Fn(M::RowT) -> FT> WithFuncFiltration<M, FT, F> {
+    /// Discard the filtration, returning the matrix from which this one was originally constructed.
     pub fn discard_filtration(self) -> M {
         self.oracle
     }
 }
 
-impl<M: MatrixOracle, FT: FiltrationT, F: Fn(M::RowT) -> FT> MatrixOracle
+impl<M: MatrixOracle, FT: FiltrationValue, F: Fn(M::RowT) -> FT> MatrixOracle
     for WithFuncFiltration<M, FT, F>
 {
     type CoefficientField = M::CoefficientField;
@@ -82,7 +86,7 @@ impl<M: MatrixOracle, FT: FiltrationT, F: Fn(M::RowT) -> FT> MatrixOracle
     }
 }
 
-impl<M: MatrixOracle, FT: FiltrationT, F: Fn(M::RowT) -> FT> HasRowFiltration
+impl<M: MatrixOracle, FT: FiltrationValue, F: Fn(M::RowT) -> FT> HasRowFiltration
     for WithFuncFiltration<M, FT, F>
 {
     type FiltrationT = FT;
@@ -92,7 +96,7 @@ impl<M: MatrixOracle, FT: FiltrationT, F: Fn(M::RowT) -> FT> HasRowFiltration
     }
 }
 
-impl<M: MatrixOracle, FT: FiltrationT, F: Fn(M::RowT) -> FT> HasColBasis
+impl<M: MatrixOracle, FT: FiltrationValue, F: Fn(M::RowT) -> FT> HasColBasis
     for WithFuncFiltration<M, FT, F>
 where
     M: HasColBasis,
@@ -110,12 +114,13 @@ where
 
 // ====== Consolidator =========================
 
+/// Return type of [`MatrixOracle::consolidate`].
 #[derive(Clone, Copy, Debug)]
 pub struct Consolidator<M: MatrixOracle> {
     pub(crate) oracle: M,
 }
 
-/// Return type of [`Consolidator::column`]
+/// Return type of [`Consolidator::column`].
 #[derive(Debug, Clone)]
 pub struct ConsolidatorColumn<M: MatrixOracle> {
     bh_col: BHCol<(), M::RowT, M::CoefficientField>,
@@ -174,13 +179,18 @@ where
 
 // ====== MatrixWithBasis ======================
 
+/// Return type of [`MatrixOracle::with_basis`], can also be constructed manually.
+///
+/// Implements [`HasColBasis`] by endowing `matrix` with the basis `basis`, inherits any filtration
 #[derive(Debug, Clone, Copy)]
 pub struct MatrixWithBasis<M, B>
 where
     M: MatrixOracle,
     B: ColBasis<ElemT = M::ColT>,
 {
+    /// The underlying matrix (potentially with a filtration)
     pub matrix: M,
+    /// The new basis, with which we implement [`HasColBasis`]
     pub basis: B,
 }
 
@@ -189,6 +199,7 @@ where
     M: MatrixOracle,
     B: ColBasis<ElemT = M::ColT>,
 {
+    /// The obvious constructor.
     pub fn new(matrix: M, basis: B) -> Self {
         Self { matrix, basis }
     }
@@ -240,6 +251,7 @@ where
 
 // ====== UsingColBasisIndex ==================
 
+/// Return type of [`MatrixOracle::using_col_basis_index`].
 #[derive(Clone, Copy, Debug)]
 pub struct UsingColBasisIndex<M: MatrixOracle + HasColBasis> {
     pub(crate) oracle: M,
@@ -278,6 +290,7 @@ where
 
 // ====== WithSubBasis =========================
 
+/// Return type of [`HasColBasis::sub_matrix_in_dimension`].
 #[derive(Clone, Copy, Debug)]
 pub struct WithSubBasis<M: MatrixOracle + HasColBasis<BasisT: SplitByDimension>> {
     pub(crate) oracle: M,
@@ -329,6 +342,8 @@ where
         self.total_basis.deref().in_dimension(self.dimension)
     }
 }
+
+/// Return type of [`WithSubBasis::basis`].
 pub struct SubBasisRef<'a, M>(SubBasisRefInner<'a, M::BasisT, M::BasisRef<'a>>)
 where
     M: HasColBasis + 'a;
@@ -365,12 +380,15 @@ where
 
 // ====== ReverseMatrix ========================
 
+/// Return type of [`MatrixOracle::reverse`].
 #[derive(Clone, Copy, Debug)]
 pub struct ReverseMatrix<M> {
     pub(crate) oracle: M,
 }
 
 impl<M> ReverseMatrix<M> {
+    /// Override the usual [`MatrixOracle::unreverse`].
+    /// This is more efficient because it just takes the inner oracle out of its [`ReverseMatrix`] wrapper.
     pub fn unreverse(self) -> M {
         self.oracle
     }
@@ -434,6 +452,8 @@ where
     }
 }
 
+/// Return type of [`ReverseMatrix::basis`].
+///
 /// Note that layout is `repr(transparent)` so can transmute references.
 #[derive(Clone, Copy, Debug)]
 #[repr(transparent)]
@@ -489,6 +509,7 @@ where
 // Reverse<Reverse<T>> != T
 // TODO: Could we fix this by just requiring Into<ColT> on traits? Or maybe we only need it on multiply?
 
+/// Return type of [`MatrixOracle::unreverse`].
 #[derive(Clone, Copy, Debug)]
 pub struct UnreverseMatrix<M> {
     pub(crate) oracle: M,
@@ -521,7 +542,7 @@ where
     RowT: BasisElement,
     ColT: BasisElement,
     M: HasRowFiltration<FiltrationT = Reverse<FilT>>,
-    FilT: FiltrationT,
+    FilT: FiltrationValue,
 {
     type FiltrationT = FilT;
 
@@ -577,6 +598,8 @@ where
     }
 }
 
+/// Return type of [`UnreverseMatrix::basis`].
+///
 /// Note that layout is `repr(transparent)` so can transmute references.
 #[derive(Clone, Copy, Debug)]
 #[repr(transparent)]

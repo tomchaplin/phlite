@@ -10,19 +10,22 @@ use crate::columns::{BHCol, ColumnEntry};
 use crate::matrices::combinators::product;
 use crate::matrices::implementors::MapVecMatrix;
 use crate::matrices::{SplitByDimension, SquareMatrix};
+use crate::matrix_col_product;
 use crate::{
     fields::{Invertible, NonZeroCoefficient},
     matrices::{ColBasis, HasColBasis, HasRowFiltration, MatrixOracle},
 };
-use crate::{matrix_col_product, PhliteError};
 
 use rustc_hash::{FxHashMap, FxHashSet};
 
 #[derive(Clone)]
 #[allow(clippy::module_name_repetitions)]
 pub enum ReductionColumn<CF, ColT> {
-    Cleared(ColT), // This gets set when (i, j) is found as a pair in which case column i can be reduced by R_j, we store j here
-    Reduced(Vec<(CF, ColT)>), // The sum of columns required to reduce (minus the +1 with self index)
+    /// This variant is used when `(i, j)` is found as a pair, in which case column `i` can be reduced by setting the column `V_i = R_j`, we store j here.
+    Cleared(ColT),
+    /// This variant is used when the column is not cleared and hence must be reduced by the main loop.
+    /// The inner `Vec` represents the sum of columns used in the reduction, minus the starting column (which corresponds to the +1 on the diagonal of `V`).
+    Reduced(Vec<(CF, ColT)>),
 }
 
 type ReductionCols<'a, ColT, CoefficientField> =
@@ -55,17 +58,14 @@ where
         }
     }
 
-    pub fn col_is_cycle(&self, col: M::ColT) -> Result<bool, PhliteError> {
-        let v_col = self
-            .reduction_columns
-            .get(&col)
-            .ok_or(PhliteError::NotInDomain)?;
+    pub fn col_is_cycle(&self, col: M::ColT) -> bool {
+        let v_col = self.reduction_columns.get(&col).unwrap();
         match v_col {
-            ReductionColumn::Cleared(_) => Ok(true),
+            ReductionColumn::Cleared(_) => true,
             ReductionColumn::Reduced(_) => {
                 let r_matrix = product(&self.boundary, &self);
                 let mut r_col = r_matrix.build_bhcol(col);
-                Ok(r_col.pop_pivot().is_none())
+                r_col.pop_pivot().is_none()
             }
         }
     }
@@ -196,8 +196,10 @@ where
                 return;
             };
 
+            // TODO: Over "fields" such as f64 this might not cancel to 0
+            //       We need some way to enforce that the pivot is deleted
             // If so then we add a multiple of that column to cancel out the pivot in r_i
-            let col_multiple = pivot_entry.coeff.additive_inverse() * (j_coeff.inverse());
+            let col_multiple = pivot_entry.coeff.additive_inverse() * (j_coeff.mult_inverse());
 
             // Get references to V and R as reduced so far
             let v_matrix =
@@ -447,7 +449,7 @@ where
             };
 
             // If so then we add a multiple of that column to cancel out the pivot in r_col
-            let col_multiple = pivot_coeff.additive_inverse() * (j_coeff.inverse());
+            let col_multiple = pivot_coeff.additive_inverse() * (j_coeff.mult_inverse());
 
             let v_matrix = MapVecMatrix::from(&v);
             let v_matrix = v_matrix.with_trivial_filtration();
