@@ -37,7 +37,7 @@ def do_cycle(N, with_reps=False):
         return essential, pairings
 
 
-N = 400
+N = 200
 
 tic0 = time.time()
 do_cycle(N, with_reps=False)

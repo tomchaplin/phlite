@@ -1,4 +1,4 @@
-use std::{convert::identity, iter, marker::PhantomData};
+use std::{iter, marker::PhantomData};
 
 use ordered_float::NotNan;
 
@@ -7,7 +7,6 @@ use phlite::{
     columns::ColumnEntry,
     fields::{Invertible, NonZeroCoefficient},
     matrices::{adaptors::MatrixWithBasis, HasRowFiltration, MatrixOracle},
-    PhliteError,
 };
 
 use super::MultiDimRipsBasisWithFilt;
@@ -115,11 +114,10 @@ impl<CF: NonZeroCoefficient + Invertible> MatrixOracle for RipsCoboundary<CF> {
     fn column(
         &self,
         col: Self::ColT,
-    ) -> Result<impl Iterator<Item = (Self::CoefficientField, Self::RowT)>, phlite::PhliteError>
-    {
+    ) -> impl Iterator<Item = (Self::CoefficientField, Self::RowT)> {
         let n_points = self.n_points();
-        Ok(CoboundaryIterator::new(col.to_vec(n_points), n_points)
-            .map(|(coeff, idx, _inserted_vertex)| (coeff, idx)))
+        CoboundaryIterator::new(col.to_vec(n_points), n_points)
+            .map(|(coeff, idx, _inserted_vertex)| (coeff, idx))
     }
 }
 
@@ -127,16 +125,17 @@ impl<CF: NonZeroCoefficient + Invertible> HasRowFiltration for RipsCoboundary<CF
     // Reverse filtration to anti-transpose
     type FiltrationT = NotNan<f64>;
 
-    fn filtration_value(&self, row: Self::RowT) -> Result<Self::FiltrationT, phlite::PhliteError> {
+    fn filtration_value(&self, row: Self::RowT) -> Self::FiltrationT {
         let as_vec = row.to_vec(self.n_points());
-        Ok(max_pairwise_distance(&as_vec, &self.distances))
+        max_pairwise_distance(&as_vec, &self.distances)
     }
 
     // We can speed this up by pre-computing the max of most elements
     fn column_with_filtration(
         &self,
         col: Self::ColT,
-    ) -> Result<impl Iterator<Item = ColumnEntry<Self>>, PhliteError> {
+    ) -> impl Iterator<Item = ColumnEntry<Self::FiltrationT, Self::RowT, Self::CoefficientField>>
+    {
         let n_points = self.n_points();
         let coboundary_iterator = CoboundaryIterator::new(col.to_vec(n_points), n_points);
 
@@ -144,35 +143,32 @@ impl<CF: NonZeroCoefficient + Invertible> HasRowFiltration for RipsCoboundary<CF
 
         let max_pd_amongst_col = max_pairwise_distance(&col_vertices, &self.distances);
 
-        Ok(
-            coboundary_iterator.map(move |(coeff, row_index, inserted_vertex)| {
-                let max_to_inserted = col_vertices
-                    .iter()
-                    .map(|v| self.distances[*v][inserted_vertex])
-                    .max()
-                    .unwrap();
+        coboundary_iterator.map(move |(coeff, row_index, inserted_vertex)| {
+            let max_to_inserted = col_vertices
+                .iter()
+                .map(|v| self.distances[*v][inserted_vertex])
+                .max()
+                .unwrap();
 
-                let filtration_value = max_pd_amongst_col.max(max_to_inserted);
+            let filtration_value = max_pd_amongst_col.max(max_to_inserted);
 
-                ColumnEntry {
-                    filtration_value,
-                    row_index,
-                    coeff,
-                }
-            }),
-        )
+            ColumnEntry {
+                filtration_value,
+                row_index,
+                coeff,
+            }
+        })
     }
 }
 
-pub type RipsCoboundaryAllDims<CF> =
-    MatrixWithBasis<RipsCoboundary<CF>, MultiDimRipsBasisWithFilt<NotNan<f64>>>;
+pub type RipsCoboundaryAllDims<CF> = MatrixWithBasis<RipsCoboundary<CF>, MultiDimRipsBasisWithFilt>;
 
 pub fn build_rips_coboundary_matrix<CF: Invertible>(
     distances: Vec<Vec<NotNan<f64>>>,
     max_dim: usize,
 ) -> RipsCoboundaryAllDims<CF> {
     // Pass in the Reverse functor to revere filtration order on columns in basis
-    let basis = build_rips_bases(&distances, max_dim, identity);
+    let basis = build_rips_bases(&distances, max_dim);
     RipsCoboundaryAllDims {
         matrix: RipsCoboundary {
             distances,
@@ -194,7 +190,7 @@ mod tests {
     };
     use phlite::{
         fields::Z2,
-        matrices::{combinators::product, HasRowFiltration, MatrixOracle, MatrixRef},
+        matrices::{combinators::product, HasRowFiltration, MatrixOracle},
         reduction::{standard_algo_with_diagram, ClearedReductionMatrix},
     };
 
@@ -207,7 +203,7 @@ mod tests {
         };
 
         let smplx = RipsIndex::from_indices(vec![1, 2, 3].into_iter(), 4).unwrap();
-        let coboundary_vec: Vec<_> = coboundary.column(smplx).unwrap().collect();
+        let coboundary_vec: Vec<_> = coboundary.column(smplx).collect();
         assert_eq!(coboundary_vec.len(), 1);
         println!("{coboundary_vec:?}");
         for entry in coboundary_vec {
@@ -216,7 +212,7 @@ mod tests {
         }
 
         let smplx = RipsIndex::from_indices(vec![0, 3].into_iter(), 4).unwrap();
-        let coboundary_vec: Vec<_> = coboundary.column(smplx).unwrap().collect();
+        let coboundary_vec: Vec<_> = coboundary.column(smplx).collect();
         assert_eq!(coboundary_vec.len(), 2);
         println!("{coboundary_vec:?}");
         for entry in coboundary_vec {
@@ -225,7 +221,7 @@ mod tests {
         }
 
         let smplx = RipsIndex::from_indices(vec![1].into_iter(), 4).unwrap();
-        let coboundary_vec: Vec<_> = coboundary.column(smplx).unwrap().collect();
+        let coboundary_vec: Vec<_> = coboundary.column(smplx).collect();
         assert_eq!(coboundary_vec.len(), 3);
         println!("{coboundary_vec:?}");
         for entry in coboundary_vec {
@@ -263,7 +259,7 @@ mod tests {
         // Report
         println!("Essential:");
         for idx in diagram.essential.iter() {
-            let f_val = coboundary.filtration_value(*idx).unwrap().0;
+            let f_val = coboundary.filtration_value(*idx).0;
             let dim = idx.0.dimension(n_points);
             println!(" dim={dim}, birth={idx:?}, f=({f_val}, ∞)");
         }
@@ -271,8 +267,8 @@ mod tests {
         for tup in diagram.pairings.iter() {
             let dim = tup.1 .0.dimension(n_points);
             let idx_tup = (tup.1, tup.0);
-            let birth_f = coboundary.filtration_value(tup.1).unwrap().0;
-            let death_f = coboundary.filtration_value(tup.0).unwrap().0;
+            let birth_f = coboundary.filtration_value(tup.1).0;
+            let death_f = coboundary.filtration_value(tup.0).0;
             println!(" dim={dim}, pair={idx_tup:?}, f=({birth_f}, {death_f})");
         }
 
@@ -297,7 +293,7 @@ mod tests {
         // Report
         println!("Essential:");
         for idx in diagram.essential.iter() {
-            let f_val = coboundary.filtration_value(*idx).unwrap().0;
+            let f_val = coboundary.filtration_value(*idx).0;
             let dim = idx.0.dimension(n_points);
             println!(" dim={dim}, birth={idx:?}, f=({f_val}, ∞)");
         }
@@ -305,8 +301,8 @@ mod tests {
         for tup in diagram.pairings.iter() {
             let dim = tup.1 .0.dimension(n_points);
             let idx_tup = (tup.1, tup.0);
-            let birth_f = coboundary.filtration_value(tup.1).unwrap().0;
-            let death_f = coboundary.filtration_value(tup.0).unwrap().0;
+            let birth_f = coboundary.filtration_value(tup.1).0;
+            let death_f = coboundary.filtration_value(tup.0).0;
             println!(" dim={dim}, pair={idx_tup:?}, f=({birth_f}, {death_f})");
         }
 

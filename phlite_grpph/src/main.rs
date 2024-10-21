@@ -4,7 +4,7 @@ use ordered_float::NotNan;
 use petgraph::{algo::dijkstra, graph::NodeIndex, Graph};
 use phlite::{
     fields::Z2,
-    matrices::{HasRowFiltration, MatrixRef},
+    matrices::{HasRowFiltration, MatrixOracle},
     reduction::ClearedReductionMatrix,
 };
 use rustc_hash::FxHashSet;
@@ -49,7 +49,7 @@ fn main() {
         .collect();
 
     let d = GrPPHCoboundary::<Z2, _>::build(&filtration, &edge_set, n as u16);
-    let d_rev = d.reverse();
+    let d_rev = (&d).reverse();
 
     println!("Built coboundary matrix");
 
@@ -60,14 +60,14 @@ fn main() {
     // Report
     println!("Essential:");
     for idx in diagram.essential.iter() {
-        let f_val = d.filtration_value(idx.0).unwrap().into_inner();
+        let f_val = d.filtration_value(idx.0).into_inner();
         println!(" birth={idx:?}, f=({f_val}, ∞)");
     }
     println!("\nPairings:");
     for tup in diagram.pairings.iter() {
         let idx_tup = (tup.1, tup.0);
-        let birth_f = d.filtration_value(tup.1 .0).unwrap().into_inner();
-        let death_f = d.filtration_value(tup.0 .0).unwrap().into_inner();
+        let birth_f = d.filtration_value(tup.1 .0).into_inner();
+        let death_f = d.filtration_value(tup.0 .0).into_inner();
         if death_f == birth_f {
             continue;
         }

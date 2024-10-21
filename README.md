@@ -61,18 +61,19 @@ If you need support implementing `phlite` traits for your specific application, 
 
 - [ ] Investigate apparent and emergent pairs
 - [ ] Documentation all traits and APIs
-- [ ] Compute involuted persistent homology cycle representatives
 - [ ] Tests (unit + integration + property)
 - [ ] Explain Rips implementation in docs
+- [ ] Add a trait that captures ability to compute involuted PH representatives
+- [ ] Implement lockfree reduction algo
+- [ ] Implement dynamic priority queues (as done in Flagser)
 
 ### Medium priority
 
 - [ ] Improve handling of binary-heap column addition
-- [ ] Add reverse filtration and reverse basis adaptors?
-- [ ] Implement lockfree reduction algo
 
 ### Low priority
 
+- [ ] Optional parallel construction of Rips basis
 - [ ] Add optional logging
 - [ ] Write some Rust examples
 - [ ] Ripser comaptible CLI?

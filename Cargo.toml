@@ -3,6 +3,6 @@ resolver = "2"
 
 members = [
   "phlite",
-  "phlite_grpph",
+  "phlite_grpph", "phlite_py",
   "phlite_rips"
-  ]
+]

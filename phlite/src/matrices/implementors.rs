@@ -1,14 +1,13 @@
+//! Concrete types that implement [`MatrixOracle`].
+
 // ======== Default matrix oracles =============================
 
-use std::borrow::Cow;
 use std::hash::Hash;
+use std::{borrow::Cow, ops::Deref};
 
 use rustc_hash::FxHashMap;
 
-use crate::{
-    fields::{NonZeroCoefficient, Z2},
-    PhliteError,
-};
+use crate::fields::{NonZeroCoefficient, Z2};
 
 use super::{BasisElement, ColBasis, HasColBasis, MatrixOracle};
 
@@ -18,10 +17,9 @@ use std::fmt::Debug;
 
 pub struct VecVecMatrix<'a, CF: NonZeroCoefficient, RowT: BasisElement> {
     columns: Cow<'a, Vec<Vec<(CF, RowT)>>>,
-    basis: StandardBasis,
 }
 
-impl<'a, RowT: BasisElement + Debug> Debug for VecVecMatrix<'a, Z2, RowT> {
+impl<RowT: BasisElement + Debug> Debug for VecVecMatrix<'_, Z2, RowT> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         self.columns.fmt(f)
     }
@@ -31,12 +29,7 @@ impl<'a, CF: NonZeroCoefficient, RowT: BasisElement> From<Cow<'a, Vec<Vec<(CF, R
     for VecVecMatrix<'a, CF, RowT>
 {
     fn from(value: Cow<'a, Vec<Vec<(CF, RowT)>>>) -> Self {
-        Self {
-            basis: StandardBasis {
-                n_cols: value.len(),
-            },
-            columns: value,
-        }
+        Self { columns: value }
     }
 }
 
@@ -45,22 +38,16 @@ impl<'a, CF: NonZeroCoefficient, RowT: BasisElement> From<&'a Vec<Vec<(CF, RowT)
 {
     fn from(value: &'a Vec<Vec<(CF, RowT)>>) -> Self {
         Self {
-            basis: StandardBasis {
-                n_cols: value.len(),
-            },
             columns: Cow::Borrowed(value),
         }
     }
 }
 
-impl<'a, CF: NonZeroCoefficient, RowT: BasisElement> From<Vec<Vec<(CF, RowT)>>>
+impl<CF: NonZeroCoefficient, RowT: BasisElement> From<Vec<Vec<(CF, RowT)>>>
     for VecVecMatrix<'static, CF, RowT>
 {
     fn from(value: Vec<Vec<(CF, RowT)>>) -> Self {
         Self {
-            basis: StandardBasis {
-                n_cols: value.len(),
-            },
             columns: Cow::Owned(value),
         }
     }
@@ -76,21 +63,22 @@ impl<'a, CF: NonZeroCoefficient, RowT: BasisElement> MatrixOracle for VecVecMatr
     fn column(
         &self,
         col: Self::ColT,
-    ) -> Result<impl Iterator<Item = (Self::CoefficientField, Self::RowT)>, PhliteError> {
-        Ok(self
-            .columns
-            .get(col)
-            .ok_or(PhliteError::NotInDomain)?
-            .iter()
-            .copied())
+    ) -> impl Iterator<Item = (Self::CoefficientField, Self::RowT)> {
+        self.columns.get(col).unwrap().iter().cloned()
     }
 }
 
-impl<'a, CF: NonZeroCoefficient, RowT: BasisElement> HasColBasis for VecVecMatrix<'a, CF, RowT> {
+impl<CF: NonZeroCoefficient, RowT: BasisElement> HasColBasis for VecVecMatrix<'_, CF, RowT> {
     type BasisT = StandardBasis;
+    type BasisRef<'b>
+        = StandardBasis
+    where
+        Self: 'b;
 
-    fn basis(&self) -> &Self::BasisT {
-        &self.basis
+    fn basis(&self) -> Self::BasisRef<'_> {
+        StandardBasis {
+            n_cols: self.columns.len(),
+        }
     }
 }
 
@@ -116,6 +104,14 @@ pub struct StandardBasis {
 impl StandardBasis {
     pub fn new(n_cols: usize) -> Self {
         Self { n_cols }
+    }
+}
+
+impl Deref for StandardBasis {
+    type Target = StandardBasis;
+
+    fn deref(&self) -> &Self::Target {
+        self
     }
 }
 
@@ -158,25 +154,8 @@ where
     fn column(
         &self,
         col: Self::ColT,
-    ) -> Result<impl Iterator<Item = (Self::CoefficientField, Self::RowT)>, PhliteError> {
-        Ok(self
-            .columns
-            .get(&col)
-            .ok_or(PhliteError::NotInDomain)?
-            .iter()
-            .copied())
-    }
-}
-
-impl<'a, CF, ColT, RowT> From<Cow<'a, FxHashMap<ColT, Vec<(CF, RowT)>>>>
-    for MapVecMatrix<'a, CF, ColT, RowT>
-where
-    CF: NonZeroCoefficient,
-    ColT: BasisElement + Hash,
-    RowT: BasisElement,
-{
-    fn from(value: Cow<'a, FxHashMap<ColT, Vec<(CF, RowT)>>>) -> Self {
-        Self { columns: value }
+    ) -> impl Iterator<Item = (Self::CoefficientField, Self::RowT)> {
+        self.columns.get(&col).unwrap().iter().cloned()
     }
 }
 
@@ -194,7 +173,7 @@ where
     }
 }
 
-impl<'a, CF, ColT, RowT> From<FxHashMap<ColT, Vec<(CF, RowT)>>>
+impl<CF, ColT, RowT> From<FxHashMap<ColT, Vec<(CF, RowT)>>>
     for MapVecMatrix<'static, CF, ColT, RowT>
 where
     CF: NonZeroCoefficient,

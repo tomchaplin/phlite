@@ -3,10 +3,9 @@
 use std::cmp::Reverse;
 
 use crate::fields::{NonZeroCoefficient, Z2};
-use crate::matrices::adaptors::consolidate;
 use crate::matrices::combinators::product;
 use crate::matrices::MatrixOracle;
-use crate::matrices::{implementors::simple_Z2_matrix, HasRowFiltration, MatrixRef};
+use crate::matrices::{implementors::simple_Z2_matrix, HasRowFiltration};
 
 use crate::columns::BHCol;
 
@@ -59,10 +58,10 @@ fn test_matrix_bhcol_interface() {
         vec![0, 2],
         vec![3, 4, 5],
     ]);
-    let matrix = base_matrix.with_filtration(|idx| Ok(idx * 10));
+    let matrix = base_matrix.with_filtration(|idx| idx * 10);
 
-    let add = |column: &mut BHCol<_>, index| {
-        column.add_entries(matrix.column_with_filtration(index).unwrap());
+    let add = |column: &mut BHCol<_, _, _>, index| {
+        column.add_entries(matrix.column_with_filtration(index));
     };
 
     let mut column = matrix.empty_bhcol();
@@ -79,10 +78,9 @@ fn test_matrix_bhcol_interface() {
     assert_eq!(column.pop_pivot(), None);
 
     // Opposite filtration
-    let opp_matrix =
-        matrix.with_filtration(|idx| Ok(-(matrix.filtration_value(idx).unwrap() as isize)));
-    let opp_add = |column: &mut BHCol<_>, index| {
-        column.add_entries(opp_matrix.column_with_filtration(index).unwrap());
+    let opp_matrix = (&matrix).with_filtration(|idx| -(matrix.filtration_value(idx) as isize));
+    let opp_add = |column: &mut BHCol<_, _, _>, index| {
+        column.add_entries(opp_matrix.column_with_filtration(index));
     };
     let mut column = opp_matrix.empty_bhcol();
     opp_add(&mut column, 5);
@@ -118,9 +116,9 @@ fn test_consolidate() {
 
     let mat4 = product(product(&mat, &mat), product(&mat, &mat));
 
-    let col1: Vec<_> = mat4.column(1).unwrap().collect();
+    let col1: Vec<_> = mat4.column(1).collect();
 
-    let col2: Vec<_> = consolidate(&mat4).column(1).unwrap().collect();
+    let col2: Vec<_> = mat4.consolidate().column(1).collect();
 
     // Lots of entries adding up
     assert_eq!(col1.len(), 5);
@@ -158,7 +156,8 @@ fn test_basis_reverse() {
         vec![1, 2, 4, 4],
     ]);
     let base_matrix = base_matrix.with_basis(vec![0, 1, 3]);
-    let rev_matrix = base_matrix.reverse();
+    let rev_matrix = (&base_matrix).reverse();
+    let unrev_matrix = (&rev_matrix).unreverse();
 
     let base_elem = base_matrix.basis().element(0);
     assert_eq!(base_elem, 0);
@@ -174,7 +173,6 @@ fn test_basis_reverse() {
     let rev_elem = rev_matrix.basis().element(2);
     assert_eq!(rev_elem, Reverse(0));
 
-    let unrev_matrix = (&rev_matrix).unreverse();
     let unrev_elem = unrev_matrix.basis().element(0);
     assert_eq!(unrev_elem, 0);
     let unrev_elem = unrev_matrix.basis().element(1);
@@ -182,22 +180,19 @@ fn test_basis_reverse() {
     let unrev_elem = unrev_matrix.basis().element(2);
     assert_eq!(unrev_elem, 3);
 
-    let forward_col: Vec<_> = base_matrix
+    let forward_col: Vec<_> = (&base_matrix)
         .with_trivial_filtration()
         .build_bhcol(base_matrix.basis().element(0))
-        .unwrap()
         .to_sorted_vec();
     println!("{:?}", forward_col);
-    let rev_col: Vec<_> = rev_matrix
+    let rev_col: Vec<_> = (&rev_matrix)
         .with_trivial_filtration()
         .build_bhcol(rev_matrix.basis().element(2))
-        .unwrap()
         .to_sorted_vec();
     println!("{:?}", rev_col);
-    let unrev_col = unrev_matrix
+    let unrev_col = (&unrev_matrix)
         .with_trivial_filtration()
         .build_bhcol(unrev_matrix.basis().element(0))
-        .unwrap()
         .to_sorted_vec();
     println!("{:?}", unrev_col);
 }

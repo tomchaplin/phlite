@@ -1,4 +1,4 @@
-use phlite::{matrices::adaptors::MatrixWithBasis, PhliteError};
+use phlite::matrices::adaptors::MatrixWithBasis;
 use std::marker::PhantomData;
 
 use ordered_float::NotNan;
@@ -155,10 +155,10 @@ fn produce_long_squares_with_primary_bridge<'a>(
     b: u16,
     c: u16,
 ) -> impl Iterator<Item = (PathHom2Cell, NotNan<f64>)> + 'a {
-    // WARNING: This fails if anything has filtration time f64::MAX
+    // WARNING: This fails if anything has filtration time f64::INFINITY
     let ac_time = filtration
         .edge_time(&a, &c)
-        .unwrap_or(NotNan::new(f64::MAX).unwrap());
+        .unwrap_or(NotNan::new(f64::INFINITY).unwrap());
     (0..n_vertices)
         .filter(move |&i| i != a)
         .filter(move |&i| i != b)
@@ -280,10 +280,10 @@ pub fn produce_node_total_coboundary<'a, CF: NonZeroCoefficient>(
                 PathHomCell::Edge(s, j),
                 unsafe { NotNan::new_unchecked(0.0) },
             ))
-        } else if let Some(time) = filtration.edge_time(&s, &j) {
-            Some((CF::one().additive_inverse(), PathHomCell::Edge(s, j), time))
         } else {
-            None
+            // If no time return None
+            let time = filtration.edge_time(&s, &j)?;
+            Some((CF::one().additive_inverse(), PathHomCell::Edge(s, j), time))
         }
     });
 
@@ -293,10 +293,10 @@ pub fn produce_node_total_coboundary<'a, CF: NonZeroCoefficient>(
             Some((CF::one(), PathHomCell::Edge(j, s), unsafe {
                 NotNan::new_unchecked(0.0)
             }))
-        } else if let Some(time) = filtration.edge_time(&j, &s) {
-            Some((CF::one(), PathHomCell::Edge(j, s), time))
         } else {
-            None
+            // If no time return None
+            let time = filtration.edge_time(&j, &s)?;
+            Some((CF::one(), PathHomCell::Edge(j, s), time))
         }
     });
     outgoing.chain(incoming)
@@ -426,7 +426,7 @@ impl<'a, CF: NonZeroCoefficient, F: DigraphFiltration> GrPPHCoboundary<'a, CF, F
         n_vertices: u16,
     ) -> MatrixWithBasis<Self, PathHomMultiBasis> {
         let bridge_map = build_primary_bridge_map(&filtration, n_vertices);
-        let basis = build_basis(&filtration, &edge_set, n_vertices);
+        let basis = build_basis(&filtration, edge_set, n_vertices);
         MatrixWithBasis {
             matrix: Self {
                 filtration,
@@ -450,10 +450,10 @@ impl<'a, CF: NonZeroCoefficient, F: DigraphFiltration> MatrixOracle for GrPPHCob
     fn column(
         &self,
         col: Self::ColT,
-    ) -> Result<impl Iterator<Item = (Self::CoefficientField, Self::RowT)>, PhliteError> {
+    ) -> impl Iterator<Item = (Self::CoefficientField, Self::RowT)> {
         let boundary: Box<dyn Iterator<Item = (Self::CoefficientField, Self::RowT)>> = match col {
             PathHomCell::Node(s) => Box::new(
-                produce_node_total_coboundary(&self.filtration, &self.edge_set, self.n_vertices, s)
+                produce_node_total_coboundary(&self.filtration, self.edge_set, self.n_vertices, s)
                     .map(|(coeff, cell, _time)| (coeff, cell)),
             ),
             PathHomCell::Edge(s, t) => Box::new(
@@ -466,9 +466,33 @@ impl<'a, CF: NonZeroCoefficient, F: DigraphFiltration> MatrixOracle for GrPPHCob
                 )
                 .map(|(coeff, cell, _time)| (coeff, PathHomCell::TwoCell(cell))),
             ),
-            PathHomCell::TwoCell(_) => return Err(PhliteError::NotInDomain),
+            PathHomCell::TwoCell(_) => panic!("Taking the coboundary of a 2-cell is unsupported."),
         };
-        Ok(boundary)
+        boundary
+    }
+}
+
+// Union type of two iterators
+// TODO: Benchmark how does this compare to just Boxing each of the iterators?
+// Only pay the Box cost once when calling column but have to pay the match cost at each iteration.
+// Does the A/B match get compiled away?
+enum IterEnum<Iter1, Iter2> {
+    A(Iter1),
+    B(Iter2),
+}
+
+impl<T, Iter1, Iter2> Iterator for IterEnum<Iter1, Iter2>
+where
+    Iter1: Iterator<Item = T>,
+    Iter2: Iterator<Item = T>,
+{
+    type Item = T;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match self {
+            IterEnum::A(iter) => iter.next(),
+            IterEnum::B(iter) => iter.next(),
+        }
     }
 }
 
@@ -477,34 +501,32 @@ impl<'a, CF: NonZeroCoefficient, F: DigraphFiltration> HasRowFiltration
 {
     type FiltrationT = NotNan<f64>;
 
-    fn filtration_value(&self, row: Self::RowT) -> Result<Self::FiltrationT, PhliteError> {
+    fn filtration_value(&self, row: Self::RowT) -> Self::FiltrationT {
         match row {
-            PathHomCell::Node(_s) => Ok(unsafe { NotNan::new_unchecked(0.0) }),
+            PathHomCell::Node(_s) => unsafe { NotNan::new_unchecked(0.0) },
             PathHomCell::Edge(s, t) => {
                 // This is the grounding - edges in graph are born at 0
                 if self.edge_set.contains(&(s, t)) {
-                    Ok(unsafe { NotNan::new_unchecked(0.0) })
-                } else if let Some(time) = (&self.filtration).edge_time(&s, &t) {
-                    Ok(time)
+                    unsafe { NotNan::new_unchecked(0.0) }
+                } else if let Some(time) = self.filtration.edge_time(&s, &t) {
+                    time
                 } else {
-                    Err(PhliteError::NotInCodomain)
+                    panic!("Asked for filtration value of unknown edge.")
                 }
             }
             PathHomCell::TwoCell(cell) => match cell {
                 PathHom2Cell::DoubleEdge(a, b) => {
-                    Ok(two_path_time(&self.filtration, &a, &b, &a).unwrap())
+                    two_path_time(&self.filtration, &a, &b, &a).unwrap()
                 }
                 PathHom2Cell::DirectedTriangle(a, b, c) => {
                     let abc_time = two_path_time(&self.filtration, &a, &b, &c).unwrap();
-                    let ac_time = (&self.filtration).edge_time(&a, &c).unwrap();
-                    let arrival_time = abc_time.max(ac_time);
-                    Ok(arrival_time)
+                    let ac_time = self.filtration.edge_time(&a, &c).unwrap();
+                    abc_time.max(ac_time)
                 }
                 PathHom2Cell::LongSquare(a, b, c, d) => {
                     let abd_time = two_path_time(&self.filtration, &a, &b, &d).unwrap();
                     let acd_time = two_path_time(&self.filtration, &a, &c, &d).unwrap();
-                    let arrival_time = abd_time.max(acd_time);
-                    Ok(arrival_time)
+                    abd_time.max(acd_time)
                 }
             },
         }
@@ -513,17 +535,18 @@ impl<'a, CF: NonZeroCoefficient, F: DigraphFiltration> HasRowFiltration
     fn column_with_filtration(
         &self,
         col: Self::ColT,
-    ) -> Result<impl Iterator<Item = ColumnEntry<Self>>, PhliteError> {
-        let boundary: Box<dyn Iterator<Item = ColumnEntry<Self>>> = match col {
-            PathHomCell::Node(s) => Box::new(
-                produce_node_total_coboundary(&self.filtration, &self.edge_set, self.n_vertices, s)
+    ) -> impl Iterator<Item = ColumnEntry<Self::FiltrationT, Self::RowT, Self::CoefficientField>>
+    {
+        match col {
+            PathHomCell::Node(s) => IterEnum::A(
+                produce_node_total_coboundary(&self.filtration, self.edge_set, self.n_vertices, s)
                     .map(|(coeff, cell, time)| ColumnEntry {
                         filtration_value: time,
                         row_index: cell,
                         coeff,
                     }),
             ),
-            PathHomCell::Edge(s, t) => Box::new(
+            PathHomCell::Edge(s, t) => IterEnum::B(
                 produce_edge_total_coboundary(
                     &self.bridge_map,
                     &self.filtration,
@@ -537,9 +560,8 @@ impl<'a, CF: NonZeroCoefficient, F: DigraphFiltration> HasRowFiltration
                     coeff,
                 }),
             ),
-            PathHomCell::TwoCell(_) => return Err(PhliteError::NotInDomain),
-        };
-        Ok(boundary)
+            PathHomCell::TwoCell(_) => panic!("Taking the coboundary of a 2-cell is unsupported."),
+        }
     }
 }
 
@@ -554,7 +576,7 @@ mod tests {
     use crate::coboundary::{produce_edge_total_coboundary, PathHomCell};
     use phlite::{
         fields::{Z2, Z3},
-        matrices::{HasRowFiltration, MatrixRef},
+        matrices::{HasRowFiltration, MatrixOracle},
         reduction::ClearedReductionMatrix,
     };
 
@@ -600,7 +622,7 @@ mod tests {
         }
 
         let d = GrPPHCoboundary::<Z2, _>::build(&filtration, &edge_set, n);
-        let d = d.reverse();
+        let d = (&d).reverse();
 
         let (_v, diagram) = ClearedReductionMatrix::build_with_diagram(&d, 0..=1);
 
@@ -609,14 +631,14 @@ mod tests {
         // Report
         println!("Essential:");
         for idx in diagram.essential.iter() {
-            let f_val = d.filtration_value(*idx).unwrap().0.into_inner();
+            let f_val = d.filtration_value(*idx).0.into_inner();
             println!(" birth={idx:?}, f=({f_val}, ∞)");
         }
         println!("\nPairings:");
         for tup in diagram.pairings.iter() {
             let idx_tup = (tup.1, tup.0);
-            let birth_f = d.filtration_value(tup.1).unwrap().0.into_inner();
-            let death_f = d.filtration_value(tup.0).unwrap().0.into_inner();
+            let birth_f = d.filtration_value(tup.1).0.into_inner();
+            let death_f = d.filtration_value(tup.0).0.into_inner();
             if death_f == birth_f {
                 continue;
             }
@@ -656,14 +678,14 @@ mod tests {
         // Report
         println!("Essential:");
         for idx in diagram.essential.iter() {
-            let f_val = d.filtration_value(*idx).unwrap().0.into_inner();
+            let f_val = d.filtration_value(*idx).0.into_inner();
             println!(" birth={idx:?}, f=({f_val}, ∞)");
         }
         println!("\nPairings:");
         for tup in diagram.pairings.iter() {
             let idx_tup = (tup.1, tup.0);
-            let birth_f = d.filtration_value(tup.1).unwrap().0.into_inner();
-            let death_f = d.filtration_value(tup.0).unwrap().0.into_inner();
+            let birth_f = d.filtration_value(tup.1).0.into_inner();
+            let death_f = d.filtration_value(tup.0).0.into_inner();
             if death_f == birth_f {
                 continue;
             }

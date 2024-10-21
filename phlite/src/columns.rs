@@ -1,18 +1,22 @@
-use crate::matrices::HasRowFiltration;
+//! Binary heap representations of matrix columns, essentially corresponding to linear combinations with a leading term.
+use crate::{
+    fields::NonZeroCoefficient,
+    matrices::{BasisElement, FiltrationValue},
+};
 use std::{collections::BinaryHeap, fmt::Debug, iter::repeat, ops::Mul};
 
 #[derive(Clone, Copy)]
-pub struct ColumnEntry<M: HasRowFiltration> {
-    pub filtration_value: M::FiltrationT,
-    pub row_index: M::RowT,
-    pub coeff: M::CoefficientField,
+pub struct ColumnEntry<FilT: FiltrationValue, RowT: BasisElement, CF> {
+    pub filtration_value: FilT,
+    pub row_index: RowT,
+    pub coeff: CF,
 }
 
-impl<M: HasRowFiltration> Debug for ColumnEntry<M>
+impl<FilT: FiltrationValue, RowT: BasisElement, CF> Debug for ColumnEntry<FilT, RowT, CF>
 where
-    M::FiltrationT: Debug,
-    M::RowT: Debug,
-    M::CoefficientField: Debug,
+    FilT: Debug,
+    RowT: Debug,
+    CF: Debug,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_fmt(format_args!(
@@ -22,10 +26,10 @@ where
     }
 }
 
-impl<M: HasRowFiltration> From<(M::CoefficientField, M::RowT, M::FiltrationT)> for ColumnEntry<M> {
-    fn from(
-        (coeff, row_index, filtration_value): (M::CoefficientField, M::RowT, M::FiltrationT),
-    ) -> Self {
+impl<FilT: FiltrationValue, RowT: BasisElement, CF> From<(CF, RowT, FilT)>
+    for ColumnEntry<FilT, RowT, CF>
+{
+    fn from((coeff, row_index, filtration_value): (CF, RowT, FilT)) -> Self {
         Self {
             filtration_value,
             row_index,
@@ -34,40 +38,46 @@ impl<M: HasRowFiltration> From<(M::CoefficientField, M::RowT, M::FiltrationT)> f
     }
 }
 
-impl<M: HasRowFiltration> From<ColumnEntry<M>> for (M::CoefficientField, M::RowT, M::FiltrationT) {
-    fn from(entry: ColumnEntry<M>) -> Self {
+impl<FilT: FiltrationValue, RowT: BasisElement, CF> From<ColumnEntry<FilT, RowT, CF>>
+    for (CF, RowT, FilT)
+{
+    fn from(entry: ColumnEntry<FilT, RowT, CF>) -> Self {
         (entry.coeff, entry.row_index, entry.filtration_value)
     }
 }
 
-/// WARNING: Equality only checks row index - to check correct coefficient and filtration value, convert to tuple
-impl<M: HasRowFiltration> PartialEq for ColumnEntry<M> {
+/// <div class="warning">
+///
+/// Equality only checks row index - to check correct coefficient and filtration value, convert to tuple.
+///
+/// </div>
+impl<FilT: FiltrationValue, RowT: BasisElement, CF> PartialEq for ColumnEntry<FilT, RowT, CF> {
     // Equal row index implies equal filtration value
     fn eq(&self, other: &Self) -> bool {
         self.row_index.eq(&other.row_index)
     }
 }
-impl<M: HasRowFiltration> Eq for ColumnEntry<M> {}
+impl<FilT: FiltrationValue, RowT: BasisElement, CF> Eq for ColumnEntry<FilT, RowT, CF> {}
 
-impl<M: HasRowFiltration> PartialOrd for ColumnEntry<M> {
+impl<FilT: FiltrationValue, RowT: BasisElement, CF> PartialOrd for ColumnEntry<FilT, RowT, CF> {
     // Order by filtration value and then order on RowT
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        ((&self.filtration_value, &self.row_index))
-            .partial_cmp(&(&other.filtration_value, &other.row_index))
+        Some(self.cmp(other))
     }
 }
 
-impl<M: HasRowFiltration> Ord for ColumnEntry<M> {
+impl<FilT: FiltrationValue, RowT: BasisElement, CF> Ord for ColumnEntry<FilT, RowT, CF> {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.partial_cmp(other)
-            .expect("Since underlying implement Ord, so does ColumnEntry")
+        (&self.filtration_value, &self.row_index).cmp(&(&other.filtration_value, &other.row_index))
     }
 }
 
-impl<M: HasRowFiltration> Mul<M::CoefficientField> for ColumnEntry<M> {
+impl<FilT: FiltrationValue, RowT: BasisElement, CF: NonZeroCoefficient> Mul<CF>
+    for ColumnEntry<FilT, RowT, CF>
+{
     type Output = Self;
 
-    fn mul(self, rhs: M::CoefficientField) -> Self::Output {
+    fn mul(self, rhs: CF) -> Self::Output {
         ColumnEntry {
             coeff: self.coeff * rhs,
             filtration_value: self.filtration_value,
@@ -76,69 +86,67 @@ impl<M: HasRowFiltration> Mul<M::CoefficientField> for ColumnEntry<M> {
     }
 }
 
-pub struct BHCol<M: HasRowFiltration> {
-    heap: BinaryHeap<ColumnEntry<M>>,
+#[derive(Clone)]
+pub struct BHCol<FilT: FiltrationValue, RowT: BasisElement, CF> {
+    heap: BinaryHeap<ColumnEntry<FilT, RowT, CF>>,
 }
 
-impl<M: HasRowFiltration> Debug for BHCol<M>
+impl<FilT: FiltrationValue, RowT: BasisElement, CF> Debug for BHCol<FilT, RowT, CF>
 where
-    ColumnEntry<M>: Debug,
+    ColumnEntry<FilT, RowT, CF>: Debug,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_set().entries(&self.heap).finish()
     }
 }
 
-impl<M: HasRowFiltration> Default for BHCol<M> {
+impl<FilT: FiltrationValue, RowT: BasisElement, CF> Default for BHCol<FilT, RowT, CF> {
     fn default() -> Self {
         Self {
-            heap: Default::default(),
+            heap: BinaryHeap::default(),
         }
     }
 }
 
-impl<M: HasRowFiltration> BHCol<M> {
-    pub fn add_entries<M2>(&mut self, entries: impl Iterator<Item = ColumnEntry<M2>>)
-    where
-        M2: HasRowFiltration<
-            FiltrationT = M::FiltrationT,
-            CoefficientField = M::CoefficientField,
-            RowT = M::RowT,
-        >,
-    {
-        self.add_tuples(entries.map(|e| e.into()))
+impl<FilT: FiltrationValue, RowT: BasisElement, CF> BHCol<FilT, RowT, CF> {
+    pub fn add_entries(&mut self, entries: impl Iterator<Item = ColumnEntry<FilT, RowT, CF>>) {
+        self.add_tuples(entries.map(Into::into));
     }
 
-    pub fn add_tuples(
-        &mut self,
-        tuples: impl Iterator<Item = (M::CoefficientField, M::RowT, M::FiltrationT)>,
-    ) {
+    pub fn add_tuples(&mut self, tuples: impl Iterator<Item = (CF, RowT, FilT)>) {
         let (lower_bound, _) = tuples.size_hint();
         self.heap.reserve(lower_bound);
         for tuple in tuples {
-            self.heap.push(tuple.into())
+            self.heap.push(tuple.into());
         }
     }
 
-    pub fn add_tuple(&mut self, tuple: (M::CoefficientField, M::RowT, M::FiltrationT)) {
-        self.heap.push(tuple.into())
+    pub fn add_tuple(&mut self, tuple: (CF, RowT, FilT)) {
+        self.heap.push(tuple.into());
     }
 
-    pub fn drain_sorted<'a>(&'a mut self) -> impl Iterator<Item = ColumnEntry<M>> + 'a {
-        repeat(()).map_while(|_| self.pop_pivot())
+    pub fn drain_sorted(&mut self) -> impl Iterator<Item = ColumnEntry<FilT, RowT, CF>> + '_
+    where
+        CF: NonZeroCoefficient,
+    {
+        repeat(()).map_while(|()| self.pop_pivot())
     }
 
-    pub fn to_sorted_vec(mut self) -> Vec<ColumnEntry<M>> {
+    pub fn to_sorted_vec(mut self) -> Vec<ColumnEntry<FilT, RowT, CF>>
+    where
+        CF: NonZeroCoefficient,
+    {
         self.drain_sorted().collect()
     }
 
-    pub fn push(&mut self, entry: ColumnEntry<M>) {
-        self.heap.push(entry)
+    pub fn push(&mut self, entry: ColumnEntry<FilT, RowT, CF>) {
+        self.heap.push(entry);
     }
 
-    pub fn clone_pivot(&mut self) -> Option<ColumnEntry<M>>
+    pub fn clone_pivot(&mut self) -> Option<ColumnEntry<FilT, RowT, CF>>
     where
-        ColumnEntry<M>: Clone,
+        ColumnEntry<FilT, RowT, CF>: Clone,
+        CF: NonZeroCoefficient,
     {
         let pivot = self.pop_pivot();
         if let Some(pivot) = pivot {
@@ -150,18 +158,23 @@ impl<M: HasRowFiltration> BHCol<M> {
         }
     }
 
-    /// WARNING: Only valid if previously called `clone_pivot` or pushed the new pivot.
-    pub fn peek_pivot(&self) -> Option<&ColumnEntry<M>> {
+    /// <div class="warning">
+    ///
+    /// Only valid if previously called [`clone_pivot`](BHCol::clone_pivot) or [`push`](BHCol::push)ed the new pivot.
+    ///
+    /// </div>
+    pub fn peek_pivot(&self) -> Option<&ColumnEntry<FilT, RowT, CF>> {
         self.heap.peek()
     }
 
-    pub fn pop_pivot(&mut self) -> Option<ColumnEntry<M>> {
+    pub fn pop_pivot(&mut self) -> Option<ColumnEntry<FilT, RowT, CF>>
+    where
+        CF: NonZeroCoefficient,
+    {
         // Pull out first entry
-        let Some(first_entry) = self.heap.pop() else {
-            return None;
-        };
-        let mut working_index: M::RowT = first_entry.row_index;
-        let mut working_sum: Option<M::CoefficientField> = Some(first_entry.coeff);
+        let first_entry = self.heap.pop()?;
+        let mut working_index: RowT = first_entry.row_index;
+        let mut working_sum: Option<CF> = Some(first_entry.coeff);
         let mut working_filtration = first_entry.filtration_value;
 
         loop {
@@ -177,9 +190,9 @@ impl<M: HasRowFiltration> BHCol<M> {
                     break;
                 }
                 // Otherwise we prepare to start adding the next largest index
-                working_index = next_entry.row_index;
+                working_index = next_entry.row_index.clone();
                 working_sum = None;
-                working_filtration = next_entry.filtration_value;
+                working_filtration = next_entry.filtration_value.clone();
             }
 
             // Actually remove from heap
@@ -187,13 +200,10 @@ impl<M: HasRowFiltration> BHCol<M> {
             working_sum = next_entry.coeff + working_sum;
         }
 
-        match working_sum {
-            Some(coeff) => Some(ColumnEntry {
-                row_index: working_index,
-                filtration_value: working_filtration,
-                coeff,
-            }),
-            None => None,
-        }
+        working_sum.map(|coeff| ColumnEntry {
+            row_index: working_index,
+            filtration_value: working_filtration,
+            coeff,
+        })
     }
 }
