@@ -19,8 +19,16 @@ use crate::{
 };
 
 fn build_filtration(n_vertices: u32, edges: &[(u32, u32, f64)]) -> Vec<Vec<Option<NotNan<f64>>>> {
-    // Build graph (don't add edges with infinite edge filtration)
+    // Build graph
     let mut g = Graph::<(), f64>::new();
+    // Add all nodes
+    for i in 0..n_vertices {
+        let new_index = g.add_node(());
+        assert!(new_index.index() == i as usize)
+    }
+    // Add all edges with finite weight
+    // We remove edges with infinite weights because we want finite shortest-path times
+    // Note the infinite weighted edges are still added for the sake of grounding
     g.extend_with_edges(edges.iter().filter(|(_i, _j, t)| *t < f64::INFINITY));
 
     // Compute shortest path filtration
