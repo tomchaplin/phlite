@@ -11,6 +11,8 @@ use crate::columns::BHCol;
 
 use super::{ColBasis, HasColBasis};
 
+// TODO: Test column cacher
+
 #[test]
 fn test_matrix_product() {
     let matrix_d = simple_Z2_matrix(vec![

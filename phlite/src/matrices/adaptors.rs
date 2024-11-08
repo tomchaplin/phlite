@@ -7,7 +7,14 @@
 
 // ====== WithTrivialFiltration ================
 
-use std::{cmp::Reverse, marker::PhantomData, ops::Deref};
+use std::{
+    cell::{Ref, RefCell},
+    cmp::Reverse,
+    collections::HashMap,
+    hash::Hash,
+    marker::PhantomData,
+    ops::Deref,
+};
 
 use crate::columns::{BHCol, ColumnEntry};
 
@@ -169,6 +176,99 @@ where
     type BasisT = M::BasisT;
     type BasisRef<'a>
         = M::BasisRef<'a>
+    where
+        Self: 'a;
+
+    fn basis(&self) -> Self::BasisRef<'_> {
+        self.oracle.basis()
+    }
+}
+
+// ====== WithCache ============================
+
+#[derive(Clone, Debug)]
+pub struct WithCachedCols<M: MatrixOracle> {
+    pub(crate) oracle: M,
+    cache: RefCell<HashMap<M::ColT, Vec<(M::CoefficientField, M::RowT)>>>,
+}
+
+// Essentialy https://stackoverflow.com/questions/33541492/returning-iterator-of-a-vec-in-a-refcell
+struct CachedColIter<'a, T> {
+    inner: Option<Ref<'a, [T]>>,
+}
+
+impl<'a, T> Iterator for CachedColIter<'a, T> {
+    type Item = Ref<'a, T>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match self.inner.take() {
+            Some(borrow) => match *borrow {
+                [] => None,
+                [_, ..] => {
+                    let (head, tail) = Ref::map_split(borrow, |slice| (&slice[0], &slice[1..]));
+                    self.inner.replace(tail);
+                    Some(head)
+                }
+            },
+            None => None,
+        }
+    }
+}
+
+impl<M> MatrixOracle for WithCachedCols<M>
+where
+    M: MatrixOracle<ColT: Hash>,
+{
+    type CoefficientField = M::CoefficientField;
+
+    type ColT = M::ColT;
+
+    type RowT = M::RowT;
+
+    fn column(
+        &self,
+        col: Self::ColT,
+    ) -> impl Iterator<Item = (Self::CoefficientField, Self::RowT)> {
+        // Compute column if not yet cached
+        if !self.cache.borrow().contains_key(&col) {
+            let col_as_vec: Vec<_> = self.oracle.column(col.clone()).collect();
+            self.cache
+                .borrow_mut()
+                .insert(col.clone(), col_as_vec.clone());
+        }
+        // Get a borrow to the column
+        let cache_borrow = self.cache.borrow();
+        let col_borrow = Ref::map(cache_borrow, |c| {
+            &c.get(&col).expect("Just populated key")[..]
+        });
+        // Return an iterator
+        let as_iter = CachedColIter {
+            inner: Some(col_borrow),
+        };
+        return as_iter.map(|entry| entry.clone());
+    }
+}
+
+impl<M> HasRowFiltration for WithCachedCols<M>
+where
+    M: HasRowFiltration,
+    M::ColT: Hash,
+{
+    type FiltrationT = M::FiltrationT;
+
+    fn filtration_value(&self, row: Self::RowT) -> Self::FiltrationT {
+        self.oracle.filtration_value(row)
+    }
+}
+
+impl<M> HasColBasis for WithCachedCols<M>
+where
+    M: HasColBasis,
+    M::ColT: Hash,
+{
+    type BasisT = M::BasisT;
+
+    type BasisRef<'a> = M::BasisRef<'a>
     where
         Self: 'a;
 
