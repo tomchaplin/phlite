@@ -109,11 +109,12 @@ impl<FilT: FiltrationValue, RowT: BasisElement, CF> Default for BHCol<FilT, RowT
 }
 
 impl<FilT: FiltrationValue, RowT: BasisElement, CF> BHCol<FilT, RowT, CF> {
-    pub fn add_entries(&mut self, entries: impl Iterator<Item = ColumnEntry<FilT, RowT, CF>>) {
-        self.add_tuples(entries.map(Into::into));
+    pub fn add_entries(&mut self, entries: impl IntoIterator<Item = ColumnEntry<FilT, RowT, CF>>) {
+        self.add_tuples(entries.into_iter().map(Into::into));
     }
 
-    pub fn add_tuples(&mut self, tuples: impl Iterator<Item = (CF, RowT, FilT)>) {
+    pub fn add_tuples(&mut self, tuples: impl IntoIterator<Item = (CF, RowT, FilT)>) {
+        let tuples = tuples.into_iter();
         let (lower_bound, _) = tuples.size_hint();
         self.heap.reserve(lower_bound);
         for tuple in tuples {

@@ -326,9 +326,9 @@ where
         dimension_order: DimIter,
     ) -> (Self, Diagram<M::ColT>)
     where
-        DimIter: Iterator<Item = usize>,
+        DimIter: IntoIterator<Item = usize>,
     {
-        let mut builder = CRMBuilder::init(boundary, dimension_order);
+        let mut builder = CRMBuilder::init(boundary, dimension_order.into_iter());
         builder.reduce_all_dimension();
         let v =
             ClearedReductionMatrix::build_from_owned(builder.boundary, builder.reduction_columns);

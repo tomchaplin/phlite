@@ -8,6 +8,7 @@ edition = "2021"
 
 [dependencies]
 itertools = "0.12.1"
+num = "0.4.3"
 ordered-float = "4.2.0"
 rustc-hash = "1.1.0"
 

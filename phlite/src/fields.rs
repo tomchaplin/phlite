@@ -1,25 +1,26 @@
 //! Traits for types that represent non-zero coefficients in a matrix.
-//! Implementations of finite fields up to Z13 are provided.
+//! Implementations of the rational numbers and finite fields up to Z13 are provided.
 //!
 //! There is no implementaion of the field of real numbers.
 //! Due to floating point error, this would require additional support in the [`reduction`](crate::reduction) module to ensure that pivots are properly cleared.
 
+use num::Integer;
 use std::fmt::Debug;
 use std::num::NonZeroU8;
 use std::ops::{Add, Mul};
-
-// TODO: Get additive inverse and multiply
 
 /// Represents a **non-zero** coefficient in a matrix.
 ///
 /// Ensure that you are unable to construct an element that represents `0`.
 /// Instead, `0` will be represented by the absence of a summand.
 /// We avoid requiring an element for `0` to make [`Z2`] calculations more efficient.
+///
+/// In order to implement `Add<Opton<Self>>` you may wish to use [`impl_add_options`](crate::impl_add_options).
 pub trait NonZeroCoefficient:
     Eq
     + Copy
-    + Add<Option<Self>, Output = Option<Self>>
     + Add<Self, Output = Option<Self>>
+    + Add<Option<Self>, Output = Option<Self>>
     + Mul<Self, Output = Self>
 {
     /// Return the multiplicative unit, i.e. `1`.
@@ -61,6 +62,9 @@ impl Invertible for Z2 {
     }
 }
 
+/// Helper macro for creating structs that implement [`NonZeroCoefficient`].
+/// Takes as input a single struct idenitifier `CF` and levarages a pre-existing implementation of `Add<CF>` in order to implement `Add<Option<CF>>`.
+#[macro_export]
 macro_rules! impl_add_options {
     ($cf:ident) => {
         impl Add<Option<$cf>> for $cf {
@@ -93,7 +97,7 @@ impl NonZeroCoefficient for Z2 {
 
 /// Const generic struct for the finite field `Z_p`.
 /// Should ensure that `p` is prime and that `(p-1)^2` does not overflow `NonZeroU8`
-/// For `p=2` use [`Z2`]
+/// For `p=2` use [`Z2`].
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub struct ZP<const P: u8>(NonZeroU8);
 
@@ -102,6 +106,8 @@ impl<const P: u8> Debug for ZP<P> {
         self.0.fmt(f)
     }
 }
+
+// TODO: Replace checked_ operations with unchecked since we can guarantee in the cases we implement?
 
 impl<const P: u8> Add<ZP<P>> for ZP<P> {
     type Output = Option<ZP<P>>;
@@ -240,6 +246,59 @@ impl Invertible for Z13 {
             12 => ZP(unsafe { NonZeroU8::new_unchecked(12) }),
             _ => panic!("Not in Z13"),
         }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// The field of rational numbers.
+pub struct Q(isize, usize);
+
+impl Q {
+    fn reduce(self) -> Self {
+        let gcd = (self.0.abs() as usize).gcd(&self.1);
+        Q(self.0 / (gcd as isize), self.1 / gcd)
+    }
+}
+
+impl Add for Q {
+    type Output = Option<Q>;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        let lowest_common_denom = self.1.lcm(&rhs.1);
+        let numerator = (lowest_common_denom / self.1) as isize * self.0
+            + (lowest_common_denom / rhs.1) as isize * rhs.0;
+        if numerator == 0 {
+            return None;
+        } else {
+            Some(Q(numerator, lowest_common_denom).reduce())
+        }
+    }
+}
+
+impl_add_options!(Q);
+
+impl Mul for Q {
+    type Output = Q;
+
+    fn mul(self, rhs: Self) -> Self::Output {
+        Q(self.0 * rhs.0, self.1 * rhs.1).reduce()
+    }
+}
+
+impl NonZeroCoefficient for Q {
+    fn one() -> Self {
+        Q(1, 1)
+    }
+
+    fn additive_inverse(self) -> Self {
+        Q(-self.0, self.1)
+    }
+}
+
+impl Invertible for Q {
+    fn mult_inverse(self) -> Self {
+        let sign = self.0.signum();
+        Q(sign * self.1 as isize, self.0.abs() as usize)
     }
 }
 
