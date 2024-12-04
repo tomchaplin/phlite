@@ -10,8 +10,10 @@ use phlite::{
     matrices::{combinators::product, HasRowFiltration, MatrixOracle},
     reduction::{standard_algo_with_diagram, ClearedReductionMatrix},
 };
-use pyo3::prelude::*;
 use rustc_hash::FxHashSet;
+
+use pyo3::prelude::*;
+use pyo3_stub_gen::{define_stub_info_gatherer, derive::*};
 
 use crate::{
     boundary::GrPPHBoundary,
@@ -64,6 +66,7 @@ type PairingBars = Vec<Vec<(f64, f64)>>;
 // List of 1D persistent homology reps (each of which is a sum of edges)
 type RepList = Vec<Vec<(u16, u16)>>;
 
+#[gen_stub_pyfunction]
 #[pyfunction]
 fn grpph(n_vertices: u32, edges: Vec<(u32, u32, f64)>) -> (EssentialBars, PairingBars) {
     let filtration = build_filtration(n_vertices, &edges);
@@ -108,7 +111,9 @@ fn grpph(n_vertices: u32, edges: Vec<(u32, u32, f64)>) -> (EssentialBars, Pairin
 
 // TODO: This only find the infinite reps, add in essential reps too!
 
+#[gen_stub_pyfunction]
 #[pyfunction]
+/// Does the same as `grpph` but does involution to compute representatives.
 fn grpph_with_involution(
     n_vertices: u32,
     edges: Vec<(u32, u32, f64)>,
@@ -204,3 +209,6 @@ fn phlite_grpph(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(grpph_with_involution, m)?)?;
     Ok(())
 }
+
+// A function that gathers stub information
+define_stub_info_gatherer!(stub_info);

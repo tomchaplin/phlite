@@ -10,7 +10,12 @@ crate-type = ["cdylib", "rlib"]
 
 [[bin]]
 name = "phlite_grpph_cli"
-path = "src/main.rs"
+path = "src/bin/main.rs"
+
+[[bin]]
+name = "phlite_grpph_stub_gen"
+path = "src/bin/stub_gen.rs"
+doc = false
 
 [dependencies]
 log = "0.4.21"
@@ -20,3 +25,4 @@ phlite = { version = "0.1.0", default-features = false, path = "../phlite" }
 pyo3 = "0.22.3"
 pyo3-log = "0.11.0"
 rustc-hash = "1.1.0"
+pyo3-stub-gen = "0.6.0"

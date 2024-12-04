@@ -12,12 +12,13 @@ __pycache__/
 .Python
 .venv/
 env/
-bin/
 build/
 develop-eggs/
 dist/
 eggs/
 lib/
+#Want to include .rs file in src/bin
+#bin/
 lib64/
 parts/
 sdist/
