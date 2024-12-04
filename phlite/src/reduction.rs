@@ -493,13 +493,13 @@ where
 #[cfg(test)]
 mod tests {
 
-    use crate::matrices::{combinators::product, implementors::simple_Z2_matrix, MatrixOracle};
+    use crate::matrices::{combinators::product, implementors::SimpleZ2Matrix, MatrixOracle};
 
     use super::standard_algo;
 
     #[test]
     fn test_inefficient_reduction() {
-        let matrix_d = simple_Z2_matrix(vec![
+        let matrix_d = SimpleZ2Matrix::new(vec![
             vec![],
             vec![],
             vec![],
@@ -511,7 +511,7 @@ mod tests {
         ]);
         let matrix_v = standard_algo((&matrix_d).with_trivial_filtration());
         let matrix_r = product(&matrix_d, &matrix_v);
-        let true_matrix_r = simple_Z2_matrix(vec![
+        let true_matrix_r = SimpleZ2Matrix::new(vec![
             vec![],
             vec![],
             vec![],

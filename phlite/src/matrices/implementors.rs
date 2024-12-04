@@ -1,4 +1,4 @@
-//! Concrete types that implement [`MatrixOracle`].
+//! Concrete types that implement [`MatrixOracle`] and [`ColBasis`].
 
 // ======== Default matrix oracles =============================
 
@@ -12,6 +12,8 @@ use crate::fields::{NonZeroCoefficient, Z2};
 use super::{BasisElement, ColBasis, HasColBasis, MatrixOracle};
 
 use std::fmt::Debug;
+
+// TODO: A VecSmallvecMatrix might be more cache efficient?
 
 // ====== VecVecMatrix =========================
 
@@ -82,19 +84,26 @@ impl<CF: NonZeroCoefficient, RowT: BasisElement> HasColBasis for VecVecMatrix<'_
     }
 }
 
-#[allow(non_snake_case)]
-pub fn simple_Z2_matrix(cols: Vec<Vec<usize>>) -> VecVecMatrix<'static, Z2, usize> {
-    let cols_with_coeffs = cols
-        .into_iter()
-        .map(|col| {
-            col.into_iter()
-                .map(|col_idx| (Z2::one(), col_idx))
-                .collect()
-        })
-        .collect::<Vec<Vec<(Z2, usize)>>>();
+impl<CF: NonZeroCoefficient, RowT: BasisElement> VecVecMatrix<'static, CF, RowT> {
+    pub fn new<I, J>(columns: I) -> Self
+    where
+        J: IntoIterator<Item = RowT>,
+        I: IntoIterator<Item = J>,
+    {
+        let cols_with_coeffs = columns
+            .into_iter()
+            .map(|col| {
+                col.into_iter()
+                    .map(|col_idx| (CF::one(), col_idx))
+                    .collect()
+            })
+            .collect::<Vec<Vec<(CF, RowT)>>>();
 
-    <VecVecMatrix<'_, Z2, usize>>::from(Cow::Owned(cols_with_coeffs))
+        <VecVecMatrix<'_, CF, RowT>>::from(Cow::Owned(cols_with_coeffs))
+    }
 }
+
+pub type SimpleZ2Matrix = VecVecMatrix<'static, Z2, usize>;
 
 #[derive(Clone, Copy)]
 pub struct StandardBasis {

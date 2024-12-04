@@ -242,10 +242,10 @@ where
             &c.get(&col).expect("Just populated key")[..]
         });
         // Return an iterator
-        let as_iter = CachedColIter {
+        CachedColIter {
             inner: Some(col_borrow),
-        };
-        return as_iter.map(|entry| entry.clone());
+        }
+        .map(|entry| entry.clone())
     }
 }
 
@@ -268,7 +268,8 @@ where
 {
     type BasisT = M::BasisT;
 
-    type BasisRef<'a> = M::BasisRef<'a>
+    type BasisRef<'a>
+        = M::BasisRef<'a>
     where
         Self: 'a;
 

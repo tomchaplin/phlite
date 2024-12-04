@@ -5,7 +5,7 @@ use std::cmp::Reverse;
 use crate::fields::{NonZeroCoefficient, Z2};
 use crate::matrices::combinators::product;
 use crate::matrices::MatrixOracle;
-use crate::matrices::{implementors::simple_Z2_matrix, HasRowFiltration};
+use crate::matrices::{implementors::SimpleZ2Matrix, HasRowFiltration};
 
 use crate::columns::BHCol;
 
@@ -15,7 +15,7 @@ use super::{ColBasis, HasColBasis};
 
 #[test]
 fn test_matrix_product() {
-    let matrix_d = simple_Z2_matrix(vec![
+    let matrix_d = SimpleZ2Matrix::new(vec![
         vec![],
         vec![],
         vec![],
@@ -24,7 +24,7 @@ fn test_matrix_product() {
         vec![0, 2],
         vec![3, 4, 5],
     ]);
-    let matrix_v = simple_Z2_matrix(vec![
+    let matrix_v = SimpleZ2Matrix::new(vec![
         vec![0],
         vec![1],
         vec![2],
@@ -34,7 +34,7 @@ fn test_matrix_product() {
         vec![6],
     ]);
 
-    let true_matrix_r = simple_Z2_matrix(vec![
+    let true_matrix_r = SimpleZ2Matrix::new(vec![
         vec![],
         vec![],
         vec![],
@@ -51,7 +51,7 @@ fn test_matrix_product() {
 
 #[test]
 fn test_matrix_bhcol_interface() {
-    let base_matrix = simple_Z2_matrix(vec![
+    let base_matrix = SimpleZ2Matrix::new(vec![
         vec![],
         vec![],
         vec![],
@@ -113,7 +113,7 @@ fn test_matrix_bhcol_interface() {
 
 #[test]
 fn test_consolidate() {
-    let mat = simple_Z2_matrix(vec![vec![0], vec![0, 1]]);
+    let mat = SimpleZ2Matrix::new(vec![vec![0], vec![0, 1]]);
     // Working over Z^2 so M^2 = Id
 
     let mat4 = product(product(&mat, &mat), product(&mat, &mat));
@@ -130,7 +130,7 @@ fn test_consolidate() {
 
 #[test]
 fn test_projection() {
-    let base_matrix = simple_Z2_matrix(vec![
+    let base_matrix = SimpleZ2Matrix::new(vec![
         vec![4, 3, 12],
         vec![5, 9, 4],
         vec![0, 1, 0],
@@ -140,18 +140,18 @@ fn test_projection() {
     // Dumb way to build - better to make custom oracle
     let mut projection_cols = vec![vec![]; 13];
     projection_cols[4] = vec![4];
-    let projection_matrix = simple_Z2_matrix(projection_cols);
+    let projection_matrix = SimpleZ2Matrix::new(projection_cols);
 
     let projected = product(&projection_matrix, &base_matrix);
 
-    let true_matrix = simple_Z2_matrix(vec![vec![4], vec![4], vec![], vec![]]);
+    let true_matrix = SimpleZ2Matrix::new(vec![vec![4], vec![4], vec![], vec![]]);
 
     assert!((0..4).all(|i| projected.eq_on_col(&true_matrix, i)))
 }
 
 #[test]
 fn test_basis_reverse() {
-    let base_matrix = simple_Z2_matrix(vec![
+    let base_matrix = SimpleZ2Matrix::new(vec![
         vec![4, 3, 12],
         vec![5, 9, 4],
         vec![0, 1, 0],

@@ -80,6 +80,10 @@ pub trait MatrixOracle {
     /// Represents elements in the target basis.
     type RowT: BasisElement;
 
+    // TODO: Should we allow column to be fallible and return a Result type.
+    //       When reducing we assume that we can read the column corresponding to each lowest 1.
+    //       This might not be able to be guaranteed at the type level.
+
     /// Given an element `col` in the domain basis, express the image of `col` under the linear transformation as a linear combination of elements in the target basis.
     /// You should provide this combination is an iterator of `(coeff, row)` tuples where each `row` is an element of the target basis.
     /// If `coeff` is `0` then **omit this term** from the linear combination.

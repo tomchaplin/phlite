@@ -8,10 +8,11 @@ pub mod fields;
 pub mod matrices;
 pub mod reduction;
 
-// TODO: Consider peeling off filtration and column basis into separate object?
 // TODO: Better system for column algebra
-// TODO: Implement a more efficient matrix reduction algorithm + oracle
 // TODO: Documentation
+// TODO: Figure out whether it makes more sense to pass a &col to MatrixOracle::column
+// TODO: Add better tests throughout
+// TODO: Implement lock-free reduction algorithm
 
 #[cfg(test)]
 mod tests {}

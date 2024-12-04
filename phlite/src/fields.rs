@@ -63,6 +63,7 @@ impl Invertible for Z2 {
 }
 
 /// Helper macro for creating structs that implement [`NonZeroCoefficient`].
+///
 /// Takes as input a single struct idenitifier `CF` and levarages a pre-existing implementation of `Add<CF>` in order to implement `Add<Option<CF>>`.
 #[macro_export]
 macro_rules! impl_add_options {
@@ -255,7 +256,7 @@ pub struct Q(isize, usize);
 
 impl Q {
     fn reduce(self) -> Self {
-        let gcd = (self.0.abs() as usize).gcd(&self.1);
+        let gcd = self.0.unsigned_abs().gcd(&self.1);
         Q(self.0 / (gcd as isize), self.1 / gcd)
     }
 }
@@ -268,7 +269,7 @@ impl Add for Q {
         let numerator = (lowest_common_denom / self.1) as isize * self.0
             + (lowest_common_denom / rhs.1) as isize * rhs.0;
         if numerator == 0 {
-            return None;
+            None
         } else {
             Some(Q(numerator, lowest_common_denom).reduce())
         }
@@ -298,7 +299,7 @@ impl NonZeroCoefficient for Q {
 impl Invertible for Q {
     fn mult_inverse(self) -> Self {
         let sign = self.0.signum();
-        Q(sign * self.1 as isize, self.0.abs() as usize)
+        Q(sign * self.1 as isize, self.0.unsigned_abs())
     }
 }
 
