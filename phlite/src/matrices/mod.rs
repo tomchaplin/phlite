@@ -277,10 +277,17 @@ where
 
 // ======== Filtration on rows to order them ===================
 
+/// Represents a matrix that has a filtration on its row basis (this basis and filtration need not be pre-computed).
+/// Either implemented explicitily or via [`with_filtration`](MatrixOracle::with_filtration).
 pub trait HasRowFiltration: MatrixOracle {
+    /// The type that the filtration function is valued in.
     type FiltrationT: FiltrationValue;
+    /// Implementing the filtration function on the row basis.
     fn filtration_value(&self, row: Self::RowT) -> Self::FiltrationT;
 
+    /// Uses [`MatrixOracle::column`] and [`HasRowFiltration::filtration_value`] to provide an iterator over non-zero column entries, enriches with the row filtration value.
+    ///
+    /// **Note:** You may wish to override the default implementation for efficiency's sake.
     fn column_with_filtration(
         &self,
         col: Self::ColT,
@@ -293,10 +300,16 @@ pub trait HasRowFiltration: MatrixOracle {
         })
     }
 
+    /// Initialise an empty binary heap that can accept entries from this matrix.
+    /// Mostly an implementation detail of [`build_bhcol`](HasRowFiltration::build_bhcol).
     fn empty_bhcol(&self) -> BHCol<Self::FiltrationT, Self::RowT, Self::CoefficientField> {
         BHCol::default()
     }
 
+    /// Builds a binary heap out of the non-zero entries in this column, sorted according to the filtration value and then the default ordering on [`RowT`](Self::RowT).
+    /// Popping top entries off this binary heap will allow access to the column pivot.
+    ///
+    /// **Warning:** A given row may appear multiple times in the binary heap!
     fn build_bhcol(
         &self,
         col: Self::ColT,
@@ -320,6 +333,7 @@ where
 
 // ======== Ordered basis on columns + arbitrary access ========
 
+/// Represents an indexable column basis (of a matrix), typically pre-computed and stored in memory.
 pub trait ColBasis {
     type ElemT: BasisElement;
     fn element(&self, index: usize) -> Self::ElemT;
@@ -379,6 +393,8 @@ where
     }
 }
 
+/// Represents a matrix that has an indexable column basis, typically this is pre-computed to save time.
+/// Usually constructed via [`with_basis`](MatrixOracle::with_basis).
 pub trait HasColBasis: MatrixOracle {
     type BasisT: ColBasis<ElemT = Self::ColT>;
     type BasisRef<'a>: Deref<Target = Self::BasisT>
@@ -417,9 +433,17 @@ where
 // In particular at must own each of the SubBasisT pre-constructed and then piece them together in order to extract its elements.
 // Is there a better way to do this?
 // TODO: Repeat what we did with HasColBasis, allow arbitrary ref type
+// TODO: Maybe provided a default implementation, storing a split basis as a Vec<B> and maybe a dimension offset?
+
+/// Represents a [`ColBasis`] which is split into multiple sub-bases, according to an integer "dimension".
+///
+/// For example, the Rips (co)boundary matrix whose basis is split according to simplex dimension.
+/// A basis implementing this type is typically stored as a [`Vec<B>`] where [`B: ColBasis`](ColBasis).
 pub trait SplitByDimension: ColBasis {
+    /// The type of each sub-basis.
     type SubBasisT: ColBasis<ElemT = Self::ElemT>;
 
+    /// Should return a reference to the sub-basis of columns in the provided `dimension`.
     fn in_dimension(&self, dimension: usize) -> &Self::SubBasisT;
 }
 
