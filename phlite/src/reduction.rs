@@ -499,7 +499,7 @@ mod tests {
 
     #[test]
     fn test_inefficient_reduction() {
-        let matrix_d = SimpleZ2Matrix::new(vec![
+        let matrix_d = SimpleZ2Matrix::new_all_one(vec![
             vec![],
             vec![],
             vec![],
@@ -511,7 +511,7 @@ mod tests {
         ]);
         let matrix_v = standard_algo((&matrix_d).with_trivial_filtration());
         let matrix_r = product(&matrix_d, &matrix_v);
-        let true_matrix_r = SimpleZ2Matrix::new(vec![
+        let true_matrix_r = SimpleZ2Matrix::new_all_one(vec![
             vec![],
             vec![],
             vec![],
