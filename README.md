@@ -3,6 +3,7 @@
 <img src="https://github.com/tomchaplin/phlite/raw/main/phlite_logo.svg" alt="phlite logo" width="300" role="img">
 
 <h1>phlite</h1>
+<span>/flaɪt/</span>
 
 Persistent homology that's light on memory usage.
 
