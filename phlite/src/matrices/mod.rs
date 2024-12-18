@@ -5,13 +5,14 @@
 
 // TODO: Add reasonable constraints to reverse and unreverse methods on bases and matrices
 
+use std::cell::RefCell;
 use std::hash::Hash;
 use std::ops::Deref;
 use std::rc::Rc;
 use std::sync::Arc;
 use std::{cmp::Reverse, collections::HashMap};
 
-use adaptors::Consolidator;
+use adaptors::{Consolidator, WithCachedCols};
 use itertools::equal;
 use ordered_float::NotNan;
 
@@ -70,7 +71,7 @@ impl<T> FiltrationValue for Reverse<T> where T: FiltrationValue {}
 /// In order to implement [`MatrixOracle`] for your matrix, you must decide on these types and also provide an implementation of [`column`](MatrixOracle::column).
 /// Some important things to note:
 /// * While you must have enough information in `T` to have *chosen* the basis, you do not necessarily need the basis to hand in order to implement [`MatrixOracle`]. Indeed, it is probably more memory-efficient *not* to store the row basis, whilst the column basis will be provided via the separate [`HasColBasis`] trait.
-/// * It is up to you to ensure that we never construct a [`ColT`](MatrixOracle::ColT) or [`RowT`](MatrixOracle::RowT) that doesn't correspond to an element of the chosen bases.
+/// * It is up to you to ensure that we never construct a [`ColT`](MatrixOracle::ColT) or [`RowT`](MatrixOracle::RowT) that doesn't correspond to an element of the chosen bases (this may change in future versions to allow graceful failure).
 /// * An object of type [`CoefficientField`](MatrixOracle::CoefficientField) should represent a *non-zero* coefficient; ideally `0` is un-representable in this type. Since we essentially represent our columns as linear combinations of the row basis, `0` is represented by the *absence* of that basis element in the combination, i.e. `None` rather than `Some`. A good choice is [`Z2`](crate::fields::Z2).
 pub trait MatrixOracle {
     /// Represents the non-zero elements in the field over which we are doing linear algebra.   
@@ -167,7 +168,7 @@ pub trait MatrixOracle {
         UsingColBasisIndex { oracle: self }
     }
 
-    /// Takes the anti-transpose matrix.
+    /// Reverse the order on both the rows and columns.
     /// Both the indices and the filtration values are now the [`Reverse`] of their previous type.
     fn reverse(self) -> ReverseMatrix<Self>
     where
@@ -176,7 +177,7 @@ pub trait MatrixOracle {
         ReverseMatrix { oracle: self }
     }
 
-    /// Takes the anti-transpose matrix
+    /// Reverse the order on both the rows and columns.
     /// Can only be called when the indices are of the form `Reverse<ColT>` and `Reverse<RowT>`
     /// Returns a matrix indexed by `ColT` and `RowT`.
     /// Additionally, the filtration value can be 'unreversed'.
@@ -199,6 +200,21 @@ pub trait MatrixOracle {
         Self: Sized,
     {
         Consolidator { oracle: self }
+    }
+
+    /// Returns a wrapper around `self` which caches any calls to [`column`](MatrixOracle::column) in an internal [`HashMap`].
+    ///
+    /// This may be useful if your matrix is relatively small but expensive to re-compute on the fly.
+    /// This way your matrix can still be lazily evaluated, but each column is only computed once.
+    /// Implementations of [`HasColBasis`] and [`HasRowFiltration`] are passed through transparently.
+    fn cache_cols(self) -> WithCachedCols<Self>
+    where
+        Self: Sized,
+    {
+        WithCachedCols {
+            oracle: self,
+            cache: RefCell::new(Default::default()),
+        }
     }
 }
 
@@ -306,7 +322,7 @@ pub trait HasRowFiltration: MatrixOracle {
         BHCol::default()
     }
 
-    /// Builds a binary heap out of the non-zero entries in this column, sorted according to the filtration value and then the default ordering on [`RowT`](Self::RowT).
+    /// Builds a binary heap out of the non-zero entries in this column, sorted according to the filtration value and then the default ordering on [`RowT`](MatrixOracle::RowT).
     /// Popping top entries off this binary heap will allow access to the column pivot.
     ///
     /// **Warning:** A given row may appear multiple times in the binary heap!
@@ -335,10 +351,15 @@ where
 
 /// Represents an indexable column basis (of a matrix), typically pre-computed and stored in memory.
 pub trait ColBasis {
+    /// The type of elements within the column basis.
     type ElemT: BasisElement;
+    /// Return the element at position `index` within the basis.
     fn element(&self, index: usize) -> Self::ElemT;
+    /// Return the size of the basis.
     fn size(&self) -> usize;
 
+    /// Construct a hashmap that stores the index of each element in the basis.
+    /// Note [`ElemT`](Self::ElemT) must implement [`Hash`].
     fn construct_reverse_lookup(&self) -> HashMap<Self::ElemT, usize>
     where
         Self::ElemT: Hash,
@@ -348,6 +369,7 @@ pub trait ColBasis {
             .collect()
     }
 
+    /// Construct a basis with the opposite ordering so the element at position `index` in the new basis is in position `len - index` in `self`.
     fn reverse(self) -> ReverseBasis<Self>
     where
         Self: Copy,
@@ -355,9 +377,12 @@ pub trait ColBasis {
         ReverseBasis(self)
     }
 
-    fn unreverse(self) -> UnreverseBasis<Self>
+    /// Essentially the inverse operation to [`reverse`](Self::reverse).
+    /// You should call this if [`ElemT`](Self::ElemT) is a [`Reverse<T>`] and you would like a basis in which [`ElemT`](Self::ElemT) is `T`, rather than `Reverse<Reverse<T>>`.
+    fn unreverse<T>(self) -> UnreverseBasis<Self>
     where
         Self: Copy,
+        Self: ColBasis<ElemT = Reverse<T>>,
     {
         UnreverseBasis(self)
     }
@@ -396,13 +421,20 @@ where
 /// Represents a matrix that has an indexable column basis, typically this is pre-computed to save time.
 /// Usually constructed via [`with_basis`](MatrixOracle::with_basis).
 pub trait HasColBasis: MatrixOracle {
+    /// The type of the column basis that this matrix is equipped with.
     type BasisT: ColBasis<ElemT = Self::ColT>;
+    /// The type of the reference to the column basis returned by [`basis`](Self::basis), this is often `&'a Self::BasisT`.
+    /// However, if the basis is cheap to clone (or wrapped in a smart pointer), you might prefer to construct on the fly and hand over ownership.
     type BasisRef<'a>: Deref<Target = Self::BasisT>
     where
         Self: 'a;
 
+    /// Return a reference to the basis attached to this matrix.
     fn basis(&self) -> Self::BasisRef<'_>;
 
+    /// Yields the same matrix but equipped with the sub-basis in the provided `dimension`.
+    /// Basis indices are now according to this sub-basis.
+    /// This is essentially a sub-matrix view.
     fn sub_matrix_in_dimension(self, dimension: usize) -> WithSubBasis<Self>
     where
         Self: MatrixOracle + HasColBasis<BasisT: SplitByDimension> + Sized,

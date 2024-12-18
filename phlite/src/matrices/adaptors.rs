@@ -186,10 +186,16 @@ where
 
 // ====== WithCache ============================
 
+/// Return type of [`MatrixOracle::cache_cols`], can also be constructed manually.
+///
+/// Caches any calls to [`MatrixOracle::column`] in an internal [`HashMap`].
 #[derive(Clone, Debug)]
 pub struct WithCachedCols<M: MatrixOracle> {
-    pub(crate) oracle: M,
-    cache: RefCell<HashMap<M::ColT, Vec<(M::CoefficientField, M::RowT)>>>,
+    /// The underlying matrix being wrapped.
+    /// Non-cached columns fall back to this, as well as implementations of [`HasColBasis`] and [`HasRowFiltration`].
+    pub oracle: M,
+    /// The internal [`column`](MatrixOracle::column) cache, stored behind a [`RefCell`] to allow interior mutability.
+    pub cache: RefCell<HashMap<M::ColT, Vec<(M::CoefficientField, M::RowT)>>>,
 }
 
 // Essentialy https://stackoverflow.com/questions/33541492/returning-iterator-of-a-vec-in-a-refcell
@@ -559,6 +565,14 @@ where
 #[derive(Clone, Copy, Debug)]
 #[repr(transparent)]
 pub struct ReverseBasis<B>(pub B);
+
+impl<B> ReverseBasis<B> {
+    /// Override the usual [`ColBasis::unreverse`].
+    /// This is more efficient because it just takes the inner basis out of its [`ReverseBasis`] wrapper.
+    pub fn unreverse(self) -> B {
+        self.0
+    }
+}
 
 impl<B, Ref> Deref for ReverseBasis<Ref>
 where

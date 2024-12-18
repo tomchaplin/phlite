@@ -64,7 +64,7 @@ impl RipsIndex {
 // We have one type for the simplices in a given dimension and another type for the collection of all dimensions.
 //
 // In most applications your bases should look fairly similar to this.
-// Don't bother reversing any filtration orders for cohomology because you can just use [`MatrixRef::reverse`]
+// Don't bother reversing any filtration orders for cohomology because you can just use [`MatrixOracle::reverse`]
 
 // TUTORIAL:
 // The single-dimensional basis is just a `Vec` of `RipsIndex` stored alongside the simplex's filtration value (so that we can quickly sort).
@@ -90,7 +90,7 @@ impl ColBasis for SingleDimRipsBasisWithFilt {
 }
 
 // TUTORIAL:
-// The multi-diomensinal basis is just a `Vec` of single-dimensional bases, wrapped in a new type.
+// The multi-dimensional basis is just a `Vec` of single-dimensional bases, wrapped in a new type.
 // Again we have to implement `ColBasis`.
 // Technically there is a choice on how we interleave simplices in each dimension.
 // However, it doesn't change PH so we just flatten the vector of vectors.

@@ -1,4 +1,7 @@
-//! Binary heap representations of matrix columns, essentially corresponding to linear combinations with a leading term.
+//! Binary heap representations of matrix columns, essentially corresponding to linear combinations with ordered terms.
+//!
+//! Most of the content of this module is an implementation detail of the reduction algorithms.
+//! Unless you wish to access pivots of matrices yourself, you probably don't need this module.
 use crate::{
     fields::NonZeroCoefficient,
     matrices::{BasisElement, FiltrationValue},
@@ -144,6 +147,7 @@ impl<FilT: FiltrationValue, RowT: BasisElement, CF> BHCol<FilT, RowT, CF> {
         self.heap.push(entry);
     }
 
+    /// Essentially [`pop_pivot`](Self::pop_pivot) and then push a clone of the pivot back onto the heap.
     pub fn clone_pivot(&mut self) -> Option<ColumnEntry<FilT, RowT, CF>>
     where
         ColumnEntry<FilT, RowT, CF>: Clone,
@@ -159,15 +163,20 @@ impl<FilT: FiltrationValue, RowT: BasisElement, CF> BHCol<FilT, RowT, CF> {
         }
     }
 
+    /// Peek at the top of the binary heap (presuambly to figure out the column pivot).
+    /// Note this may not correspond to the column pivot because there may be multiple elements in the sum with the same index.
+    /// Moreover, these terms may sum to `0` and hence even the row index at the top of the heap may not correspond to the row index of the pivot.
+    ///
     /// <div class="warning">
     ///
-    /// Only valid if previously called [`clone_pivot`](BHCol::clone_pivot) or [`push`](BHCol::push)ed the new pivot.
+    /// This only yields the column pivot if previously called [`clone_pivot`](BHCol::clone_pivot) or [`push`](BHCol::push)ed the new pivot (or you are lucky).
     ///
     /// </div>
     pub fn peek_pivot(&self) -> Option<&ColumnEntry<FilT, RowT, CF>> {
         self.heap.peek()
     }
 
+    /// Remove and return the leading order non-zero term in the sum (i.e. the column pivot).
     pub fn pop_pivot(&mut self) -> Option<ColumnEntry<FilT, RowT, CF>>
     where
         CF: NonZeroCoefficient,
