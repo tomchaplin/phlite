@@ -19,3 +19,10 @@ python circle_distance_matrix.py | cargo run --release
 Note this implementation does not have many of the optimisations of [Ripser](https://github.com/Ripser/ripser), including
 * apparent and emergent pairs
 * filtration truncation
+
+## `phlite` tutorial
+
+This crate also acts as a tutorial for the `phlite` crate.
+There are two entry points for this tutorial:
+* `src/lib.rs` - To see how to start implementing the core `phlite` traits.
+* `src/main.rs` - To see how to use such an implementation to actually compute persistent homology.
