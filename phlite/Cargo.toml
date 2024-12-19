@@ -2,6 +2,13 @@
 name = "phlite"
 version = "0.1.0"
 edition = "2021"
+license = "MIT"
+description = "Persistent homology, for generic matrices, that's light on memory usage"
+homepage = "https://github.com/tomchaplin/phlite"
+repository = "https://github.com/tomchaplin/phlite"
+readme = "README.md"
+keywords=["topology", "persistence", "homology", "matrix", "linalg"]
+categoris=["mathematics"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

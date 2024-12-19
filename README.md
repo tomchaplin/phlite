@@ -47,7 +47,7 @@ Given such an implementation, `phlite` provides memory-efficient methods for com
 In line with Ripser's approach, the output of these methods is an oracle for the matrix $V$, from which $R$ can be readily computed.
 In particular, when the implementation of $D$ satisfies sufficient constraints, `phlite` provides an implementation of the _clearing_ optimisation (first introduced in [[2]](#2)).
 
-For more details, please refer to the documentation (forthcoming).
+For more details, please refer to the documentation on `docs.rs`.
 If you need support implementing `phlite` traits for your specific application, please get in touch!
 
 ## Crates
