@@ -23,7 +23,9 @@ use std::fmt::Debug;
 /// This is similar to the typical sparse matrix representation in other frameworks.
 /// Although note this is not in CSR/CSC format!
 pub struct VecVecMatrix<'a, CF: NonZeroCoefficient, RowT: BasisElement> {
-    columns: Cow<'a, Vec<Vec<(CF, RowT)>>>,
+    /// The columns of the matrix.
+    /// This is stored behind a [`Cow`] to allow construction whether you own `columns` or not
+    pub columns: Cow<'a, Vec<Vec<(CF, RowT)>>>,
 }
 
 impl<RowT: BasisElement + Debug> Debug for VecVecMatrix<'_, Z2, RowT> {
@@ -170,7 +172,9 @@ where
     ColT: BasisElement + Hash,
     RowT: BasisElement,
 {
-    columns: Cow<'a, FxHashMap<ColT, Vec<(CF, RowT)>>>,
+    /// The columns of the matrix.
+    /// This is stored behind a [`Cow`] to allow construction whether you own `columns` or not
+    pub columns: Cow<'a, FxHashMap<ColT, Vec<(CF, RowT)>>>,
 }
 
 impl<'a, CF, ColT, RowT> MatrixOracle for MapVecMatrix<'a, CF, ColT, RowT>

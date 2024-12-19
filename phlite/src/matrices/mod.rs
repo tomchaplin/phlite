@@ -73,6 +73,8 @@ impl<T> FiltrationValue for Reverse<T> where T: FiltrationValue {}
 /// * While you must have enough information in `T` to have *chosen* the basis, you do not necessarily need the basis to hand in order to implement [`MatrixOracle`]. Indeed, it is probably more memory-efficient *not* to store the row basis, whilst the column basis will be provided via the separate [`HasColBasis`] trait.
 /// * It is up to you to ensure that we never construct a [`ColT`](MatrixOracle::ColT) or [`RowT`](MatrixOracle::RowT) that doesn't correspond to an element of the chosen bases (this may change in future versions to allow graceful failure).
 /// * An object of type [`CoefficientField`](MatrixOracle::CoefficientField) should represent a *non-zero* coefficient; ideally `0` is un-representable in this type. Since we essentially represent our columns as linear combinations of the row basis, `0` is represented by the *absence* of that basis element in the combination, i.e. `None` rather than `Some`. A good choice is [`Z2`](crate::fields::Z2).
+///
+/// Note that an implementation of [`MatrixOracle`] for `M` automatically derives an implementation for `&'a M`, `Box<M>`, `Rc<M>` and `Arc<M>`.
 pub trait MatrixOracle {
     /// Represents the non-zero elements in the field over which we are doing linear algebra.   
     type CoefficientField: NonZeroCoefficient;

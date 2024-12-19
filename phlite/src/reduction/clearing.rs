@@ -1,5 +1,6 @@
-//! R=DV reduction algorithms for `phlite` matrices.
-//! Includes the standard algorithm as well as the clearing algorithm.
+//! An implementation of the standard algorithm with the clearing optimisation.
+//!
+//! To run this algorithm you should attempt to construct the V matrix by calling [`ClearedReductionMatrix::build_with_diagram`].
 
 use std::borrow::Cow;
 use std::fmt::Debug;
@@ -8,7 +9,6 @@ use std::iter;
 
 use crate::columns::{BHCol, ColumnEntry};
 use crate::matrices::combinators::product;
-use crate::matrices::implementors::MapVecMatrix;
 use crate::matrices::{SplitByDimension, SquareMatrix};
 use crate::matrix_col_product;
 use crate::{
@@ -16,11 +16,13 @@ use crate::{
     matrices::{ColBasis, HasColBasis, HasRowFiltration, MatrixOracle},
 };
 
+use crate::reduction::Diagram;
+
 use rustc_hash::{FxHashMap, FxHashSet};
 
 #[derive(Clone)]
 #[allow(clippy::module_name_repetitions)]
-pub enum ReductionColumn<CF, ColT> {
+enum ReductionColumn<CF, ColT> {
     /// This variant is used when `(i, j)` is found as a pair, in which case column `i` can be reduced by setting the column `V_i = R_j`, we store j here.
     Cleared(ColT),
     /// This variant is used when the column is not cleared and hence must be reduced by the main loop.
@@ -32,6 +34,10 @@ type ReductionCols<'a, ColT, CoefficientField> =
     Cow<'a, FxHashMap<ColT, ReductionColumn<CoefficientField, ColT>>>;
 
 #[derive(Clone)]
+/// The reduction matrix produced by the clearing algorithm.
+///
+/// Since some columns in this matrix are just copies of columns in the original boundary matrix (D) this must hold onto a reference to your matrix.
+/// When you request a column of this matrix, if the column was reduced by clearing then the corresponding column from D is returned, otherwise the column was reduced conventially so the stored column of V is returned.
 pub struct ClearedReductionMatrix<'a, M>
 where
     M: MatrixOracle + SquareMatrix + HasRowFiltration + HasColBasis,
@@ -58,6 +64,10 @@ where
         }
     }
 
+    /// Provides a more efficient check for whether a given column represents a cycle in the reduced matrix R.
+    ///
+    /// A column that was cleared by the clearing optimisation is necessarily a cycle.
+    /// Otherwise, if the column was conventionally reduced then we have to build that column in R.
     pub fn col_is_cycle(&self, col: M::ColT) -> bool {
         let v_col = self.reduction_columns.get(&col).unwrap();
         match v_col {
@@ -321,6 +331,15 @@ where
     M::ColT: Hash + Debug,
     ColumnEntry<M::FiltrationT, M::RowT, M::CoefficientField>: Clone,
 {
+    /// Run the clearing algorithm and return the reduction matrix.
+    /// Note:
+    /// * The persistence diagram is also returned alongside since it is more efficient to compute during reduction.
+    /// * The `boundary` matrix is consumed so you probably want to a pass a reference to your matrix.
+    ///
+    /// You must also specify a `dimension_order` - this should be a contiguous range of dimensions that you would like to reduce.
+    /// The order is important and should follow the dimension order of your chain complex.
+    /// That is, if you have a coboundary matrix then `dimension_order` should be `0..=max_dim` whereas if you have a boundary matrix then `dimension_order` should be `(0..=max_dim).rev()`.
+    /// This enables the clearing optimisation to work and is cruical to returning the correct diagram.
     pub fn build_with_diagram<DimIter>(
         boundary: M,
         dimension_order: DimIter,
@@ -334,194 +353,5 @@ where
             ClearedReductionMatrix::build_from_owned(builder.boundary, builder.reduction_columns);
         let diagram = builder.diagram;
         (v, diagram)
-    }
-}
-
-// TODO: Should this be just a vec to make construction quicker?
-#[derive(Debug, Clone)]
-pub struct Diagram<T> {
-    pub essential: FxHashSet<T>,
-    pub pairings: FxHashSet<(T, T)>,
-}
-
-// TODO: Convert to a MapVecMatrix so that we can use a common diagram read off
-
-pub type StandardReductionMatrix<CF, ColT> = MapVecMatrix<'static, CF, ColT, ColT>;
-
-/// If your operator goes up in column order (e.g. coboundary) then you will need to set `reverse_order=True`.
-#[allow(clippy::type_complexity)]
-pub fn standard_algo_with_diagram<M>(
-    boundary: M,
-    reverse_order: bool,
-) -> (
-    StandardReductionMatrix<M::CoefficientField, M::ColT>,
-    Diagram<M::ColT>,
-)
-where
-    M: SquareMatrix + HasRowFiltration + HasColBasis,
-    M::CoefficientField: Invertible,
-    M::RowT: Hash,
-{
-    let v = standard_algo(&boundary);
-    let diagram = read_off_diagram(&boundary, &v, reverse_order);
-    (v, diagram)
-}
-
-/// If your operator goes up in column order (e.g. coboundary) then you will need to set `reverse_order=True`.
-pub fn read_off_diagram<M>(
-    boundary: M,
-    reduction_matrix: &StandardReductionMatrix<M::CoefficientField, M::ColT>,
-    reverse_order: bool,
-) -> Diagram<M::ColT>
-where
-    M: SquareMatrix + HasRowFiltration + HasColBasis,
-    M::CoefficientField: Invertible,
-    M::RowT: Hash,
-{
-    let r = product(&boundary, &reduction_matrix);
-
-    let mut essential = FxHashSet::default();
-    let mut pairings = FxHashSet::default();
-
-    let col_iter: Box<dyn Iterator<Item = usize>> = if reverse_order {
-        Box::new((0..boundary.basis().size()).rev())
-    } else {
-        Box::new(0..boundary.basis().size())
-    };
-
-    for i in col_iter {
-        let basis_element = boundary.basis().element(i);
-        let mut r_i = r.build_bhcol(basis_element.clone());
-        match r_i.pop_pivot() {
-            None => {
-                essential.insert(basis_element);
-            }
-            Some(piv) => {
-                pairings.insert((piv.row_index.clone(), basis_element));
-                essential.remove(&piv.row_index);
-            }
-        }
-        if r_i.pop_pivot().is_none() {}
-    }
-
-    Diagram {
-        essential,
-        pairings,
-    }
-}
-
-pub fn standard_algo<M>(boundary: M) -> StandardReductionMatrix<M::CoefficientField, M::ColT>
-where
-    M: MatrixOracle + HasRowFiltration + HasColBasis + SquareMatrix,
-    M::CoefficientField: Invertible,
-    M::RowT: Hash,
-{
-    let mut v = FxHashMap::default();
-
-    // low_inverse[i]=(j, lambda) means R[j] has lowest non-zero in row i with coefficient lambda
-    let mut low_inverse: FxHashMap<M::RowT, (M::ColT, M::CoefficientField)> = FxHashMap::default();
-
-    for i in 0..boundary.basis().size() {
-        // Reduce column i
-
-        let basis_element = boundary.basis().element(i);
-
-        let mut v_i = (&boundary).with_trivial_filtration().empty_bhcol();
-        v_i.add_tuple((M::CoefficientField::one(), basis_element.clone(), ()));
-        let mut r_i = boundary.build_bhcol(basis_element.clone());
-
-        'reduction: loop {
-            let Some(pivot_entry) = r_i.pop_pivot() else {
-                // Column reduced to 0 -> found cycle -> move onto next column
-                break 'reduction;
-            };
-
-            let pivot_j = pivot_entry.row_index.clone();
-            let pivot_coeff = pivot_entry.coeff;
-
-            // Push the pivot back in to keep r_col coorect
-            r_i.push(pivot_entry);
-
-            // Check if there is a column with the same pivot
-            let Some((j_basis_element, j_coeff)) = low_inverse.get(&pivot_j) else {
-                // Cannot reduce further -> found boundary -> break and save pivot
-                break 'reduction;
-            };
-
-            // If so then we add a multiple of that column to cancel out the pivot in r_col
-            let col_multiple = pivot_coeff.additive_inverse() * (j_coeff.mult_inverse());
-
-            let v_matrix = MapVecMatrix::from(&v);
-            let v_matrix = v_matrix.with_trivial_filtration();
-            let r_matrix = product(&boundary, &v_matrix);
-
-            // Add the multiple of that column
-            r_i.add_entries(
-                r_matrix
-                    .column_with_filtration(j_basis_element.clone())
-                    .map(|entry| entry * col_multiple),
-            );
-
-            // Update V
-            v_i.add_entries(
-                v_matrix
-                    .column_with_filtration(j_basis_element.clone())
-                    .map(|entry| entry * col_multiple),
-            );
-        }
-
-        // Save pivot if we have one
-        if let Some(pivot_entry) = r_i.pop_pivot() {
-            low_inverse.insert(
-                pivot_entry.row_index,
-                (basis_element.clone(), pivot_entry.coeff),
-            );
-        };
-
-        // Save V
-        v.insert(
-            basis_element,
-            v_i.drain_sorted()
-                .map(|entry| (entry.coeff, entry.row_index))
-                .collect(),
-        );
-    }
-
-    MapVecMatrix::from(v)
-}
-
-#[cfg(test)]
-mod tests {
-
-    use crate::matrices::{combinators::product, implementors::SimpleZ2Matrix, MatrixOracle};
-
-    use super::standard_algo;
-
-    #[test]
-    fn test_inefficient_reduction() {
-        let matrix_d = SimpleZ2Matrix::new_all_one(vec![
-            vec![],
-            vec![],
-            vec![],
-            vec![0, 1],
-            vec![1, 2],
-            vec![0, 2],
-            vec![3, 4, 5],
-            vec![3, 4, 5],
-        ]);
-        let matrix_v = standard_algo((&matrix_d).with_trivial_filtration());
-        let matrix_r = product(&matrix_d, &matrix_v);
-        let true_matrix_r = SimpleZ2Matrix::new_all_one(vec![
-            vec![],
-            vec![],
-            vec![],
-            vec![0, 1],
-            vec![1, 2],
-            vec![],
-            vec![3, 4, 5],
-            vec![],
-        ]);
-
-        assert!((0..=7).all(|idx| matrix_r.eq_on_col(&true_matrix_r, idx)))
     }
 }
