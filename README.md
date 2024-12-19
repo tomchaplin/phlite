@@ -3,9 +3,13 @@
 <img src="https://github.com/tomchaplin/phlite/raw/main/phlite_logo.svg" alt="phlite logo" width="300" role="img">
 
 <h1>phlite</h1>
+
 <span>/flaɪt/</span>
 
 Persistent homology that's light on memory usage.
+
+[![crates.io](https://img.shields.io/crates/v/phlite)](https://crates.io/crates/phlite)
+[![docs.rs](https://img.shields.io/docsrs/phlite?label=Docs.rs)](https://docs.rs/phlite/latest/phlite/)
 
 </div>
 
