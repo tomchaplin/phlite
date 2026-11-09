@@ -9,11 +9,11 @@ use std::iter;
 
 use crate::columns::{BHCol, ColumnEntry};
 use crate::matrices::combinators::product;
-use crate::matrices::{SplitByDimension, SquareMatrix};
+use crate::matrices::SquareMatrix;
 use crate::matrix_col_product;
 use crate::{
     fields::{Invertible, NonZeroCoefficient},
-    matrices::{ColBasis, HasColBasis, HasRowFiltration, MatrixOracle},
+    matrices::{ColBasis, HasColBasis, HasRowFiltration, HasSplitColBasis, MatrixOracle},
 };
 
 use crate::reduction::Diagram;
@@ -143,14 +143,29 @@ where
     M::CoefficientField: Invertible,
     M::ColT: Hash,
 {
-    type BasisT = M::BasisT;
-    type BasisRef<'b>
-        = M::BasisRef<'b>
+    type BasisT<'b>
+        = M::BasisT<'b>
     where
         Self: 'b;
 
-    fn basis(&self) -> Self::BasisRef<'_> {
+    fn basis(&self) -> Self::BasisT<'_> {
         self.boundary.basis()
+    }
+}
+
+impl<M> HasSplitColBasis for ClearedReductionMatrix<'_, M>
+where
+    M: MatrixOracle + SquareMatrix + HasRowFiltration + HasSplitColBasis,
+    M::CoefficientField: Invertible,
+    M::ColT: Hash,
+{
+    type SubBasisT<'b>
+        = M::SubBasisT<'b>
+    where
+        Self: 'b;
+
+    fn sub_basis(&self, dimension: usize) -> Self::SubBasisT<'_> {
+        self.boundary.sub_basis(dimension)
     }
 }
 
@@ -163,8 +178,7 @@ struct CRMBuilder<M, DimIter, RowT, CF> {
 
 impl<M, DimIter> CRMBuilder<M, DimIter, M::RowT, M::CoefficientField>
 where
-    M: MatrixOracle + SquareMatrix + HasRowFiltration + HasColBasis,
-    <M as HasColBasis>::BasisT: SplitByDimension,
+    M: MatrixOracle + SquareMatrix + HasRowFiltration + HasSplitColBasis,
     M::CoefficientField: Invertible,
     M::ColT: Hash + Debug,
     DimIter: Iterator<Item = usize>,
@@ -221,7 +235,7 @@ where
             r_i.add_entries(
                 r_matrix
                     .column_with_filtration(j_basis_element.clone())
-                    .map(|entry| (entry * col_multiple)),
+                    .map(|entry| entry * col_multiple),
             );
 
             v_i.add_entries(
@@ -284,14 +298,11 @@ where
         let mut low_inverse: FxHashMap<M::RowT, (M::ColT, M::CoefficientField)> =
             FxHashMap::default();
 
-        let basis_size = self.boundary.basis().in_dimension(dim).size();
+        let basis_size = self.boundary.sub_basis(dim).size();
 
         'column_loop: for i in 0..basis_size {
             // Reduce column i
-            let basis_element = (&self.boundary)
-                .sub_matrix_in_dimension(dim)
-                .basis()
-                .element(i);
+            let basis_element = self.boundary.sub_basis(dim).element(i);
 
             // First check whether already cleared
             if self.reduction_columns.contains_key(&basis_element) {
@@ -325,8 +336,7 @@ where
 //       This will take some time but reduce memory usage - maybe make configurable?
 impl<M> ClearedReductionMatrix<'static, M>
 where
-    M: MatrixOracle + SquareMatrix + HasRowFiltration + HasColBasis,
-    <M as HasColBasis>::BasisT: SplitByDimension,
+    M: MatrixOracle + SquareMatrix + HasRowFiltration + HasSplitColBasis,
     M::CoefficientField: Invertible,
     M::ColT: Hash + Debug,
     ColumnEntry<M::FiltrationT, M::RowT, M::CoefficientField>: Clone,

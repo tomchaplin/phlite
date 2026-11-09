@@ -6,7 +6,7 @@
 
 use crate::columns::ColumnEntry;
 
-use super::{HasColBasis, HasRowFiltration, MatrixOracle};
+use super::{HasColBasis, HasRowFiltration, HasSplitColBasis, MatrixOracle};
 
 /// Returns a matrix representing the product of the two input matrices.
 /// This is a *lazy* oracle so no computation is completed until a column is requested.
@@ -100,14 +100,27 @@ impl<M1: MatrixOracle, M2: MatrixOracle> HasColBasis for Product<M1, M2>
 where
     M2: MatrixOracle<CoefficientField = M1::CoefficientField, RowT = M1::ColT> + HasColBasis,
 {
-    type BasisT = M2::BasisT;
-    type BasisRef<'a>
-        = M2::BasisRef<'a>
+    type BasisT<'a>
+        = M2::BasisT<'a>
     where
         Self: 'a;
 
-    fn basis(&self) -> Self::BasisRef<'_> {
+    fn basis(&self) -> Self::BasisT<'_> {
         self.right.basis()
+    }
+}
+
+impl<M1: MatrixOracle, M2: MatrixOracle> HasSplitColBasis for Product<M1, M2>
+where
+    M2: MatrixOracle<CoefficientField = M1::CoefficientField, RowT = M1::ColT> + HasSplitColBasis,
+{
+    type SubBasisT<'a>
+        = M2::SubBasisT<'a>
+    where
+        Self: 'a;
+
+    fn sub_basis(&self, dimension: usize) -> Self::SubBasisT<'_> {
+        self.right.sub_basis(dimension)
     }
 }
 

@@ -4,8 +4,7 @@ use ordered_float::NotNan;
 use phlite::{
     fields::Z2,
     matrices::{
-        combinators::product, ColBasis, HasColBasis, HasRowFiltration, MatrixOracle,
-        SplitByDimension,
+        combinators::product, ColBasis, HasRowFiltration, HasSplitColBasis, MatrixOracle,
     },
     reduction::ClearedReductionMatrix,
 };
@@ -49,7 +48,7 @@ pub fn main() {
     let coboundary = coboundary.reverse();
     println!("Basis sizes:");
     for dim in 0..=max_dim {
-        let basis_size = coboundary.basis().in_dimension(dim).size();
+        let basis_size = coboundary.sub_basis(dim).size();
         println!("Dimension {dim}: {basis_size}");
     }
 

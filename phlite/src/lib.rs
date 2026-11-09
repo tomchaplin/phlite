@@ -18,7 +18,7 @@
 //!    * Earlier we had to _choose_ a basis for our linear transformation in order to get a well-defined matrix to implement, but note we didn't have to compute the basis.
 //!    * In order to implement [`HasColBasis`](matrices::HasColBasis) you will probably now have to compute the basis for your column space and store it in a struct implementing [`ColBasis`](matrices::ColBasis) (which gives random access to the elemnts of your basis).
 //!    * You can then attach this basis to your matrix by calling [`with_basis`](matrices::MatrixOracle::with_basis).
-//!    * In order to take advantage of the clearing optimsiation you should store basis elements in each dimension in a separate [`ColBasis`](matrices::ColBasis) and then gather them into a global [`ColBasis`](matrices::ColBasis) which implements [`SplitByDimension`](matrices::SplitByDimension)
+//!    * In order to take advantage of the clearing optimsiation your matrix must also implement [`HasSplitColBasis`](matrices::HasSplitColBasis), which hands out a cheap by-value view of the sub-basis in each dimension. The easiest way is to store your basis as a [`SplitBasis`](matrices::SplitBasis) (one flat allocation plus offsets), in which case [`with_basis`](matrices::MatrixOracle::with_basis) provides [`HasSplitColBasis`](matrices::HasSplitColBasis) automatically. Custom bases can instead implement [`SplitByDimension`](matrices::SplitByDimension) on a `Copy` view type.
 //!    * Note, we didn't have to compute a row basis (though we did have to choose one) - this can massively speed up computation of cohomology in the maximum dimension!
 //! 3. Implement the [`HasRowFiltration`](matrices::HasRowFiltration) trait.
 //!    * This trait embues our matrix with a filtration function for our rows.

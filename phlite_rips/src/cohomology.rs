@@ -9,7 +9,7 @@ use phlite::{
     matrices::{adaptors::MatrixWithBasis, HasRowFiltration, MatrixOracle},
 };
 
-use super::MultiDimRipsBasisWithFilt;
+use super::RipsBasis;
 
 // TODO: distances only needs to be a reference
 
@@ -161,7 +161,7 @@ impl<CF: NonZeroCoefficient + Invertible> HasRowFiltration for RipsCoboundary<CF
     }
 }
 
-pub type RipsCoboundaryAllDims<CF> = MatrixWithBasis<RipsCoboundary<CF>, MultiDimRipsBasisWithFilt>;
+pub type RipsCoboundaryAllDims<CF> = MatrixWithBasis<RipsCoboundary<CF>, RipsBasis>;
 
 pub fn build_rips_coboundary_matrix<CF: Invertible>(
     distances: Vec<Vec<NotNan<f64>>>,
