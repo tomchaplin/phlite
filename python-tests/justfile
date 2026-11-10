@@ -1,0 +1,37 @@
+# Fuzz tests and benchmarks for phlite_grpph and phlite_rips against reference implementations
+# (ripser, giotto-ph and grpphati). Requires `just` and `uv`; uses its own Python 3.11 environment.
+
+set shell := ["bash", "-euo", "pipefail", "-c"]
+
+# List available recipes
+default:
+    @just --list
+
+# Create .venv with the reference implementations
+venv:
+    uv sync --inexact
+
+# Build phlite_grpph and phlite_rips (release mode) into .venv
+build: venv
+    uv run --no-sync maturin develop --uv --release -m ../phlite_grpph/Cargo.toml
+    uv run --no-sync maturin develop --uv --release -m ../phlite_rips/Cargo.toml
+
+# Run the fuzz tests briefly (100 examples per test)
+test *pytest_args: build
+    uv run --no-sync pytest {{pytest_args}}
+
+# Fuzz for longer, e.g. `just fuzz 20000`
+fuzz examples="5000" *pytest_args: build
+    HYPOTHESIS_PROFILE=fuzz FUZZ_EXAMPLES={{examples}} uv run --no-sync pytest {{pytest_args}}
+
+# Benchmark phlite_rips against ripser and giotto-ph, see `just bench-rips --help`
+bench-rips *args: build
+    uv run --no-sync python benchmarks/bench_rips.py {{args}}
+
+# Benchmark phlite_grpph against grpphati, see `just bench-grpph --help`
+bench-grpph *args: build
+    uv run --no-sync python benchmarks/bench_grpph.py {{args}}
+
+# Remove .venv and hypothesis' example database
+clean:
+    rm -rf .venv .hypothesis

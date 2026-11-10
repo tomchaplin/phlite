@@ -1,0 +1,4 @@
+.venv/
+.hypothesis/
+__pycache__/
+*.json
