@@ -1,12 +1,11 @@
-from phlite_grpph import grpph, grpph_with_involution
+from phlite_grpph import grpph
 from pprint import pprint
 import time
 
 
 def do_complete(N):
-    essential, pairings = grpph(
-        N, [(i, j, 1.0) for i in range(N) for j in range(N) if i != j]
-    )
+    barcode = grpph(N, [(i, j, 1.0) for i in range(N) for j in range(N) if i != j])
+    essential, pairings = barcode.essential, barcode.pairings
 
     assert len(essential[0]) == 1
     assert len(essential[1]) == 0
@@ -17,24 +16,21 @@ def do_complete(N):
 
 
 def do_cycle(N, with_reps=False):
+    barcode = grpph(
+        N, [(i, (i + 1) % N, 1.0) for i in range(N)], representatives=with_reps
+    )
+    essential, pairings = barcode.essential, barcode.pairings
     if with_reps:
-        essential, pairings, reps = grpph_with_involution(
-            N, [(i, (i + 1) % N, 1.0) for i in range(N)]
-        )
+        reps = barcode.pairing_representatives[1]
         assert len(reps) == 1
         assert len(reps[0]) == N
-    else:
-        essential, pairings = grpph(N, [(i, (i + 1) % N, 1.0) for i in range(N)])
 
     assert len(essential[0]) == 1
     assert len(essential[1]) == 0
     assert len(pairings[0]) == 0
     assert len(pairings[1]) == 1
 
-    if with_reps:
-        return essential, pairings, reps
-    else:
-        return essential, pairings
+    return barcode
 
 
 N = 200
@@ -48,3 +44,5 @@ tic2 = time.time()
 do_cycle(N, with_reps=True)
 tic3 = time.time()
 print(f"With reps   : {tic3 - tic2}")
+
+do_complete(30)

@@ -1,0 +1,23 @@
+[project]
+name = "phlite-python-tests"
+version = "0.0.0"
+description = "Fuzz tests and benchmarks for phlite's Python bindings against reference implementations"
+# giotto-ph has no wheels after 3.12 and grpphati pins numpy<1.25 (no wheels after 3.11)
+requires-python = "==3.11.*"
+dependencies = [
+    "maturin>=1.9,<2.0",
+    "pytest>=8",
+    "hypothesis>=6.100",
+    "numpy",
+    "networkx",
+    "ripser",
+    "giotto-ph",
+    "grpphati",
+]
+
+[tool.uv]
+# phlite_grpph and phlite_rips are built into this environment by `maturin develop` (see justfile)
+package = false
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

@@ -1,8 +1,19 @@
 pub mod cohomology;
 pub mod homology;
+#[cfg(feature = "python")]
+mod python;
 
 use ordered_float::NotNan;
-use phlite::matrices::{BasisElement, SplitBasis};
+use phlite::{
+    barcode::{self, Algorithm, Bar},
+    fields::Z2,
+    matrices::{BasisElement, SplitBasis},
+};
+
+use crate::{
+    cohomology::build_rips_coboundary_matrix,
+    homology::{build_rips_boundary_matrix, RipsBoundary},
+};
 
 // TUTORIAL:
 // First we implement the types that index into our boundary an coboundary matrix
@@ -139,13 +150,15 @@ pub fn build_rips_bases(distances: &Vec<Vec<NotNan<f64>>>, max_dim: usize) -> Ri
             NotNan::new(0.0_f64).unwrap(),
             RipsIndex::from_indices(vec![v].into_iter(), n_points).unwrap(),
         ));
-        add_cofacets(
-            &mut bases,
-            &mut simplex,
-            NotNan::new(0 as f64).unwrap(),
-            distances,
-            max_dim,
-        );
+        if max_dim > 0 {
+            add_cofacets(
+                &mut bases,
+                &mut simplex,
+                NotNan::new(0 as f64).unwrap(),
+                distances,
+                max_dim,
+            );
+        }
     }
 
     for basis in bases.iter_mut() {
@@ -179,9 +192,80 @@ pub(crate) fn max_pairwise_distance(
 // TUTORIAL:
 // Now head over to homology.rs to implement the boundary matrix
 
+// ====== High-level API ============================================
+
+pub use phlite::barcode::Method;
+
+/// A bar in the Rips barcode, see [`phlite::barcode::Bar`].
+pub type RipsBar = Bar<RipsIndex, NotNan<f64>, Z2>;
+
+/// Whether every simplex of dimension at most `max_dim` on `n_points` points can be represented by a [`RipsIndex`].
+pub fn rips_index_fits(n_points: usize, max_dim: usize) -> bool {
+    u32::try_from(max_dim + 1)
+        .ok()
+        .and_then(|exponent| (n_points + 1).checked_pow(exponent))
+        .is_some()
+}
+
+/// Compute the Vietoris-Rips barcode of a distance matrix in dimensions `0..=max_dim`.
+///
+/// * `method` chooses between reducing the coboundary or boundary matrix.
+/// * `algorithm` is the reduction algorithm to use.
+/// * If `representatives` is true then every bar comes with a representative cycle.
+///
+/// Bars are returned in no particular order, and zero-length bars are included.
+///
+/// # Panics
+/// If the simplices needed do not fit in a [`RipsIndex`], see [`rips_index_fits`].
+pub fn rips_barcode(
+    distances: Vec<Vec<NotNan<f64>>>,
+    max_dim: usize,
+    method: Method,
+    algorithm: Algorithm<'_>,
+    representatives: bool,
+) -> Vec<RipsBar> {
+    let n_points = distances.len();
+    match (method, representatives) {
+        (Method::Cohomology, false) => {
+            assert!(rips_index_fits(n_points, max_dim));
+            let coboundary = build_rips_coboundary_matrix::<Z2>(distances, max_dim);
+            barcode::cohomology(&coboundary, algorithm)
+        }
+        (Method::Cohomology, true) => {
+            assert!(rips_index_fits(n_points, max_dim));
+            let boundary = RipsBoundary::<Z2>::new(distances.clone());
+            let coboundary = build_rips_coboundary_matrix::<Z2>(distances, max_dim);
+            barcode::cohomology_with_involution(&coboundary, boundary, algorithm)
+        }
+        (Method::Homology, _) => {
+            // Bars in dimension max_dim die at simplices of dimension max_dim + 1
+            assert!(rips_index_fits(n_points, max_dim + 1));
+            let boundary = build_rips_boundary_matrix::<Z2>(distances, max_dim + 1);
+            let mut bars = barcode::homology(&boundary, algorithm, representatives);
+            // Nothing can kill the top dimensional simplices, so they look essential but are not bars we computed
+            bars.retain(|bar| bar.birth.dimension(n_points) <= max_dim);
+            bars
+        }
+    }
+}
+
+#[cfg(feature = "python")]
+pyo3_stub_gen::define_stub_info_gatherer!(stub_info);
+
 #[cfg(test)]
 mod tests {
     use crate::RipsIndex;
+
+    #[test]
+    fn test_bases_with_max_dim_0() {
+        use ordered_float::NotNan;
+        use phlite::matrices::ColBasis;
+        let one = NotNan::new(1.0).unwrap();
+        let zero = NotNan::new(0.0).unwrap();
+        let basis = crate::build_rips_bases(&vec![vec![zero, one], vec![one, zero]], 0);
+        assert_eq!(basis.n_dimensions(), 1);
+        assert_eq!(basis.size(), 2);
+    }
 
     #[test]
     fn test_rips_index() {

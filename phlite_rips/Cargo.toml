@@ -6,19 +6,33 @@ edition = "2021"
 [lib]
 name = "phlite_rips"
 path = "src/lib.rs"
+# cdylib for the Python extension module (feature `python`), rlib for Rust users
+crate-type = ["cdylib", "rlib"]
 
 [[bin]]
 name = "phlite_rips_cli"
 path = "src/main.rs"
 
+[[bin]]
+name = "phlite_rips_stub_gen"
+path = "src/bin/stub_gen.rs"
+doc = false
+required-features = ["python"]
+
 [dependencies]
 csv = "1.4.0"
 ordered-float = "5.5.1"
 phlite = { version = "0.1.0", path = "../phlite", features = ["parallel"] }
+pyo3 = { version = "0.30.1", optional = true }
+pyo3-log = { version = "0.13.5", optional = true }
+pyo3-stub-gen = { version = "0.23.2", optional = true }
+phlite_pyutils = { path = "../phlite_pyutils", default-features = false, optional = true }
 
 [features]
 # Also build the lock-free backend of the parallel reduction (tests and benchmarks use it when enabled)
-lock-free = ["phlite/lock-free"]
+lock-free = ["phlite/lock-free", "phlite_pyutils?/lock-free"]
+# The `phlite_rips` Python extension module, built with maturin (see pyproject.toml)
+python = ["dep:pyo3", "dep:pyo3-log", "dep:pyo3-stub-gen", "dep:phlite_pyutils", "lock-free"]
 
 [dev-dependencies]
 rayon = "1.12.0"

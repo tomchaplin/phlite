@@ -1,18 +1,72 @@
 # phlite_grpph
 
 This library uses [`phlite`](https://github.com/tomchaplin/phlite) to compute grounded persistent path homology (GrPPH) [[1]](#1).
-We expose Python bindings to two python functions: `grpph` and `grpph_with_involution`.
 
-Both functions accept two arguments `nodes` and `edges`.
-The first, `nodes`, should be an integer: the number of nodes in your weighted digraph.
-The second, `edges`, should be a list of tuples `(i, j, w)` representing an edge from node `i` to node `j` with weight `w`.
+## Usage
 
-The first function returns two values: `essential` and `pairings`.
-The second function additionally returns `reps`.
-The first two return values are the GrPPH barcode.
-The `reps` return value is a list of cycle representatives: one for each finite feature in degree `1`.
+The Python module exposes a single function, `grpph`, which accepts either a [networkx](https://networkx.org/) digraph:
 
-For example usage, see `reps.py` and `example.py` or get in touch.
+```python
+import networkx as nx
+from phlite_grpph import grpph
+
+G = nx.DiGraph()
+G.add_weighted_edges_from([("a", "b", 1.0), ("b", "c", 1.0), ("c", "d", 1.0), ("d", "a", 1.0)])
+
+barcode = grpph(G, representatives=True)
+
+barcode.essential                 # essential[k]: births of the infinite bars in dimension k
+barcode.pairings                  # pairings[k]: (birth, death) of the finite bars in dimension k
+barcode.pairing_representatives   # pairing_representatives[k][i]: a cycle representing pairings[k][i]
+barcode.essential_representatives # essential_representatives[k][i]: a cycle representing essential[k][i]
+```
+
+or the number of nodes (labelled `0, ..., n - 1`) and a list of `(source, target, weight)` edges:
+
+```python
+barcode = grpph(4, [(0, 1, 1.0), (1, 2, 1.0), (2, 3, 1.0), (3, 0, 1.0)], representatives=True)
+```
+
+With networkx, weights are read from the `weight` attribute (change this with `weight="cost"`), defaulting to 1 when missing,
+and `MultiDiGraph`s are accepted (the lightest of parallel edges determines distances).
+Undirected graphs are rejected: pass `G.to_directed()` to get an edge each way.
+
+Representatives are lists of cells, each a tuple of nodes: `(a,)` for a node and `(a, b)` for an edge.
+With a networkx graph these are your node labels, otherwise node indices.
+They are `None` unless you pass `representatives=True`.
+Bars of length zero are omitted, and within each dimension bars are sorted by birth then death.
+
+Edge weights must be non-negative; an infinite weight means the edge is only used for grounding.
+Self-loops are not supported.
+
+The keyword-only arguments choose how the barcode is computed:
+
+| Argument | Values | Default |
+|---|---|---|
+| `method` | `'cohomology'`: reduce the coboundary matrix, computing representatives by involution. `'homology'`: reduce the boundary matrix (needs every 2-cell up front, so uses far more memory). | `'cohomology'` |
+| `algorithm` | `'standard'`, `'clearing'`, `'parallel'` (clearing, with each dimension reduced in parallel) or `'parallel-lock-free'` (the same, with lock-free data structures). | `'clearing'` |
+| `representatives` | Whether to compute a representative cycle for every bar. | `False` |
+| `threads` | Number of threads for the parallel algorithms. | all cores |
+
+The computation releases the GIL. For more examples see the `examples` folder.
+
+### Migrating from 0.1
+
+`grpph` now returns a `Barcode` object rather than a tuple, and `grpph_with_involution` has been removed:
+
+```python
+# 0.1
+essential, pairings = grpph(n, edges)
+essential, pairings, reps = grpph_with_involution(n, edges)
+# 0.2
+barcode = grpph(n, edges, representatives=True)
+essential, pairings = barcode.essential, barcode.pairings
+reps = barcode.pairing_representatives[1]
+```
+
+Note that in 0.1 `reps` was in no particular order, whereas `pairing_representatives[1]` lines up with `pairings[1]`.
+Representatives are now also available for essential bars and in dimension 0, and you can pass a networkx graph directly.
+Self-loops, negative or `NaN` weights and nodes outside `0, ..., n - 1` now raise a `ValueError`.
 
 ## Development
 

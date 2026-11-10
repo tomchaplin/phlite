@@ -1,6 +1,6 @@
 [package]
 name = "phlite_grpph"
-version = "0.1.1"
+version = "0.2.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -26,10 +26,13 @@ pyo3 = "0.30.1"
 pyo3-log = "0.13.5"
 rustc-hash = "2.1.3"
 pyo3-stub-gen = "0.23.2"
+phlite_pyutils = { path = "../phlite_pyutils", default-features = false }
 
 [features]
-# Also build the lock-free backend of the parallel reduction (tests and benchmarks use it when enabled)
-lock-free = ["phlite/lock-free"]
+default = ["lock-free"]
+# The lock-free backend of the parallel reduction (the 'parallel-lock-free' algorithm in Python)
+lock-free = ["phlite/lock-free", "phlite_pyutils/lock-free"]
+
 
 [dev-dependencies]
 rayon = "1.12.0"

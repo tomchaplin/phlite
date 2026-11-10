@@ -30,6 +30,7 @@
 //! As you can see, `phlite` takes a "bring your own `*`" approach where `*` matches matrix representation/basis representation/matrix index types/filtration types.
 //! To see an example implementation of Vietoris-Rips persitent homology, with a step-by-step tutorial, have a look at the [`phlite_rips`](https://github.com/tomchaplin/phlite/tree/main/phlite_rips) crate.
 
+pub mod barcode;
 pub mod columns;
 pub mod fields;
 pub mod matrices;

@@ -16,6 +16,30 @@ If you want to quickly test this out for say 100 points on a circle (using intri
 python circle_distance_matrix.py | cargo run --release
 ```
 
+## Python bindings
+
+The crate also builds a Python module, `phlite_rips` (with the `python` feature, via [maturin](https://www.maturin.rs/)):
+
+```python
+import numpy as np
+from phlite_rips import rips
+
+points = np.random.default_rng(0).normal(size=(50, 2))
+distances = np.linalg.norm(points[:, None] - points[None], axis=-1)
+
+barcode = rips(distances, max_dim=1, representatives=True)
+barcode.pairings[1]                 # (birth, death) of the finite H_1 bars
+barcode.pairing_representatives[1]  # a cycle (list of edges (a, b)) for each of them
+```
+
+`rips` takes the same keyword arguments (`method`, `algorithm`, `representatives` and `threads`) and returns the same `Barcode` type as [`phlite_grpph`](../phlite_grpph/README.md#usage).
+Representatives are lists of simplices, each a tuple of point indices in increasing order.
+An infinite distance means that edge never appears. See `examples/circle.py` for a full example.
+
+To build it you need [`just`](https://github.com/casey/just) and [`uv`](https://github.com/astral-sh/uv): run `just develop` and then `uv run --no-sync python ...`, or `just` to see all recipes.
+
+## Limitations
+
 Note this implementation does not have many of the optimisations of [Ripser](https://github.com/Ripser/ripser), including
 * apparent and emergent pairs
 * filtration truncation

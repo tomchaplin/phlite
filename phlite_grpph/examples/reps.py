@@ -1,4 +1,4 @@
-from phlite_grpph import grpph_with_involution
+from phlite_grpph import grpph
 import logging
 from pprint import pprint
 
@@ -6,7 +6,7 @@ FORMAT = "%(levelname)s %(name)s %(asctime)-15s %(filename)s:%(lineno)d %(messag
 logging.basicConfig(format=FORMAT)
 logging.getLogger().setLevel(logging.INFO)
 
-essential, pairings, reps = grpph_with_involution(
+barcode = grpph(
     6,
     [
         (0, 1, 10.0),
@@ -18,8 +18,12 @@ essential, pairings, reps = grpph_with_involution(
         (4, 5, 10.0),
         (5, 3, 5.0),
     ],
+    representatives=True,
 )
 
-print(essential)
-print(pairings)
-pprint(reps)
+print(barcode)
+print(barcode.essential)
+print(barcode.pairings)
+# Representatives line up with the bars: pairing_representatives[1][i] represents pairings[1][i]
+for bar, rep in zip(barcode.pairings[1], barcode.pairing_representatives[1]):
+    print(bar, rep)
