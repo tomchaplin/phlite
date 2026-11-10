@@ -322,6 +322,45 @@ pub trait HasRowFiltration: MatrixOracle {
         })
     }
 
+    /// The pivot of the column `col`: its largest non-zero entry, ordered by filtration value and then [`RowT`](MatrixOracle::RowT),
+    /// or `None` if the column is zero.
+    ///
+    /// The default implementation makes a single pass over [`column_with_filtration`](HasRowFiltration::column_with_filtration)
+    /// without allocating, summing the coefficients of any repeated rows.
+    /// Only if the largest row cancels out does it fall back to building the whole column with [`build_bhcol`](HasRowFiltration::build_bhcol).
+    ///
+    /// The reduction algorithms call this for every column, and most columns need no further work
+    /// (their pivot is not yet claimed), so you may wish to override it if you can find the pivot without visiting every entry.
+    fn column_pivot(
+        &self,
+        col: Self::ColT,
+    ) -> Option<ColumnEntry<Self::FiltrationT, Self::RowT, Self::CoefficientField>> {
+        // The largest entry seen so far, and the summed coefficient of every entry in its row (None if they cancel)
+        let mut best: Option<ColumnEntry<Self::FiltrationT, Self::RowT, Self::CoefficientField>> =
+            None;
+        let mut sum: Option<Self::CoefficientField> = None;
+        for entry in self.column_with_filtration(col.clone()) {
+            let ordering = best.as_ref().map(|current| entry.cmp(current));
+            match ordering {
+                Some(std::cmp::Ordering::Less) => {}
+                Some(std::cmp::Ordering::Equal) => sum = entry.coeff + sum,
+                Some(std::cmp::Ordering::Greater) | None => {
+                    sum = Some(entry.coeff);
+                    best = Some(entry);
+                }
+            }
+        }
+        match (best, sum) {
+            (None, _) => None,
+            (Some(mut entry), Some(coeff)) => {
+                entry.coeff = coeff;
+                Some(entry)
+            }
+            // The largest row cancelled, so the pivot is further down
+            (Some(_), None) => self.build_bhcol(col).pop_pivot(),
+        }
+    }
+
     /// Initialise an empty binary heap that can accept entries from this matrix.
     /// Mostly an implementation detail of [`build_bhcol`](HasRowFiltration::build_bhcol).
     fn empty_bhcol(&self) -> BHCol<Self::FiltrationT, Self::RowT, Self::CoefficientField> {
