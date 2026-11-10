@@ -1049,12 +1049,17 @@ where
         self.matrix.column_min(col)
     }
 
+    // Use the matrix's own (presumably faster) implementation if it has one, otherwise scan the transpose
     fn first_column_in_row(&self, row: Self::RowT) -> Option<Self::ColT> {
-        self.extreme_column_in_row(row, false)
+        self.matrix
+            .first_column_in_row(row.clone())
+            .or_else(|| self.extreme_column_in_row(row, false))
     }
 
     fn last_column_in_row(&self, row: Self::RowT) -> Option<Self::ColT> {
-        self.extreme_column_in_row(row, true)
+        self.matrix
+            .last_column_in_row(row.clone())
+            .or_else(|| self.extreme_column_in_row(row, true))
     }
 }
 

@@ -2,7 +2,7 @@ use std::marker::PhantomData;
 
 use ordered_float::NotNan;
 
-use crate::{build_rips_bases_with_threshold, RipsIndex, Vertices};
+use crate::{build_rips_bases_with_threshold, youngest_facet, RipsIndex, Vertices};
 use phlite::{
     columns::ColumnEntry,
     fields::{Invertible, NonZeroCoefficient},
@@ -185,45 +185,60 @@ impl<CF: NonZeroCoefficient + Invertible> HasRowFiltration for RipsCoboundary<CF
     }
 
     // The pivot of the anti-transpose (which is what we reduce) is the smallest entry of the coboundary.
-    // Cofacets are produced in increasing index order and none can appear before the simplex itself,
-    // so the first cofacet with the same diameter as the simplex is the smallest and we can stop there.
-    // In Rips filtrations most pairs have zero persistence, so this usually stops early.
     fn column_min(
         &self,
         col: Self::ColT,
     ) -> Option<ColumnEntry<Self::FiltrationT, Self::RowT, Self::CoefficientField>> {
-        let n_points = self.n_points();
-        let col_vertices = col.vertices(n_points);
-        let diameter = col_vertices.diameter(&self.distances);
-        let mut best: Option<ColumnEntry<Self::FiltrationT, Self::RowT, Self::CoefficientField>> =
-            None;
-        for (coeff, row_index, inserted_vertex) in CoboundaryIterator::new(col, n_points) {
-            let filtration_value = col_vertices
-                .iter()
-                .map(|v| self.distances[*v][inserted_vertex])
-                .max()
-                .unwrap()
-                .max(diameter);
-            if filtration_value > self.threshold {
-                continue;
-            }
-            // On ties keep the earlier, smaller, index
-            if best
-                .as_ref()
-                .is_none_or(|current| filtration_value < current.filtration_value)
-            {
-                best = Some(ColumnEntry {
-                    filtration_value,
-                    row_index,
-                    coeff,
-                });
-                if filtration_value == diameter {
-                    break;
-                }
+        oldest_cofacet(&self.distances, self.threshold, col)
+    }
+
+    // Row tau has entries in the columns of its facets, so the last is its youngest facet.
+    // This is what detects apparent pairs in the anti-transpose (which reverses the order).
+    fn last_column_in_row(&self, row: Self::RowT) -> Option<Self::ColT> {
+        youngest_facet(row, &self.distances).map(|(_diameter, facet)| facet)
+    }
+}
+
+/// The oldest cofacet of `simplex` (smallest in (diameter, index) order) with diameter at most `threshold`, as a coboundary entry.
+///
+/// Cofacets are produced in increasing index order and none can appear before the simplex itself,
+/// so the first cofacet with the same diameter as the simplex is the oldest and we can stop there.
+/// In Rips filtrations most pairs have zero persistence, so this usually stops early.
+pub(crate) fn oldest_cofacet<CF: NonZeroCoefficient>(
+    distances: &[Vec<NotNan<f64>>],
+    threshold: NotNan<f64>,
+    simplex: RipsIndex,
+) -> Option<ColumnEntry<NotNan<f64>, RipsIndex, CF>> {
+    let n_points = distances.len();
+    let vertices = simplex.vertices(n_points);
+    let diameter = vertices.diameter(distances);
+    let mut best: Option<ColumnEntry<NotNan<f64>, RipsIndex, CF>> = None;
+    for (coeff, row_index, inserted_vertex) in CoboundaryIterator::new(simplex, n_points) {
+        let filtration_value = vertices
+            .iter()
+            .map(|v| distances[*v][inserted_vertex])
+            .max()
+            .unwrap()
+            .max(diameter);
+        if filtration_value > threshold {
+            continue;
+        }
+        // On ties keep the earlier, smaller, index
+        if best
+            .as_ref()
+            .is_none_or(|current| filtration_value < current.filtration_value)
+        {
+            best = Some(ColumnEntry {
+                filtration_value,
+                row_index,
+                coeff,
+            });
+            if filtration_value == diameter {
+                break;
             }
         }
-        best
     }
+    best
 }
 
 pub type RipsCoboundaryAllDims<CF> = MatrixWithBasis<RipsCoboundary<CF>, RipsBasis>;
@@ -432,6 +447,44 @@ mod tests {
             }
         }
         assert_eq!(checked, 9 + 36 + 84 + 126);
+    }
+
+    /// The early-stopping first/last column lookups (which find apparent pairs) must agree with brute force
+    #[test]
+    fn test_first_last_column_in_row_match_brute_force() {
+        use crate::homology::RipsBoundary;
+        use phlite::matrices::{ColBasis, HasSplitColBasis};
+        let n = 7;
+        let ties: Vec<Vec<NotNan<f64>>> = (0..n)
+            .map(|i| (0..n).map(|j| NotNan::new(if i == j { 0.0 } else { ((i * j + i + j) % 4) as f64 }).unwrap()).collect())
+            .collect();
+        for dists in [ties, distance_matrix()] {
+            for threshold in [f64::INFINITY, 2.0] {
+                let threshold = NotNan::new(threshold).unwrap();
+                let coboundary = super::build_rips_coboundary_matrix_with_threshold::<Z2>(dists.clone(), 3, threshold);
+                let boundary = RipsBoundary::<Z2>::new(dists.clone()).with_threshold(threshold);
+                for dim in 0..=3 {
+                    let basis = coboundary.sub_basis(dim);
+                    for i in 0..basis.size() {
+                        let simplex = basis.element(i);
+                        // Row `simplex` of the coboundary has entries in its facets' columns
+                        let youngest_facet = boundary
+                            .column(simplex)
+                            .map(|(_, facet)| (coboundary.matrix.filtration_value(facet), facet))
+                            .max()
+                            .map(|(_, facet)| facet);
+                        assert_eq!(coboundary.matrix.last_column_in_row(simplex), youngest_facet, "{simplex:?}");
+                        // Row `simplex` of the boundary has entries in its cofacets' columns
+                        let oldest_cofacet = coboundary
+                            .matrix
+                            .column_with_filtration(simplex)
+                            .min()
+                            .map(|entry| entry.row_index);
+                        assert_eq!(boundary.first_column_in_row(simplex), oldest_cofacet, "{simplex:?}");
+                    }
+                }
+            }
+        }
     }
 
     /// `column_min` stops early, relying on cofacets coming out in increasing index order; check it against brute force

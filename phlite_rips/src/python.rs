@@ -2,6 +2,7 @@
 //!
 //! The `Barcode` type and argument handling are shared with the other bindings, see [`phlite_pyutils`].
 
+use numpy::{PyArray2, PyArrayMethods, PyUntypedArray, PyUntypedArrayMethods};
 use ordered_float::NotNan;
 use phlite_pyutils::{add_barcode_class, parse_method, AlgorithmArg, Barcode, SortedBars};
 use pyo3::{exceptions::PyValueError, prelude::*};
@@ -11,38 +12,87 @@ use crate::{rips_barcode, rips_index_fits};
 
 // ====== The entry point ==================================================
 
-fn validate(distance_matrix: &[Vec<f64>]) -> PyResult<Vec<Vec<NotNan<f64>>>> {
-    let n = distance_matrix.len();
-    for (i, row) in distance_matrix.iter().enumerate() {
-        if row.len() != n {
-            return Err(PyValueError::new_err(format!(
-                "distance_matrix must be square, but row {i} has length {} rather than {n}",
-                row.len()
-            )));
+/// Check the `n` by `n` matrix with entries `get(i, j)` is a valid distance matrix, and convert it.
+fn validate(n: usize, get: impl Fn(usize, usize) -> f64) -> PyResult<Vec<Vec<NotNan<f64>>>> {
+    (0..n)
+        .map(|i| {
+            (0..n)
+                .map(|j| {
+                    let d = get(i, j);
+                    if d.is_nan() || d < 0.0 {
+                        return Err(PyValueError::new_err(format!(
+                            "distance_matrix[{i}][{j}] is {d}, distances must be non-negative (or infinite)"
+                        )));
+                    }
+                    if d != get(j, i) {
+                        return Err(PyValueError::new_err(format!(
+                            "distance_matrix must be symmetric, but entries ({i}, {j}) and ({j}, {i}) differ"
+                        )));
+                    }
+                    Ok(NotNan::new(d).unwrap())
+                })
+                .collect()
+        })
+        .collect()
+}
+
+fn check_square(rows: usize, cols: usize) -> PyResult<()> {
+    if rows != cols {
+        return Err(PyValueError::new_err(format!(
+            "distance_matrix must be square, but has shape ({rows}, {cols})"
+        )));
+    }
+    Ok(())
+}
+
+/// Read and validate the distance matrix.
+/// A float64 or float32 numpy array is read directly; anything else (lists, other dtypes) is read as a sequence of sequences.
+fn read_distances(distance_matrix: &Bound<'_, PyAny>) -> PyResult<Vec<Vec<NotNan<f64>>>> {
+    // Only try the numpy path for numpy's own types, so that numpy needn't be installed
+    let from_numpy = distance_matrix
+        .get_type()
+        .module()
+        .is_ok_and(|module| module.to_cow().is_ok_and(|m| m == "numpy"));
+    if from_numpy {
+        if let Ok(array) = distance_matrix.cast::<PyArray2<f64>>() {
+            let array = array.readonly();
+            let array = array.as_array();
+            check_square(array.nrows(), array.ncols())?;
+            return validate(array.nrows(), |i, j| array[[i, j]]);
         }
-        for (j, &d) in row.iter().enumerate() {
-            if d.is_nan() || d < 0.0 {
+        if let Ok(array) = distance_matrix.cast::<PyArray2<f32>>() {
+            let array = array.readonly();
+            let array = array.as_array();
+            check_square(array.nrows(), array.ncols())?;
+            return validate(array.nrows(), |i, j| array[[i, j]] as f64);
+        }
+        if let Ok(array) = distance_matrix.cast::<PyUntypedArray>() {
+            if array.ndim() != 2 {
                 return Err(PyValueError::new_err(format!(
-                    "distance_matrix[{i}][{j}] is {d}, distances must be non-negative (or infinite)"
-                )));
-            }
-            if d != distance_matrix[j][i] {
-                return Err(PyValueError::new_err(format!(
-                    "distance_matrix must be symmetric, but entries ({i}, {j}) and ({j}, {i}) differ"
+                    "distance_matrix must be 2-dimensional, but has {} dimensions",
+                    array.ndim()
                 )));
             }
         }
     }
-    Ok(distance_matrix
-        .iter()
-        .map(|row| row.iter().map(|&d| NotNan::new(d).unwrap()).collect())
-        .collect())
+    let rows: Vec<Vec<f64>> = distance_matrix.extract()?;
+    for (i, row) in rows.iter().enumerate() {
+        check_square(rows.len(), row.len()).map_err(|_| {
+            PyValueError::new_err(format!(
+                "distance_matrix must be square, but row {i} has length {} rather than {}",
+                row.len(),
+                rows.len()
+            ))
+        })?;
+    }
+    validate(rows.len(), |i, j| rows[i][j])
 }
 
 /// Compute the Vietoris-Rips persistent homology of a distance matrix, in dimensions `0, ..., max_dim`.
 ///
 /// Args:
-///     distance_matrix: A symmetric matrix of pairwise distances, e.g. a list of lists or a 2D numpy array.
+///     distance_matrix: A symmetric matrix of pairwise distances: a 2D numpy array (float64 and float32 arrays are read
+///         directly, without converting each entry through Python), or a sequence of sequences of floats.
 ///         Distances must be non-negative. An infinite distance means the edge never appears. The diagonal is ignored.
 ///     max_dim: The maximum homology dimension to compute.
 ///     threshold: Only build the Rips complex up to this diameter (default: no limit).
@@ -66,7 +116,8 @@ fn validate(distance_matrix: &[Vec<f64>]) -> PyResult<Vec<Vec<NotNan<f64>>>> {
 #[allow(clippy::too_many_arguments)]
 fn rips(
     py: Python<'_>,
-    distance_matrix: Vec<Vec<f64>>,
+    #[gen_stub(override_type(type_repr = "typing.Union[numpy.typing.NDArray[numpy.floating], typing.Sequence[typing.Sequence[builtins.float]]]", imports = ("builtins", "numpy", "numpy.typing", "typing")))]
+    distance_matrix: &Bound<'_, PyAny>,
     max_dim: usize,
     threshold: Option<f64>,
     #[gen_stub(override_type(type_repr = "typing.Literal['cohomology', 'homology']", imports = ("typing")))]
@@ -76,14 +127,13 @@ fn rips(
     representatives: bool,
     threads: Option<usize>,
 ) -> PyResult<Barcode> {
-    let distances = validate(&distance_matrix)?;
+    let distances = read_distances(distance_matrix)?;
     let threshold = match threshold {
         None => NotNan::new(f64::INFINITY).unwrap(),
         Some(t) => {
             NotNan::new(t).map_err(|_| PyValueError::new_err("threshold must not be NaN"))?
         }
     };
-    drop(distance_matrix);
     let method = parse_method(method)?;
     let algorithm = AlgorithmArg::parse(algorithm)?;
     let n_points = distances.len();
