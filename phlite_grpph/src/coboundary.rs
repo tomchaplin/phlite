@@ -13,11 +13,44 @@ use phlite::{
     matrices::{BasisElement, ColBasis, HasRowFiltration, MatrixOracle, SplitBasis},
 };
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+/// Cells are ordered as if `Ord` were derived (by variant, in declaration order, then by fields),
+/// but comparisons go through [`key`](PathHomCell::key), since the reductions spend much of their time comparing cells.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum PathHomCell {
     Node(u16),
     Edge(u16, u16),
     TwoCell(PathHom2Cell),
+}
+
+impl PathHomCell {
+    /// A key whose order is the order on cells: the variant (with the variants of [`PathHom2Cell`] after
+    /// [`Edge`](PathHomCell::Edge)) in the top bits, then the vertices in order (padded with zeros).
+    #[inline]
+    fn key(&self) -> u128 {
+        let (variant, vertices): (u128, [u16; 4]) = match *self {
+            PathHomCell::Node(a) => (0, [a, 0, 0, 0]),
+            PathHomCell::Edge(a, b) => (1, [a, b, 0, 0]),
+            PathHomCell::TwoCell(PathHom2Cell::DoubleEdge(a, b)) => (2, [a, b, 0, 0]),
+            PathHomCell::TwoCell(PathHom2Cell::DirectedTriangle(a, b, c)) => (3, [a, b, c, 0]),
+            PathHomCell::TwoCell(PathHom2Cell::LongSquare(a, b, c, d)) => (4, [a, b, c, d]),
+        };
+        let [a, b, c, d] = vertices.map(u128::from);
+        (variant << 64) | (a << 48) | (b << 32) | (c << 16) | d
+    }
+}
+
+impl PartialOrd for PathHomCell {
+    #[inline]
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for PathHomCell {
+    #[inline]
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.key().cmp(&other.key())
+    }
 }
 
 impl PathHomCell {
@@ -632,6 +665,66 @@ mod tests {
 
         println!("Size of cell: {}", mem::size_of::<PathHomCell>());
         assert_eq!(mem::size_of::<PathHomCell>(), 10);
+    }
+
+    /// The hand-written order on [`PathHomCell`] must be the one `derive(Ord)` would give
+    #[test]
+    fn test_cell_order_matches_derived() {
+        use super::PathHom2Cell;
+        #[derive(PartialEq, Eq, PartialOrd, Ord, Debug)]
+        enum Derived2 {
+            DoubleEdge(u16, u16),
+            DirectedTriangle(u16, u16, u16),
+            LongSquare(u16, u16, u16, u16),
+        }
+        #[derive(PartialEq, Eq, PartialOrd, Ord, Debug)]
+        enum Derived {
+            Node(u16),
+            Edge(u16, u16),
+            TwoCell(Derived2),
+        }
+        fn derived(cell: PathHomCell) -> Derived {
+            match cell {
+                PathHomCell::Node(a) => Derived::Node(a),
+                PathHomCell::Edge(a, b) => Derived::Edge(a, b),
+                PathHomCell::TwoCell(PathHom2Cell::DoubleEdge(a, b)) => {
+                    Derived::TwoCell(Derived2::DoubleEdge(a, b))
+                }
+                PathHomCell::TwoCell(PathHom2Cell::DirectedTriangle(a, b, c)) => {
+                    Derived::TwoCell(Derived2::DirectedTriangle(a, b, c))
+                }
+                PathHomCell::TwoCell(PathHom2Cell::LongSquare(a, b, c, d)) => {
+                    Derived::TwoCell(Derived2::LongSquare(a, b, c, d))
+                }
+            }
+        }
+        // Vertices from a small set (so that ties are common), including the extremes
+        let vertices = [0, 1, 2, 3, 255, 256, u16::MAX - 1, u16::MAX];
+        let mut state = 1u64;
+        let mut next = move || {
+            state = state
+                .wrapping_mul(6364136223846793005)
+                .wrapping_add(1442695040888963407);
+            (state >> 33) as usize
+        };
+        let mut cells = vec![];
+        for _ in 0..2000 {
+            let variant = next() % 5;
+            let [a, b, c, d] = [(); 4].map(|()| vertices[next() % vertices.len()]);
+            let cell = match variant {
+                0 => PathHomCell::Node(a),
+                1 => PathHomCell::Edge(a, b),
+                2 => PathHomCell::TwoCell(PathHom2Cell::DoubleEdge(a, b)),
+                3 => PathHomCell::TwoCell(PathHom2Cell::DirectedTriangle(a, b, c)),
+                _ => PathHomCell::TwoCell(PathHom2Cell::LongSquare(a, b, c, d)),
+            };
+            cells.push(cell);
+        }
+        for x in &cells {
+            for y in cells.iter().take(300) {
+                assert_eq!(x.cmp(y), derived(*x).cmp(&derived(*y)), "{x:?} vs {y:?}");
+            }
+        }
     }
 
     /// A random digraph on `n` vertices, each edge present with probability `p`, with integer weights in 1..=5
