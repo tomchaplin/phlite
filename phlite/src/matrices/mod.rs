@@ -52,11 +52,11 @@ use crate::{
     fields::NonZeroCoefficient,
 };
 
-pub use self::bases::{BasisSlice, SplitBasis};
 use self::adaptors::{
     MatrixWithBasis, ReverseBasis, ReverseMatrix, UnreverseBasis, UnreverseMatrix,
     UsingColBasisIndex, WithFuncFiltration, WithSubBasis, WithTranspose, WithTrivialFiltration,
 };
+pub use self::bases::{BasisSlice, SplitBasis};
 
 pub mod adaptors;
 pub mod bases;
@@ -203,7 +203,11 @@ pub trait MatrixOracle {
     fn with_transpose<T>(self, transpose: T) -> WithTranspose<Self, T>
     where
         Self: Sized,
-        T: MatrixOracle<CoefficientField = Self::CoefficientField, ColT = Self::RowT, RowT = Self::ColT>,
+        T: MatrixOracle<
+            CoefficientField = Self::CoefficientField,
+            ColT = Self::RowT,
+            RowT = Self::ColT,
+        >,
     {
         WithTranspose {
             matrix: self,
@@ -384,7 +388,8 @@ pub trait HasRowFiltration: MatrixOracle {
         let mut best: Option<ColumnEntry<Self::FiltrationT, Self::RowT, Self::CoefficientField>> =
             None;
         let mut sum: Option<Self::CoefficientField> = None;
-        for entry in self.column_with_filtration(col.clone()) {
+        // Internal iteration, see `BHCol::add_entries`
+        self.column_with_filtration(col.clone()).for_each(|entry| {
             let ordering = best.as_ref().map(|current| entry.cmp(current));
             match ordering {
                 Some(std::cmp::Ordering::Less) => {}
@@ -394,7 +399,7 @@ pub trait HasRowFiltration: MatrixOracle {
                     best = Some(entry);
                 }
             }
-        }
+        });
         match (best, sum) {
             (None, _) => None,
             (Some(mut entry), Some(coeff)) => {
@@ -421,7 +426,8 @@ pub trait HasRowFiltration: MatrixOracle {
         let mut best: Option<ColumnEntry<Self::FiltrationT, Self::RowT, Self::CoefficientField>> =
             None;
         let mut sum: Option<Self::CoefficientField> = None;
-        for entry in self.column_with_filtration(col.clone()) {
+        // Internal iteration, see `BHCol::add_entries`
+        self.column_with_filtration(col.clone()).for_each(|entry| {
             let ordering = best.as_ref().map(|current| entry.cmp(current));
             match ordering {
                 Some(std::cmp::Ordering::Greater) => {}
@@ -431,7 +437,7 @@ pub trait HasRowFiltration: MatrixOracle {
                     best = Some(entry);
                 }
             }
-        }
+        });
         match (best, sum) {
             (None, _) => None,
             (Some(mut entry), Some(coeff)) => {

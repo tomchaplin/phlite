@@ -6,7 +6,11 @@ use crate::{
     fields::NonZeroCoefficient,
     matrices::{BasisElement, FiltrationValue},
 };
-use std::{collections::BinaryHeap, fmt::Debug, iter::repeat, ops::Mul};
+use std::{fmt::Debug, iter::repeat, ops::Mul};
+
+/// The heap behind [`BHCol`]: a 4-ary heap, which has half the depth of a binary heap and keeps each node's children
+/// together in memory, so large columns (whose heaps don't fit in cache) need fewer memory accesses per push and pop.
+type Heap<T> = dary_heap::QuaternaryHeap<T>;
 
 #[derive(Clone, Copy)]
 /// Represents an entry in a column of a matrix (or alternatively a term in a linear combination).
@@ -97,18 +101,18 @@ impl<FilT: FiltrationValue, RowT: BasisElement, CF: NonZeroCoefficient> Mul<CF>
 }
 
 #[derive(Clone)]
-/// Represents a column in a matrix where each [`ColumnEntry`] is stored in a [`BinaryHeap`].
+/// Represents a column in a matrix where each [`ColumnEntry`] is stored in a heap (a 4-ary heap, see `dary_heap`).
 /// The order of terms in this heap is determined by the filtration value and then the row index.
 ///
 /// Since the same row index my appear more than once in the heap, it is more accurate to say that this represents a linear combination of elements in the row basis.
-/// Terms are stored in a binary heap to allow efficient access to the leading term, otherwise known as the column pivot.
+/// Terms are stored in a heap to allow efficient access to the leading term, otherwise known as the column pivot.
 ///
 /// One should typically construct a [`BHCol`] by calling [`build_bhcol`](crate::matrices::HasRowFiltration::build_bhcol) or [`empty_bhcol`](crate::matrices::HasRowFiltration::empty_bhcol).
 /// To add columns into the heap, one should probably call [`column_with_filtration`](crate::matrices::HasRowFiltration::column_with_filtration) and pass the resulting iterator to [`add_entries`](BHCol::add_entries).
 /// Note, your matrix must implement [`HasRowFiltration`](crate::matrices::HasRowFiltration) in order to do this.
 /// Consider using [`with_trivial_filtration`](crate::matrices::MatrixOracle::with_trivial_filtration) if you have no filtration that you care about (e.g. you are computing non-persistent homology).
 pub struct BHCol<FilT: FiltrationValue, RowT: BasisElement, CF> {
-    heap: BinaryHeap<ColumnEntry<FilT, RowT, CF>>,
+    heap: Heap<ColumnEntry<FilT, RowT, CF>>,
 }
 
 impl<FilT: FiltrationValue, RowT: BasisElement, CF> Debug for BHCol<FilT, RowT, CF>
@@ -123,7 +127,7 @@ where
 impl<FilT: FiltrationValue, RowT: BasisElement, CF> Default for BHCol<FilT, RowT, CF> {
     fn default() -> Self {
         Self {
-            heap: BinaryHeap::default(),
+            heap: Heap::default(),
         }
     }
 }
@@ -142,10 +146,9 @@ impl<FilT: FiltrationValue, RowT: BasisElement, CF> BHCol<FilT, RowT, CF> {
         let entries = entries.into_iter();
         let (lower_bound, _) = entries.size_hint();
         self.heap.reserve(lower_bound);
-        for entry in entries {
-            self.add_entry(entry);
-        }
-        //self.add_tuples(entries.into_iter().map(Into::into));
+        // Internal iteration (rather than a `for` loop) lets chained/flattened iterators, which oracles often return,
+        // run their own efficient fold instead of re-checking every adaptor on each `next`
+        entries.for_each(|entry| self.add_entry(entry));
     }
 
     /// Convert tuple into [`ColumnEntry`]s and then pass to [`add_entry`](BHCol::add_entry).

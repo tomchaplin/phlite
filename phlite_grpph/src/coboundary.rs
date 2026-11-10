@@ -500,6 +500,24 @@ where
             IterEnum::B(iter) => iter.next(),
         }
     }
+
+    // Delegate so that the inner (chained, flattened) iterators can use their own efficient fold
+    fn fold<Acc, G>(self, init: Acc, f: G) -> Acc
+    where
+        G: FnMut(Acc, Self::Item) -> Acc,
+    {
+        match self {
+            IterEnum::A(iter) => iter.fold(init, f),
+            IterEnum::B(iter) => iter.fold(init, f),
+        }
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        match self {
+            IterEnum::A(iter) => iter.size_hint(),
+            IterEnum::B(iter) => iter.size_hint(),
+        }
+    }
 }
 
 impl<'a, CF: NonZeroCoefficient, F: DigraphFiltration> HasRowFiltration

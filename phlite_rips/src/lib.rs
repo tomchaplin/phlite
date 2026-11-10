@@ -114,8 +114,16 @@ impl RipsIndex {
     }
 }
 
-/// A simplex has at most this many vertices: an index has one base-(n + 1) digit per vertex, with n + 1 >= 2, and fits in a `usize`.
-const MAX_VERTICES: usize = usize::BITS as usize;
+/// A simplex has at most this many vertices.
+///
+/// A simplex with `k` vertices needs `n >= k` points, so its index is at least `k (k + 1)^(k - 1)`
+/// (the vertices `0, ..., k - 1` as base-`(k + 1)` digits); for that to fit in a `usize` we need `k <= 15` (64-bit) or `k <= 9` (32-bit).
+/// Keeping the buffer small matters, since [`Vertices`] is copied around a lot.
+pub(crate) const MAX_VERTICES: usize = 16;
+const _: () = assert!(
+    MAX_VERTICES >= 15,
+    "Vertices must hold the largest simplex whose index fits in 64 bits"
+);
 
 /// The vertices of a simplex, in increasing order, stored on the stack (see [`RipsIndex::vertices`]).
 #[derive(Clone, Copy)]
@@ -270,13 +278,22 @@ pub(crate) fn youngest_facet(
     simplex: RipsIndex,
     distances: &[Vec<NotNan<f64>>],
 ) -> Option<(NotNan<f64>, RipsIndex)> {
-    let n_points = distances.len();
-    let radix = n_points + 1;
-    let vertices = simplex.vertices(n_points);
+    let vertices = simplex.vertices(distances.len());
+    let diameter = vertices.diameter(distances);
+    youngest_facet_given(simplex, &vertices, diameter, distances)
+}
+
+/// As [`youngest_facet`], when the vertices and diameter of `simplex` are already known
+fn youngest_facet_given(
+    simplex: RipsIndex,
+    vertices: &Vertices,
+    diameter: NotNan<f64>,
+    distances: &[Vec<NotNan<f64>>],
+) -> Option<(NotNan<f64>, RipsIndex)> {
+    let radix = distances.len() + 1;
     if vertices.len() < 2 {
         return None;
     }
-    let diameter = vertices.diameter(distances);
     let index = simplex.0;
     let mut best: Option<(NotNan<f64>, RipsIndex)> = None;
     let mut place = 1usize;
@@ -336,24 +353,42 @@ pub fn in_zero_apparent_pair(
     threshold: NotNan<f64>,
     check_cofacets: bool,
 ) -> bool {
-    let diameter = simplex.vertices(distances.len()).diameter(distances);
+    // Decode each simplex and compute its diameter only once
+    let n_points = distances.len();
+    let vertices = simplex.vertices(n_points);
+    let diameter = vertices.diameter(distances);
     // The birth: its oldest cofacet has the same diameter, and it is that cofacet's youngest facet
     if check_cofacets {
-        if let Some(cofacet) = cohomology::oldest_cofacet::<Z2>(distances, threshold, simplex) {
-            if cofacet.filtration_value == diameter
-                && youngest_facet(cofacet.row_index, distances).map(|(_, facet)| facet) == Some(simplex)
-            {
-                return true;
+        let cofacet = cohomology::oldest_cofacet_given::<Z2>(
+            distances, threshold, simplex, vertices, diameter,
+        );
+        if let Some(cofacet) = cofacet {
+            if cofacet.filtration_value == diameter {
+                let cofacet_vertices = cofacet.row_index.vertices(n_points);
+                let youngest =
+                    youngest_facet_given(cofacet.row_index, &cofacet_vertices, diameter, distances);
+                if youngest.map(|(_, facet)| facet) == Some(simplex) {
+                    return true;
+                }
             }
         }
     }
     // The death: its youngest facet has the same diameter, and it is that facet's oldest cofacet
-    if let Some((facet_diameter, facet)) = youngest_facet(simplex, distances) {
-        if facet_diameter == diameter
-            && cohomology::oldest_cofacet::<Z2>(distances, threshold, facet).map(|entry| entry.row_index)
-                == Some(simplex)
-        {
-            return true;
+    if let Some((facet_diameter, facet)) =
+        youngest_facet_given(simplex, &vertices, diameter, distances)
+    {
+        if facet_diameter == diameter {
+            let facet_vertices = facet.vertices(n_points);
+            let oldest = cohomology::oldest_cofacet_given::<Z2>(
+                distances,
+                threshold,
+                facet,
+                facet_vertices,
+                facet_diameter,
+            );
+            if oldest.map(|entry| entry.row_index) == Some(simplex) {
+                return true;
+            }
         }
     }
     false
@@ -419,12 +454,16 @@ pub fn build_reduction_bases(
         } else {
             simplices.sort_unstable();
         }
-        simplices.into_iter().map(|(_, simplex)| simplex).collect::<Vec<_>>()
+        simplices
+            .into_iter()
+            .map(|(_, simplex)| simplex)
+            .collect::<Vec<_>>()
     };
 
     // All the simplices of the current dimension (needed to generate the next), then those we keep
-    let mut all: Vec<(NotNan<f64>, RipsIndex)> =
-        (0..distances.len()).map(|v| (zero, RipsIndex(v + 1))).collect();
+    let mut all: Vec<(NotNan<f64>, RipsIndex)> = (0..distances.len())
+        .map(|v| (zero, RipsIndex(v + 1)))
+        .collect();
     let mut dims = vec![];
     for dim in 0..=max_dim {
         let kept: Vec<_> = if parallel {
@@ -442,9 +481,15 @@ pub fn build_reduction_bases(
         if dim + 1 == max_dim {
             // Generate and filter the top dimension in one go, so that it is never stored in full
             let kept: Vec<_> = if parallel {
-                all.par_iter().flat_map_iter(generate).filter(keep(max_dim)).collect()
+                all.par_iter()
+                    .flat_map_iter(generate)
+                    .filter(keep(max_dim))
+                    .collect()
             } else {
-                all.iter().flat_map(generate).filter(keep(max_dim)).collect()
+                all.iter()
+                    .flat_map(generate)
+                    .filter(keep(max_dim))
+                    .collect()
             };
             dims.push(sorted_indices(kept));
             break;
@@ -717,29 +762,62 @@ mod tests {
     /// The reduction bases are the full bases minus the zero-persistence apparent pairs, built the same way in parallel
     #[test]
     fn reduction_bases_omit_exactly_zero_apparent_pairs() {
-        use crate::{build_reduction_bases, build_rips_bases_with_threshold, in_zero_apparent_pair};
+        use crate::{
+            build_reduction_bases, build_rips_bases_with_threshold, in_zero_apparent_pair,
+        };
         use ordered_float::NotNan;
         use phlite::matrices::{ColBasis, SplitByDimension};
-        let points: Vec<(f64, f64)> = (0..14).map(|i| (((i * 7) % 11) as f64, ((i * 5) % 13) as f64)).collect();
+        let points: Vec<(f64, f64)> = (0..14)
+            .map(|i| (((i * 7) % 11) as f64, ((i * 5) % 13) as f64))
+            .collect();
         let euclidean: Vec<Vec<NotNan<f64>>> = points
             .iter()
-            .map(|a| points.iter().map(|b| NotNan::new(((a.0 - b.0).powi(2) + (a.1 - b.1).powi(2)).sqrt()).unwrap()).collect())
+            .map(|a| {
+                points
+                    .iter()
+                    .map(|b| {
+                        NotNan::new(((a.0 - b.0).powi(2) + (a.1 - b.1).powi(2)).sqrt()).unwrap()
+                    })
+                    .collect()
+            })
             .collect();
         let ties: Vec<Vec<NotNan<f64>>> = (0..9)
-            .map(|i| (0..9).map(|j| NotNan::new(if i == j { 0.0 } else { ((i * j + i + j) % 3) as f64 }).unwrap()).collect())
+            .map(|i| {
+                (0..9)
+                    .map(|j| {
+                        NotNan::new(if i == j {
+                            0.0
+                        } else {
+                            ((i * j + i + j) % 3) as f64
+                        })
+                        .unwrap()
+                    })
+                    .collect()
+            })
             .collect();
         for distances in [euclidean, ties] {
             for threshold in [f64::INFINITY, 4.0] {
                 let threshold = NotNan::new(threshold).unwrap();
                 for check_top_cofacets in [true, false] {
                     let full = build_rips_bases_with_threshold(&distances, 2, threshold);
-                    let serial = build_reduction_bases(&distances, 2, threshold, check_top_cofacets, false);
-                    let parallel = build_reduction_bases(&distances, 2, threshold, check_top_cofacets, true);
-                    let as_vec = |b: phlite::matrices::BasisSlice<'_, crate::RipsIndex>| (0..b.size()).map(|i| b.element(i)).collect::<Vec<_>>();
+                    let serial =
+                        build_reduction_bases(&distances, 2, threshold, check_top_cofacets, false);
+                    let parallel =
+                        build_reduction_bases(&distances, 2, threshold, check_top_cofacets, true);
+                    let as_vec = |b: phlite::matrices::BasisSlice<'_, crate::RipsIndex>| {
+                        (0..b.size()).map(|i| b.element(i)).collect::<Vec<_>>()
+                    };
                     for dim in 0..=2 {
                         let expected: Vec<_> = as_vec((&full).in_dimension(dim))
                             .into_iter()
-                            .filter(|s| !in_zero_apparent_pair(*s, &distances, threshold, dim < 2 || check_top_cofacets))
+                            .filter(|s| {
+                                !in_zero_apparent_pair(
+                                    *s,
+                                    &distances,
+                                    threshold,
+                                    dim < 2 || check_top_cofacets,
+                                )
+                            })
                             .collect();
                         assert_eq!(as_vec((&serial).in_dimension(dim)), expected, "dim {dim}");
                         assert_eq!(as_vec((&parallel).in_dimension(dim)), expected, "dim {dim}");
@@ -748,6 +826,17 @@ mod tests {
                 }
             }
         }
+    }
+
+    /// `Vertices` holds at most `MAX_VERTICES` vertices; check no valid simplex has more
+    #[test]
+    fn max_vertices_is_enough() {
+        use crate::{rips_index_fits, RipsIndex};
+        // The largest simplex on k points has k vertices: it fits for k = 15 but not 16
+        assert!(rips_index_fits(15, 14));
+        assert!(!rips_index_fits(16, 15));
+        let simplex = RipsIndex::from_indices(0..15, 15).unwrap();
+        assert_eq!(simplex.vertices(15).len(), 15);
     }
 
     #[test]
