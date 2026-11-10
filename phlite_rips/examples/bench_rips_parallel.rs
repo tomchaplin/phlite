@@ -1,9 +1,12 @@
 //! Benchmark serial vs parallel clearing cohomology on a random point cloud in the unit cube.
 //!
-//! Usage: `bench_rips_parallel <n_points> <max_dim> <seed> <serial|par:THREADS|lf:THREADS>`
+//! Usage: `bench_rips_parallel <n_points> <max_dim> <seed> <serial|heap|par:THREADS|lf:THREADS|hpar:THREADS|hlf:THREADS>`
+//!
+//! The `heap` modes use `HeapColumns` instead of the default `MergedColumns` (see `phlite::columns`).
 
 use ordered_float::NotNan;
 use phlite::{
+    columns::HeapColumns,
     fields::Z2,
     matrices::MatrixOracle,
     reduction::{Clearing, ReductionAlgorithm, Storage},
@@ -52,33 +55,57 @@ fn main() {
     let start = Instant::now();
     let diagram = if mode == "serial" {
         Clearing::new().reduce(&coboundary).diagram
+    } else if mode == "heap" {
+        Clearing::new()
+            .with_columns(HeapColumns)
+            .reduce(&coboundary)
+            .diagram
     } else {
-        let (storage, threads) = if let Some(threads) = mode.strip_prefix("par:") {
-            (Storage::Locking, threads)
-        } else if let Some(threads) = mode.strip_prefix("lf:") {
-            #[cfg(not(feature = "lock-free"))]
-            panic!("mode `lf:N` needs `--features lock-free`, got {threads}");
-            #[cfg(feature = "lock-free")]
-            (Storage::LockFree, threads)
-        } else {
-            panic!("mode is serial, par:N or lf:N")
-        };
+        let heap = mode.starts_with('h');
+        let (storage, threads) =
+            if let Some(threads) = mode.trim_start_matches('h').strip_prefix("par:") {
+                (Storage::Locking, threads)
+            } else if let Some(threads) = mode.trim_start_matches('h').strip_prefix("lf:") {
+                #[cfg(not(feature = "lock-free"))]
+                panic!("mode `lf:N` needs `--features lock-free`, got {threads}");
+                #[cfg(feature = "lock-free")]
+                (Storage::LockFree, threads)
+            } else {
+                panic!("mode is serial, heap, par:N, lf:N, hpar:N or hlf:N")
+            };
         let pool = rayon::ThreadPoolBuilder::new()
             .num_threads(threads.parse().unwrap())
             .build()
             .unwrap();
-        Clearing::new()
-            .parallel()
-            .in_pool(&pool)
-            .storage(storage)
-            .reduce(&coboundary)
-            .diagram
+        if heap {
+            let clearing = Clearing::new().with_columns(HeapColumns).parallel();
+            clearing
+                .in_pool(&pool)
+                .storage(storage)
+                .reduce(&coboundary)
+                .diagram
+        } else {
+            let clearing = Clearing::new().parallel();
+            clearing
+                .in_pool(&pool)
+                .storage(storage)
+                .reduce(&coboundary)
+                .diagram
+        }
     };
     println!(
-        "{mode}: setup {:.3}s reduce {:.3}s essential={} pairings={}",
+        "{mode}: setup {:.3}s reduce {:.3}s essential={} pairings={}  peak_rss={}",
         setup.as_secs_f64(),
         start.elapsed().as_secs_f64(),
         diagram.essential.len(),
-        diagram.pairings.len()
+        diagram.pairings.len(),
+        peak_rss().unwrap_or_else(|| "?".to_string())
     );
+}
+
+/// The peak resident set size of this process (Linux only), e.g. `123456 kB`
+fn peak_rss() -> Option<String> {
+    let status = std::fs::read_to_string("/proc/self/status").ok()?;
+    let line = status.lines().find(|line| line.starts_with("VmHWM:"))?;
+    Some(line["VmHWM:".len()..].trim().to_string())
 }
