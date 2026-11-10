@@ -7,7 +7,10 @@ use std::fmt::Debug;
 use std::hash::Hash;
 use std::iter;
 
-use crate::columns::{BHCol, ColumnEntry};
+use crate::columns::{
+    BHCol, ColumnCoefficient, ColumnFiltration, ColumnRepresentation, ColumnRow, MergedColumns,
+    WorkingColumn,
+};
 use crate::matrices::combinators::product;
 use crate::matrices::SquareMatrix;
 use crate::matrix_col_product;
@@ -176,7 +179,14 @@ where
 /// Apparent pairs are not stored here, see [`CRMBuilder::owner`].
 type LowInverse<RowT, CF> = FxHashMap<RowT, (RowT, CF)>;
 
-struct CRMBuilder<M, DimIter: Iterator, RowT, CF> {
+struct CRMBuilder<M, DimIter, C, FilT, RowT, CF>
+where
+    DimIter: Iterator,
+    C: ColumnRepresentation,
+    FilT: ColumnFiltration,
+    RowT: ColumnRow,
+    CF: ColumnCoefficient,
+{
     boundary: M,
     dimension_order: std::iter::Peekable<DimIter>,
     diagram: Diagram<RowT>,
@@ -184,19 +194,30 @@ struct CRMBuilder<M, DimIter: Iterator, RowT, CF> {
     /// The pairs `pivot row -> column` found in the previous dimension, whose rows are the columns to clear in this one
     previous_pairs: FxHashMap<RowT, RowT>,
     skip_zero_apparent_pairs: bool,
+    columns: C,
+    /// Shared by the columns reduced in the current dimension
+    cache: C::Cache<FilT, RowT, CF>,
 }
 
-impl<M, DimIter> CRMBuilder<M, DimIter, M::RowT, M::CoefficientField>
+impl<M, DimIter, C> CRMBuilder<M, DimIter, C, M::FiltrationT, M::RowT, M::CoefficientField>
 where
     M: MatrixOracle + SquareMatrix + HasRowFiltration + HasSplitColBasis,
-    M::CoefficientField: Invertible,
-    M::ColT: Hash + Debug,
+    M::CoefficientField: Invertible + ColumnCoefficient,
+    M::FiltrationT: ColumnFiltration,
+    M::ColT: ColumnRow + Debug,
     DimIter: Iterator<Item = usize>,
-    ColumnEntry<M::FiltrationT, M::RowT, M::CoefficientField>: Clone,
+    C: ColumnRepresentation,
 {
-    fn init(boundary: M, dimension_order: DimIter, skip_zero_apparent_pairs: bool) -> Self {
+    fn init(
+        boundary: M,
+        dimension_order: DimIter,
+        skip_zero_apparent_pairs: bool,
+        columns: C,
+    ) -> Self {
         Self {
             skip_zero_apparent_pairs,
+            columns,
+            cache: Default::default(),
             boundary,
             dimension_order: dimension_order.peekable(),
             diagram: Diagram {
@@ -231,48 +252,42 @@ where
         (pivot.row_index == *row).then_some((first, pivot.coeff))
     }
 
+    /// Reduce the column `r_i` (and keep track of `v_i`), returning the pivot of `R_i` if it is non-zero.
     fn reduce_column(
         &self,
         low_inverse: &LowInverse<M::RowT, M::CoefficientField>,
-        r_i: &mut BHCol<M::FiltrationT, M::RowT, M::CoefficientField>,
+        r_i: &mut C::Column<M::FiltrationT, M::RowT, M::CoefficientField>,
         v_i: &mut BHCol<(), M::RowT, M::CoefficientField>,
-    ) {
+    ) -> Option<(M::RowT, M::CoefficientField)> {
         loop {
-            let Some(pivot_entry) = r_i.clone_pivot() else {
-                // Column reduced to 0 -> found cycle -> move onto next column
-                return;
-            };
+            // Column reduced to 0 -> found cycle
+            let pivot_entry = r_i.pop_pivot()?;
 
-            // Check if there is a column with the same pivot
+            // Check if there is a column with the same pivot, otherwise we found a boundary
             let Some((j_basis_element, j_coeff)) = self.owner(low_inverse, &pivot_entry.row_index)
             else {
-                // Cannot reduce further -> found boundary -> break and save pivot
-                return;
+                return Some((pivot_entry.row_index, pivot_entry.coeff));
             };
 
             // TODO: Over "fields" such as f64 this might not cancel to 0
             //       We need some way to enforce that the pivot is deleted
-            // If so then we add a multiple of that column to cancel out the pivot in r_i
+            // We add a multiple of R_j = D V_j to cancel out the pivot, which we put back to be cancelled
             let col_multiple = pivot_entry.coeff.additive_inverse() * (j_coeff.mult_inverse());
+            r_i.add_entry(pivot_entry);
 
-            // Get references to V and R as reduced so far
             let v_matrix =
                 ClearedReductionMatrix::build_from_ref(&self.boundary, &self.reduction_columns);
-            let v_matrix = v_matrix.with_trivial_filtration();
-            let r_matrix = product(&self.boundary, &v_matrix);
-
-            // Add the multiple of that column to r_i and v_i
-            r_i.add_entries(
-                r_matrix
-                    .column_with_filtration(j_basis_element.clone())
-                    .map(|entry| entry * col_multiple),
-            );
-
-            v_i.add_entries(
-                v_matrix
-                    .column_with_filtration(j_basis_element.clone())
-                    .map(|entry| entry * col_multiple),
-            );
+            for (coeff, k) in v_matrix.column(j_basis_element) {
+                let multiple = coeff * col_multiple;
+                self.columns.add_matrix_column(
+                    &self.cache,
+                    &self.boundary,
+                    r_i,
+                    k.clone(),
+                    multiple,
+                );
+                v_i.add_tuple((multiple, k, ()));
+            }
         }
     }
 
@@ -313,13 +328,9 @@ where
         basis_element: M::ColT,
         low_inverse: &mut LowInverse<M::RowT, M::CoefficientField>,
         new_pairs: &mut Option<FxHashMap<M::RowT, M::ColT>>,
-        r_i: &BHCol<M::FiltrationT, M::RowT, M::CoefficientField>,
+        pivot: Option<(M::RowT, M::CoefficientField)>,
         mut v_i: BHCol<(), M::RowT, M::CoefficientField>,
     ) {
-        // NOTE: Safe to call peek_pivot because we only ever break after calling clone_pivot
-        let pivot = r_i
-            .peek_pivot()
-            .map(|entry| (entry.row_index.clone(), entry.coeff));
         self.record_reduced(basis_element.clone(), pivot, false, low_inverse, new_pairs);
 
         // Then save v_i (minus the diagonal) to the reduction matrix, unless it is trivial
@@ -385,13 +396,19 @@ where
                 let self_borrow = &self.boundary;
                 self_borrow.with_trivial_filtration().empty_bhcol()
             };
-            let mut r_i = {
-                let self_borrow = &self.boundary;
-                self_borrow.build_bhcol(basis_element.clone())
-            };
-            self.reduce_column(&low_inverse, &mut r_i, &mut v_i);
-            self.save_column(basis_element, &mut low_inverse, &mut new_pairs, &r_i, v_i);
+            let mut r_i = C::Column::default();
+            self.columns.add_matrix_column(
+                &self.cache,
+                &self.boundary,
+                &mut r_i,
+                basis_element.clone(),
+                M::CoefficientField::one(),
+            );
+            let pivot = self.reduce_column(&low_inverse, &mut r_i, &mut v_i);
+            self.save_column(basis_element, &mut low_inverse, &mut new_pairs, pivot, v_i);
         }
+        // Columns of D are only ever added to columns of the same dimension
+        self.cache = Default::default();
         // Rows paired in the previous dimension that weren't columns of this one are never needed
         self.previous_pairs = new_pairs.unwrap_or_default();
     }
@@ -422,10 +439,14 @@ where
 /// The `boundary` matrix needs a [`HasSplitColBasis`].
 /// The reduction matrix V is returned as a [`ClearedReductionMatrix`], which holds onto your matrix.
 /// For a parallel version, see `Clearing::parallel` (feature `parallel`).
+///
+/// The algorithm is generic over how it represents the column being reduced, see [`ColumnRepresentation`];
+/// the default is [`MergedColumns`]. Choose another with [`with_columns`](Clearing::with_columns).
 #[derive(Debug, Clone, Default)]
-pub struct Clearing {
+pub struct Clearing<C = MergedColumns> {
     dimension_order: Option<Vec<usize>>,
     pub(crate) skip_zero_apparent_pairs: bool,
+    pub(crate) columns: C,
 }
 
 impl Clearing {
@@ -436,6 +457,17 @@ impl Clearing {
     /// This costs at most one pass over a single sub-basis.
     pub fn new() -> Self {
         Self::default()
+    }
+}
+
+impl<C: ColumnRepresentation> Clearing<C> {
+    /// Represent the columns being reduced with `columns` instead, see [`ColumnRepresentation`].
+    pub fn with_columns<C2: ColumnRepresentation>(self, columns: C2) -> Clearing<C2> {
+        Clearing {
+            dimension_order: self.dimension_order,
+            skip_zero_apparent_pairs: self.skip_zero_apparent_pairs,
+            columns,
+        }
     }
 
     /// Reduce only the given dimensions, in the order given, instead of detecting them.
@@ -518,13 +550,14 @@ where
     true
 }
 
-impl<M> ReductionAlgorithm<M> for Clearing
+impl<M, C> ReductionAlgorithm<M> for Clearing<C>
 where
     M: MatrixOracle + SquareMatrix + HasRowFiltration + HasSplitColBasis,
-    M::CoefficientField: Invertible + 'static,
-    M::RowT: 'static,
-    M::ColT: Hash + Debug,
-    ColumnEntry<M::FiltrationT, M::RowT, M::CoefficientField>: Clone,
+    M::CoefficientField: Invertible + ColumnCoefficient + 'static,
+    M::FiltrationT: ColumnFiltration,
+    M::RowT: ColumnRow + 'static,
+    M::ColT: Debug,
+    C: ColumnRepresentation,
 {
     type V = ClearedReductionMatrix<'static, M>;
 
@@ -534,6 +567,7 @@ where
             boundary,
             dimension_order.into_iter(),
             self.skip_zero_apparent_pairs,
+            self.columns,
         );
         builder.reduce_all_dimension();
         let v =

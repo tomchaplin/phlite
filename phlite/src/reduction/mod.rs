@@ -28,6 +28,23 @@
 //!
 //! [`Standard`] makes none of these optimisations: it builds every column and needs the full column basis.
 //!
+//! # Column representations
+//!
+//! Every algorithm is generic over how it represents the column `R_i = D V_i` that it is reducing, see
+//! [`ColumnRepresentation`](crate::columns::ColumnRepresentation). The default,
+//! [`MergedColumns`](crate::columns::MergedColumns), sorts each column of `D` once (when it is first needed in a dimension) and
+//! adds it to `R_i` as a sorted run, merging the runs lazily, so that only one heap slot is needed per column added and terms
+//! below the eventual pivot are never touched. [`HeapColumns`](crate::columns::HeapColumns) instead pushes every term into a heap,
+//! which needs no extra memory but is much slower when reduced columns are long. Choose one with `with_columns`:
+//!
+//! ```
+//! # use phlite::{fields::Z2, matrices::implementors::SimpleZ2Matrix, reduction::{Standard, ReductionAlgorithm}};
+//! # use phlite::{columns::HeapColumns, matrices::MatrixOracle};
+//! # let boundary = SimpleZ2Matrix::new_all_one(vec![vec![], vec![], vec![0, 1]]).with_trivial_filtration();
+//! let reduction = Standard::new().with_columns(HeapColumns).reduce(&boundary);
+//! assert_eq!(reduction.diagram.pairings.len(), 1);
+//! ```
+//!
 //! ```
 //! # use phlite::{fields::Z2, matrices::implementors::SimpleZ2Matrix, reduction::{Standard, ReductionAlgorithm}};
 //! # use phlite::matrices::MatrixOracle;

@@ -15,9 +15,13 @@ def do_complete(N):
     print("Done complete")
 
 
-def do_cycle(N, with_reps=False):
+def do_cycle(N, with_reps=False, algorithm="clearing"):
     barcode = grpph(
-        N, [(i, (i + 1) % N, 1.0) for i in range(N)], representatives=with_reps
+        N,
+        [(i, (i + 1) % N, 1.0) for i in range(N)],
+        representatives=with_reps,
+        algorithm=algorithm,
+        threads=4 if algorithm.startswith("parallel") else None,
     )
     essential, pairings = barcode.essential, barcode.pairings
     if with_reps:
@@ -38,11 +42,21 @@ N = 200
 tic0 = time.time()
 do_cycle(N, with_reps=False)
 tic1 = time.time()
-print(f"Without reps: {tic1 - tic0}")
+print(f"Without reps       : {tic1 - tic0}")
 
 tic2 = time.time()
 do_cycle(N, with_reps=True)
 tic3 = time.time()
-print(f"With reps   : {tic3 - tic2}")
+print(f"With reps          : {tic3 - tic2}")
+
+tic4 = time.time()
+do_cycle(N, with_reps=False, algorithm="parallel")
+tic5 = time.time()
+print(f"Parallel no reps   : {tic5 - tic4}")
+
+tic4 = time.time()
+do_cycle(N, with_reps=True, algorithm="parallel")
+tic5 = time.time()
+print(f"Parallel with reps : {tic5 - tic4}")
 
 do_complete(30)

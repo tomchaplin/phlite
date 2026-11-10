@@ -47,6 +47,7 @@
 pub mod barcode;
 pub mod columns;
 pub mod fields;
+mod hash;
 pub mod matrices;
 pub mod reduction;
 

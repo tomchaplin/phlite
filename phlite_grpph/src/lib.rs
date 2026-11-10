@@ -27,6 +27,7 @@ use ordered_float::NotNan;
 use petgraph::{algo::dijkstra, graph::NodeIndex, Graph};
 use phlite::{
     barcode::{self, Algorithm, Bar},
+    columns::ColumnRepresentation,
     fields::Z2,
     matrices::{ColBasis, HasRowFiltration, HasSplitColBasis, MatrixOracle, SplitBasis},
 };
@@ -118,12 +119,12 @@ where
 ///   (a sum of nodes in dimension 0 and of edges in dimension 1).
 ///
 /// Bars are returned in no particular order, and zero-length bars are included.
-pub fn grpph_barcode(
+pub fn grpph_barcode<R: ColumnRepresentation>(
     filtration: &VecDigraphFiltration,
     edge_set: &DigraphEdgeSet,
     n_vertices: u16,
     method: Method,
-    algorithm: Algorithm<'_>,
+    algorithm: Algorithm<'_, R>,
     representatives: bool,
 ) -> Vec<GrPPHBar> {
     let coboundary = GrPPHCoboundary::<Z2, _>::build(filtration, edge_set, n_vertices);
@@ -168,7 +169,10 @@ pyo3_stub_gen::define_stub_info_gatherer!(stub_info);
 #[cfg(test)]
 mod tests {
     use super::*;
-    use phlite::reduction::{Clearing, Standard};
+    use phlite::{
+        columns::{HeapColumns, MergedColumns},
+        reduction::{Clearing, Standard},
+    };
 
     /// Bars as (dimension, birth value, death value), sorted, with zero-length bars removed
     fn summary(bars: &[GrPPHBar]) -> Vec<(usize, f64, Option<f64>)> {
@@ -187,11 +191,12 @@ mod tests {
         out
     }
 
-    fn algorithms() -> Vec<Algorithm<'static>> {
+    /// Every algorithm, representing columns with `R`
+    fn algorithms<R: ColumnRepresentation>() -> Vec<Algorithm<'static, R>> {
         vec![
-            Algorithm::Standard(Standard::new()),
-            Algorithm::Clearing(Clearing::new()),
-            Algorithm::ParallelClearing(Clearing::new().parallel()),
+            Algorithm::Standard(Standard::new().with_columns(R::default())),
+            Algorithm::Clearing(Clearing::new().with_columns(R::default())),
+            Algorithm::ParallelClearing(Clearing::new().with_columns(R::default()).parallel()),
         ]
     }
 
@@ -214,6 +219,11 @@ mod tests {
 
     #[test]
     fn every_method_and_algorithm_agree() {
+        every_method_and_algorithm_agree_with::<MergedColumns>();
+        every_method_and_algorithm_agree_with::<HeapColumns>();
+    }
+
+    fn every_method_and_algorithm_agree_with<R: ColumnRepresentation>() {
         let (n, edges) = reps_example();
         let filtration = build_filtration(n, &edges);
         let edge_set = build_edge_set(&edges);
@@ -224,7 +234,7 @@ mod tests {
             (1, 0.0, Some(20.0)),
         ];
         for method in [Method::Cohomology, Method::Homology] {
-            for algorithm in algorithms() {
+            for algorithm in algorithms::<R>() {
                 for representatives in [false, true] {
                     let bars = grpph_barcode(
                         &filtration,
