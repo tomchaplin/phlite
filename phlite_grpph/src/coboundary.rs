@@ -39,7 +39,37 @@ pub enum PathHom2Cell {
     LongSquare(u16, u16, u16, u16),  // (a, b, c, d), -> acd - abd
 }
 
-pub type PrimaryBridgeMap = FxHashMap<(u16, u16), u16>;
+/// The primary bridge `b` of each pair `(s, t)`: the vertex minimising `(time of s -> b -> t, b)`,
+/// recorded only if that 2-path arrives strictly before the edge `s -> t`.
+/// Stored as a dense `n x n` table (like [`VecDigraphFiltration`]), since it is looked up for most coboundary entries.
+#[derive(Debug, Clone)]
+pub struct PrimaryBridgeMap {
+    n_vertices: usize,
+    /// `bridges[s * n + t]`, with `u16::MAX` for none (not a vertex, since there are at most `u16::MAX` vertices)
+    bridges: Vec<u16>,
+}
+
+impl PrimaryBridgeMap {
+    const NONE: u16 = u16::MAX;
+
+    fn new(n_vertices: u16) -> Self {
+        let n_vertices = n_vertices as usize;
+        Self {
+            n_vertices,
+            bridges: vec![Self::NONE; n_vertices * n_vertices],
+        }
+    }
+
+    /// The primary bridge of `(s, t)`, if it has one
+    pub fn get(&self, s: u16, t: u16) -> Option<u16> {
+        let bridge = self.bridges[s as usize * self.n_vertices + t as usize];
+        (bridge != Self::NONE).then_some(bridge)
+    }
+
+    fn insert(&mut self, s: u16, t: u16, bridge: u16) {
+        self.bridges[s as usize * self.n_vertices + t as usize] = bridge;
+    }
+}
 pub type MapDigraphFiltration = FxHashMap<(u16, u16), NotNan<f64>>;
 pub type VecDigraphFiltration = Vec<Vec<Option<NotNan<f64>>>>;
 pub type DigraphEdgeSet = FxHashSet<(u16, u16)>;
@@ -112,9 +142,9 @@ fn two_path_to_two_cell_in_filtration(
             )
         } else {
             // The path abc enters strictly before ac so there must be a primary bridge
-            let primary_bridge = bridge_map.get(&(a, c)).unwrap();
+            let primary_bridge = bridge_map.get(a, c).unwrap();
 
-            if b == *primary_bridge {
+            if b == primary_bridge {
                 // This is the collapsing directed triangle
                 // true => Also yield all the long squares!
                 (
@@ -123,22 +153,22 @@ fn two_path_to_two_cell_in_filtration(
                 )
             } else {
                 (
-                    Some((PathHom2Cell::LongSquare(a, *primary_bridge, b, c), abc_time)),
+                    Some((PathHom2Cell::LongSquare(a, primary_bridge, b, c), abc_time)),
                     false,
                 )
             }
         }
     } else {
         // The path abc enters strictly before ac so there must be a primary bridge
-        let primary_bridge = bridge_map.get(&(a, c)).unwrap();
+        let primary_bridge = bridge_map.get(a, c).unwrap();
 
-        if b == *primary_bridge {
+        if b == primary_bridge {
             // ac_time is infinite so collapse never appears
             // true => Also yield all the long squares!
             (None, true)
         } else {
             (
-                Some((PathHom2Cell::LongSquare(a, *primary_bridge, b, c), abc_time)),
+                Some((PathHom2Cell::LongSquare(a, primary_bridge, b, c), abc_time)),
                 false,
             )
         }
@@ -210,11 +240,11 @@ fn produce_triangle_base_coboundary<'a, CF: NonZeroCoefficient>(
     let st_time = filtration.edge_time(&s, &t)?;
 
     //If there are bridges of the form s->b->t then we must had add a column of the form sb_{st}t at st_time
-    let primary_bridge = bridge_map.get(&(s, t));
+    let primary_bridge = bridge_map.get(s, t);
     let bridge_collapse_col = primary_bridge.into_iter().map(move |pb| {
         (
             CF::one().additive_inverse(),
-            PathHom2Cell::DirectedTriangle(s, *pb, t),
+            PathHom2Cell::DirectedTriangle(s, pb, t),
             st_time,
         )
     });
@@ -322,7 +352,7 @@ pub fn build_primary_bridge_map(
     filtration: impl DigraphFiltration,
     n_vertices: u16,
 ) -> PrimaryBridgeMap {
-    let mut map = FxHashMap::default();
+    let mut map = PrimaryBridgeMap::new(n_vertices);
     for s in 0..n_vertices {
         for t in 0..n_vertices {
             // We have a unique choice of primary bridge since we look for min by (time, bridge_vertex_index)
@@ -337,7 +367,7 @@ pub fn build_primary_bridge_map(
                         continue;
                     }
                 }
-                map.insert((s, t), bridge_vertex);
+                map.insert(s, t, bridge_vertex);
             }
         }
     }
