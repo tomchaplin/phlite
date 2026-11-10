@@ -58,7 +58,12 @@ impl AlgorithmArg {
 
     /// Run `f` with the corresponding [`Algorithm`], on a pool of `threads` threads if given.
     /// Errors if `threads` is given for a serial algorithm.
-    pub fn run<T>(self, threads: Option<usize>, f: impl FnOnce(Algorithm<'_>) -> T) -> PyResult<T> {
+    /// With `threads`, `f` itself runs on the pool, so any other rayon work it does (such as building a basis) uses it too.
+    pub fn run<T: Send>(
+        self,
+        threads: Option<usize>,
+        f: impl FnOnce(Algorithm<'_>) -> T + Send,
+    ) -> PyResult<T> {
         let storage = match (self, threads) {
             (Self::Standard, None) => return Ok(f(Algorithm::Standard(Standard::new()))),
             (Self::Clearing, None) => return Ok(f(Algorithm::Clearing(Clearing::new()))),
@@ -78,7 +83,8 @@ impl AlgorithmArg {
                     .map_err(|e| {
                         PyValueError::new_err(format!("Could not build thread pool: {e}"))
                     })?;
-                Ok(f(Algorithm::ParallelClearing(algorithm.in_pool(&pool))))
+                let algorithm = algorithm.in_pool(&pool);
+                Ok(pool.install(|| f(Algorithm::ParallelClearing(algorithm))))
             }
         }
     }

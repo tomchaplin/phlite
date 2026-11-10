@@ -476,7 +476,8 @@ impl Clearing {
 }
 
 /// Does `boundary` map dimension `d` to dimension `d + 1` (as opposed to `d - 1`)?
-/// Looks at the pivot of the first non-zero column. If every column is zero then the order is irrelevant.
+/// Looks at the pivot of the first non-zero column whose pivot we can find in a neighbouring sub-basis.
+/// If every column is zero then the order is irrelevant.
 fn maps_upwards<M>(boundary: &M) -> bool
 where
     M: MatrixOracle + SquareMatrix + HasRowFiltration + HasSplitColBasis,
@@ -486,8 +487,7 @@ where
         let basis = boundary.sub_basis(dim);
         for i in 0..basis.size() {
             let Some(pivot) = boundary
-                .build_bhcol(basis.element(i))
-                .pop_pivot()
+                .column_pivot(basis.element(i))
                 .map(|entry| entry.row_index)
             else {
                 continue;
@@ -496,8 +496,19 @@ where
                 return true;
             }
             let below = boundary.sub_basis(dim - 1);
-            let in_dimension_below = (0..below.size()).any(|k| below.element(k) == pivot);
-            return !in_dimension_below;
+            if (0..below.size()).any(|k| below.element(k) == pivot) {
+                return false;
+            }
+            // The basis needn't contain every cell (e.g. it may omit apparent pairs), so only conclude
+            // the matrix maps upwards if we can see the pivot in the dimension above; otherwise try another column
+            if dim + 1 < boundary.n_dimensions() {
+                let above = boundary.sub_basis(dim + 1);
+                if (0..above.size()).any(|k| above.element(k) == pivot) {
+                    return true;
+                }
+            } else {
+                return true;
+            }
         }
     }
     true
