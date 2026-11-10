@@ -18,7 +18,7 @@ use crate::columns::{BHCol, ColumnEntry};
 
 use super::{
     BasisElement, ColBasis, FiltrationValue, HasColBasis, HasRowFiltration, HasSplitColBasis,
-    MatrixOracle, SplitByDimension, SquareMatrix,
+    HasTranspose, MatrixOracle, SplitByDimension, SquareMatrix,
 };
 
 /// Return type of [`MatrixOracle::with_trivial_filtration`].
@@ -1020,5 +1020,20 @@ impl<M: HasSplitColBasis, T> HasSplitColBasis for WithTranspose<M, T> {
 
     fn n_dimensions(&self) -> usize {
         self.matrix.n_dimensions()
+    }
+}
+
+impl<M, T> HasTranspose for WithTranspose<M, T>
+where
+    M: MatrixOracle,
+    T: MatrixOracle<CoefficientField = M::CoefficientField, ColT = M::RowT, RowT = M::ColT>,
+{
+    type TransposeT<'a>
+        = &'a T
+    where
+        Self: 'a;
+
+    fn transpose(&self) -> Self::TransposeT<'_> {
+        &self.transpose
     }
 }

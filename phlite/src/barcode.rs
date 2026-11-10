@@ -24,7 +24,7 @@ use crate::{
     fields::{Invertible, NonZeroCoefficient},
     matrices::{
         combinators::product, BasisElement, FiltrationValue, HasRowFiltration, HasSplitColBasis,
-        MatrixOracle,
+        HasTranspose, MatrixOracle,
     },
     reduction::{Clearing, Diagram, Reduction, ReductionAlgorithm, Standard},
 };
@@ -313,25 +313,24 @@ where
 
 /// As [`cohomology`], but also computes a representative cycle for every bar via the involution trick.
 ///
-/// You must provide `boundary`, an oracle for the boundary matrix of the same filtered chain complex
-/// (no column basis needed), with the same row filtration as `coboundary`.
-/// We then reduce `boundary` restricted to the death cells of the finite bars and the birth cells of the essential bars,
+/// The `coboundary` must know its transpose, the boundary matrix, typically attached with
+/// [`with_transpose`](MatrixOracle::with_transpose) (which also lets the reduction use apparent pairs).
+/// We reduce the boundary restricted to the death cells of the finite bars and the birth cells of the essential bars,
 /// which is typically a tiny fraction of the full boundary matrix.
+/// The filtration on the boundary's rows is that of the coboundary's columns, so they can't disagree.
 ///
 /// # Panics
 /// In debug builds, if the involuted reduction disagrees with the cohomology pairing.
-/// This indicates that `boundary` and `coboundary` disagree on the filtration (or the boundary itself).
-pub fn cohomology_with_involution<C, F, CF, M, B>(
+/// This indicates that the attached transpose is not really the transpose.
+pub fn cohomology_with_involution<C, F, CF, M>(
     coboundary: M,
-    boundary: B,
     algorithm: Algorithm<'_>,
 ) -> Vec<Bar<C, F, CF>>
 where
     C: Cell,
     F: FiltrationValue + MaybeSync,
     CF: Field,
-    M: Reducible<C, F, CF>,
-    B: MatrixOracle<CoefficientField = CF, ColT = C, RowT = C> + HasRowFiltration<FiltrationT = F>,
+    M: Reducible<C, F, CF> + HasTranspose,
 {
     let diagram: Diagram<Reverse<C>> = run(coboundary.reverse(), algorithm, DiagramVisitor);
     let mut bars = cohomology_bars(coboundary, &diagram);
@@ -353,6 +352,9 @@ where
         .map(|(_f, cell)| cell)
         .collect();
 
+    let boundary = coboundary
+        .transpose()
+        .with_filtration(|cell: C| coboundary.filtration_value(cell));
     let restricted = (&boundary).with_basis(involution_basis);
     let Reduction { v, diagram: _ } = Standard::new().reduce(&restricted);
     let r = product(&restricted, &v);
@@ -466,8 +468,8 @@ mod tests {
             assert_eq!(summary(&hom), expected);
             let cohom = cohomology(&delta, algorithm.clone());
             assert_eq!(summary(&cohom), expected);
-            let invol =
-                cohomology_with_involution(&delta, boundary().with_filtration(|i| i), algorithm);
+            let b = boundary();
+            let invol = cohomology_with_involution((&delta).with_transpose(&b), algorithm);
             assert_eq!(summary(&invol), expected);
 
             for bars in [&hom, &invol] {
@@ -531,8 +533,7 @@ mod tests {
             let hom = homology(d, algorithm.clone(), true);
             assert_eq!(summary(&hom), expected, "{algorithm:?}");
             assert_eq!(summary(&cohomology(delta, algorithm.clone())), expected);
-            let invol =
-                cohomology_with_involution(delta, (&b).with_filtration(|i| i), algorithm.clone());
+            let invol = cohomology_with_involution(delta, algorithm.clone());
             assert_eq!(summary(&invol), expected);
             for bar in hom.iter().chain(invol.iter()) {
                 let expected_rep: Vec<usize> = match (bar.birth, bar.death) {

@@ -233,7 +233,7 @@ pub fn rips_barcode(
             let coboundary = build_rips_coboundary_matrix::<Z2>(distances, max_dim);
             let coboundary = (&coboundary).with_transpose(&boundary);
             if representatives {
-                barcode::cohomology_with_involution(coboundary, &boundary, algorithm)
+                barcode::cohomology_with_involution(coboundary, algorithm)
             } else {
                 barcode::cohomology(coboundary, algorithm)
             }

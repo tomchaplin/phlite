@@ -117,11 +117,9 @@ pub fn grpph_barcode(
         (Method::Cohomology, false) => {
             barcode::cohomology((&coboundary).with_transpose(&boundary), algorithm)
         }
-        (Method::Cohomology, true) => barcode::cohomology_with_involution(
-            (&coboundary).with_transpose(&boundary),
-            &boundary,
-            algorithm,
-        ),
+        (Method::Cohomology, true) => {
+            barcode::cohomology_with_involution((&coboundary).with_transpose(&boundary), algorithm)
+        }
         (Method::Homology, _) => {
             let basis = SplitBasis::from_dimensions([
                 to_vec(coboundary.sub_basis(0)),

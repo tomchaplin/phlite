@@ -448,6 +448,38 @@ where
     }
 }
 
+// ======== Access to the transpose ============================
+
+/// A matrix with an oracle for its transpose, typically attached with [`with_transpose`](MatrixOracle::with_transpose).
+///
+/// For a coboundary matrix the transpose is the boundary matrix, and vice versa.
+/// This is used to find apparent pairs during reduction, and to compute representatives by involution
+/// (see [`cohomology_with_involution`](crate::barcode::cohomology_with_involution)).
+pub trait HasTranspose: MatrixOracle {
+    /// The type of the oracle for the transpose.
+    type TransposeT<'a>: MatrixOracle<
+            CoefficientField = Self::CoefficientField,
+            ColT = Self::RowT,
+            RowT = Self::ColT,
+        > + Copy
+    where
+        Self: 'a;
+
+    /// The transpose: column `r` lists the non-zero entries in row `r` of `self`.
+    fn transpose(&self) -> Self::TransposeT<'_>;
+}
+
+impl<M: HasTranspose> HasTranspose for &M {
+    type TransposeT<'a>
+        = M::TransposeT<'a>
+    where
+        Self: 'a;
+
+    fn transpose(&self) -> Self::TransposeT<'_> {
+        (*self).transpose()
+    }
+}
+
 // ======== Ordered basis on columns + arbitrary access ========
 
 /// Represents an indexable column basis (of a matrix), typically pre-computed and stored in memory.
