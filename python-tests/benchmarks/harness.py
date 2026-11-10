@@ -101,11 +101,14 @@ def main(description, implementations, make_input, case_label, add_arguments, ca
     parser.add_argument("--only", nargs="*", default=None, help="only run implementations containing one of these strings")
     parser.add_argument("--timeout", type=float, default=600, help="seconds before a run is abandoned (default 600)")
     parser.add_argument("--json", help="also write all results to this file")
+    parser.add_argument("--skip-reference", action="store_true", help=f"don't run the reference implementation ({reference}), so don't check agreement")
     args = parser.parse_args()
 
     names = [n for n in implementations if args.only is None or any(s in n for s in args.only)]
     names = [n for n in names if n in default_implementations(args, implementations)]
-    if reference in implementations and reference not in names:
+    if args.skip_reference:
+        names = [n for n in names if n != reference]
+    elif reference in implementations and reference not in names:
         names.insert(0, reference)
 
     rows = []
