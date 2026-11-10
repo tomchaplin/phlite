@@ -112,3 +112,17 @@ def test_representatives_flag_and_threads_do_not_change_barcode(distances, max_d
     with_reps = rips(distances, max_dim, algorithm="parallel", threads=threads, representatives=True)
     assert plain.pairing_representatives is None and plain.essential_representatives is None
     assert (plain.essential, plain.pairings) == (with_reps.essential, with_reps.pairings)
+
+
+@given(distances=distance_matrices(), max_dim=st.integers(0, 2), data=st.data())
+def test_threshold_matches_references(distances, max_dim, data):
+    # A threshold at one of the entries (exact in float32), or just below/above everything
+    finite = sorted({float(d) for d in distances.flat if d != INF})
+    threshold = data.draw(st.sampled_from(finite + [-1.0, INF]))
+    expected = ripser(distances, distance_matrix=True, maxdim=max_dim, thresh=threshold)["dgms"]
+    expected_gph = ripser_parallel(distances, maxdim=max_dim, metric="precomputed", thresh=threshold)["dgms"]
+    for method in METHODS:
+        barcode = rips(distances, max_dim, threshold=threshold, method=method, representatives=True)
+        for dim in range(max_dim + 1):
+            assert diagram(barcode, dim) == reference_diagram(expected, dim), f"dim {dim}"
+            assert diagram(barcode, dim) == reference_diagram(expected_gph, dim), f"dim {dim} (giotto-ph)"

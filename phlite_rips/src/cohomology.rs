@@ -2,7 +2,7 @@ use std::marker::PhantomData;
 
 use ordered_float::NotNan;
 
-use crate::{build_rips_bases, RipsIndex, Vertices};
+use crate::{build_rips_bases_with_threshold, RipsIndex, Vertices};
 use phlite::{
     columns::ColumnEntry,
     fields::{Invertible, NonZeroCoefficient},
@@ -15,6 +15,8 @@ use super::RipsBasis;
 
 pub struct RipsCoboundary<CF: NonZeroCoefficient + Invertible> {
     distances: Vec<Vec<NotNan<f64>>>,
+    /// Cofacets with a larger diameter are not in the complex
+    threshold: NotNan<f64>,
     phantom: PhantomData<CF>,
 }
 
@@ -23,8 +25,15 @@ impl<CF: NonZeroCoefficient + Invertible> RipsCoboundary<CF> {
     pub fn new(distances: Vec<Vec<NotNan<f64>>>) -> Self {
         Self {
             distances,
+            threshold: NotNan::new(f64::INFINITY).unwrap(),
             phantom: PhantomData,
         }
+    }
+
+    /// Only include simplices with diameter at most `threshold` (the default is no limit).
+    pub fn with_threshold(mut self, threshold: NotNan<f64>) -> Self {
+        self.threshold = threshold;
+        self
     }
 
     fn n_points(&self) -> usize {
@@ -134,8 +143,8 @@ impl<CF: NonZeroCoefficient + Invertible> MatrixOracle for RipsCoboundary<CF> {
         &self,
         col: Self::ColT,
     ) -> impl Iterator<Item = (Self::CoefficientField, Self::RowT)> {
-        CoboundaryIterator::new(col, self.n_points())
-            .map(|(coeff, idx, _inserted_vertex)| (coeff, idx))
+        self.column_with_filtration(col)
+            .map(|entry| (entry.coeff, entry.row_index))
     }
 }
 
@@ -158,7 +167,7 @@ impl<CF: NonZeroCoefficient + Invertible> HasRowFiltration for RipsCoboundary<CF
         let col_vertices = col.vertices(n_points);
         let max_pd_amongst_col = col_vertices.diameter(&self.distances);
 
-        coboundary_iterator.map(move |(coeff, row_index, inserted_vertex)| {
+        coboundary_iterator.filter_map(move |(coeff, row_index, inserted_vertex)| {
             let max_to_inserted = col_vertices
                 .iter()
                 .map(|v| self.distances[*v][inserted_vertex])
@@ -167,11 +176,11 @@ impl<CF: NonZeroCoefficient + Invertible> HasRowFiltration for RipsCoboundary<CF
 
             let filtration_value = max_pd_amongst_col.max(max_to_inserted);
 
-            ColumnEntry {
+            (filtration_value <= self.threshold).then_some(ColumnEntry {
                 filtration_value,
                 row_index,
                 coeff,
-            }
+            })
         })
     }
 
@@ -195,6 +204,9 @@ impl<CF: NonZeroCoefficient + Invertible> HasRowFiltration for RipsCoboundary<CF
                 .max()
                 .unwrap()
                 .max(diameter);
+            if filtration_value > self.threshold {
+                continue;
+            }
             // On ties keep the earlier, smaller, index
             if best
                 .as_ref()
@@ -220,21 +232,29 @@ pub fn build_rips_coboundary_matrix<CF: Invertible>(
     distances: Vec<Vec<NotNan<f64>>>,
     max_dim: usize,
 ) -> RipsCoboundaryAllDims<CF> {
+    build_rips_coboundary_matrix_with_threshold(
+        distances,
+        max_dim,
+        NotNan::new(f64::INFINITY).unwrap(),
+    )
+}
+
+/// As [`build_rips_coboundary_matrix`], but only the simplices with diameter at most `threshold`.
+pub fn build_rips_coboundary_matrix_with_threshold<CF: Invertible>(
+    distances: Vec<Vec<NotNan<f64>>>,
+    max_dim: usize,
+    threshold: NotNan<f64>,
+) -> RipsCoboundaryAllDims<CF> {
     // Pass in the Reverse functor to revere filtration order on columns in basis
-    let basis = build_rips_bases(&distances, max_dim);
+    let basis = build_rips_bases_with_threshold(&distances, max_dim, threshold);
     RipsCoboundaryAllDims {
-        matrix: RipsCoboundary {
-            distances,
-            phantom: PhantomData,
-        },
+        matrix: RipsCoboundary::new(distances).with_threshold(threshold),
         basis,
     }
 }
 // TODO: Write some proper tests
 #[cfg(test)]
 mod tests {
-    use std::marker::PhantomData;
-
     use ordered_float::NotNan;
 
     use crate::{
@@ -462,10 +482,7 @@ mod tests {
     #[test]
     fn test_coboundary() {
         let distance_matrix = distance_matrix();
-        let coboundary: RipsCoboundary<Z2> = RipsCoboundary {
-            distances: distance_matrix,
-            phantom: PhantomData,
-        };
+        let coboundary: RipsCoboundary<Z2> = RipsCoboundary::new(distance_matrix);
 
         let smplx = RipsIndex::from_indices(vec![1, 2, 3].into_iter(), 4).unwrap();
         let coboundary_vec: Vec<_> = coboundary.column(smplx).collect();

@@ -11,8 +11,8 @@ use phlite::{
 };
 
 use crate::{
-    cohomology::{build_rips_coboundary_matrix, RipsCoboundary},
-    homology::{build_rips_boundary_matrix, RipsBoundary},
+    cohomology::{build_rips_coboundary_matrix_with_threshold, RipsCoboundary},
+    homology::{build_rips_boundary_matrix_with_threshold, RipsBoundary},
 };
 
 // TUTORIAL:
@@ -137,6 +137,7 @@ pub type RipsBasis = SplitBasis<RipsIndex>;
 
 type SimplicesWithFilt = Vec<(NotNan<f64>, RipsIndex)>;
 
+#[allow(clippy::too_many_arguments)]
 fn add_cofacets(
     bases: &mut [SimplicesWithFilt],
     simplex_as_vec: &mut Vec<usize>,
@@ -144,6 +145,7 @@ fn add_cofacets(
     fil_value: NotNan<f64>,
     distances: &Vec<Vec<NotNan<f64>>>,
     max_dim: usize,
+    threshold: NotNan<f64>,
 ) {
     let n_vertices = distances.len();
     let max_element = simplex_as_vec.last().unwrap();
@@ -163,6 +165,10 @@ fn add_cofacets(
             .max()
             .unwrap();
         let new_filtration_value = new_filtration_value.max(fil_value);
+        // Cofaces only get bigger, so skip the whole subtree
+        if new_filtration_value > threshold {
+            continue;
+        }
         // Build up coface
         simplex_as_vec.push(v);
         // Insert into basis
@@ -177,6 +183,7 @@ fn add_cofacets(
                 new_filtration_value,
                 distances,
                 max_dim,
+                threshold,
             );
         }
         // Remove v ready for next coface
@@ -185,6 +192,15 @@ fn add_cofacets(
 }
 
 pub fn build_rips_bases(distances: &Vec<Vec<NotNan<f64>>>, max_dim: usize) -> RipsBasis {
+    build_rips_bases_with_threshold(distances, max_dim, NotNan::new(f64::INFINITY).unwrap())
+}
+
+/// As [`build_rips_bases`], but only the simplices with diameter at most `threshold`.
+pub fn build_rips_bases_with_threshold(
+    distances: &Vec<Vec<NotNan<f64>>>,
+    max_dim: usize,
+    threshold: NotNan<f64>,
+) -> RipsBasis {
     let mut bases: Vec<SimplicesWithFilt> = vec![vec![]; max_dim + 1];
 
     // Build up the basis
@@ -200,6 +216,7 @@ pub fn build_rips_bases(distances: &Vec<Vec<NotNan<f64>>>, max_dim: usize) -> Ri
                 NotNan::new(0 as f64).unwrap(),
                 distances,
                 max_dim,
+                threshold,
             );
         }
     }
@@ -214,6 +231,25 @@ pub fn build_rips_bases(distances: &Vec<Vec<NotNan<f64>>>, max_dim: usize) -> Ri
             .into_iter()
             .map(|dim| dim.into_iter().map(|(_filtration, index)| index)),
     )
+}
+
+/// The enclosing radius `min_i max_j d(i, j)`: at this diameter the Rips complex is a cone on some point,
+/// so all homology (apart from one component) has died and nothing changes afterwards.
+/// Infinite if there are no points.
+pub fn enclosing_radius(distances: &[Vec<NotNan<f64>>]) -> NotNan<f64> {
+    distances
+        .iter()
+        .enumerate()
+        .map(|(i, row)| {
+            row.iter()
+                .enumerate()
+                .filter(|(j, _)| *j != i)
+                .map(|(_, d)| *d)
+                .max()
+                .unwrap_or(NotNan::new(0.0).unwrap())
+        })
+        .min()
+        .unwrap_or(NotNan::new(f64::INFINITY).unwrap())
 }
 
 /// The largest distance between two distinct vertices (so 0 for a single vertex, whatever the diagonal of `distances`).
@@ -251,31 +287,38 @@ pub fn rips_index_fits(n_points: usize, max_dim: usize) -> bool {
         .is_some()
 }
 
-/// Compute the Vietoris-Rips barcode of a distance matrix in dimensions `0..=max_dim`.
+/// Compute the Vietoris-Rips barcode of a distance matrix in dimensions `0..=max_dim`,
+/// for the filtration up to diameter `threshold` (use infinity for no limit).
 ///
 /// * `method` chooses between reducing the coboundary or boundary matrix.
 /// * `algorithm` is the reduction algorithm to use.
 /// * If `representatives` is true then every bar comes with a representative cycle.
 ///
-/// Bars are returned in no particular order, and zero-length bars are included.
+/// Simplices with diameter above the [`enclosing_radius`] are never built, since by then the complex is a cone
+/// and nothing changes; this doesn't change the barcode.
+/// Bars of a filtration truncated at `threshold` that are still alive at `threshold` are essential.
+/// Bars are returned in no particular order, and zero-length bars are omitted.
 ///
 /// # Panics
 /// If simplices of dimension `max_dim + 1` (which both methods need) do not fit in a [`RipsIndex`], see [`rips_index_fits`].
 pub fn rips_barcode(
     distances: Vec<Vec<NotNan<f64>>>,
     max_dim: usize,
+    threshold: NotNan<f64>,
     method: Method,
     algorithm: Algorithm<'_>,
     representatives: bool,
 ) -> Vec<RipsBar> {
     let n_points = distances.len();
+    let threshold = threshold.min(enclosing_radius(&distances));
+    // Both methods need simplices of dimension max_dim + 1 (as cofacets, or the top of the boundary matrix)
+    assert!(rips_index_fits(n_points, max_dim + 1));
     // Each matrix is given its transpose, so that the reduction can skip apparent pairs
     match method {
         Method::Cohomology => {
-            // The coboundary of a max_dim simplex contains simplices of dimension max_dim + 1
-            assert!(rips_index_fits(n_points, max_dim + 1));
             let boundary = RipsBoundary::<Z2>::new(distances.clone());
-            let coboundary = build_rips_coboundary_matrix::<Z2>(distances, max_dim);
+            let coboundary =
+                build_rips_coboundary_matrix_with_threshold::<Z2>(distances, max_dim, threshold);
             let coboundary = (&coboundary).with_transpose(&boundary);
             if representatives {
                 barcode::cohomology_with_involution(coboundary, algorithm)
@@ -284,10 +327,9 @@ pub fn rips_barcode(
             }
         }
         Method::Homology => {
-            // Bars in dimension max_dim die at simplices of dimension max_dim + 1
-            assert!(rips_index_fits(n_points, max_dim + 1));
-            let coboundary = RipsCoboundary::<Z2>::new(distances.clone());
-            let boundary = build_rips_boundary_matrix::<Z2>(distances, max_dim + 1);
+            let coboundary = RipsCoboundary::<Z2>::new(distances.clone()).with_threshold(threshold);
+            let boundary =
+                build_rips_boundary_matrix_with_threshold::<Z2>(distances, max_dim + 1, threshold);
             let boundary = (&boundary).with_transpose(&coboundary);
             let mut bars = barcode::homology(boundary, algorithm, representatives);
             // Nothing can kill the top dimensional simplices, so they look essential but are not bars we computed
@@ -357,6 +399,7 @@ mod tests {
             let bars = rips_barcode(
                 distances.clone(),
                 2,
+                NotNan::new(f64::INFINITY).unwrap(),
                 Method::Cohomology,
                 algorithm.clone(),
                 false,
@@ -366,13 +409,21 @@ mod tests {
             let bars = rips_barcode(
                 distances.clone(),
                 2,
+                NotNan::new(f64::INFINITY).unwrap(),
                 Method::Cohomology,
                 algorithm.clone(),
                 true,
             );
             assert_eq!(bars.len(), expected.len());
             // Homology pairs simplices the same way (the pairing doesn't depend on the method)
-            let bars = rips_barcode(distances.clone(), 2, Method::Homology, algorithm, false);
+            let bars = rips_barcode(
+                distances.clone(),
+                2,
+                NotNan::new(f64::INFINITY).unwrap(),
+                Method::Homology,
+                algorithm,
+                false,
+            );
             let mut hom: Vec<_> = bars
                 .into_iter()
                 .map(|bar| (bar.birth, bar.death.map(|(d, _)| d)))
@@ -380,6 +431,62 @@ mod tests {
             hom.sort();
             let cohom: Vec<_> = expected.iter().map(|(b, d, _)| (*b, *d)).collect();
             assert_eq!(hom, cohom);
+        }
+    }
+
+    /// Truncating at the enclosing radius must not change the barcode, but should shrink the complex
+    #[test]
+    fn enclosing_radius_truncation_is_exact() {
+        use crate::{
+            build_rips_bases, build_rips_bases_with_threshold,
+            cohomology::build_rips_coboundary_matrix, enclosing_radius, rips_barcode, Method,
+        };
+        use ordered_float::NotNan;
+        use phlite::{
+            barcode::{self, Algorithm},
+            fields::Z2,
+            matrices::ColBasis,
+        };
+        // Points spread over a square, so the enclosing radius is well below the diameter
+        let points: Vec<(f64, f64)> = (0..30)
+            .map(|i| (((i * 7) % 11) as f64, ((i * 5) % 13) as f64))
+            .collect();
+        let distances: Vec<Vec<NotNan<f64>>> = points
+            .iter()
+            .map(|a| {
+                points
+                    .iter()
+                    .map(|b| {
+                        NotNan::new(((a.0 - b.0).powi(2) + (a.1 - b.1).powi(2)).sqrt()).unwrap()
+                    })
+                    .collect()
+            })
+            .collect();
+        let r = enclosing_radius(&distances);
+        assert!(
+            build_rips_bases_with_threshold(&distances, 2, r).size()
+                < build_rips_bases(&distances, 2).size()
+        );
+        let summary = |bars: Vec<crate::RipsBar>| {
+            let mut out: Vec<_> = bars
+                .into_iter()
+                .map(|bar| (bar.birth_value, bar.death.map(|(_, d)| d)))
+                .collect();
+            out.sort();
+            out
+        };
+        let untruncated = build_rips_coboundary_matrix::<Z2>(distances.clone(), 2);
+        let expected = summary(barcode::cohomology(&untruncated, Algorithm::default()));
+        for method in [Method::Cohomology, Method::Homology] {
+            let bars = rips_barcode(
+                distances.clone(),
+                2,
+                NotNan::new(f64::INFINITY).unwrap(),
+                method,
+                Algorithm::default(),
+                true,
+            );
+            assert_eq!(summary(bars), expected, "{method:?}");
         }
     }
 

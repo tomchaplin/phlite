@@ -45,6 +45,10 @@ fn validate(distance_matrix: &[Vec<f64>]) -> PyResult<Vec<Vec<NotNan<f64>>>> {
 ///     distance_matrix: A symmetric matrix of pairwise distances, e.g. a list of lists or a 2D numpy array.
 ///         Distances must be non-negative. An infinite distance means the edge never appears. The diagonal is ignored.
 ///     max_dim: The maximum homology dimension to compute.
+///     threshold: Only build the Rips complex up to this diameter (default: no limit).
+///         Bars still alive at the threshold are reported as essential.
+///         Simplices above the enclosing radius are always skipped, since by then the complex is contractible
+///         and nothing changes, so a larger threshold gives the same result as none.
 ///     method: `'cohomology'` (the default) reduces the coboundary matrix, which is usually much faster.
 ///         `'homology'` reduces the boundary matrix instead, which needs simplices up to dimension `max_dim + 1`.
 ///     algorithm: The reduction algorithm: `'standard'`, `'clearing'` (the default), `'parallel'`
@@ -58,11 +62,13 @@ fn validate(distance_matrix: &[Vec<f64>]) -> PyResult<Vec<Vec<NotNan<f64>>>> {
 ///     The barcode, with dimensions `0, ..., max_dim`.
 #[gen_stub_pyfunction]
 #[pyfunction]
-#[pyo3(signature = (distance_matrix, max_dim = 1, *, method = "cohomology", algorithm = "clearing", representatives = false, threads = None))]
+#[pyo3(signature = (distance_matrix, max_dim = 1, *, threshold = None, method = "cohomology", algorithm = "clearing", representatives = false, threads = None))]
+#[allow(clippy::too_many_arguments)]
 fn rips(
     py: Python<'_>,
     distance_matrix: Vec<Vec<f64>>,
     max_dim: usize,
+    threshold: Option<f64>,
     #[gen_stub(override_type(type_repr = "typing.Literal['cohomology', 'homology']", imports = ("typing")))]
     method: &str,
     #[gen_stub(override_type(type_repr = "typing.Literal['standard', 'clearing', 'parallel', 'parallel-lock-free']", imports = ("typing")))]
@@ -71,6 +77,12 @@ fn rips(
     threads: Option<usize>,
 ) -> PyResult<Barcode> {
     let distances = validate(&distance_matrix)?;
+    let threshold = match threshold {
+        None => NotNan::new(f64::INFINITY).unwrap(),
+        Some(t) => {
+            NotNan::new(t).map_err(|_| PyValueError::new_err("threshold must not be NaN"))?
+        }
+    };
     drop(distance_matrix);
     let method = parse_method(method)?;
     let algorithm = AlgorithmArg::parse(algorithm)?;
@@ -85,7 +97,14 @@ fn rips(
 
     let bars = py.detach(|| {
         algorithm.run(threads, |algorithm| {
-            let bars = rips_barcode(distances, max_dim, method, algorithm, representatives);
+            let bars = rips_barcode(
+                distances,
+                max_dim,
+                threshold,
+                method,
+                algorithm,
+                representatives,
+            );
             SortedBars::new(bars, max_dim + 1, |simplex| {
                 let vertices = simplex.to_vec(n_points);
                 (

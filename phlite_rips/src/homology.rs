@@ -1,5 +1,5 @@
 use super::RipsBasis;
-use crate::{build_rips_bases, RipsIndex};
+use crate::{build_rips_bases_with_threshold, RipsIndex};
 use ordered_float::NotNan;
 use phlite::{
     fields::{Invertible, NonZeroCoefficient},
@@ -107,7 +107,17 @@ pub fn build_rips_boundary_matrix<CF: Invertible>(
     distances: Vec<Vec<NotNan<f64>>>,
     max_dim: usize,
 ) -> RipsBoundaryAllDims<CF> {
-    let basis = build_rips_bases(&distances, max_dim);
+    build_rips_boundary_matrix_with_threshold(distances, max_dim, NotNan::new(f64::INFINITY).unwrap())
+}
+
+/// As [`build_rips_boundary_matrix`], but only the simplices with diameter at most `threshold`.
+/// (The boundary of such a simplex is automatically within the threshold.)
+pub fn build_rips_boundary_matrix_with_threshold<CF: Invertible>(
+    distances: Vec<Vec<NotNan<f64>>>,
+    max_dim: usize,
+    threshold: NotNan<f64>,
+) -> RipsBoundaryAllDims<CF> {
+    let basis = build_rips_bases_with_threshold(&distances, max_dim, threshold);
     RipsBoundaryAllDims {
         matrix: RipsBoundary {
             distances,

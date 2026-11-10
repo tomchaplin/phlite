@@ -44,7 +44,7 @@ class Barcode:
         """
     def __repr__(self) -> builtins.str: ...
 
-def rips(distance_matrix: typing.Sequence[typing.Sequence[builtins.float]], max_dim: builtins.int = 1, *, method: typing.Literal['cohomology', 'homology'] = "cohomology", algorithm: typing.Literal['standard', 'clearing', 'parallel', 'parallel-lock-free'] = "clearing", representatives: builtins.bool = False, threads: typing.Optional[builtins.int] = None) -> Barcode:
+def rips(distance_matrix: typing.Sequence[typing.Sequence[builtins.float]], max_dim: builtins.int = 1, *, threshold: typing.Optional[builtins.float] = None, method: typing.Literal['cohomology', 'homology'] = "cohomology", algorithm: typing.Literal['standard', 'clearing', 'parallel', 'parallel-lock-free'] = "clearing", representatives: builtins.bool = False, threads: typing.Optional[builtins.int] = None) -> Barcode:
     r"""
     Compute the Vietoris-Rips persistent homology of a distance matrix, in dimensions `0, ..., max_dim`.
     
@@ -52,6 +52,10 @@ def rips(distance_matrix: typing.Sequence[typing.Sequence[builtins.float]], max_
         distance_matrix: A symmetric matrix of pairwise distances, e.g. a list of lists or a 2D numpy array.
             Distances must be non-negative. An infinite distance means the edge never appears. The diagonal is ignored.
         max_dim: The maximum homology dimension to compute.
+        threshold: Only build the Rips complex up to this diameter (default: no limit).
+            Bars still alive at the threshold are reported as essential.
+            Simplices above the enclosing radius are always skipped, since by then the complex is contractible
+            and nothing changes, so a larger threshold gives the same result as none.
         method: `'cohomology'` (the default) reduces the coboundary matrix, which is usually much faster.
             `'homology'` reduces the boundary matrix instead, which needs simplices up to dimension `max_dim + 1`.
         algorithm: The reduction algorithm: `'standard'`, `'clearing'` (the default), `'parallel'`

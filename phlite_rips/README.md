@@ -36,6 +36,9 @@ barcode.pairing_representatives[1]  # a cycle (list of edges (a, b)) for each of
 Representatives are lists of simplices, each a tuple of point indices in increasing order.
 An infinite distance means that edge never appears. See `examples/circle.py` for a full example.
 
+Pass `threshold=t` to only build the Rips complex up to diameter `t` (bars still alive at `t` are then essential).
+Simplices above the enclosing radius `min_i max_j d(i, j)` are always skipped, since beyond it the complex is a cone and nothing changes, so this never affects the result.
+
 To build it you need [`just`](https://github.com/casey/just) and [`uv`](https://github.com/astral-sh/uv): run `just develop` and then `uv run --no-sync python ...`, or `just` to see all recipes.
 
 ## Limitations
