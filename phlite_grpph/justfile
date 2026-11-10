@@ -1,0 +1,42 @@
+# Build tooling for the phlite_grpph Python bindings (requires `just` and `uv`)
+
+set shell := ["bash", "-euo", "pipefail", "-c"]
+
+# Python version for the venv; override with e.g. `just python=3.12 venv`
+python := "3.14"
+
+# List available recipes
+default:
+    @just --list
+
+# Create .venv with build/dev tooling (maturin, numpy); --inexact keeps the installed extension
+venv:
+    uv sync --inexact --python {{python}}
+
+# Build the extension in debug mode and install it into .venv
+develop: venv
+    uv run --no-sync maturin develop --uv
+
+# Build the extension in release mode and install it into .venv
+develop-release: venv
+    uv run --no-sync maturin develop --uv --release
+
+# Build a release wheel into dist/
+wheel: venv
+    uv run --no-sync maturin build --release --out dist
+
+# Build a source distribution into dist/
+sdist: venv
+    uv run --no-sync maturin sdist --out dist
+
+# Regenerate phlite_grpph.pyi type stubs
+stubs:
+    cargo run --bin phlite_grpph_stub_gen
+
+# Run all example scripts against a release build
+examples: develop-release
+    for f in examples/*.py; do echo "== $f"; uv run --no-sync python "$f"; done
+
+# Remove .venv and dist/
+clean:
+    rm -rf .venv dist

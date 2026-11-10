@@ -4,7 +4,7 @@ build-backend = "maturin"
 
 [project]
 name = "phlite_grpph"
-requires-python = ">=3.8"
+requires-python = ">=3.9"
 classifiers = [
     "Programming Language :: Rust",
     "Programming Language :: Python :: Implementation :: CPython",
@@ -13,3 +13,13 @@ classifiers = [
 dynamic = ["version"]
 [tool.maturin]
 features = ["pyo3/extension-module"]
+
+[dependency-groups]
+dev = [
+    "maturin>=1.9,<2.0",
+    "numpy",
+]
+
+[tool.uv]
+# The extension module is built by `maturin develop` (see justfile), not by `uv sync`
+package = false
