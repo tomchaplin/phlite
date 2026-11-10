@@ -119,6 +119,10 @@ where
     where
         Self: 'a;
 
+    fn n_dimensions(&self) -> usize {
+        self.right.n_dimensions()
+    }
+
     fn sub_basis(&self, dimension: usize) -> Self::SubBasisT<'_> {
         self.right.sub_basis(dimension)
     }

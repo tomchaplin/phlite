@@ -191,7 +191,7 @@ mod tests {
     use phlite::{
         fields::Z2,
         matrices::{combinators::product, HasRowFiltration, MatrixOracle},
-        reduction::{standard_algo_with_diagram, ClearedReductionMatrix},
+        reduction::{Clearing, Reduction, ReductionAlgorithm, Standard},
     };
 
     #[test]
@@ -253,7 +253,7 @@ mod tests {
         let coboundary = build_rips_coboundary_matrix::<Z2>(distance_matrix, max_dim);
         let coboundary = coboundary.reverse();
         // Compute reduction matrix
-        let (v, diagram) = standard_algo_with_diagram(&coboundary, false);
+        let Reduction { v, diagram } = Standard::new().reduce(&coboundary);
         let _r = product(&coboundary, &v);
 
         // Report
@@ -277,6 +277,65 @@ mod tests {
         assert_eq!(diagram.essential.len(), 1);
     }
 
+    /// A coboundary matrix maps dimension d to d + 1, so clearing should detect an ascending order,
+    /// and the diagram should be the same whatever order is used.
+    #[test]
+    fn test_clearing_dimension_order() {
+        for max_dim in 1..=2 {
+            let coboundary = build_rips_coboundary_matrix::<Z2>(distance_matrix(), max_dim);
+            let coboundary = coboundary.reverse();
+            assert_eq!(
+                Clearing::new().dimension_order(&coboundary),
+                (0..=max_dim).collect::<Vec<_>>()
+            );
+            let detected = Clearing::new().reduce(&coboundary).diagram;
+            let standard = Standard::new().reduce(&coboundary).diagram;
+            // Descending is the wrong way round for a coboundary matrix: no clearing happens, but the diagram is still right
+            let wrong_order = Clearing::new()
+                .with_dimension_order((0..=max_dim).rev())
+                .reduce(&coboundary)
+                .diagram;
+            for diagram in [&standard, &wrong_order] {
+                assert_eq!(detected.essential, diagram.essential);
+                assert_eq!(detected.pairings, diagram.pairings);
+            }
+        }
+    }
+
+    #[test]
+    fn test_parallel_clearing_matches_serial() {
+        // Rips cohomology never enumerates the row space, so this checks the label-keyed pivot table on a
+        // matrix whose rows are implicit (RipsIndex labels) as well as on grpph's
+        for max_dim in 1..=2 {
+            let coboundary = build_rips_coboundary_matrix::<Z2>(distance_matrix(), max_dim);
+            let coboundary = coboundary.reverse();
+            let serial = Clearing::new().reduce(&coboundary).diagram;
+            // Descending is the wrong way round for a coboundary matrix, the diagram should still be right
+            let wrong_order = Clearing::new()
+                .with_dimension_order((0..=max_dim).rev())
+                .parallel()
+                .reduce(&coboundary)
+                .diagram;
+            assert_eq!(serial.essential, wrong_order.essential);
+            assert_eq!(serial.pairings, wrong_order.pairings);
+            for _ in 0..20 {
+                let parallel = Clearing::new().parallel().reduce(&coboundary).diagram;
+                assert_eq!(serial.essential, parallel.essential);
+                assert_eq!(serial.pairings, parallel.pairings);
+                #[cfg(feature = "lock-free")]
+                {
+                    let lock_free = Clearing::new()
+                        .parallel()
+                        .storage(phlite::reduction::Storage::LockFree)
+                        .reduce(&coboundary)
+                        .diagram;
+                    assert_eq!(serial.essential, lock_free.essential);
+                    assert_eq!(serial.pairings, lock_free.pairings);
+                }
+            }
+        }
+    }
+
     #[test]
     fn test_clearing() {
         let distance_matrix = distance_matrix();
@@ -287,7 +346,7 @@ mod tests {
         let coboundary = build_rips_coboundary_matrix::<Z2>(distance_matrix, max_dim);
         let coboundary = coboundary.reverse();
         // Compute reduction matrix, in increasing dimension
-        let (v, diagram) = ClearedReductionMatrix::build_with_diagram(&coboundary, 0..=max_dim);
+        let Reduction { v, diagram } = Clearing::new().reduce(&coboundary);
         let _r = product(&coboundary, &v);
 
         // Report
