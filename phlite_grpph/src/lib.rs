@@ -8,7 +8,7 @@ use petgraph::{algo::dijkstra, graph::NodeIndex, Graph};
 use phlite::{
     fields::Z2,
     matrices::{combinators::product, HasRowFiltration, MatrixOracle},
-    reduction::{standard_algo_with_diagram, ClearedReductionMatrix},
+    reduction::{Clearing, Reduction, ReductionAlgorithm, Standard},
 };
 use rustc_hash::FxHashSet;
 
@@ -80,7 +80,7 @@ fn grpph(n_vertices: u32, edges: Vec<(u32, u32, f64)>) -> (EssentialBars, Pairin
     let d_rev = (&d).reverse();
 
     // Reduce
-    let (_v, diagram) = ClearedReductionMatrix::build_with_diagram(&d_rev, 0..=1);
+    let diagram = Clearing::new().reduce(&d_rev).diagram;
     info!("Reduced coboundary matrix");
 
     // Translate diagram to Python compatible types
@@ -129,7 +129,7 @@ fn grpph_with_involution(
     let d_rev = (&d).reverse();
 
     // Reduce
-    let (_v, diagram) = ClearedReductionMatrix::build_with_diagram(&d_rev, 0..=1);
+    let diagram = Clearing::new().reduce(&d_rev).diagram;
     info!("Reduced coboundary matrix");
 
     // Translate diagram to Python compatible types
@@ -166,7 +166,7 @@ fn grpph_with_involution(
 
     // Decompose boundary matrix restricted to involution basis
     let d_boundary = GrPPHBoundary::<Z2, _>::build(&filtration, &edge_set, involution_basis);
-    let (v_boundary, boundary_diagram) = standard_algo_with_diagram(&d_boundary, false);
+    let Reduction { v: v_boundary, diagram: boundary_diagram } = Standard::new().reduce(&d_boundary);
     info!("Reduced involution boundary matrix");
     let r_boundary = product(&d_boundary, &v_boundary);
 

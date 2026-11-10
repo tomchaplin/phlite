@@ -5,7 +5,7 @@ use petgraph::{algo::dijkstra, graph::NodeIndex, Graph};
 use phlite::{
     fields::Z2,
     matrices::{HasRowFiltration, MatrixOracle},
-    reduction::ClearedReductionMatrix,
+    reduction::{Clearing, ReductionAlgorithm},
 };
 use rustc_hash::FxHashSet;
 
@@ -53,7 +53,7 @@ fn main() {
 
     println!("Built coboundary matrix");
 
-    let (_v, diagram) = ClearedReductionMatrix::build_with_diagram(&d_rev, 0..=1);
+    let diagram = Clearing::new().reduce(&d_rev).diagram;
 
     let mut count = 0;
 

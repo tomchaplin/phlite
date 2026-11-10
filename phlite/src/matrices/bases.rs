@@ -53,6 +53,10 @@ impl<T: BasisElement> ColBasis for SplitBasis<T> {
 impl<'a, T: BasisElement> SplitByDimension for &'a SplitBasis<T> {
     type SubBasisT = BasisSlice<'a, T>;
 
+    fn n_dimensions(&self) -> usize {
+        SplitBasis::n_dimensions(self)
+    }
+
     fn in_dimension(self, dimension: usize) -> Self::SubBasisT {
         BasisSlice(&self.elems[self.offsets[dimension]..self.offsets[dimension + 1]])
     }

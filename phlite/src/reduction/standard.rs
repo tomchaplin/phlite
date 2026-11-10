@@ -1,9 +1,6 @@
 //! An implementation of the standard algorithm with no optimisations.
 //!
-//! To run this algorithm you should attempt to construct the V matrix by calling [`standard_algo`] or [`standard_algo_with_diagram`].
-//!
-//! Some of the functions in this module require you to specify a boolean parameter `reverse_order`.
-//! If your chain complex increases the dimension (e.g. a coboundary matrix) then set `reverse_order=true`, otherwise set to `false`.
+//! Run it with `Standard::new().reduce(matrix)`, see [`ReductionAlgorithm`].
 
 use std::hash::Hash;
 
@@ -17,18 +14,43 @@ use crate::{
 
 use rustc_hash::{FxHashMap, FxHashSet};
 
-use crate::reduction::Diagram;
+use crate::reduction::{Diagram, Reduction, ReductionAlgorithm};
 
 // TODO: Convert to a MapVecMatrix so that we can use a common diagram read off
 
-/// The return type of [`standard_algo`] - reduction columns are stored behind a hash map.
+/// The type of `V` returned by [`Standard`] - reduction columns are stored behind a hash map.
 pub type StandardReductionMatrix<CF, ColT> = MapVecMatrix<'static, CF, ColT, ColT>;
 
-/// Run the standard algorithm to reduce the provided boundary matrix.
-/// The reduction matrix V is returned as a [`StandardReductionMatrix`].
+/// The standard reduction algorithm, with no optimisations.
 ///
-/// Columns will be reduced according to their order in the attached [`ColBasis`].
-pub fn standard_algo<M>(boundary: M) -> StandardReductionMatrix<M::CoefficientField, M::ColT>
+/// Columns are reduced according to their order in the attached [`ColBasis`].
+/// The reduction matrix V is returned as a [`StandardReductionMatrix`].
+#[derive(Debug, Clone, Copy, Default)]
+pub struct Standard;
+
+impl Standard {
+    /// The standard algorithm. There are no options.
+    pub fn new() -> Self {
+        Self
+    }
+}
+
+impl<M> ReductionAlgorithm<M> for Standard
+where
+    M: MatrixOracle + HasRowFiltration + HasColBasis + SquareMatrix,
+    M::CoefficientField: Invertible + 'static,
+    M::RowT: Hash + 'static,
+{
+    type V = StandardReductionMatrix<M::CoefficientField, M::ColT>;
+
+    fn reduce(self, boundary: M) -> Reduction<Self::V, M::ColT> {
+        let v = standard_algo(&boundary);
+        let diagram = read_off_diagram(&boundary, &v);
+        Reduction { v, diagram }
+    }
+}
+
+fn standard_algo<M>(boundary: M) -> StandardReductionMatrix<M::CoefficientField, M::ColT>
 where
     M: MatrixOracle + HasRowFiltration + HasColBasis + SquareMatrix,
     M::CoefficientField: Invertible,
@@ -109,10 +131,12 @@ where
 }
 
 /// Reads off the pairings from the reduced matrix to construct the persistence diagram.
-pub fn read_off_diagram<M>(
+///
+/// The result doesn't depend on the order in which columns are visited:
+/// the essential classes are the columns that reduce to zero and are not the pivot of any other column.
+fn read_off_diagram<M>(
     boundary: M,
     reduction_matrix: &StandardReductionMatrix<M::CoefficientField, M::ColT>,
-    reverse_order: bool,
 ) -> Diagram<M::ColT>
 where
     M: SquareMatrix + HasRowFiltration + HasColBasis,
@@ -123,49 +147,26 @@ where
 
     let mut essential = FxHashSet::default();
     let mut pairings = FxHashSet::default();
+    let mut pivot_rows = FxHashSet::default();
 
-    let col_iter: Box<dyn Iterator<Item = usize>> = if reverse_order {
-        Box::new((0..boundary.basis().size()).rev())
-    } else {
-        Box::new(0..boundary.basis().size())
-    };
-
-    for i in col_iter {
-        let basis_element = boundary.basis().element(i);
-        let mut r_i = r.build_bhcol(basis_element.clone());
-        match r_i.pop_pivot() {
+    let basis = boundary.basis();
+    for i in 0..basis.size() {
+        let basis_element = basis.element(i);
+        match r.build_bhcol(basis_element.clone()).pop_pivot() {
             None => {
                 essential.insert(basis_element);
             }
             Some(piv) => {
-                pairings.insert((piv.row_index.clone(), basis_element));
-                essential.remove(&piv.row_index);
+                pivot_rows.insert(piv.row_index.clone());
+                pairings.insert((piv.row_index, basis_element));
             }
         }
-        if r_i.pop_pivot().is_none() {}
     }
+    // A column that is the pivot of another is the birth of a finite bar
+    essential.retain(|elem| !pivot_rows.contains(elem));
 
     Diagram {
         essential,
         pairings,
     }
-}
-
-#[allow(clippy::type_complexity)]
-/// Calls [`standard_algo`] and then [`read_off_diagram`].
-pub fn standard_algo_with_diagram<M>(
-    boundary: M,
-    reverse_order: bool,
-) -> (
-    StandardReductionMatrix<M::CoefficientField, M::ColT>,
-    Diagram<M::ColT>,
-)
-where
-    M: SquareMatrix + HasRowFiltration + HasColBasis,
-    M::CoefficientField: Invertible,
-    M::RowT: Hash,
-{
-    let v = standard_algo(&boundary);
-    let diagram = read_off_diagram(&boundary, &v, reverse_order);
-    (v, diagram)
 }
