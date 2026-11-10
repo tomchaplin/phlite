@@ -348,6 +348,7 @@ where
 ///
 /// The `boundary` matrix needs a [`HasSplitColBasis`].
 /// The reduction matrix V is returned as a [`ClearedReductionMatrix`], which holds onto your matrix.
+/// For a parallel version, see `Clearing::parallel` (feature `parallel`).
 #[derive(Debug, Clone, Default)]
 pub struct Clearing {
     dimension_order: Option<Vec<usize>>,
