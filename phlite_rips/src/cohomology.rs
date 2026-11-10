@@ -168,6 +168,46 @@ impl<CF: NonZeroCoefficient + Invertible> HasRowFiltration for RipsCoboundary<CF
             }
         })
     }
+
+    // The pivot of the anti-transpose (which is what we reduce) is the smallest entry of the coboundary.
+    // Cofacets are produced in increasing index order and none can appear before the simplex itself,
+    // so the first cofacet with the same diameter as the simplex is the smallest and we can stop there.
+    // In Rips filtrations most pairs have zero persistence, so this usually stops early.
+    fn column_min(
+        &self,
+        col: Self::ColT,
+    ) -> Option<ColumnEntry<Self::FiltrationT, Self::RowT, Self::CoefficientField>> {
+        let n_points = self.n_points();
+        let col_vertices = col.to_vec(n_points);
+        let diameter = max_pairwise_distance(&col_vertices, &self.distances);
+        let mut best: Option<ColumnEntry<Self::FiltrationT, Self::RowT, Self::CoefficientField>> =
+            None;
+        for (coeff, row_index, inserted_vertex) in
+            CoboundaryIterator::new(col.to_vec(n_points), n_points)
+        {
+            let filtration_value = col_vertices
+                .iter()
+                .map(|v| self.distances[*v][inserted_vertex])
+                .max()
+                .unwrap()
+                .max(diameter);
+            // On ties keep the earlier, smaller, index
+            if best
+                .as_ref()
+                .is_none_or(|current| filtration_value < current.filtration_value)
+            {
+                best = Some(ColumnEntry {
+                    filtration_value,
+                    row_index,
+                    coeff,
+                });
+                if filtration_value == diameter {
+                    break;
+                }
+            }
+        }
+        best
+    }
 }
 
 pub type RipsCoboundaryAllDims<CF> = MatrixWithBasis<RipsCoboundary<CF>, RipsBasis>;
@@ -223,6 +263,41 @@ mod tests {
                     .map(|(_coeff, row)| (row, coboundary.matrix.filtration_value(row)))
                     .collect();
                 assert_eq!(fast, slow, "column {col:?}");
+            }
+        }
+    }
+
+    /// `column_min` stops early, relying on cofacets coming out in increasing index order; check it against brute force
+    #[test]
+    fn test_column_min_matches_brute_force() {
+        use phlite::matrices::{ColBasis, HasSplitColBasis};
+        // Integer distances, so lots of ties, and a non-metric
+        let n = 7;
+        let distances: Vec<Vec<NotNan<f64>>> = (0..n)
+            .map(|i| {
+                (0..n)
+                    .map(|j| NotNan::new(if i == j { 0.0 } else { ((i * j + i + j) % 4) as f64 }).unwrap())
+                    .collect()
+            })
+            .collect();
+        for dists in [distances, distance_matrix()] {
+            let coboundary = build_rips_coboundary_matrix::<Z2>(dists, 2);
+            for dim in 0..=2 {
+                let basis = coboundary.sub_basis(dim);
+                for i in 0..basis.size() {
+                    let col = basis.element(i);
+                    let entries: Vec<_> = coboundary.matrix.column_with_filtration(col).collect();
+                    assert!(
+                        entries.windows(2).all(|w| w[0].row_index < w[1].row_index),
+                        "cofacets of {col:?} not in increasing order"
+                    );
+                    let brute = entries.into_iter().min().map(|e| (e.filtration_value, e.row_index));
+                    let fast = coboundary
+                        .matrix
+                        .column_min(col)
+                        .map(|e| (e.filtration_value, e.row_index));
+                    assert_eq!(fast, brute, "column {col:?}");
+                }
             }
         }
     }

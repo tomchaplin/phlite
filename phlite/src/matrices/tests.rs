@@ -7,7 +7,7 @@ use crate::matrices::combinators::product;
 use crate::matrices::MatrixOracle;
 use crate::matrices::{implementors::SimpleZ2Matrix, HasRowFiltration};
 
-use crate::columns::BHCol;
+use crate::columns::{BHCol, ColumnEntry};
 
 use super::{ColBasis, HasColBasis, HasSplitColBasis, SplitBasis, SplitByDimension};
 
@@ -256,4 +256,30 @@ fn test_sub_matrix_in_dimension() {
     // Reversing a sub-matrix also works
     let rev_sub = (&sub).reverse();
     assert_eq!(rev_sub.basis().element(0), Reverse(5));
+}
+
+#[test]
+fn column_pivot_and_min() {
+    // Column 0 has rows 3, 1, 1, 2: over Z2 the two copies of row 1 cancel
+    let matrix = SimpleZ2Matrix::new_all_one(vec![vec![3, 1, 1, 2], vec![1, 1], vec![]]);
+    let matrix = matrix.with_filtration(|row| row);
+    let row = |entry: Option<ColumnEntry<usize, usize, Z2>>| entry.map(|e| e.row_index);
+    assert_eq!(row(matrix.column_pivot(0)), Some(3));
+    assert_eq!(row(matrix.column_min(0)), Some(2));
+    // Everything cancels
+    assert_eq!(row(matrix.column_pivot(1)), None);
+    assert_eq!(row(matrix.column_min(1)), None);
+    assert_eq!(row(matrix.column_pivot(2)), None);
+    // Reversing swaps them
+    let reversed = (&matrix).reverse();
+    let rev_row = |entry: Option<ColumnEntry<Reverse<usize>, Reverse<usize>, Z2>>| {
+        entry.map(|e| e.row_index.0)
+    };
+    assert_eq!(rev_row(reversed.column_pivot(Reverse(0))), Some(2));
+    assert_eq!(rev_row(reversed.column_min(Reverse(0))), Some(3));
+    // And agree with the heap
+    assert_eq!(
+        rev_row(reversed.build_bhcol(Reverse(0)).pop_pivot()),
+        Some(2)
+    );
 }

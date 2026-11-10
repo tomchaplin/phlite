@@ -377,6 +377,62 @@ pub trait HasRowFiltration: MatrixOracle {
         }
     }
 
+    /// The smallest non-zero entry of the column `col`, ordered by filtration value and then [`RowT`](MatrixOracle::RowT),
+    /// or `None` if the column is zero.
+    ///
+    /// This is the pivot of the [`reverse`](MatrixOracle::reverse)d matrix, which is how cohomology is computed,
+    /// so override it if you can find the smallest entry without visiting every entry
+    /// (for example, if you can enumerate the column in order and know a lower bound on its filtration values).
+    /// The default implementation is a single pass like [`column_pivot`](HasRowFiltration::column_pivot).
+    fn column_min(
+        &self,
+        col: Self::ColT,
+    ) -> Option<ColumnEntry<Self::FiltrationT, Self::RowT, Self::CoefficientField>> {
+        // The smallest entry seen so far, and the summed coefficient of every entry in its row (None if they cancel)
+        let mut best: Option<ColumnEntry<Self::FiltrationT, Self::RowT, Self::CoefficientField>> =
+            None;
+        let mut sum: Option<Self::CoefficientField> = None;
+        for entry in self.column_with_filtration(col.clone()) {
+            let ordering = best.as_ref().map(|current| entry.cmp(current));
+            match ordering {
+                Some(std::cmp::Ordering::Greater) => {}
+                Some(std::cmp::Ordering::Equal) => sum = entry.coeff + sum,
+                Some(std::cmp::Ordering::Less) | None => {
+                    sum = Some(entry.coeff);
+                    best = Some(entry);
+                }
+            }
+        }
+        match (best, sum) {
+            (None, _) => None,
+            (Some(mut entry), Some(coeff)) => {
+                entry.coeff = coeff;
+                Some(entry)
+            }
+            // The smallest row cancelled, so sum up the whole column and take the smallest survivor
+            (Some(_), None) => {
+                let mut entries: Vec<_> = self.column_with_filtration(col).collect();
+                entries.sort();
+                let mut i = 0;
+                while i < entries.len() {
+                    let mut total = Some(entries[i].coeff);
+                    let mut j = i + 1;
+                    while j < entries.len() && entries[j] == entries[i] {
+                        total = entries[j].coeff + total;
+                        j += 1;
+                    }
+                    if let Some(coeff) = total {
+                        let mut entry = entries.swap_remove(i);
+                        entry.coeff = coeff;
+                        return Some(entry);
+                    }
+                    i = j;
+                }
+                None
+            }
+        }
+    }
+
     /// Of the columns with a non-zero entry in `row`, the first in the order on filtration value and then [`ColT`](MatrixOracle::ColT),
     /// or `None` if this is not known (the default).
     ///
@@ -430,6 +486,13 @@ where
         col: Self::ColT,
     ) -> Option<ColumnEntry<Self::FiltrationT, Self::RowT, Self::CoefficientField>> {
         (*self).column_pivot(col)
+    }
+
+    fn column_min(
+        &self,
+        col: Self::ColT,
+    ) -> Option<ColumnEntry<Self::FiltrationT, Self::RowT, Self::CoefficientField>> {
+        (*self).column_min(col)
     }
 
     fn first_column_in_row(&self, row: Self::RowT) -> Option<Self::ColT> {

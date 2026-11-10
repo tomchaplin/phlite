@@ -421,6 +421,13 @@ where
         self.matrix.column_pivot(col)
     }
 
+    fn column_min(
+        &self,
+        col: Self::ColT,
+    ) -> Option<ColumnEntry<Self::FiltrationT, Self::RowT, Self::CoefficientField>> {
+        self.matrix.column_min(col)
+    }
+
     fn first_column_in_row(&self, row: Self::RowT) -> Option<Self::ColT> {
         self.matrix.first_column_in_row(row)
     }
@@ -556,6 +563,13 @@ where
         self.oracle.column_pivot(col)
     }
 
+    fn column_min(
+        &self,
+        col: Self::ColT,
+    ) -> Option<ColumnEntry<Self::FiltrationT, Self::RowT, Self::CoefficientField>> {
+        self.oracle.column_min(col)
+    }
+
     fn first_column_in_row(&self, row: Self::RowT) -> Option<Self::ColT> {
         self.oracle.first_column_in_row(row)
     }
@@ -644,6 +658,29 @@ where
 
     fn last_column_in_row(&self, row: Self::RowT) -> Option<Self::ColT> {
         self.oracle.first_column_in_row(row.0).map(Reverse)
+    }
+
+    // Reversing the order swaps the largest and smallest entries of each column
+    fn column_pivot(
+        &self,
+        col: Self::ColT,
+    ) -> Option<ColumnEntry<Self::FiltrationT, Self::RowT, Self::CoefficientField>> {
+        self.oracle.column_min(col.0).map(|entry| ColumnEntry {
+            filtration_value: Reverse(entry.filtration_value),
+            row_index: Reverse(entry.row_index),
+            coeff: entry.coeff,
+        })
+    }
+
+    fn column_min(
+        &self,
+        col: Self::ColT,
+    ) -> Option<ColumnEntry<Self::FiltrationT, Self::RowT, Self::CoefficientField>> {
+        self.oracle.column_pivot(col.0).map(|entry| ColumnEntry {
+            filtration_value: Reverse(entry.filtration_value),
+            row_index: Reverse(entry.row_index),
+            coeff: entry.coeff,
+        })
     }
 }
 
@@ -794,6 +831,23 @@ where
         self.oracle
             .first_column_in_row(Reverse(row))
             .map(|col| col.0)
+    }
+
+    // Reversing the order swaps the largest and smallest entries of each column
+    fn column_pivot(&self, col: Self::ColT) -> Option<ColumnEntry<FilT, RowT, Self::CoefficientField>> {
+        self.oracle.column_min(Reverse(col)).map(|entry| ColumnEntry {
+            filtration_value: entry.filtration_value.0,
+            row_index: entry.row_index.0,
+            coeff: entry.coeff,
+        })
+    }
+
+    fn column_min(&self, col: Self::ColT) -> Option<ColumnEntry<FilT, RowT, Self::CoefficientField>> {
+        self.oracle.column_pivot(Reverse(col)).map(|entry| ColumnEntry {
+            filtration_value: entry.filtration_value.0,
+            row_index: entry.row_index.0,
+            coeff: entry.coeff,
+        })
     }
 }
 
@@ -986,6 +1040,13 @@ where
         col: Self::ColT,
     ) -> Option<ColumnEntry<Self::FiltrationT, Self::RowT, Self::CoefficientField>> {
         self.matrix.column_pivot(col)
+    }
+
+    fn column_min(
+        &self,
+        col: Self::ColT,
+    ) -> Option<ColumnEntry<Self::FiltrationT, Self::RowT, Self::CoefficientField>> {
+        self.matrix.column_min(col)
     }
 
     fn first_column_in_row(&self, row: Self::RowT) -> Option<Self::ColT> {
