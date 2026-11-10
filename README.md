@@ -53,8 +53,25 @@ In particular, when the implementation of $D$ satisfies sufficient constraints, 
 If you can also provide the transpose of $D$ (e.g. the boundary matrix, for a coboundary matrix), the reduction recognises _apparent pairs_ [[1]](#1), which need no reduction or storage.
 `phlite::barcode` turns all of this into persistence barcodes, optionally with a representative cycle for every bar.
 
-With these, in our benchmarks (up to 400 random points in a cube, up to H_2) `phlite_rips` is several times faster than Ripser serially
-and on par with giotto-ph [[9]](#9) in parallel, using a fraction of Ripser's memory (see the `python-tests` folder to run them yourself).
+With these, `phlite_rips` is several times faster than Ripser serially and on par with giotto-ph [[9]](#9) in parallel,
+using a fraction of Ripser's memory, on the following benchmark.
+
+**Test case:** $n$ points sampled uniformly from the unit cube $[0, 1]^3$ (seed 0), with Euclidean distances (rounded to `float32`, so every implementation sees identical input),
+computing persistent homology in dimensions 0, 1 and 2 over $\mathbb{Z}/2$ by cohomology.
+We compare `phlite_rips` (`algorithm="clearing"`, serial) with [ripser.py](https://github.com/scikit-tda/ripser.py) (serial),
+and `phlite_rips` (`algorithm="parallel"`, 4 threads) with giotto-ph (`n_threads=4`).
+Times are the best of 2 runs and peak memory is the extra resident memory used during the computation,
+each run in a fresh process on one 8-core Linux machine; all implementations produced the same barcodes.
+
+| $n$ | Ripser (serial) | `phlite_rips` (serial) | giotto-ph (4 threads) | `phlite_rips` (4 threads) |
+|---|---|---|---|---|
+| 200 | 0.52s / 55 MB | 0.16s / 0.8 MB | 0.065s / 1.5 MB | 0.077s / 2.6 MB |
+| 300 | 2.20s / 209 MB | 0.57s / 3.5 MB | 0.22s / 7.2 MB | 0.27s / 7.2 MB |
+| 400 | 5.10s / 389 MB | 1.10s / 4.4 MB | 0.56s / 7.3 MB | 0.50s / 8.4 MB |
+
+These are a single family of inputs on a single machine, so treat them as indicative.
+To reproduce, run `just bench-rips --sizes 200 300 400 --max-dim 2 --threads 4 --repeats 2` in the `python-tests` folder
+(see its README for the other implementations and options).
 
 For more details, please refer to the documentation on `docs.rs`.
 If you need support implementing `phlite` traits for your specific application, please get in touch!
