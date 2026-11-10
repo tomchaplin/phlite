@@ -471,6 +471,9 @@ pub trait HasSplitColBasis: HasColBasis {
     where
         Self: 'a;
 
+    /// The number of dimensions, i.e. [`sub_basis`](Self::sub_basis) is valid for `0..n_dimensions()`.
+    fn n_dimensions(&self) -> usize;
+
     /// Return a view of the sub-basis of columns in the provided `dimension`.
     fn sub_basis(&self, dimension: usize) -> Self::SubBasisT<'_>;
 
@@ -497,6 +500,10 @@ where
     where
         Self: 'b;
 
+    fn n_dimensions(&self) -> usize {
+        (*self).n_dimensions()
+    }
+
     fn sub_basis(&self, dimension: usize) -> Self::SubBasisT<'_> {
         (*self).sub_basis(dimension)
     }
@@ -512,6 +519,9 @@ where
 pub trait SplitByDimension: ColBasis + Sized {
     /// The type of each sub-basis.
     type SubBasisT: ColBasis<ElemT = Self::ElemT> + Copy;
+
+    /// The number of dimensions, i.e. [`in_dimension`](Self::in_dimension) is valid for `0..n_dimensions()`.
+    fn n_dimensions(&self) -> usize;
 
     /// Return the sub-basis of columns in the provided `dimension`.
     fn in_dimension(self, dimension: usize) -> Self::SubBasisT;

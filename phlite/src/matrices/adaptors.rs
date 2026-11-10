@@ -69,6 +69,10 @@ where
     where
         Self: 'a;
 
+    fn n_dimensions(&self) -> usize {
+        self.oracle.n_dimensions()
+    }
+
     fn sub_basis(&self, dimension: usize) -> Self::SubBasisT<'_> {
         self.oracle.sub_basis(dimension)
     }
@@ -137,6 +141,10 @@ where
         = M::SubBasisT<'a>
     where
         Self: 'a;
+
+    fn n_dimensions(&self) -> usize {
+        self.oracle.n_dimensions()
+    }
 
     fn sub_basis(&self, dimension: usize) -> Self::SubBasisT<'_> {
         self.oracle.sub_basis(dimension)
@@ -215,6 +223,10 @@ where
         = M::SubBasisT<'a>
     where
         Self: 'a;
+
+    fn n_dimensions(&self) -> usize {
+        self.oracle.n_dimensions()
+    }
 
     fn sub_basis(&self, dimension: usize) -> Self::SubBasisT<'_> {
         self.oracle.sub_basis(dimension)
@@ -330,6 +342,10 @@ where
     where
         Self: 'a;
 
+    fn n_dimensions(&self) -> usize {
+        self.oracle.n_dimensions()
+    }
+
     fn sub_basis(&self, dimension: usize) -> Self::SubBasisT<'_> {
         self.oracle.sub_basis(dimension)
     }
@@ -416,6 +432,10 @@ where
         = <&'a B as SplitByDimension>::SubBasisT
     where
         Self: 'a;
+
+    fn n_dimensions(&self) -> usize {
+        (&self.basis).n_dimensions()
+    }
 
     fn sub_basis(&self, dimension: usize) -> Self::SubBasisT<'_> {
         (&self.basis).in_dimension(dimension)
@@ -595,6 +615,10 @@ where
     where
         Self: 'a;
 
+    fn n_dimensions(&self) -> usize {
+        self.oracle.n_dimensions()
+    }
+
     fn sub_basis(&self, dimension: usize) -> Self::SubBasisT<'_> {
         ReverseBasis(self.oracle.sub_basis(dimension))
     }
@@ -634,6 +658,10 @@ where
     B: SplitByDimension,
 {
     type SubBasisT = ReverseBasis<B::SubBasisT>;
+
+    fn n_dimensions(&self) -> usize {
+        self.0.n_dimensions()
+    }
 
     fn in_dimension(self, dimension: usize) -> Self::SubBasisT {
         ReverseBasis(self.0.in_dimension(dimension))
@@ -730,6 +758,10 @@ where
     where
         Self: 'a;
 
+    fn n_dimensions(&self) -> usize {
+        self.oracle.n_dimensions()
+    }
+
     fn sub_basis(&self, dimension: usize) -> Self::SubBasisT<'_> {
         UnreverseBasis(self.oracle.sub_basis(dimension))
     }
@@ -763,6 +795,10 @@ where
     T: BasisElement,
 {
     type SubBasisT = UnreverseBasis<B::SubBasisT>;
+
+    fn n_dimensions(&self) -> usize {
+        self.0.n_dimensions()
+    }
 
     fn in_dimension(self, dimension: usize) -> Self::SubBasisT {
         UnreverseBasis(self.0.in_dimension(dimension))

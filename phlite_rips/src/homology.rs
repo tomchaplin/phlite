@@ -130,7 +130,7 @@ mod tests {
     use phlite::{
         fields::Z2,
         matrices::{combinators::product, HasRowFiltration},
-        reduction::standard_algo_with_diagram,
+        reduction::{Clearing, Reduction, ReductionAlgorithm, Standard},
     };
 
     fn distance_matrix() -> Vec<Vec<NotNan<f64>>> {
@@ -155,7 +155,7 @@ mod tests {
         // Compute column basis
         let boundary = build_rips_boundary_matrix::<Z2>(distance_matrix, max_dim);
         // Compute reduction matrix
-        let (v, diagram) = standard_algo_with_diagram(&boundary, false);
+        let Reduction { v, diagram } = Standard::new().reduce(&boundary);
         let _r = &product(&boundary, &v);
 
         // Report
@@ -177,5 +177,50 @@ mod tests {
         assert_eq!(diagram.pairings.len(), 6);
         // Additional essential idx because we don't fill in a 2-void
         assert_eq!(diagram.essential.len(), 2);
+    }
+
+    /// Ten points on a noisy circle, so that there is some H_1 and some cancellation in H_2
+    fn circle_distances() -> Vec<Vec<NotNan<f64>>> {
+        let points: Vec<(f64, f64)> = (0..10)
+            .map(|i| {
+                let t = i as f64 * std::f64::consts::TAU / 10.0;
+                let r = 1.0 + 0.1 * ((i * 7 % 5) as f64 - 2.0);
+                (r * t.cos(), r * t.sin())
+            })
+            .collect();
+        points
+            .iter()
+            .map(|a| {
+                points
+                    .iter()
+                    .map(|b| NotNan::new(((a.0 - b.0).powi(2) + (a.1 - b.1).powi(2)).sqrt()).unwrap())
+                    .collect()
+            })
+            .collect()
+    }
+
+    /// A boundary matrix maps dimension d to d - 1, so clearing should detect a descending order,
+    /// and the diagram should agree with the standard algorithm whatever order is used.
+    #[test]
+    fn test_clearing_on_boundary_matrix() {
+        for max_dim in 1..=2 {
+            let boundary = build_rips_boundary_matrix::<Z2>(circle_distances(), max_dim);
+            assert_eq!(
+                Clearing::new().dimension_order(&boundary),
+                (0..=max_dim).rev().collect::<Vec<_>>()
+            );
+
+            let standard = Standard::new().reduce(&boundary).diagram;
+            let detected = Clearing::new().reduce(&boundary).diagram;
+            // Ascending is the wrong way round for a boundary matrix: no clearing happens, but the diagram is still right
+            let wrong_order = Clearing::new()
+                .with_dimension_order(0..=max_dim)
+                .reduce(&boundary)
+                .diagram;
+            for diagram in [&detected, &wrong_order] {
+                assert_eq!(standard.essential, diagram.essential);
+                assert_eq!(standard.pairings, diagram.pairings);
+            }
+        }
     }
 }

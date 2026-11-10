@@ -6,7 +6,7 @@ use phlite::{
     matrices::{
         combinators::product, ColBasis, HasRowFiltration, HasSplitColBasis, MatrixOracle,
     },
-    reduction::ClearedReductionMatrix,
+    reduction::{Clearing, Reduction, ReductionAlgorithm},
 };
 use phlite_rips::cohomology::build_rips_coboundary_matrix;
 
@@ -63,7 +63,7 @@ pub fn main() {
     // Calling `phlite::matrices::MatrixOracle::unreverse` can resolve this.
 
     // Compute reduction matrix, in increasing dimension
-    let (v, diagram) = ClearedReductionMatrix::build_with_diagram(&coboundary, 0..=max_dim);
+    let Reduction { v, diagram } = Clearing::new().reduce(&coboundary);
     let _r = product(&coboundary, &v);
 
     // Report

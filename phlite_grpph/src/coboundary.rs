@@ -553,7 +553,7 @@ mod tests {
     use phlite::{
         fields::{Z2, Z3},
         matrices::{HasRowFiltration, MatrixOracle},
-        reduction::ClearedReductionMatrix,
+        reduction::{Clearing, ReductionAlgorithm},
     };
 
     use super::{build_primary_bridge_map, GrPPHCoboundary};
@@ -600,7 +600,7 @@ mod tests {
         let d = GrPPHCoboundary::<Z2, _>::build(&filtration, &edge_set, n);
         let d = (&d).reverse();
 
-        let (_v, diagram) = ClearedReductionMatrix::build_with_diagram(&d, 0..=1);
+        let diagram = Clearing::new().reduce(&d).diagram;
 
         let mut count = 0;
 
@@ -647,7 +647,7 @@ mod tests {
         let d = GrPPHCoboundary::<Z2, _>::build(&filtration, &edge_set, n);
         let d = d.reverse();
 
-        let (_v, diagram) = ClearedReductionMatrix::build_with_diagram(&d, 0..=1);
+        let diagram = Clearing::new().reduce(&d).diagram;
 
         let mut count = 0;
 
