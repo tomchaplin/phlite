@@ -415,6 +415,10 @@ where
 /// By default we work this out from the matrix itself (see [`Clearing::new`]), but you can set the order yourself with [`with_dimension_order`](Clearing::with_dimension_order).
 /// The diagram is correct whatever the order, only the amount of work changes.
 ///
+/// Columns whose pivot is unclaimed are recorded without building them, and apparent pairs are recognised if the matrix
+/// knows the first column in each row; see the [module docs](crate::reduction#doing-less-work).
+/// Neither stores a reduction column, and apparent pairs needn't be in the column basis at all.
+///
 /// The `boundary` matrix needs a [`HasSplitColBasis`].
 /// The reduction matrix V is returned as a [`ClearedReductionMatrix`], which holds onto your matrix.
 /// For a parallel version, see `Clearing::parallel` (feature `parallel`).

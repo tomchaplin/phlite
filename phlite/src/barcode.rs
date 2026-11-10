@@ -10,13 +10,25 @@
 //! * [`homology`] reduces a *boundary* matrix. Representatives come for free: the column of `R = D V`
 //!   at the death cell for finite bars, and the column of `V` at the birth cell for essential bars.
 //! * [`cohomology`] reduces the anti-transpose of a *coboundary* matrix, which is typically much faster.
-//!   For representatives use [`cohomology_with_involution`], which additionally takes a boundary oracle
-//!   and runs a small homology reduction restricted to the cells that matter
+//!   For representatives use [`cohomology_with_involution`], which needs the coboundary to know its transpose
+//!   (the boundary matrix, attached with [`with_transpose`](crate::matrices::MatrixOracle::with_transpose)).
+//!   It then runs a small homology reduction restricted to the cells that matter
 //!   (the death cells of finite bars and the birth cells of essential bars), as in Čufar's "involuted" persistence.
 //!
 //! In both cases the bars are reported in *homology* conventions: `birth` is the lower dimensional cell.
 //! Bars of length zero (`birth_value == death_value`) are omitted, since they carry no information
 //! and there are typically far more of them than of any other bar.
+//!
+//! # Performance
+//!
+//! Attach the transpose of your matrix with [`with_transpose`](crate::matrices::MatrixOracle::with_transpose)
+//! (the boundary for a coboundary matrix, and vice versa), even if you don't want representatives:
+//! the clearing algorithms then recognise *apparent pairs*, which need no reduction or storage.
+//! These functions also turn on [`skip_zero_apparent_pairs`](crate::reduction::Clearing::skip_zero_apparent_pairs),
+//! since those pairs would only become zero-length bars.
+//! This means your column basis needn't contain the cells of zero-persistence apparent pairs at all,
+//! which in many filtrations (such as Vietoris-Rips) are nearly all of them (see `phlite_rips::build_reduction_bases`).
+//! The [`Standard`] algorithm doesn't look for apparent pairs, so needs the full basis.
 
 use std::{cmp::Reverse, fmt::Debug, hash::Hash};
 

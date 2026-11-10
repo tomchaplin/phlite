@@ -11,6 +11,23 @@
 //! | [`Clearing`] | The standard algorithm with the clearing optimisation. Needs a [`HasSplitColBasis`](crate::matrices::HasSplitColBasis) matrix. |
 //! | `ParallelClearing` | Clearing, with the columns of each dimension reduced in parallel (feature `parallel`). Obtained from `Clearing::parallel`. |
 //!
+//! # Doing less work
+//!
+//! In practice most columns need no reduction at all, and the clearing algorithms avoid as much work as they can on them:
+//! * A column whose pivot no other column has claimed is recorded straight away, without building the column in full,
+//!   using [`column_pivot`](crate::matrices::HasRowFiltration::column_pivot)
+//!   (override it, or [`column_min`](crate::matrices::HasRowFiltration::column_min) for a [`reverse`](crate::matrices::MatrixOracle::reverse)d matrix,
+//!   if you can find the pivot without visiting every entry). Its reduction column `V = e` is not stored.
+//! * If the matrix knows the first column in each row
+//!   ([`first_column_in_row`](crate::matrices::HasRowFiltration::first_column_in_row), e.g. by attaching its transpose with
+//!   [`with_transpose`](crate::matrices::MatrixOracle::with_transpose)), then *apparent pairs* are recognised:
+//!   a column `c` whose pivot `r` has `c` as the first column in its row is a persistence pair that needs no reduction.
+//!   Apparent pairs are never stored in pivot tables, since whenever another column hits pivot `r` the owner `c` can be recomputed.
+//!   So the column basis needn't even contain them; with
+//!   [`skip_zero_apparent_pairs`](Clearing::skip_zero_apparent_pairs) those of zero persistence are also left out of the diagram.
+//!
+//! [`Standard`] makes none of these optimisations: it builds every column and needs the full column basis.
+//!
 //! ```
 //! # use phlite::{fields::Z2, matrices::implementors::SimpleZ2Matrix, reduction::{Standard, ReductionAlgorithm}};
 //! # use phlite::matrices::MatrixOracle;

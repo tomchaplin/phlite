@@ -1,3 +1,22 @@
+//! Grounded persistent path homology (GrPPH) of weighted digraphs, implemented with [`phlite`].
+//!
+//! GrPPH is described in [Chaplin, Harrington and Tillmann (2022)](https://arxiv.org/abs/2210.11274).
+//! The quickest way in is [`grpph_barcode`], which computes the barcode in dimensions 0 and 1 (optionally with representatives),
+//! by either cohomology or homology and with any of `phlite`'s reduction algorithms;
+//! build its inputs from a list of weighted edges with [`build_filtration`] and [`build_edge_set`].
+//! This crate also builds the `phlite_grpph` Python module.
+//!
+//! # How it is put together
+//!
+//! * Cells of the path complex are [`PathHomCell`]s: nodes, edges and a choice of 2-cells
+//!   (double edges, directed triangles and long squares).
+//! * [`coboundary::GrPPHCoboundary`] is the coboundary oracle for the shortest-path filtration, grounded at the digraph's edges,
+//!   and [`boundary::GrPPHBoundary`] is the corresponding boundary oracle.
+//!   Each is the other's transpose (checked by `tests/transpose.rs`), so [`grpph_barcode`] attaches them to each other,
+//!   which lets the reduction recognise apparent pairs and compute representatives by involution.
+//! * Unlike Vietoris-Rips, a good fraction of GrPPH columns need genuine reduction, so the cost is mostly in column additions.
+//!   Run the `grpph_stats` example to see how the columns of a random digraph break down.
+
 pub mod boundary;
 pub mod coboundary;
 mod python;

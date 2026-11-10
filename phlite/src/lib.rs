@@ -1,8 +1,10 @@
 //! The main capabilities provided by this crate are
 //! 1. A framework for implementing and manipulating lazy oracles into sparse matrices.
 //!    This is implemented in the [`matrices`] module.
-//! 2. `R=DV` reduction algorithms for sufficiently well-structured oracles of this sort.
+//! 2. `R=DV` reduction algorithms for sufficiently well-structured oracles of this sort, serial and parallel.
 //!    These are implemented in the [`reduction`] module.
+//! 3. High-level helpers that turn a matrix into a persistence barcode, optionally with a representative cycle for every bar.
+//!    These are implemented in the [`barcode`] module.
 //!
 //! Usage of this crate typically involves the following steps:
 //! 1. Decide on the matrix you would like to reduce.
@@ -14,18 +16,30 @@
 //!    * Note that row and column indicies get `clone`d __a lot__ so make sure this is relatively cheap to `clone` and store in memory. For example, Ripser encodes the simplices which index its columns and rows as single integers!
 //!    * You will have to implement a default ordering on your indices in order to break ties.
 //!    * The main method you have to implement is [`column`](matrices::MatrixOracle::column) which provides lazy access into the columns of your matrices. The research suggests that you probably want to recompute your columns on every access, in order to reduce memory usage!
-//! 2. Implement the [`HasColBasis`](matrices::HasColBasis) trait.
+//! 3. Implement the [`HasColBasis`](matrices::HasColBasis) trait.
 //!    * Earlier we had to _choose_ a basis for our linear transformation in order to get a well-defined matrix to implement, but note we didn't have to compute the basis.
 //!    * In order to implement [`HasColBasis`](matrices::HasColBasis) you will probably now have to compute the basis for your column space and store it in a struct implementing [`ColBasis`](matrices::ColBasis) (which gives random access to the elemnts of your basis).
 //!    * You can then attach this basis to your matrix by calling [`with_basis`](matrices::MatrixOracle::with_basis).
 //!    * In order to take advantage of the clearing optimsiation your matrix must also implement [`HasSplitColBasis`](matrices::HasSplitColBasis), which hands out a cheap by-value view of the sub-basis in each dimension. The easiest way is to store your basis as a [`SplitBasis`](matrices::SplitBasis) (one flat allocation plus offsets), in which case [`with_basis`](matrices::MatrixOracle::with_basis) provides [`HasSplitColBasis`](matrices::HasSplitColBasis) automatically. Custom bases can instead implement [`SplitByDimension`](matrices::SplitByDimension) on a `Copy` view type.
 //!    * Note, we didn't have to compute a row basis (though we did have to choose one) - this can massively speed up computation of cohomology in the maximum dimension!
-//! 3. Implement the [`HasRowFiltration`](matrices::HasRowFiltration) trait.
+//! 4. Implement the [`HasRowFiltration`](matrices::HasRowFiltration) trait.
 //!    * This trait embues our matrix with a filtration function for our rows.
 //!    * The output of the type of the filtraiton function has to implement [`Ord`] so [`NotNan<f64>`](ordered_float::NotNan) is often a good choice.
 //!    * You might be able to compute this directly from the information stored in your matrix already. Failing that you can attach a closure using [`with_filtration`](matrices::MatrixOracle::with_filtration).
 //!    * If you have no filtration and just want to compute homology, use [`with_trivial_filtration`](matrices::MatrixOracle::with_trivial_filtration).
-//! 4. Pass the resulting matrix to a [`reduction`] algorithm to compute persistent homology.
+//! 5. Optionally, help the reduction algorithms do less work (see the [`matrices`] module docs for details).
+//!    * Attach the transpose of your matrix with [`with_transpose`](matrices::MatrixOracle::with_transpose)
+//!      (for a coboundary matrix this is the boundary matrix, and vice versa).
+//!      The clearing algorithms then recognise *apparent pairs*, which need no reduction and no storage;
+//!      in filtrations such as Vietoris-Rips nearly every pair is apparent, and those of zero persistence can be left out of
+//!      your column basis entirely.
+//!    * Override [`column_pivot`](matrices::HasRowFiltration::column_pivot) (or [`column_min`](matrices::HasRowFiltration::column_min)
+//!      if you will [`reverse`](matrices::MatrixOracle::reverse) the matrix) if you can find a column's pivot without visiting every entry,
+//!      since most columns need nothing more.
+//!    * Override [`column_with_filtration`](matrices::HasRowFiltration::column_with_filtration) if you can compute the filtration values
+//!      of a column's rows more cheaply together.
+//! 6. Pass the resulting matrix to a [`reduction`] algorithm to compute persistent homology,
+//!    or to one of the functions in [`barcode`] to get the barcode (and representatives) directly.
 //!
 //! As you can see, `phlite` takes a "bring your own `*`" approach where `*` matches matrix representation/basis representation/matrix index types/filtration types.
 //! To see an example implementation of Vietoris-Rips persitent homology, with a step-by-step tutorial, have a look at the [`phlite_rips`](https://github.com/tomchaplin/phlite/tree/main/phlite_rips) crate.
@@ -40,7 +54,6 @@ pub mod reduction;
 // TODO: Documentation
 // TODO: Figure out whether it makes more sense to pass a &col to MatrixOracle::column
 // TODO: Add better tests throughout
-// TODO: Implement lock-free reduction algorithm
 
 #[cfg(test)]
 mod tests {}

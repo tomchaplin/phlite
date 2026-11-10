@@ -41,11 +41,16 @@ Simplices above the enclosing radius `min_i max_j d(i, j)` are always skipped, s
 
 To build it you need [`just`](https://github.com/casey/just) and [`uv`](https://github.com/astral-sh/uv): run `just develop` and then `uv run --no-sync python ...`, or `just` to see all recipes.
 
-## Limitations
+## Optimisations
 
-Note this implementation does not have many of the optimisations of [Ripser](https://github.com/Ripser/ripser), including
-* apparent and emergent pairs
-* filtration truncation
+`phlite_rips` implements the main optimisations of [Ripser](https://github.com/Ripser/ripser) and [giotto-ph](https://github.com/giotto-ai/giotto-ph):
+* clearing, and a parallel lock-free reduction;
+* apparent pairs: simplices in zero-persistence apparent pairs (nearly all of them) are never even put in the column basis;
+* emergent pairs: a column whose pivot is unclaimed is finished as soon as its pivot is found, and pivots are found by
+  enumerating cofacets in order and stopping at the first with the simplex's own diameter;
+* truncation at the enclosing radius (and an optional threshold).
+
+It does not (yet) support sparse distance matrices, edge collapse, or union-find for H_0.
 
 ## `phlite` tutorial
 
