@@ -2,6 +2,8 @@
 # ruff: noqa: E501, F401, F403, F405
 
 import builtins
+import numpy
+import numpy.typing
 import typing
 __all__ = [
     "Barcode",
@@ -44,12 +46,13 @@ class Barcode:
         """
     def __repr__(self) -> builtins.str: ...
 
-def rips(distance_matrix: typing.Sequence[typing.Sequence[builtins.float]], max_dim: builtins.int = 1, *, threshold: typing.Optional[builtins.float] = None, method: typing.Literal['cohomology', 'homology'] = "cohomology", algorithm: typing.Literal['standard', 'clearing', 'parallel', 'parallel-lock-free'] = "clearing", representatives: builtins.bool = False, threads: typing.Optional[builtins.int] = None) -> Barcode:
+def rips(distance_matrix: typing.Union[numpy.typing.NDArray[numpy.floating], typing.Sequence[typing.Sequence[builtins.float]]], max_dim: builtins.int = 1, *, threshold: typing.Optional[builtins.float] = None, method: typing.Literal['cohomology', 'homology'] = "cohomology", algorithm: typing.Literal['standard', 'clearing', 'parallel', 'parallel-lock-free'] = "clearing", representatives: builtins.bool = False, threads: typing.Optional[builtins.int] = None) -> Barcode:
     r"""
     Compute the Vietoris-Rips persistent homology of a distance matrix, in dimensions `0, ..., max_dim`.
     
     Args:
-        distance_matrix: A symmetric matrix of pairwise distances, e.g. a list of lists or a 2D numpy array.
+        distance_matrix: A symmetric matrix of pairwise distances: a 2D numpy array (float64 and float32 arrays are read
+            directly, without converting each entry through Python), or a sequence of sequences of floats.
             Distances must be non-negative. An infinite distance means the edge never appears. The diagonal is ignored.
         max_dim: The maximum homology dimension to compute.
         threshold: Only build the Rips complex up to this diameter (default: no limit).

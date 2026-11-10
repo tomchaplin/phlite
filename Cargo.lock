@@ -634,6 +634,7 @@ name = "phlite_rips"
 version = "0.1.0"
 dependencies = [
  "csv",
+ "numpy",
  "ordered-float",
  "phlite",
  "phlite_pyutils",

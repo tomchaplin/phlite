@@ -126,3 +126,28 @@ def test_threshold_matches_references(distances, max_dim, data):
         for dim in range(max_dim + 1):
             assert diagram(barcode, dim) == reference_diagram(expected, dim), f"dim {dim}"
             assert diagram(barcode, dim) == reference_diagram(expected_gph, dim), f"dim {dim} (giotto-ph)"
+
+
+@given(distances=distance_matrices(), max_dim=st.integers(0, 2))
+def test_input_types_agree(distances, max_dim):
+    # float64 arrays are read directly; float32 arrays too (the entries are exactly representable); lists via Python
+    expected = rips(distances, max_dim)
+    for other in [distances.astype(np.float32), distances.tolist(), np.asfortranarray(distances), distances.T]:
+        barcode = rips(other, max_dim)
+        assert (barcode.essential, barcode.pairings) == (expected.essential, expected.pairings)
+
+
+def test_input_validation():
+    import pytest
+
+    for bad, message in [
+        (np.zeros((2, 3)), "square"),
+        (np.zeros((2, 2, 2)), "2-dimensional"),
+        ([[0.0, 1.0]], "square"),
+        (np.array([[0.0, 1.0], [2.0, 0.0]]), "symmetric"),
+        (np.array([[0.0, -1.0], [-1.0, 0.0]], dtype=np.float32), "non-negative"),
+    ]:
+        with pytest.raises(ValueError, match=message):
+            rips(bad, 1)
+    # Integer arrays go through the general path
+    assert rips(np.array([[0, 1], [1, 0]]), 0).pairings == [[(0.0, 1.0)]]
