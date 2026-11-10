@@ -3,7 +3,7 @@ name = "phlite_pyutils"
 version = "0.1.0"
 edition = "2021"
 license = "MIT"
-description = "Shared PyO3 helpers for phlite's Python bindings (phlite_grpph, phlite_rips)"
+description = "Shared PyO3 helpers for phlite's Python bindings (phlite_grpph, phlite_rips, phlite_py)"
 publish = false
 
 [dependencies]

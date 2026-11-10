@@ -1,0 +1,38 @@
+[build-system]
+requires = ["maturin>=1.9,<2.0"]
+build-backend = "maturin"
+
+[project]
+name = "phlite"
+description = "Persistent homology of sparse filtered chain complexes, computed with phlite"
+requires-python = ">=3.9"
+license = "MIT"
+classifiers = [
+    "Programming Language :: Rust",
+    "Programming Language :: Python :: Implementation :: CPython",
+    "Programming Language :: Python :: Implementation :: PyPy",
+    "Topic :: Scientific/Engineering :: Mathematics",
+]
+dependencies = ["numpy"]
+dynamic = ["version"]
+
+[tool.maturin]
+features = ["python", "pyo3/extension-module"]
+# The crate can't be called `phlite` (it depends on the `phlite` crate), but the module is
+module-name = "phlite"
+
+[dependency-groups]
+dev = [
+    "maturin>=1.9,<2.0",
+    "numpy",
+    "pytest",
+]
+# Reference implementations for the tests
+compare = [
+    "lophat",
+    "scipy",
+]
+
+[tool.uv]
+# The extension module is built by `maturin develop` (see justfile), not by `uv sync`
+package = false

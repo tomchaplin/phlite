@@ -1,4 +1,4 @@
-//! Shared helpers for `phlite`'s Python bindings (`phlite_grpph` and `phlite_rips`).
+//! Shared helpers for `phlite`'s Python bindings (`phlite_grpph`, `phlite_rips` and `phlite_py`).
 //!
 //! * [`AlgorithmArg`] and [`parse_method`] turn the `algorithm`, `threads` and `method` arguments into a [`phlite::barcode::Algorithm`] and [`Method`].
 //! * [`Barcode`] is the Python result type, built from a list of [`Bar`]s via [`SortedBars`].

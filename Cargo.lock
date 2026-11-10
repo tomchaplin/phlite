@@ -626,6 +626,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "phlite_py"
+version = "0.1.0"
+dependencies = [
+ "numpy",
+ "ordered-float",
+ "phlite",
+ "phlite_pyutils",
+ "pyo3",
+ "pyo3-log",
+ "pyo3-stub-gen",
+]
+
+[[package]]
 name = "phlite_pyutils"
 version = "0.1.0"
 dependencies = [
