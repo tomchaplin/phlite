@@ -95,8 +95,9 @@ impl<CF: NonZeroCoefficient> Iterator for CoboundaryIterator<CF> {
             CF::one().additive_inverse()
         };
 
+        let inserted_vertex = self.next_vertex;
         self.next_vertex += 1;
-        Some((coeff, index, self.next_vertex))
+        Some((coeff, index, inserted_vertex))
     }
 }
 
@@ -193,6 +194,30 @@ mod tests {
         matrices::{combinators::product, HasRowFiltration, MatrixOracle},
         reduction::{Clearing, Reduction, ReductionAlgorithm, Standard},
     };
+
+    /// The optimised `column_with_filtration` must agree with computing each row's filtration value from scratch
+    #[test]
+    fn test_column_with_filtration_matches_filtration_value() {
+        use phlite::matrices::{ColBasis, HasSplitColBasis};
+        let coboundary = build_rips_coboundary_matrix::<Z2>(distance_matrix(), 2);
+        for dim in 0..=2 {
+            let basis = coboundary.sub_basis(dim);
+            for i in 0..basis.size() {
+                let col = basis.element(i);
+                let fast: Vec<_> = coboundary
+                    .matrix
+                    .column_with_filtration(col)
+                    .map(|entry| (entry.row_index, entry.filtration_value))
+                    .collect();
+                let slow: Vec<_> = coboundary
+                    .matrix
+                    .column(col)
+                    .map(|(_coeff, row)| (row, coboundary.matrix.filtration_value(row)))
+                    .collect();
+                assert_eq!(fast, slow, "column {col:?}");
+            }
+        }
+    }
 
     #[test]
     fn test_coboundary() {

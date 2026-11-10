@@ -405,6 +405,14 @@ where
     fn filtration_value(&self, row: Self::RowT) -> Self::FiltrationT {
         self.matrix.filtration_value(row)
     }
+
+    fn column_with_filtration(
+        &self,
+        col: Self::ColT,
+    ) -> impl Iterator<Item = ColumnEntry<Self::FiltrationT, Self::RowT, Self::CoefficientField>>
+    {
+        self.matrix.column_with_filtration(col)
+    }
 }
 
 impl<M, B> HasColBasis for MatrixWithBasis<M, B>
@@ -516,6 +524,14 @@ where
 
     fn filtration_value(&self, row: Self::RowT) -> Self::FiltrationT {
         self.oracle.filtration_value(row)
+    }
+
+    fn column_with_filtration(
+        &self,
+        col: Self::ColT,
+    ) -> impl Iterator<Item = ColumnEntry<Self::FiltrationT, Self::RowT, Self::CoefficientField>>
+    {
+        self.oracle.column_with_filtration(col)
     }
 }
 

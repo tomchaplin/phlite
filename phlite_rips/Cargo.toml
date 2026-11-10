@@ -36,3 +36,4 @@ python = ["dep:pyo3", "dep:pyo3-log", "dep:pyo3-stub-gen", "dep:phlite_pyutils",
 
 [dev-dependencies]
 rayon = "1.12.0"
+rustc-hash = "2.1.3"

@@ -351,6 +351,13 @@ where
     fn filtration_value(&self, row: Self::RowT) -> Self::FiltrationT {
         (*self).filtration_value(row)
     }
+    fn column_with_filtration(
+        &self,
+        col: Self::ColT,
+    ) -> impl Iterator<Item = ColumnEntry<Self::FiltrationT, Self::RowT, Self::CoefficientField>>
+    {
+        (*self).column_with_filtration(col)
+    }
 }
 
 // ======== Ordered basis on columns + arbitrary access ========
