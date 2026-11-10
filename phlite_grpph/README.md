@@ -14,6 +14,22 @@ The `reps` return value is a list of cycle representatives: one for each finite 
 
 For example usage, see `reps.py` and `example.py` or get in touch.
 
+## Development
+
+Building requires [`just`](https://github.com/casey/just) and [`uv`](https://github.com/astral-sh/uv).
+Run `just` to list all recipes; the main ones are:
+
+```sh
+just develop          # create .venv and install a debug build of the extension
+just develop-release  # same, but an optimised build
+just wheel            # build a release wheel into dist/
+just stubs            # regenerate phlite_grpph.pyi
+just examples         # run everything in examples/
+```
+
+Then use `uv run --no-sync python ...` (or activate `.venv`) to run Python against the installed build.
+Pass a different interpreter with e.g. `just python=3.12 develop`.
+
 ## References
 
 <a id="1">[1]</a>

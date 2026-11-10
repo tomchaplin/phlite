@@ -4,7 +4,7 @@ pub mod coboundary;
 use coboundary::PathHomCell;
 use log::info;
 use ordered_float::NotNan;
-use petgraph::{adj::NodeIndex, algo::dijkstra, Graph};
+use petgraph::{algo::dijkstra, graph::NodeIndex, Graph};
 use phlite::{
     fields::Z2,
     matrices::{combinators::product, HasRowFiltration, MatrixOracle},
@@ -36,7 +36,7 @@ fn build_filtration(n_vertices: u32, edges: &[(u32, u32, f64)]) -> Vec<Vec<Optio
     // Compute shortest path filtration
     let mut filtration: Vec<Vec<_>> = vec![];
     for i in 0..n_vertices {
-        let sp_lengths = dijkstra(&g, NodeIndex::from(i), None, |e| *e.weight());
+        let sp_lengths = dijkstra(&g, NodeIndex::new(i as usize), None, |e| *e.weight());
         filtration.push(
             (0..n_vertices)
                 .map(|j| {
@@ -44,7 +44,7 @@ fn build_filtration(n_vertices: u32, edges: &[(u32, u32, f64)]) -> Vec<Vec<Optio
                         return None;
                     };
                     sp_lengths
-                        .get(&NodeIndex::from(j))
+                        .get(&NodeIndex::new(j as usize))
                         .copied()
                         .map(|t| NotNan::new(t).unwrap())
                 })
