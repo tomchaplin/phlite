@@ -18,4 +18,14 @@ itertools = "0.12.1"
 num = "0.4.3"
 ordered-float = "4.2.0"
 rustc-hash = "1.1.0"
+rayon = { version = "1.10", optional = true }
+dashmap = { version = "6", optional = true }
+papaya = { version = "0.2.5", optional = true }
+arc-swap = { version = "1.7", optional = true }
+
+[features]
+# Parallel reduction algorithms (see `reduction::parallel`)
+parallel = ["dep:rayon", "dep:dashmap"]
+# Lock-free storage backend for the parallel reduction (see `reduction::parallel`)
+lock-free = ["parallel", "dep:papaya", "dep:arc-swap"]
 

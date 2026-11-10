@@ -9,6 +9,7 @@
 //! |---|---|
 //! | [`Standard`] | The standard algorithm, reducing columns in basis order. |
 //! | [`Clearing`] | The standard algorithm with the clearing optimisation. Needs a [`HasSplitColBasis`](crate::matrices::HasSplitColBasis) matrix. |
+//! | `ParallelClearing` | Clearing, with the columns of each dimension reduced in parallel (feature `parallel`). Obtained from `Clearing::parallel`. |
 //!
 //! ```
 //! # use phlite::{fields::Z2, matrices::implementors::SimpleZ2Matrix, reduction::{Standard, ReductionAlgorithm}};
@@ -19,9 +20,13 @@
 //! ```
 
 pub mod clearing;
+#[cfg(feature = "parallel")]
+pub mod parallel;
 pub mod standard;
 
 pub use clearing::*;
+#[cfg(feature = "parallel")]
+pub use parallel::{ParallelClearing, Storage};
 pub use standard::*;
 
 use crate::matrices::MatrixOracle;
