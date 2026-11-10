@@ -62,8 +62,13 @@ struct CoboundaryIterator<CF: NonZeroCoefficient> {
 
 impl<CF: NonZeroCoefficient> CoboundaryIterator<CF> {
     fn new(simplex: RipsIndex, n_points: usize) -> Self {
+        Self::from_vertices(simplex, simplex.vertices(n_points), n_points)
+    }
+
+    /// As [`new`](Self::new), when the vertices of `simplex` are already known
+    fn from_vertices(simplex: RipsIndex, vertices: Vertices, n_points: usize) -> Self {
         Self {
-            base: simplex.vertices(n_points),
+            base: vertices,
             radix: n_points + 1,
             next_vertex: 0,
             max_vertex: n_points - 1,
@@ -209,11 +214,24 @@ pub(crate) fn oldest_cofacet<CF: NonZeroCoefficient>(
     threshold: NotNan<f64>,
     simplex: RipsIndex,
 ) -> Option<ColumnEntry<NotNan<f64>, RipsIndex, CF>> {
-    let n_points = distances.len();
-    let vertices = simplex.vertices(n_points);
+    let vertices = simplex.vertices(distances.len());
     let diameter = vertices.diameter(distances);
+    oldest_cofacet_given(distances, threshold, simplex, vertices, diameter)
+}
+
+/// As [`oldest_cofacet`], when the vertices and diameter of `simplex` are already known
+pub(crate) fn oldest_cofacet_given<CF: NonZeroCoefficient>(
+    distances: &[Vec<NotNan<f64>>],
+    threshold: NotNan<f64>,
+    simplex: RipsIndex,
+    vertices: Vertices,
+    diameter: NotNan<f64>,
+) -> Option<ColumnEntry<NotNan<f64>, RipsIndex, CF>> {
+    let n_points = distances.len();
     let mut best: Option<ColumnEntry<NotNan<f64>, RipsIndex, CF>> = None;
-    for (coeff, row_index, inserted_vertex) in CoboundaryIterator::new(simplex, n_points) {
+    for (coeff, row_index, inserted_vertex) in
+        CoboundaryIterator::from_vertices(simplex, vertices, n_points)
+    {
         let filtration_value = vertices
             .iter()
             .map(|v| distances[*v][inserted_vertex])
@@ -456,12 +474,27 @@ mod tests {
         use phlite::matrices::{ColBasis, HasSplitColBasis};
         let n = 7;
         let ties: Vec<Vec<NotNan<f64>>> = (0..n)
-            .map(|i| (0..n).map(|j| NotNan::new(if i == j { 0.0 } else { ((i * j + i + j) % 4) as f64 }).unwrap()).collect())
+            .map(|i| {
+                (0..n)
+                    .map(|j| {
+                        NotNan::new(if i == j {
+                            0.0
+                        } else {
+                            ((i * j + i + j) % 4) as f64
+                        })
+                        .unwrap()
+                    })
+                    .collect()
+            })
             .collect();
         for dists in [ties, distance_matrix()] {
             for threshold in [f64::INFINITY, 2.0] {
                 let threshold = NotNan::new(threshold).unwrap();
-                let coboundary = super::build_rips_coboundary_matrix_with_threshold::<Z2>(dists.clone(), 3, threshold);
+                let coboundary = super::build_rips_coboundary_matrix_with_threshold::<Z2>(
+                    dists.clone(),
+                    3,
+                    threshold,
+                );
                 let boundary = RipsBoundary::<Z2>::new(dists.clone()).with_threshold(threshold);
                 for dim in 0..=3 {
                     let basis = coboundary.sub_basis(dim);
@@ -473,14 +506,22 @@ mod tests {
                             .map(|(_, facet)| (coboundary.matrix.filtration_value(facet), facet))
                             .max()
                             .map(|(_, facet)| facet);
-                        assert_eq!(coboundary.matrix.last_column_in_row(simplex), youngest_facet, "{simplex:?}");
+                        assert_eq!(
+                            coboundary.matrix.last_column_in_row(simplex),
+                            youngest_facet,
+                            "{simplex:?}"
+                        );
                         // Row `simplex` of the boundary has entries in its cofacets' columns
                         let oldest_cofacet = coboundary
                             .matrix
                             .column_with_filtration(simplex)
                             .min()
                             .map(|entry| entry.row_index);
-                        assert_eq!(boundary.first_column_in_row(simplex), oldest_cofacet, "{simplex:?}");
+                        assert_eq!(
+                            boundary.first_column_in_row(simplex),
+                            oldest_cofacet,
+                            "{simplex:?}"
+                        );
                     }
                 }
             }
