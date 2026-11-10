@@ -2,16 +2,52 @@
 # ruff: noqa: E501, F401, F403, F405
 
 import builtins
+import networkx
 import typing
 __all__ = [
+    "Barcode",
     "grpph",
-    "grpph_with_involution",
 ]
 
-def grpph(n_vertices: builtins.int, edges: typing.Sequence[tuple[builtins.int, builtins.int, builtins.float]]) -> tuple[builtins.list[builtins.list[builtins.float]], builtins.list[builtins.list[tuple[builtins.float, builtins.float]]]]: ...
-
-def grpph_with_involution(n_vertices: builtins.int, edges: typing.Sequence[tuple[builtins.int, builtins.int, builtins.float]]) -> tuple[builtins.list[builtins.list[builtins.float]], builtins.list[builtins.list[tuple[builtins.float, builtins.float]]], builtins.list[builtins.list[tuple[builtins.int, builtins.int]]]]:
+@typing.final
+class Barcode:
     r"""
-    Does the same as `grpph` but does involution to compute representatives.
+    A persistence barcode, split by dimension.
+    
+    Bars of length zero are omitted.
+    Within each dimension, bars are sorted by birth (and then death).
     """
+    @property
+    def essential(self) -> builtins.list[builtins.list[builtins.float]]:
+        r"""
+        `essential[k]` lists the birth times of the infinite bars in dimension `k`.
+        """
+    @property
+    def pairings(self) -> builtins.list[builtins.list[tuple[builtins.float, builtins.float]]]:
+        r"""
+        `pairings[k]` lists the `(birth, death)` times of the finite bars in dimension `k`.
+        """
+    @property
+    def essential_representatives(self) -> typing.Optional[builtins.list[builtins.list[builtins.list[tuple[builtins.int, ...]]]]]:
+        r"""
+        `essential_representatives[k][i]` is a cycle representing the bar `essential[k][i]`,
+        or `None` if representatives were not requested.
+        
+        A cycle is a list of cells, each given as a tuple of vertices (indices, or node labels for a networkx graph).
+        """
+    @property
+    def pairing_representatives(self) -> typing.Optional[builtins.list[builtins.list[builtins.list[tuple[builtins.int, ...]]]]]:
+        r"""
+        `pairing_representatives[k][i]` is a cycle representing the bar `pairings[k][i]`,
+        or `None` if representatives were not requested.
+        
+        A cycle is a list of cells, each given as a tuple of vertices (indices, or node labels for a networkx graph).
+        """
+    def __repr__(self) -> builtins.str: ...
+
+@typing.overload
+def grpph(graph: networkx.DiGraph, /, *, weight: builtins.str = 'weight', method: typing.Literal["cohomology", "homology"] = 'cohomology', algorithm: typing.Literal["standard", "clearing", "parallel", "parallel-lock-free"] = 'clearing', representatives: builtins.bool = False, threads: typing.Optional[builtins.int] = None) -> Barcode: ...
+
+@typing.overload
+def grpph(n_vertices: builtins.int, edges: typing.Sequence[tuple[builtins.int, builtins.int, builtins.float]], /, *, method: typing.Literal["cohomology", "homology"] = 'cohomology', algorithm: typing.Literal["standard", "clearing", "parallel", "parallel-lock-free"] = 'clearing', representatives: builtins.bool = False, threads: typing.Optional[builtins.int] = None) -> Barcode: ...
 

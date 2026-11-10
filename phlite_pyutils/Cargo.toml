@@ -1,0 +1,19 @@
+[package]
+name = "phlite_pyutils"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+description = "Shared PyO3 helpers for phlite's Python bindings (phlite_grpph, phlite_rips)"
+publish = false
+
+[dependencies]
+ordered-float = "5.5.1"
+phlite = { version = "0.1.0", path = "../phlite", features = ["parallel"] }
+pyo3 = "0.30.1"
+pyo3-stub-gen = "0.23.2"
+rayon = "1.12.0"
+
+[features]
+default = ["lock-free"]
+# The lock-free backend of the parallel reduction (the 'parallel-lock-free' algorithm)
+lock-free = ["phlite/lock-free"]

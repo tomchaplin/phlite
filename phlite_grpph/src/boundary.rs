@@ -20,6 +20,15 @@ pub struct GrPPHBoundary<'a, CF, F: DigraphFiltration> {
 }
 
 impl<'a, CF: NonZeroCoefficient, F: DigraphFiltration> GrPPHBoundary<'a, CF, F> {
+    /// The boundary oracle on its own, without a column basis attached.
+    pub fn new(filtration: F, edge_set: &'a DigraphEdgeSet) -> Self {
+        Self {
+            filtration,
+            edge_set,
+            phantom: PhantomData,
+        }
+    }
+
     pub fn build(
         filtration: F,
         edge_set: &'a DigraphEdgeSet,

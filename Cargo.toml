@@ -5,6 +5,7 @@ members = [
   "phlite",
   "phlite_grpph",
   "phlite_rips",
+  "phlite_pyutils",
 ]
 # phlite_py is still WIP and not yet ported to the new basis traits
 exclude = ["phlite_py"]

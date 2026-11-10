@@ -2,7 +2,7 @@
 # as well as isolated vertices and multiple connected components
 
 import numpy as np
-from phlite_grpph import grpph_with_involution
+from phlite_grpph import grpph
 import logging
 from pprint import pprint
 
@@ -10,7 +10,7 @@ FORMAT = "%(levelname)s %(name)s %(asctime)-15s %(filename)s:%(lineno)d %(messag
 logging.basicConfig(format=FORMAT)
 logging.getLogger().setLevel(logging.INFO)
 
-essential, pairings, reps = grpph_with_involution(
+barcode = grpph(
     6,
     [
         (0, 1, 1.0),
@@ -19,8 +19,10 @@ essential, pairings, reps = grpph_with_involution(
         (3, 4, 10.0),
         (4, 3, 10.0),
     ],
+    representatives=True,
 )
 
-print(essential)
-print(pairings)
-pprint(reps)
+print(barcode.essential)
+print(barcode.pairings)
+pprint(barcode.essential_representatives)
+pprint(barcode.pairing_representatives)

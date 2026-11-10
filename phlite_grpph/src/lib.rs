@@ -1,26 +1,28 @@
 pub mod boundary;
 pub mod coboundary;
+mod python;
 
-use coboundary::PathHomCell;
+use coboundary::{PathHomCell, VecDigraphFiltration};
 use log::info;
 use ordered_float::NotNan;
 use petgraph::{algo::dijkstra, graph::NodeIndex, Graph};
 use phlite::{
+    barcode::{self, Algorithm, Bar},
     fields::Z2,
-    matrices::{combinators::product, HasRowFiltration, MatrixOracle},
-    reduction::{Clearing, Reduction, ReductionAlgorithm, Standard},
+    matrices::{ColBasis, HasRowFiltration, HasSplitColBasis, MatrixOracle, SplitBasis},
 };
 use rustc_hash::FxHashSet;
 
-use pyo3::prelude::*;
-use pyo3_stub_gen::{define_stub_info_gatherer, derive::*};
-
 use crate::{
     boundary::GrPPHBoundary,
-    coboundary::{GrPPHCoboundary, PathHomSingleBasis},
+    coboundary::{DigraphEdgeSet, GrPPHCoboundary},
 };
 
-fn build_filtration(n_vertices: u32, edges: &[(u32, u32, f64)]) -> Vec<Vec<Option<NotNan<f64>>>> {
+/// The shortest-path filtration of a weighted digraph, as required by [`GrPPHCoboundary`].
+///
+/// Edges with infinite weight are ignored (they are still part of the graph for the purposes of grounding,
+/// see [`build_edge_set`]).
+pub fn build_filtration(n_vertices: u32, edges: &[(u32, u32, f64)]) -> VecDigraphFiltration {
     // Build graph
     let mut g = Graph::<(), f64>::new();
     // Add all nodes
@@ -54,161 +56,204 @@ fn build_filtration(n_vertices: u32, edges: &[(u32, u32, f64)]) -> Vec<Vec<Optio
     filtration
 }
 
-fn build_edge_set(edges: Vec<(u32, u32, f64)>) -> FxHashSet<(u16, u16)> {
+/// The edges of the digraph, all of which appear at time 0 in the grounded filtration.
+pub fn build_edge_set(edges: &[(u32, u32, f64)]) -> DigraphEdgeSet {
     edges
-        .into_iter()
-        .map(|(i, j, _t)| (i as u16, j as u16))
+        .iter()
+        .map(|&(i, j, _t)| (i as u16, j as u16))
         .collect()
 }
 
-type EssentialBars = Vec<Vec<f64>>;
-type PairingBars = Vec<Vec<(f64, f64)>>;
-// List of 1D persistent homology reps (each of which is a sum of edges)
-type RepList = Vec<Vec<(u16, u16)>>;
+pub use phlite::barcode::Method;
 
-#[gen_stub_pyfunction]
-#[pyfunction]
-fn grpph(n_vertices: u32, edges: Vec<(u32, u32, f64)>) -> (EssentialBars, PairingBars) {
-    let filtration = build_filtration(n_vertices, &edges);
-    let edge_set = build_edge_set(edges);
+/// A bar in the GrPPH barcode, see [`phlite::barcode::Bar`].
+pub type GrPPHBar = Bar<PathHomCell, NotNan<f64>, Z2>;
 
-    // Build coboundary
-    // Absolute PcoH
-    let d = GrPPHCoboundary::<Z2, _>::build(&filtration, &edge_set, n_vertices as u16);
-    info!("Built coboundary matrix");
-    // Relative PcoH
-    let d_rev = (&d).reverse();
-
-    // Reduce
-    let diagram = Clearing::new().reduce(&d_rev).diagram;
-    info!("Reduced coboundary matrix");
-
-    // Translate diagram to Python compatible types
-    let mut essential = vec![vec![], vec![]];
-
-    for idx in diagram.essential.iter() {
-        let idx = idx.0; //Pull out of reverse
-        let f_val = d.filtration_value(idx).into_inner();
-        let dimension = idx.dimension();
-        essential[dimension].push(f_val);
+/// Every 2-cell in the filtration, in filtration order, found by enumerating the coboundaries of all edges.
+fn all_two_cells<M>(coboundary: M) -> Vec<PathHomCell>
+where
+    M: HasSplitColBasis
+        + HasRowFiltration<FiltrationT = NotNan<f64>>
+        + MatrixOracle<ColT = PathHomCell, RowT = PathHomCell>,
+{
+    let edges = coboundary.sub_basis(1);
+    let mut two_cells: FxHashSet<(NotNan<f64>, PathHomCell)> = FxHashSet::default();
+    for i in 0..edges.size() {
+        two_cells.extend(
+            coboundary
+                .column_with_filtration(edges.element(i))
+                .map(|entry| (entry.filtration_value, entry.row_index)),
+        );
     }
-
-    let mut pairings = vec![vec![], vec![]];
-    for (death_cell, birth_cell) in diagram.pairings.iter() {
-        let birth_f = d.filtration_value(birth_cell.0);
-        let death_f = d.filtration_value(death_cell.0);
-        let dimension = birth_cell.0.dimension();
-
-        if death_f == birth_f {
-            continue;
-        }
-        pairings[dimension].push((birth_f.into_inner(), death_f.into_inner()));
-    }
-    info!("Translated persistence diagram");
-
-    (essential, pairings)
+    let mut two_cells: Vec<_> = two_cells.into_iter().collect();
+    two_cells.sort_unstable();
+    two_cells.into_iter().map(|(_f, cell)| cell).collect()
 }
 
-// TODO: This only find the infinite reps, add in essential reps too!
-
-#[gen_stub_pyfunction]
-#[pyfunction]
-/// Does the same as `grpph` but does involution to compute representatives.
-fn grpph_with_involution(
-    n_vertices: u32,
-    edges: Vec<(u32, u32, f64)>,
-) -> (EssentialBars, PairingBars, RepList) {
-    let filtration = build_filtration(n_vertices, &edges);
-    let edge_set = build_edge_set(edges);
-
-    // Build coboundary
-    // Absolute PcoH
-    let d = GrPPHCoboundary::<Z2, _>::build(&filtration, &edge_set, n_vertices as u16);
+/// Compute the grounded persistent path homology (GrPPH) barcode in dimensions 0 and 1.
+///
+/// * `filtration` and `edge_set` describe the weighted digraph, see [`build_filtration`] and [`build_edge_set`].
+/// * `method` chooses between reducing the coboundary or boundary matrix.
+/// * `algorithm` is the reduction algorithm to use.
+/// * If `representatives` is true then every bar comes with a representative cycle
+///   (a sum of nodes in dimension 0 and of edges in dimension 1).
+///
+/// Bars are returned in no particular order, and zero-length bars are included.
+pub fn grpph_barcode(
+    filtration: &VecDigraphFiltration,
+    edge_set: &DigraphEdgeSet,
+    n_vertices: u16,
+    method: Method,
+    algorithm: Algorithm<'_>,
+    representatives: bool,
+) -> Vec<GrPPHBar> {
+    let coboundary = GrPPHCoboundary::<Z2, _>::build(filtration, edge_set, n_vertices);
     info!("Built coboundary matrix");
-    // Relative PcoH
-    let d_rev = (&d).reverse();
+    let boundary = GrPPHBoundary::<Z2, _>::new(filtration, edge_set);
 
-    // Reduce
-    let diagram = Clearing::new().reduce(&d_rev).diagram;
-    info!("Reduced coboundary matrix");
-
-    // Translate diagram to Python compatible types
-    let mut essential = vec![vec![], vec![]];
-
-    for idx in diagram.essential.iter() {
-        let idx = idx.0; //Pull out of reverse
-        let f_val = d.filtration_value(idx).into_inner();
-        let dimension = idx.dimension();
-        essential[dimension].push(f_val);
-    }
-
-    let mut involution_basis = vec![];
-    let mut pairings = vec![vec![], vec![]];
-    for (death_cell, birth_cell) in diagram.pairings.iter() {
-        let birth_f = d.filtration_value(birth_cell.0);
-        let death_f = d.filtration_value(death_cell.0);
-        let dimension = birth_cell.0.dimension();
-        if dimension == 1 {
-            involution_basis.push((death_f, death_cell.0));
+    let bars = match (method, representatives) {
+        (Method::Cohomology, false) => barcode::cohomology(&coboundary, algorithm),
+        (Method::Cohomology, true) => {
+            barcode::cohomology_with_involution(&coboundary, boundary, algorithm)
         }
-
-        if death_f == birth_f {
-            continue;
+        (Method::Homology, _) => {
+            let basis = SplitBasis::from_dimensions([
+                to_vec(coboundary.sub_basis(0)),
+                to_vec(coboundary.sub_basis(1)),
+                all_two_cells(&coboundary),
+            ]);
+            info!("Enumerated 2-cells");
+            let boundary = boundary.with_basis(basis);
+            let mut bars = barcode::homology(&boundary, algorithm, representatives);
+            // There are no 3-cells, so 2-cells look essential but we don't compute H_2
+            bars.retain(|bar| bar.birth.dimension() <= 1);
+            bars
         }
-        pairings[dimension].push((birth_f.into_inner(), death_f.into_inner()));
-    }
-    info!("Translated persistence diagram");
-
-    // Sort involution basis
-    involution_basis.sort_unstable();
-    let involution_basis = PathHomSingleBasis(involution_basis);
-    info!("Sorted involution basis");
-
-    // Decompose boundary matrix restricted to involution basis
-    let d_boundary = GrPPHBoundary::<Z2, _>::build(&filtration, &edge_set, involution_basis);
-    let Reduction { v: v_boundary, diagram: boundary_diagram } = Standard::new().reduce(&d_boundary);
-    info!("Reduced involution boundary matrix");
-    let r_boundary = product(&d_boundary, &v_boundary);
-
-    // Read off reps from pairings
-    let mut reps = vec![];
-    for pairing in boundary_diagram.pairings {
-        let birth_cell = pairing.0;
-        let death_cell = pairing.1;
-        let birth_f = d.filtration_value(birth_cell);
-        let death_f = d.filtration_value(death_cell);
-        if death_f == birth_f {
-            continue;
-        }
-        let mut rep = r_boundary.build_bhcol(death_cell);
-        let new_rep: Vec<_> = rep
-            .drain_sorted()
-            .map(|entry| {
-                let row = entry.row_index;
-                match row {
-                    PathHomCell::Edge(a, b) => (a, b),
-                    _ => {
-                        unreachable!("death_cell is a 2-cell so boundary should be a sum of edges")
-                    }
-                }
-            })
-            .collect();
-        reps.push(new_rep)
-    }
-    info!("Built up representatives");
-
-    (essential, pairings, reps)
+    };
+    info!("Computed barcode");
+    bars
 }
 
-/// A Python module implemented in Rust.
-#[pymodule]
-fn phlite_grpph(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
-    pyo3_log::init();
-
-    m.add_function(wrap_pyfunction!(grpph, m)?)?;
-    m.add_function(wrap_pyfunction!(grpph_with_involution, m)?)?;
-    Ok(())
+fn to_vec<B: ColBasis>(basis: B) -> Vec<B::ElemT> {
+    (0..basis.size()).map(|i| basis.element(i)).collect()
 }
 
 // A function that gathers stub information
-define_stub_info_gatherer!(stub_info);
+pyo3_stub_gen::define_stub_info_gatherer!(stub_info);
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use phlite::reduction::{Clearing, Standard};
+
+    /// Bars as (dimension, birth value, death value), sorted, with zero-length bars removed
+    fn summary(bars: &[GrPPHBar]) -> Vec<(usize, f64, Option<f64>)> {
+        let mut out: Vec<_> = bars
+            .iter()
+            .filter(|bar| !bar.is_zero_length())
+            .map(|bar| {
+                (
+                    bar.birth.dimension(),
+                    bar.birth_value.into_inner(),
+                    bar.death.map(|(_, d)| d.into_inner()),
+                )
+            })
+            .collect();
+        out.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        out
+    }
+
+    fn algorithms() -> Vec<Algorithm<'static>> {
+        vec![
+            Algorithm::Standard(Standard::new()),
+            Algorithm::Clearing(Clearing::new()),
+            Algorithm::ParallelClearing(Clearing::new().parallel()),
+        ]
+    }
+
+    /// The example from `examples/reps.py`
+    fn reps_example() -> (u32, Vec<(u32, u32, f64)>) {
+        (
+            6,
+            vec![
+                (0, 1, 10.0),
+                (0, 2, 10.0),
+                (1, 3, 10.0),
+                (2, 3, 10.0),
+                (0, 3, 20.0),
+                (0, 4, 5.0),
+                (4, 5, 10.0),
+                (5, 3, 5.0),
+            ],
+        )
+    }
+
+    #[test]
+    fn every_method_and_algorithm_agree() {
+        let (n, edges) = reps_example();
+        let filtration = build_filtration(n, &edges);
+        let edge_set = build_edge_set(&edges);
+        let expected = vec![
+            (0, 0.0, None),
+            (1, 0.0, Some(10.0)),
+            (1, 0.0, Some(15.0)),
+            (1, 0.0, Some(20.0)),
+        ];
+        for method in [Method::Cohomology, Method::Homology] {
+            for algorithm in algorithms() {
+                for representatives in [false, true] {
+                    let bars = grpph_barcode(
+                        &filtration,
+                        &edge_set,
+                        n as u16,
+                        method,
+                        algorithm.clone(),
+                        representatives,
+                    );
+                    assert_eq!(summary(&bars), expected, "{method:?} {algorithm:?}");
+                    for bar in bars.iter().filter(|bar| !bar.is_zero_length()) {
+                        let rep = bar.representative.as_ref();
+                        assert_eq!(rep.is_some(), representatives);
+                        if let Some(rep) = rep {
+                            assert!(rep
+                                .iter()
+                                .all(|(_, cell)| cell.dimension() == bar.birth.dimension()));
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /// Every H_1 representative must be a cycle: over Z2, each vertex meets an even number of its edges.
+    #[test]
+    fn representatives_are_cycles() {
+        let (n, edges) = reps_example();
+        let filtration = build_filtration(n, &edges);
+        let edge_set = build_edge_set(&edges);
+        for method in [Method::Cohomology, Method::Homology] {
+            let bars = grpph_barcode(
+                &filtration,
+                &edge_set,
+                n as u16,
+                method,
+                Algorithm::default(),
+                true,
+            );
+            for bar in bars.iter().filter(|bar| bar.birth.dimension() == 1) {
+                let mut degree = vec![0usize; n as usize];
+                for (_, cell) in bar.representative.as_ref().unwrap() {
+                    let PathHomCell::Edge(a, b) = cell else {
+                        panic!("H_1 representative contains non-edge {cell:?}")
+                    };
+                    degree[*a as usize] += 1;
+                    degree[*b as usize] += 1;
+                }
+                assert!(
+                    degree.iter().all(|d| d.is_multiple_of(2)),
+                    "{bar:?} is not a cycle"
+                );
+            }
+        }
+    }
+}

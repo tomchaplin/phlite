@@ -56,9 +56,12 @@ If you need support implementing `phlite` traits for your specific application, 
 
 ## Crates
 
-* `phlite` - Core library, matrix oracle traits, reduction algorithms.
-* `phlite_rips` - Implementation of VR filtration, à la Ripser. Rust library + basic CLI.
+* `phlite` - Core library, matrix oracle traits, reduction algorithms, barcodes with representatives.
+* `phlite_rips` - Implementation of VR filtration, à la Ripser. Rust library + basic CLI + Python bindings via PyO3.
 * `phlite_grpph` - Implementation of GrPPH [[7]](#7). Rust library + Python bindings via PyO3.
+* `phlite_pyutils` - Shared helpers for the Python bindings (the `Barcode` result type and argument handling).
+
+The `python-tests` folder holds fuzz tests and benchmarks of the Python bindings against ripser, giotto-ph and grpphati.
 
 ## TODO
 
@@ -68,7 +71,7 @@ If you need support implementing `phlite` traits for your specific application, 
 - [ ] Documentation all traits and APIs
 - [ ] Tests (unit + integration + property)
 - [ ] Explain Rips implementation in docs
-- [ ] Add a trait that captures ability to compute involuted PH representatives
+- [x] Add a way to compute involuted PH representatives (see `phlite::barcode`)
 - [ ] Implement lockfree reduction algo
 - [ ] Implement dynamic priority queues (as done in Flagser)
 
