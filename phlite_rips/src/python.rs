@@ -7,7 +7,7 @@ use phlite_pyutils::{add_barcode_class, parse_method, AlgorithmArg, Barcode, Sor
 use pyo3::{exceptions::PyValueError, prelude::*};
 use pyo3_stub_gen::derive::*;
 
-use crate::{rips_barcode, rips_index_fits, Method};
+use crate::{rips_barcode, rips_index_fits};
 
 // ====== The entry point ==================================================
 
@@ -75,10 +75,8 @@ fn rips(
     let method = parse_method(method)?;
     let algorithm = AlgorithmArg::parse(algorithm)?;
     let n_points = distances.len();
-    let top_dim = match method {
-        Method::Cohomology => max_dim,
-        Method::Homology => max_dim + 1,
-    };
+    // Both methods need simplices of dimension max_dim + 1 (as cofacets, or the top of the boundary matrix)
+    let top_dim = max_dim + 1;
     if !rips_index_fits(n_points, top_dim) {
         return Err(PyValueError::new_err(format!(
             "Too many points ({n_points}) to index simplices of dimension {top_dim}"

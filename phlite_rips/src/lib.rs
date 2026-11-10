@@ -40,16 +40,25 @@ impl BasisElement for RipsIndex {}
 // Now we implement some helper methods to convert our indexing type into the corresponding simplices
 
 impl RipsIndex {
-    /// Produces from least significant to most significant
+    /// The vertices, in increasing order. Prefer [`vertices`](Self::vertices), which doesn't allocate.
     pub fn to_vec(self, n_points: usize) -> Vec<usize> {
-        let mut vec = vec![];
+        self.vertices(n_points).to_vec()
+    }
+
+    /// The vertices, in increasing order, decoded onto the stack.
+    pub fn vertices(self, n_points: usize) -> Vertices {
+        let radix = n_points + 1;
+        let mut vertices = Vertices {
+            buf: [0; MAX_VERTICES],
+            len: 0,
+        };
         let mut working = self.0;
         while working > 0 {
-            let remainder = working.rem_euclid(n_points + 1);
-            vec.push(remainder - 1);
-            working = working.div_euclid(n_points + 1);
+            vertices.buf[vertices.len] = working % radix - 1;
+            vertices.len += 1;
+            working /= radix;
         }
-        vec
+        vertices
     }
 
     /// NOTE: The indicies should be provided in ascending order!
@@ -66,7 +75,39 @@ impl RipsIndex {
     }
 
     pub fn dimension(self, n_points: usize) -> usize {
-        self.to_vec(n_points).len() - 1
+        let radix = n_points + 1;
+        let mut working = self.0;
+        let mut n_vertices = 0;
+        while working > 0 {
+            n_vertices += 1;
+            working /= radix;
+        }
+        n_vertices - 1
+    }
+}
+
+/// A simplex has at most this many vertices: an index has one base-(n + 1) digit per vertex, with n + 1 >= 2, and fits in a `usize`.
+const MAX_VERTICES: usize = usize::BITS as usize;
+
+/// The vertices of a simplex, in increasing order, stored on the stack (see [`RipsIndex::vertices`]).
+#[derive(Clone, Copy)]
+pub struct Vertices {
+    buf: [usize; MAX_VERTICES],
+    len: usize,
+}
+
+impl std::ops::Deref for Vertices {
+    type Target = [usize];
+
+    fn deref(&self) -> &[usize] {
+        &self.buf[..self.len]
+    }
+}
+
+impl Vertices {
+    /// The diameter of the simplex: the largest distance between two of its vertices (0 for a vertex).
+    pub(crate) fn diameter(&self, distances: &[Vec<NotNan<f64>>]) -> NotNan<f64> {
+        max_pairwise_distance(self, distances)
     }
 }
 
@@ -99,6 +140,7 @@ type SimplicesWithFilt = Vec<(NotNan<f64>, RipsIndex)>;
 fn add_cofacets(
     bases: &mut [SimplicesWithFilt],
     simplex_as_vec: &mut Vec<usize>,
+    index: RipsIndex,
     fil_value: NotNan<f64>,
     distances: &Vec<Vec<NotNan<f64>>>,
     max_dim: usize,
@@ -111,6 +153,8 @@ fn add_cofacets(
         // Cannot extend
         return;
     }
+    // The new vertex is the largest, so it is the most significant digit of the cofacet's index
+    let top_digit = (n_vertices + 1).pow(new_dimension as u32);
     for v in (max_element + 1)..n_vertices {
         // Compute filtration value
         let new_filtration_value = simplex_as_vec
@@ -122,13 +166,14 @@ fn add_cofacets(
         // Build up coface
         simplex_as_vec.push(v);
         // Insert into basis
-        let index = RipsIndex::from_indices(simplex_as_vec.iter().copied(), n_vertices).unwrap();
-        bases[new_dimension].push((new_filtration_value, index));
+        let cofacet = RipsIndex(index.0 + (v + 1) * top_digit);
+        bases[new_dimension].push((new_filtration_value, cofacet));
         // Recurse to cofacets
         if new_dimension < max_dim {
             add_cofacets(
                 bases,
                 simplex_as_vec,
+                cofacet,
                 new_filtration_value,
                 distances,
                 max_dim,
@@ -142,18 +187,16 @@ fn add_cofacets(
 pub fn build_rips_bases(distances: &Vec<Vec<NotNan<f64>>>, max_dim: usize) -> RipsBasis {
     let mut bases: Vec<SimplicesWithFilt> = vec![vec![]; max_dim + 1];
 
-    let n_points = distances.len();
     // Build up the basis
     for v in 0..(distances.len()) {
         let mut simplex = vec![v];
-        bases[0].push((
-            NotNan::new(0.0_f64).unwrap(),
-            RipsIndex::from_indices(vec![v].into_iter(), n_points).unwrap(),
-        ));
+        let vertex = RipsIndex(v + 1);
+        bases[0].push((NotNan::new(0.0_f64).unwrap(), vertex));
         if max_dim > 0 {
             add_cofacets(
                 &mut bases,
                 &mut simplex,
+                vertex,
                 NotNan::new(0 as f64).unwrap(),
                 distances,
                 max_dim,
@@ -173,20 +216,19 @@ pub fn build_rips_bases(distances: &Vec<Vec<NotNan<f64>>>, max_dim: usize) -> Ri
     )
 }
 
+/// The largest distance between two distinct vertices (so 0 for a single vertex, whatever the diagonal of `distances`).
 pub(crate) fn max_pairwise_distance(
     vertices: &[usize],
     distances: &[Vec<NotNan<f64>>],
 ) -> NotNan<f64> {
-    let n_vertices = vertices.len();
-    (0..n_vertices)
-        .flat_map(|i| (0..n_vertices).map(move |j| (i, j)))
-        .map(|(i, j)| {
-            let v_i = vertices[i];
-            let v_j = vertices[j];
-            distances[v_i][v_j]
-        })
-        .max()
-        .unwrap()
+    let mut max = NotNan::new(0.0).unwrap();
+    for (i, &v) in vertices.iter().enumerate() {
+        let row = &distances[v];
+        for &w in &vertices[i + 1..] {
+            max = max.max(row[w]);
+        }
+    }
+    max
 }
 
 // TUTORIAL:
@@ -201,6 +243,8 @@ pub type RipsBar = Bar<RipsIndex, NotNan<f64>, Z2>;
 
 /// Whether every simplex of dimension at most `max_dim` on `n_points` points can be represented by a [`RipsIndex`].
 pub fn rips_index_fits(n_points: usize, max_dim: usize) -> bool {
+    // There are no simplices with more vertices than points
+    let max_dim = max_dim.min(n_points.saturating_sub(1));
     u32::try_from(max_dim + 1)
         .ok()
         .and_then(|exponent| (n_points + 1).checked_pow(exponent))
@@ -216,7 +260,7 @@ pub fn rips_index_fits(n_points: usize, max_dim: usize) -> bool {
 /// Bars are returned in no particular order, and zero-length bars are included.
 ///
 /// # Panics
-/// If the simplices needed do not fit in a [`RipsIndex`], see [`rips_index_fits`].
+/// If simplices of dimension `max_dim + 1` (which both methods need) do not fit in a [`RipsIndex`], see [`rips_index_fits`].
 pub fn rips_barcode(
     distances: Vec<Vec<NotNan<f64>>>,
     max_dim: usize,
@@ -228,7 +272,8 @@ pub fn rips_barcode(
     // Each matrix is given its transpose, so that the reduction can skip apparent pairs
     match method {
         Method::Cohomology => {
-            assert!(rips_index_fits(n_points, max_dim));
+            // The coboundary of a max_dim simplex contains simplices of dimension max_dim + 1
+            assert!(rips_index_fits(n_points, max_dim + 1));
             let boundary = RipsBoundary::<Z2>::new(distances.clone());
             let coboundary = build_rips_coboundary_matrix::<Z2>(distances, max_dim);
             let coboundary = (&coboundary).with_transpose(&boundary);

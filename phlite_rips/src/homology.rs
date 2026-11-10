@@ -1,5 +1,5 @@
 use super::RipsBasis;
-use crate::{build_rips_bases, max_pairwise_distance, RipsIndex};
+use crate::{build_rips_bases, RipsIndex};
 use ordered_float::NotNan;
 use phlite::{
     fields::{Invertible, NonZeroCoefficient},
@@ -56,27 +56,25 @@ impl<CF: NonZeroCoefficient + Invertible> MatrixOracle for RipsBoundary<CF> {
         &self,
         col: Self::ColT,
     ) -> impl Iterator<Item = (Self::CoefficientField, Self::RowT)> {
-        let index_as_vec = col.to_vec(self.n_points());
-        let parity = |i: usize| {
-            if i % 2 == 0 {
+        // Removing the vertex in position i (i.e. the i-th base-(n + 1) digit of the index) gives a facet with sign (-1)^i.
+        // We compute each facet's index arithmetically rather than decoding and re-encoding the vertices.
+        let radix = self.n_points() + 1;
+        let index = col.0;
+        let n_vertices = col.dimension(self.n_points()) + 1;
+        // A vertex has an empty boundary (removing its only vertex leaves nothing)
+        let n_facets = if n_vertices > 1 { n_vertices } else { 0 };
+        (0..n_facets).scan(1usize, move |place, i| {
+            // place = radix^i
+            let low = index % *place;
+            let high = index / *place / radix;
+            let facet = RipsIndex(low + high * *place);
+            *place = place.wrapping_mul(radix);
+            let coeff = if i % 2 == 0 {
                 CF::one()
             } else {
                 CF::one().additive_inverse()
-            }
-        };
-        let n_points = self.n_points();
-        // TODO: Return early if n_points == 0
-        (0..(index_as_vec.len())).filter_map(move |i| {
-            // Iterator over all but the ith vertices
-            let smplx = index_as_vec
-                .iter()
-                .enumerate()
-                .filter(move |(j, _v)| *j != i)
-                .map(|(_j, v)| v)
-                .copied();
-            let index = RipsIndex::from_indices(smplx, n_points)?;
-            let coeff = parity(i);
-            Some((coeff, index))
+            };
+            Some((coeff, facet))
         })
     }
 }
@@ -92,8 +90,7 @@ impl<CF: NonZeroCoefficient + Invertible> HasRowFiltration for RipsBoundary<CF> 
     type FiltrationT = NotNan<f64>;
 
     fn filtration_value(&self, row: Self::RowT) -> Self::FiltrationT {
-        let as_vec = row.to_vec(self.n_points());
-        max_pairwise_distance(&as_vec, &self.distances)
+        row.vertices(self.n_points()).diameter(&self.distances)
     }
 
     // TODO:Can we override column with filtration to compute more efficiently?
