@@ -24,7 +24,7 @@ use crate::{
     fields::{Invertible, NonZeroCoefficient},
     matrices::{
         combinators::product, BasisElement, FiltrationValue, HasRowFiltration, HasSplitColBasis,
-        HasTranspose, MatrixOracle,
+        HasTranspose, MatrixOracle, SplitBasis,
     },
     reduction::{Clearing, Diagram, Reduction, ReductionAlgorithm, Standard},
 };
@@ -162,11 +162,14 @@ where
     CF: Field,
     M: Reducible<C, F, CF>,
 {
+    // Zero-persistence apparent pairs would only become zero-length bars, which we discard
     match algorithm {
         Algorithm::Standard(alg) => then.visit(alg.reduce(matrix)),
-        Algorithm::Clearing(alg) => then.visit(alg.reduce(matrix)),
+        Algorithm::Clearing(alg) => then.visit(alg.skip_zero_apparent_pairs().reduce(matrix)),
         #[cfg(feature = "parallel")]
-        Algorithm::ParallelClearing(alg) => then.visit(alg.reduce(matrix)),
+        Algorithm::ParallelClearing(alg) => {
+            then.visit(alg.skip_zero_apparent_pairs().reduce(matrix))
+        }
         #[cfg(not(feature = "parallel"))]
         Algorithm::_Lifetime(_, never) => match never {},
     }
@@ -352,11 +355,15 @@ where
         .map(|(_f, cell)| cell)
         .collect();
 
+    // The boundary, with the coboundary as its transpose so that the reduction can find apparent pairs:
+    // zero-persistence apparent pairs may be missing from the diagram, and so their death cells from the basis.
+    // A single "dimension" (the cells needn't share a dimension, since cells of different dimensions never interact).
     let boundary = coboundary
         .transpose()
         .with_filtration(|cell: C| coboundary.filtration_value(cell));
-    let restricted = (&boundary).with_basis(involution_basis);
-    let Reduction { v, diagram: _ } = Standard::new().reduce(&restricted);
+    let boundary = (&boundary).with_transpose(coboundary);
+    let restricted = (&boundary).with_basis(SplitBasis::from_dimensions([involution_basis]));
+    let Reduction { v, diagram: _ } = Clearing::new().reduce(&restricted);
     let r = product(&restricted, &v);
 
     for bar in bars.iter_mut() {

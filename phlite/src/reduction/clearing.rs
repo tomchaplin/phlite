@@ -183,6 +183,7 @@ struct CRMBuilder<M, DimIter: Iterator, RowT, CF> {
     reduction_columns: FxHashMap<RowT, ReductionColumn<CF, RowT>>,
     /// The pairs `pivot row -> column` found in the previous dimension, whose rows are the columns to clear in this one
     previous_pairs: FxHashMap<RowT, RowT>,
+    skip_zero_apparent_pairs: bool,
 }
 
 impl<M, DimIter> CRMBuilder<M, DimIter, M::RowT, M::CoefficientField>
@@ -193,8 +194,9 @@ where
     DimIter: Iterator<Item = usize>,
     ColumnEntry<M::FiltrationT, M::RowT, M::CoefficientField>: Clone,
 {
-    fn init(boundary: M, dimension_order: DimIter) -> Self {
+    fn init(boundary: M, dimension_order: DimIter, skip_zero_apparent_pairs: bool) -> Self {
         Self {
+            skip_zero_apparent_pairs,
             boundary,
             dimension_order: dimension_order.peekable(),
             diagram: Diagram {
@@ -297,7 +299,13 @@ where
         }
         // If dimensions are visited in a sensible order then we see pairings before their birth columns are reduced.
         // Otherwise the birth may already be marked essential, which is fixed up once at the end.
-        self.diagram.pairings.insert((pivot_row, basis_element));
+        let skip = apparent
+            && self.skip_zero_apparent_pairs
+            && self.boundary.filtration_value(pivot_row.clone())
+                == self.boundary.filtration_value(basis_element.clone());
+        if !skip {
+            self.diagram.pairings.insert((pivot_row, basis_element));
+        }
     }
 
     fn save_column(
@@ -413,6 +421,7 @@ where
 #[derive(Debug, Clone, Default)]
 pub struct Clearing {
     dimension_order: Option<Vec<usize>>,
+    pub(crate) skip_zero_apparent_pairs: bool,
 }
 
 impl Clearing {
@@ -433,6 +442,17 @@ impl Clearing {
         dimension_order: impl IntoIterator<Item = usize>,
     ) -> Self {
         self.dimension_order = Some(dimension_order.into_iter().collect());
+        self
+    }
+
+    /// Don't record apparent pairs of zero persistence (whose row and column have the same filtration value) in the diagram.
+    ///
+    /// Apparent pairs need no reduction, but in many filtrations nearly every pair is a zero-persistence apparent pair,
+    /// so recording them dominates the time and memory of the reduction.
+    /// They are still used for clearing, and the reduction matrix `V` is unaffected.
+    /// Only matrices with [`first_column_in_row`](crate::matrices::HasRowFiltration::first_column_in_row) have apparent pairs.
+    pub fn skip_zero_apparent_pairs(mut self) -> Self {
+        self.skip_zero_apparent_pairs = true;
         self
     }
 
@@ -495,7 +515,11 @@ where
 
     fn reduce(self, boundary: M) -> Reduction<Self::V, M::ColT> {
         let dimension_order = self.dimension_order(&boundary);
-        let mut builder = CRMBuilder::init(boundary, dimension_order.into_iter());
+        let mut builder = CRMBuilder::init(
+            boundary,
+            dimension_order.into_iter(),
+            self.skip_zero_apparent_pairs,
+        );
         builder.reduce_all_dimension();
         let v =
             ClearedReductionMatrix::build_from_owned(builder.boundary, builder.reduction_columns);

@@ -105,9 +105,8 @@ impl<CF: NonZeroCoefficient> Iterator for CoboundaryIterator<CF> {
         }
 
         // Insert the digit for next_vertex at insertion_position, shifting the higher digits up by one
-        let index = RipsIndex(
-            self.low + ((self.high * self.radix) + self.next_vertex + 1) * self.place,
-        );
+        let index =
+            RipsIndex(self.low + ((self.high * self.radix) + self.next_vertex + 1) * self.place);
         let coeff = if self.insertion_position % 2 == 0 {
             CF::one()
         } else {
@@ -135,7 +134,8 @@ impl<CF: NonZeroCoefficient + Invertible> MatrixOracle for RipsCoboundary<CF> {
         &self,
         col: Self::ColT,
     ) -> impl Iterator<Item = (Self::CoefficientField, Self::RowT)> {
-        CoboundaryIterator::new(col, self.n_points()).map(|(coeff, idx, _inserted_vertex)| (coeff, idx))
+        CoboundaryIterator::new(col, self.n_points())
+            .map(|(coeff, idx, _inserted_vertex)| (coeff, idx))
     }
 }
 
@@ -271,6 +271,78 @@ mod tests {
         }
     }
 
+    /// Skipping zero-persistence apparent pairs must drop exactly those pairs from the diagram, serially and in parallel
+    #[test]
+    fn test_skip_zero_apparent_pairs() {
+        use crate::homology::RipsBoundary;
+        use phlite::reduction::Clearing;
+        // Twelve points on a noisy circle, plus integer distances (lots of ties)
+        let points: Vec<(f64, f64)> = (0..12)
+            .map(|i| {
+                let t = i as f64 * std::f64::consts::TAU / 12.0;
+                let r = 1.0 + 0.1 * ((i * 7 % 5) as f64 - 2.0);
+                (r * t.cos(), r * t.sin())
+            })
+            .collect();
+        let circle: Vec<Vec<NotNan<f64>>> = points
+            .iter()
+            .map(|a| {
+                points
+                    .iter()
+                    .map(|b| {
+                        NotNan::new(((a.0 - b.0).powi(2) + (a.1 - b.1).powi(2)).sqrt()).unwrap()
+                    })
+                    .collect()
+            })
+            .collect();
+        let ties: Vec<Vec<NotNan<f64>>> = (0..9)
+            .map(|i| {
+                (0..9)
+                    .map(|j| {
+                        NotNan::new(if i == j {
+                            0.0
+                        } else {
+                            ((i * j + i + j) % 3) as f64
+                        })
+                        .unwrap()
+                    })
+                    .collect()
+            })
+            .collect();
+        for distances in [circle, ties] {
+            let boundary = RipsBoundary::<Z2>::new(distances.clone());
+            let coboundary = build_rips_coboundary_matrix::<Z2>(distances, 2);
+            let with_t = (&coboundary).with_transpose(&boundary);
+            let anti = (&with_t).reverse();
+            let full = Clearing::new().reduce(&anti).diagram;
+            for skipped in [
+                Clearing::new()
+                    .skip_zero_apparent_pairs()
+                    .reduce(&anti)
+                    .diagram,
+                Clearing::new()
+                    .parallel()
+                    .skip_zero_apparent_pairs()
+                    .reduce(&anti)
+                    .diagram,
+            ] {
+                assert_eq!(skipped.essential, full.essential);
+                assert!(skipped.pairings.is_subset(&full.pairings));
+                let dropped: Vec<_> = full.pairings.difference(&skipped.pairings).collect();
+                assert!(!dropped.is_empty(), "nothing was skipped");
+                for (row, col) in &full.pairings {
+                    let zero = anti.filtration_value(*row) == anti.filtration_value(*col);
+                    let apparent = anti.first_column_in_row(*row) == Some(*col);
+                    assert_eq!(
+                        skipped.pairings.contains(&(*row, *col)),
+                        !(zero && apparent),
+                        "{row:?} {col:?}"
+                    );
+                }
+            }
+        }
+    }
+
     /// Cofacet and facet indices are computed arithmetically; check them against encoding the vertex sets directly
     #[test]
     fn test_index_arithmetic_matches_encoding() {
@@ -278,10 +350,20 @@ mod tests {
         use phlite::fields::{NonZeroCoefficient, Z3};
         use phlite::matrices::{ColBasis, HasSplitColBasis};
         // Over Z3 so that the signs are checked too
-        let sign = |position: usize| if position.is_multiple_of(2) { Z3::one() } else { Z3::one().additive_inverse() };
+        let sign = |position: usize| {
+            if position.is_multiple_of(2) {
+                Z3::one()
+            } else {
+                Z3::one().additive_inverse()
+            }
+        };
         let n = 9;
         let distances: Vec<Vec<NotNan<f64>>> = (0..n)
-            .map(|i| (0..n).map(|j| NotNan::new(if i == j { 0.0 } else { (i + j) as f64 }).unwrap()).collect())
+            .map(|i| {
+                (0..n)
+                    .map(|j| NotNan::new(if i == j { 0.0 } else { (i + j) as f64 }).unwrap())
+                    .collect()
+            })
             .collect();
         let coboundary = build_rips_coboundary_matrix::<Z3>(distances.clone(), 3);
         let boundary = RipsBoundary::<Z3>::new(distances);
@@ -301,7 +383,10 @@ mod tests {
                         cofacet.push(v);
                         cofacet.sort();
                         let position = cofacet.iter().position(|w| *w == v).unwrap();
-                        (sign(position), RipsIndex::from_indices(cofacet.into_iter(), n).unwrap())
+                        (
+                            sign(position),
+                            RipsIndex::from_indices(cofacet.into_iter(), n).unwrap(),
+                        )
                     })
                     .collect();
                 let got: Vec<_> = coboundary.matrix.column(simplex).collect();
@@ -312,7 +397,11 @@ mod tests {
                 } else {
                     (0..=dim)
                         .map(|i| {
-                            let facet = vertices.iter().enumerate().filter(|(j, _)| *j != i).map(|(_, v)| *v);
+                            let facet = vertices
+                                .iter()
+                                .enumerate()
+                                .filter(|(j, _)| *j != i)
+                                .map(|(_, v)| *v);
                             (sign(i), RipsIndex::from_indices(facet, n).unwrap())
                         })
                         .collect()
@@ -334,7 +423,14 @@ mod tests {
         let distances: Vec<Vec<NotNan<f64>>> = (0..n)
             .map(|i| {
                 (0..n)
-                    .map(|j| NotNan::new(if i == j { 0.0 } else { ((i * j + i + j) % 4) as f64 }).unwrap())
+                    .map(|j| {
+                        NotNan::new(if i == j {
+                            0.0
+                        } else {
+                            ((i * j + i + j) % 4) as f64
+                        })
+                        .unwrap()
+                    })
                     .collect()
             })
             .collect();
@@ -349,7 +445,10 @@ mod tests {
                         entries.windows(2).all(|w| w[0].row_index < w[1].row_index),
                         "cofacets of {col:?} not in increasing order"
                     );
-                    let brute = entries.into_iter().min().map(|e| (e.filtration_value, e.row_index));
+                    let brute = entries
+                        .into_iter()
+                        .min()
+                        .map(|e| (e.filtration_value, e.row_index));
                     let fast = coboundary
                         .matrix
                         .column_min(col)
