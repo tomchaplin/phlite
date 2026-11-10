@@ -19,6 +19,14 @@ pub struct RipsCoboundary<CF: NonZeroCoefficient + Invertible> {
 }
 
 impl<CF: NonZeroCoefficient + Invertible> RipsCoboundary<CF> {
+    /// The coboundary oracle on its own, without a column basis attached (see [`build_rips_coboundary_matrix`]).
+    pub fn new(distances: Vec<Vec<NotNan<f64>>>) -> Self {
+        Self {
+            distances,
+            phantom: PhantomData,
+        }
+    }
+
     fn n_points(&self) -> usize {
         self.distances.len()
     }

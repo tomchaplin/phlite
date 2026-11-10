@@ -15,6 +15,8 @@
 //!   (the death cells of finite bars and the birth cells of essential bars), as in Čufar's "involuted" persistence.
 //!
 //! In both cases the bars are reported in *homology* conventions: `birth` is the lower dimensional cell.
+//! Bars of length zero (`birth_value == death_value`) are omitted, since they carry no information
+//! and there are typically far more of them than of any other bar.
 
 use std::{cmp::Reverse, fmt::Debug, hash::Hash};
 
@@ -85,7 +87,7 @@ pub struct Bar<C, F, CF> {
 
 impl<C, F: PartialEq, CF> Bar<C, F, CF> {
     /// Whether this bar is finite with `birth_value == death_value`.
-    /// Most applications discard such bars.
+    /// The functions in this module never return such bars.
     pub fn is_zero_length(&self) -> bool {
         matches!(&self.death, Some((_, death_value)) if *death_value == self.birth_value)
     }
@@ -223,11 +225,15 @@ where
                 pairings,
             } = reduction.diagram;
 
-            let finite = pairings.into_iter().map(|(birth, death)| Bar {
-                birth_value: boundary.filtration_value(birth.clone()),
-                representative: representatives.then(|| collect_column(&r, death.clone())),
-                death: Some((death.clone(), boundary.filtration_value(death))),
-                birth,
+            let finite = pairings.into_iter().filter_map(|(birth, death)| {
+                let birth_value = boundary.filtration_value(birth.clone());
+                let death_value = boundary.filtration_value(death.clone());
+                (birth_value != death_value).then(|| Bar {
+                    birth_value,
+                    representative: representatives.then(|| collect_column(&r, death.clone())),
+                    death: Some((death, death_value)),
+                    birth,
+                })
             });
             let essential = essential.into_iter().map(|birth| Bar {
                 birth_value: boundary.filtration_value(birth.clone()),
@@ -255,6 +261,39 @@ impl<C, CF> ReductionVisitor<C, CF, Diagram<C>> for DiagramVisitor {
     }
 }
 
+/// Read the bars of non-zero length (without representatives) off the diagram of the anti-transposed coboundary,
+/// converting to homology conventions.
+fn cohomology_bars<C, F, CF, M>(coboundary: M, diagram: &Diagram<Reverse<C>>) -> Vec<Bar<C, F, CF>>
+where
+    C: Cell,
+    F: FiltrationValue,
+    CF: Field,
+    M: Reducible<C, F, CF>,
+{
+    // The anti-transpose has columns in dimension k and rows in dimension k + 1,
+    // so a pairing (pivot row, column) is (homology death, homology birth).
+    let finite = diagram
+        .pairings
+        .iter()
+        .filter_map(|(Reverse(death), Reverse(birth))| {
+            let birth_value = coboundary.filtration_value(birth.clone());
+            let death_value = coboundary.filtration_value(death.clone());
+            (birth_value != death_value).then(|| Bar {
+                birth_value,
+                birth: birth.clone(),
+                death: Some((death.clone(), death_value)),
+                representative: None,
+            })
+        });
+    let essential = diagram.essential.iter().map(|Reverse(birth)| Bar {
+        birth_value: coboundary.filtration_value(birth.clone()),
+        birth: birth.clone(),
+        death: None,
+        representative: None,
+    });
+    finite.chain(essential).collect()
+}
+
 /// Compute the barcode of a filtered chain complex from its `coboundary` matrix.
 ///
 /// We reduce the anti-transpose ([`reverse`](MatrixOracle::reverse)) of `coboundary`, so pass the coboundary itself.
@@ -269,25 +308,7 @@ where
     M: Reducible<C, F, CF>,
 {
     let diagram: Diagram<Reverse<C>> = run(coboundary.reverse(), algorithm, DiagramVisitor);
-
-    // The anti-transpose has columns in dimension k and rows in dimension k + 1,
-    // so a pairing (pivot row, column) is (homology death, homology birth).
-    let finite = diagram
-        .pairings
-        .into_iter()
-        .map(|(Reverse(death), Reverse(birth))| Bar {
-            birth_value: coboundary.filtration_value(birth.clone()),
-            birth,
-            death: Some((death.clone(), coboundary.filtration_value(death))),
-            representative: None,
-        });
-    let essential = diagram.essential.into_iter().map(|Reverse(birth)| Bar {
-        birth_value: coboundary.filtration_value(birth.clone()),
-        birth,
-        death: None,
-        representative: None,
-    });
-    finite.chain(essential).collect()
+    cohomology_bars(coboundary, &diagram)
 }
 
 /// As [`cohomology`], but also computes a representative cycle for every bar via the involution trick.
@@ -312,18 +333,19 @@ where
     M: Reducible<C, F, CF>,
     B: MatrixOracle<CoefficientField = CF, ColT = C, RowT = C> + HasRowFiltration<FiltrationT = F>,
 {
-    let mut bars = cohomology(coboundary, algorithm);
+    let diagram: Diagram<Reverse<C>> = run(coboundary.reverse(), algorithm, DiagramVisitor);
+    let mut bars = cohomology_bars(coboundary, &diagram);
 
     // The columns of the involuted boundary matrix: the death cells of finite bars (whose R columns are representatives)
     // and the birth cells of essential bars (whose V columns are representatives).
-    // Reducing a column only ever adds earlier columns with a pivot, i.e. other death cells,
-    // so these are all the columns we need.
-    let mut involution_basis: Vec<(F, C)> = bars
-        .iter()
-        .map(|bar| match &bar.death {
-            Some((death, death_value)) => (death_value.clone(), death.clone()),
-            None => (bar.birth_value.clone(), bar.birth.clone()),
-        })
+    // Reducing a column only ever adds earlier columns with a pivot, i.e. other death cells
+    // (including those of zero-length bars, so we take them from the diagram), so these are all the columns we need.
+    let mut involution_basis: Vec<(F, C)> = diagram
+        .pairings
+        .into_iter()
+        .map(|(Reverse(death), _)| death)
+        .chain(diagram.essential.into_iter().map(|Reverse(birth)| birth))
+        .map(|cell| (coboundary.filtration_value(cell.clone()), cell))
         .collect();
     involution_basis.sort_unstable();
     let involution_basis: Vec<C> = involution_basis
@@ -460,6 +482,68 @@ mod tests {
                     };
                     assert_eq!(rep_cells(bar), expected_rep, "{bar:?}");
                 }
+            }
+        }
+    }
+
+    #[test]
+    fn first_and_last_columns_in_row() {
+        use crate::matrices::HasRowFiltration;
+        // Rows of the coboundary are the cofaces, so the columns in row 7 (the triangle) are its edges 4, 5, 6
+        let co = coboundary();
+        let delta = (&co).with_filtration(|i| i);
+        let b = boundary();
+        let with_t = (&delta).with_transpose(&b);
+        assert_eq!(with_t.first_column_in_row(7), Some(4));
+        assert_eq!(with_t.last_column_in_row(7), Some(6));
+        // And reversing swaps them
+        let rev = (&with_t).reverse();
+        assert_eq!(rev.first_column_in_row(Reverse(7)), Some(Reverse(6)));
+        assert_eq!(rev.last_column_in_row(Reverse(7)), Some(Reverse(4)));
+        // Without a transpose nothing is known
+        assert_eq!(delta.first_column_in_row(7), None);
+    }
+
+    /// Attaching transposes turns on apparent pairs, which must not change the bars or representatives
+    #[test]
+    fn transposes_give_same_bars() {
+        let b = boundary();
+        let co = coboundary();
+        let d = (&b).with_filtration(|i| i);
+        let d = (&d).with_basis(basis(2));
+        let d = (&d).with_transpose(&co);
+        let delta = (&co).with_filtration(|i| i);
+        let delta = (&delta).with_basis(basis(1));
+        let delta = (&delta).with_transpose(&b);
+        let expected = {
+            let mut e = vec![
+                (1, Some(4)),
+                (2, Some(5)),
+                (3, None),
+                (0, None),
+                (6, Some(7)),
+            ];
+            e.sort();
+            e
+        };
+        for algorithm in algorithms() {
+            // `d` and `delta` are already references (WithTranspose of references is Copy)
+            let hom = homology(d, algorithm.clone(), true);
+            assert_eq!(summary(&hom), expected, "{algorithm:?}");
+            assert_eq!(summary(&cohomology(delta, algorithm.clone())), expected);
+            let invol =
+                cohomology_with_involution(delta, (&b).with_filtration(|i| i), algorithm.clone());
+            assert_eq!(summary(&invol), expected);
+            for bar in hom.iter().chain(invol.iter()) {
+                let expected_rep: Vec<usize> = match (bar.birth, bar.death) {
+                    (0, None) => vec![0],
+                    (3, None) => vec![3],
+                    (1, Some(_)) => vec![0, 1],
+                    (2, Some(_)) => vec![0, 2],
+                    (6, Some(_)) => vec![4, 5, 6],
+                    other => panic!("Unexpected bar {other:?}"),
+                };
+                assert_eq!(rep_cells(bar), expected_rep, "{bar:?}");
             }
         }
     }

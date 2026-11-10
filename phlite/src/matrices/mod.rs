@@ -26,7 +26,7 @@ use crate::{
 pub use self::bases::{BasisSlice, SplitBasis};
 use self::adaptors::{
     MatrixWithBasis, ReverseBasis, ReverseMatrix, UnreverseBasis, UnreverseMatrix,
-    UsingColBasisIndex, WithFuncFiltration, WithSubBasis, WithTrivialFiltration,
+    UsingColBasisIndex, WithFuncFiltration, WithSubBasis, WithTranspose, WithTrivialFiltration,
 };
 
 pub mod adaptors;
@@ -163,6 +163,22 @@ pub trait MatrixOracle {
         MatrixWithBasis {
             matrix: self,
             basis,
+        }
+    }
+
+    /// Endows `self` with an oracle for its transpose, so that the reduction algorithms can use apparent pairs
+    /// (see [`first_column_in_row`](HasRowFiltration::first_column_in_row)).
+    ///
+    /// Column `r` of `transpose` must contain exactly the non-zero entries of row `r` of `self`.
+    /// For a coboundary matrix, the transpose is the boundary matrix, and vice versa.
+    fn with_transpose<T>(self, transpose: T) -> WithTranspose<Self, T>
+    where
+        Self: Sized,
+        T: MatrixOracle<CoefficientField = Self::CoefficientField, ColT = Self::RowT, RowT = Self::ColT>,
+    {
+        WithTranspose {
+            matrix: self,
+            transpose,
         }
     }
 
@@ -361,6 +377,24 @@ pub trait HasRowFiltration: MatrixOracle {
         }
     }
 
+    /// Of the columns with a non-zero entry in `row`, the first in the order on filtration value and then [`ColT`](MatrixOracle::ColT),
+    /// or `None` if this is not known (the default).
+    ///
+    /// Only meaningful for square matrices (so that columns have filtration values), whose column bases are sorted in this order.
+    /// The reduction algorithms use it to detect *apparent pairs*: if the pivot of column `c` is `r`, and `c` is the first column in row `r`,
+    /// then `(r, c)` is a persistence pair that needs no reduction (nor storage, since it can be recomputed).
+    /// Implement it if you can find this column cheaply, typically by computing the pivot of the corresponding column of the transpose
+    /// (see [`with_transpose`](MatrixOracle::with_transpose)).
+    /// If you implement it, it must be correct: returning a column that is not the first in its row gives wrong results.
+    fn first_column_in_row(&self, _row: Self::RowT) -> Option<Self::ColT> {
+        None
+    }
+
+    /// As [`first_column_in_row`](HasRowFiltration::first_column_in_row), but the last column. Used for [`reverse`](MatrixOracle::reverse)d matrices.
+    fn last_column_in_row(&self, _row: Self::RowT) -> Option<Self::ColT> {
+        None
+    }
+
     /// Initialise an empty binary heap that can accept entries from this matrix.
     /// Mostly an implementation detail of [`build_bhcol`](HasRowFiltration::build_bhcol).
     fn empty_bhcol(&self) -> BHCol<Self::FiltrationT, Self::RowT, Self::CoefficientField> {
@@ -389,6 +423,21 @@ where
 
     fn filtration_value(&self, row: Self::RowT) -> Self::FiltrationT {
         (*self).filtration_value(row)
+    }
+
+    fn column_pivot(
+        &self,
+        col: Self::ColT,
+    ) -> Option<ColumnEntry<Self::FiltrationT, Self::RowT, Self::CoefficientField>> {
+        (*self).column_pivot(col)
+    }
+
+    fn first_column_in_row(&self, row: Self::RowT) -> Option<Self::ColT> {
+        (*self).first_column_in_row(row)
+    }
+
+    fn last_column_in_row(&self, row: Self::RowT) -> Option<Self::ColT> {
+        (*self).last_column_in_row(row)
     }
     fn column_with_filtration(
         &self,

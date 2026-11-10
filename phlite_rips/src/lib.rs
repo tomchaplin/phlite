@@ -7,11 +7,11 @@ use ordered_float::NotNan;
 use phlite::{
     barcode::{self, Algorithm, Bar},
     fields::Z2,
-    matrices::{BasisElement, SplitBasis},
+    matrices::{BasisElement, MatrixOracle, SplitBasis},
 };
 
 use crate::{
-    cohomology::build_rips_coboundary_matrix,
+    cohomology::{build_rips_coboundary_matrix, RipsCoboundary},
     homology::{build_rips_boundary_matrix, RipsBoundary},
 };
 
@@ -225,23 +225,26 @@ pub fn rips_barcode(
     representatives: bool,
 ) -> Vec<RipsBar> {
     let n_points = distances.len();
-    match (method, representatives) {
-        (Method::Cohomology, false) => {
-            assert!(rips_index_fits(n_points, max_dim));
-            let coboundary = build_rips_coboundary_matrix::<Z2>(distances, max_dim);
-            barcode::cohomology(&coboundary, algorithm)
-        }
-        (Method::Cohomology, true) => {
+    // Each matrix is given its transpose, so that the reduction can skip apparent pairs
+    match method {
+        Method::Cohomology => {
             assert!(rips_index_fits(n_points, max_dim));
             let boundary = RipsBoundary::<Z2>::new(distances.clone());
             let coboundary = build_rips_coboundary_matrix::<Z2>(distances, max_dim);
-            barcode::cohomology_with_involution(&coboundary, boundary, algorithm)
+            let coboundary = (&coboundary).with_transpose(&boundary);
+            if representatives {
+                barcode::cohomology_with_involution(coboundary, &boundary, algorithm)
+            } else {
+                barcode::cohomology(coboundary, algorithm)
+            }
         }
-        (Method::Homology, _) => {
+        Method::Homology => {
             // Bars in dimension max_dim die at simplices of dimension max_dim + 1
             assert!(rips_index_fits(n_points, max_dim + 1));
+            let coboundary = RipsCoboundary::<Z2>::new(distances.clone());
             let boundary = build_rips_boundary_matrix::<Z2>(distances, max_dim + 1);
-            let mut bars = barcode::homology(&boundary, algorithm, representatives);
+            let boundary = (&boundary).with_transpose(&coboundary);
+            let mut bars = barcode::homology(boundary, algorithm, representatives);
             // Nothing can kill the top dimensional simplices, so they look essential but are not bars we computed
             bars.retain(|bar| bar.birth.dimension(n_points) <= max_dim);
             bars
@@ -255,6 +258,85 @@ pyo3_stub_gen::define_stub_info_gatherer!(stub_info);
 #[cfg(test)]
 mod tests {
     use crate::RipsIndex;
+
+    /// `rips_barcode` attaches transposes (enabling apparent pairs); that must not change any bar
+    #[test]
+    fn apparent_pairs_do_not_change_barcode() {
+        use crate::{cohomology::build_rips_coboundary_matrix, rips_barcode, Method};
+        use ordered_float::NotNan;
+        use phlite::{
+            barcode::{self, Algorithm},
+            fields::Z2,
+            reduction::{Clearing, Standard},
+        };
+        // Twelve points on a noisy circle
+        let points: Vec<(f64, f64)> = (0..12)
+            .map(|i| {
+                let t = i as f64 * std::f64::consts::TAU / 12.0;
+                let r = 1.0 + 0.1 * ((i * 7 % 5) as f64 - 2.0);
+                (r * t.cos(), r * t.sin())
+            })
+            .collect();
+        let distances: Vec<Vec<NotNan<f64>>> = points
+            .iter()
+            .map(|a| {
+                points
+                    .iter()
+                    .map(|b| {
+                        NotNan::new(((a.0 - b.0).powi(2) + (a.1 - b.1).powi(2)).sqrt()).unwrap()
+                    })
+                    .collect()
+            })
+            .collect();
+        let summary = |bars: Vec<crate::RipsBar>| {
+            let mut out: Vec<_> = bars
+                .into_iter()
+                .map(|bar| {
+                    (
+                        bar.birth,
+                        bar.death.map(|(d, _)| d),
+                        bar.representative.is_some(),
+                    )
+                })
+                .collect();
+            out.sort();
+            out
+        };
+        let coboundary = build_rips_coboundary_matrix::<Z2>(distances.clone(), 2);
+        let expected = summary(barcode::cohomology(&coboundary, Algorithm::default()));
+        for algorithm in [
+            Algorithm::Standard(Standard::new()),
+            Algorithm::Clearing(Clearing::new()),
+            Algorithm::ParallelClearing(Clearing::new().parallel()),
+        ] {
+            let bars = rips_barcode(
+                distances.clone(),
+                2,
+                Method::Cohomology,
+                algorithm.clone(),
+                false,
+            );
+            assert_eq!(summary(bars), expected, "{algorithm:?}");
+            // With representatives the involution's debug assertions check them against the pairing
+            let bars = rips_barcode(
+                distances.clone(),
+                2,
+                Method::Cohomology,
+                algorithm.clone(),
+                true,
+            );
+            assert_eq!(bars.len(), expected.len());
+            // Homology pairs simplices the same way (the pairing doesn't depend on the method)
+            let bars = rips_barcode(distances.clone(), 2, Method::Homology, algorithm, false);
+            let mut hom: Vec<_> = bars
+                .into_iter()
+                .map(|bar| (bar.birth, bar.death.map(|(d, _)| d)))
+                .collect();
+            hom.sort();
+            let cohom: Vec<_> = expected.iter().map(|(b, d, _)| (*b, *d)).collect();
+            assert_eq!(hom, cohom);
+        }
+    }
 
     #[test]
     fn test_bases_with_max_dim_0() {
