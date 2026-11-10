@@ -47,18 +47,21 @@
 //!
 //! Enabled by the `parallel` feature (and `lock-free` for the second backend).
 
-use std::hash::{BuildHasherDefault, Hash, Hasher};
+use std::hash::Hash;
 use std::marker::PhantomData;
 use std::sync::{Arc, RwLock};
 
 use dashmap::{mapref::entry::Entry, DashMap};
 use rayon::prelude::*;
-use rustc_hash::{FxHashMap, FxHashSet, FxHasher};
+use rustc_hash::{FxHashMap, FxHashSet};
 
 use super::clearing::{ClearedReductionMatrix, ReductionColumn};
 use super::Diagram;
 use super::{Clearing, Reduction, ReductionAlgorithm};
-use crate::columns::{BHCol, ColumnEntry};
+use crate::columns::{
+    BHCol, ColumnCoefficient, ColumnEntry, ColumnFiltration, ColumnRepresentation, ColumnRow,
+    MergedColumns, WorkingColumn,
+};
 use crate::fields::{Invertible, NonZeroCoefficient};
 use crate::matrices::{ColBasis, HasRowFiltration, HasSplitColBasis, MatrixOracle, SquareMatrix};
 
@@ -68,37 +71,8 @@ const MAX_TASK_LEN: usize = 16;
 /// The fewest columns classified per task: classifying a column is cheap, so tasks must be big to amortise rayon's overhead
 const MIN_CLASSIFY_LEN: usize = 1024;
 
-/// `FxHasher` followed by a finaliser: Fx puts its entropy in the high bits, but the concurrent maps also use the low ones.
-#[derive(Default)]
-pub struct MixedFx(FxHasher);
-
-impl Hasher for MixedFx {
-    fn write(&mut self, bytes: &[u8]) {
-        self.0.write(bytes)
-    }
-    fn write_u8(&mut self, i: u8) {
-        self.0.write_u8(i)
-    }
-    fn write_u16(&mut self, i: u16) {
-        self.0.write_u16(i)
-    }
-    fn write_u32(&mut self, i: u32) {
-        self.0.write_u32(i)
-    }
-    fn write_u64(&mut self, i: u64) {
-        self.0.write_u64(i)
-    }
-    fn write_usize(&mut self, i: usize) {
-        self.0.write_usize(i)
-    }
-    fn finish(&self) -> u64 {
-        let h = self.0.finish();
-        let h = (h ^ (h >> 32)).wrapping_mul(0x9E37_79B9_7F4A_7C15);
-        h ^ (h >> 32)
-    }
-}
-
-type FxBuild = BuildHasherDefault<MixedFx>;
+use crate::hash::FxBuild;
+pub use crate::hash::MixedFx;
 
 // ====== Published columns =======================================
 
@@ -241,57 +215,69 @@ enum Owner<ColT, CF> {
     Apparent(ColT, CF),
 }
 
-struct DimensionReducer<'a, M: HasRowFiltration, S> {
+struct DimensionReducer<'a, M, S, C>
+where
+    M: HasRowFiltration,
+    M::FiltrationT: ColumnFiltration,
+    M::RowT: ColumnRow,
+    M::CoefficientField: ColumnCoefficient,
+    C: ColumnRepresentation,
+{
     boundary: &'a M,
     /// The columns of this dimension that need reducing, in basis order. Position in this vec is the local index.
     cols: Vec<M::ColT>,
     /// The columns cleared in this dimension (keys), which own no pivots
     cleared: &'a FxHashMap<M::RowT, M::ColT>,
     state: S,
+    columns: &'a C,
+    /// Shared by all of the columns reduced in this dimension, across threads
+    cache: C::Cache<M::FiltrationT, M::RowT, M::CoefficientField>,
     _marker: PhantomData<M>,
 }
 
-type RCol<M> = BHCol<
+type RCol<M, C> = <C as ColumnRepresentation>::Column<
     <M as HasRowFiltration>::FiltrationT,
     <M as MatrixOracle>::RowT,
     <M as MatrixOracle>::CoefficientField,
 >;
 type VCol<M> = BHCol<(), <M as MatrixOracle>::ColT, <M as MatrixOracle>::CoefficientField>;
 
-impl<'a, M, S> DimensionReducer<'a, M, S>
+impl<'a, M, S, C> DimensionReducer<'a, M, S, C>
 where
     M: MatrixOracle + SquareMatrix + HasRowFiltration,
-    M::CoefficientField: Invertible,
-    M::RowT: Hash,
+    M::CoefficientField: Invertible + ColumnCoefficient,
+    M::FiltrationT: ColumnFiltration,
+    M::RowT: ColumnRow,
     S: Backend<M::RowT, M::CoefficientField>,
+    C: ColumnRepresentation,
 {
-    fn new(boundary: &'a M, cols: Vec<M::ColT>, cleared: &'a FxHashMap<M::RowT, M::ColT>) -> Self {
+    fn new(
+        boundary: &'a M,
+        cols: Vec<M::ColT>,
+        cleared: &'a FxHashMap<M::RowT, M::ColT>,
+        columns: &'a C,
+    ) -> Self {
         Self {
             boundary,
             state: S::new(cols.len()),
             cols,
             cleared,
+            columns,
+            cache: Default::default(),
             _marker: PhantomData,
         }
     }
 
-    /// The entries of `mult * D V` for the column `V` given as `(coefficient, label)` pairs.
-    fn d_times_v<'b>(
-        &'b self,
-        v: impl Iterator<Item = (M::CoefficientField, M::ColT)> + 'b,
-        mult: M::CoefficientField,
-    ) -> impl Iterator<Item = ColumnEntry<M::FiltrationT, M::RowT, M::CoefficientField>> + 'b {
-        v.flat_map(move |(coeff, label)| {
-            let scale = coeff * mult;
-            self.boundary
-                .column_with_filtration(label)
-                .map(move |entry| entry * scale)
-        })
+    /// Add `mult * D_k` to `r`
+    fn add_d_column(&self, r: &mut RCol<M, C>, k: M::ColT, mult: M::CoefficientField) {
+        self.columns
+            .add_matrix_column(&self.cache, self.boundary, r, k, mult);
     }
 
     /// State of a column that no-one has touched yet: `R_j = D_j`, `V_j = e_j`
-    fn initial_state(&self, j: usize) -> (RCol<M>, VCol<M>) {
-        let r = self.boundary.build_bhcol(self.cols[j].clone());
+    fn initial_state(&self, j: usize) -> (RCol<M, C>, VCol<M>) {
+        let mut r = RCol::<M, C>::default();
+        self.add_d_column(&mut r, self.cols[j].clone(), M::CoefficientField::one());
         let mut v = VCol::<M>::default();
         v.add_tuple((M::CoefficientField::one(), self.cols[j].clone(), ()));
         (r, v)
@@ -302,10 +288,12 @@ where
         &self,
         snapshot: &PublishedColumn<M::ColT, M::CoefficientField>,
         j: usize,
-    ) -> (RCol<M>, VCol<M>) {
+    ) -> (RCol<M, C>, VCol<M>) {
         let label = &self.cols[j];
-        let mut r = self.boundary.empty_bhcol();
-        r.add_entries(self.d_times_v(v_entries(snapshot, label), M::CoefficientField::one()));
+        let mut r = RCol::<M, C>::default();
+        for (coeff, k) in v_entries(snapshot, label) {
+            self.add_d_column(&mut r, k, coeff);
+        }
         let mut v = VCol::<M>::default();
         v.add_tuples(v_entries(snapshot, label).map(|(coeff, k)| (coeff, k, ())));
         (r, v)
@@ -411,18 +399,16 @@ where
                 Some(Owner::Apparent(owner, owner_coeff)) => {
                     // The first column in row l is always to our left, and has V = e
                     let multiple = coeff.additive_inverse() * owner_coeff.mult_inverse();
-                    r.add_entries(
-                        self.boundary
-                            .column_with_filtration(owner.clone())
-                            .map(|entry| entry * multiple),
-                    );
+                    self.add_d_column(&mut r, owner.clone(), multiple);
                     v.add_tuple((multiple, owner, ()));
                 }
                 Some(Owner::Published(owner, snapshot)) if owner < w => {
                     let owner_coeff = snapshot.pivot.as_ref().unwrap().1;
                     let multiple = coeff.additive_inverse() * owner_coeff.mult_inverse();
                     let label = &self.cols[owner];
-                    r.add_entries(self.d_times_v(v_entries(&snapshot, label), multiple));
+                    for (c, k) in v_entries(&snapshot, label) {
+                        self.add_d_column(&mut r, k, c * multiple);
+                    }
                     v.add_entries(
                         v_entries(&snapshot, label)
                             .map(|(c, k)| ColumnEntry::from((c * multiple, k, ()))),
@@ -497,15 +483,15 @@ pub enum Storage {
 ///
 /// The diagram is the same as [`Clearing`]'s, but the reduction matrix `V` that comes out may differ (it is still a valid one).
 #[derive(Debug, Clone, Default)]
-pub struct ParallelClearing<'p> {
-    clearing: Clearing,
+pub struct ParallelClearing<'p, C = MergedColumns> {
+    clearing: Clearing<C>,
     pool: Option<&'p rayon::ThreadPool>,
     storage: Storage,
 }
 
-impl Clearing {
+impl<C: ColumnRepresentation> Clearing<C> {
     /// Reduce the columns of each dimension in parallel, on rayon's global thread pool and with [`Storage::Locking`].
-    pub fn parallel(self) -> ParallelClearing<'static> {
+    pub fn parallel(self) -> ParallelClearing<'static, C> {
         ParallelClearing {
             clearing: self,
             pool: None,
@@ -514,9 +500,9 @@ impl Clearing {
     }
 }
 
-impl<'p> ParallelClearing<'p> {
+impl<'p, C: ColumnRepresentation> ParallelClearing<'p, C> {
     /// Run on the given thread pool rather than rayon's global one.
-    pub fn in_pool<'q>(self, pool: &'q rayon::ThreadPool) -> ParallelClearing<'q> {
+    pub fn in_pool<'q>(self, pool: &'q rayon::ThreadPool) -> ParallelClearing<'q, C> {
         ParallelClearing {
             clearing: self.clearing,
             pool: Some(pool),
@@ -530,6 +516,15 @@ impl<'p> ParallelClearing<'p> {
         self
     }
 
+    /// See [`Clearing::with_columns`].
+    pub fn with_columns<C2: ColumnRepresentation>(self, columns: C2) -> ParallelClearing<'p, C2> {
+        ParallelClearing {
+            clearing: self.clearing.with_columns(columns),
+            pool: self.pool,
+            storage: self.storage,
+        }
+    }
+
     /// Choose the concurrent data structures to use.
     pub fn storage(mut self, storage: Storage) -> Self {
         self.storage = storage;
@@ -537,30 +532,34 @@ impl<'p> ParallelClearing<'p> {
     }
 }
 
-impl<M> ReductionAlgorithm<M> for ParallelClearing<'_>
+impl<M, C> ReductionAlgorithm<M> for ParallelClearing<'_, C>
 where
     M: MatrixOracle + SquareMatrix + HasRowFiltration + HasSplitColBasis + Sync + Send,
-    M::CoefficientField: Invertible + Send + Sync + 'static,
-    M::ColT: Hash + Send + Sync,
-    M::RowT: Hash + Send + Sync + 'static,
+    M::CoefficientField: Invertible + ColumnCoefficient + 'static,
+    M::RowT: ColumnRow + 'static,
+    M::FiltrationT: ColumnFiltration,
+    C: ColumnRepresentation,
 {
     type V = ClearedReductionMatrix<'static, M>;
 
     fn reduce(self, boundary: M) -> Reduction<Self::V, M::ColT> {
         let dimension_order = self.clearing.dimension_order(&boundary);
         let skip_zero_apparent_pairs = self.clearing.skip_zero_apparent_pairs;
+        let columns = self.clearing.columns;
         let run = move || {
             let (v, diagram) = match self.storage {
-                Storage::Locking => build_with_diagram_using::<M, LockingBackend<_, _>>(
+                Storage::Locking => build_with_diagram_using::<M, LockingBackend<_, _>, C>(
                     boundary,
                     dimension_order,
                     skip_zero_apparent_pairs,
+                    &columns,
                 ),
                 #[cfg(feature = "lock-free")]
-                Storage::LockFree => build_with_diagram_using::<M, LockFreeBackend<_, _>>(
+                Storage::LockFree => build_with_diagram_using::<M, LockFreeBackend<_, _>, C>(
                     boundary,
                     dimension_order,
                     skip_zero_apparent_pairs,
+                    &columns,
                 ),
             };
             Reduction { v, diagram }
@@ -573,17 +572,19 @@ where
 }
 
 /// Reduce all of the given dimensions, one after the other, each in parallel
-fn build_with_diagram_using<M, S>(
+fn build_with_diagram_using<M, S, C>(
     boundary: M,
     dimension_order: Vec<usize>,
     skip_zero_apparent_pairs: bool,
+    columns: &C,
 ) -> (ClearedReductionMatrix<'static, M>, Diagram<M::ColT>)
 where
     M: MatrixOracle + SquareMatrix + HasRowFiltration + HasSplitColBasis + Sync,
-    M::CoefficientField: Invertible + Send + Sync,
-    M::ColT: Hash + Send + Sync,
-    M::RowT: Hash + Send + Sync,
+    M::CoefficientField: Invertible + ColumnCoefficient,
+    M::RowT: ColumnRow,
+    M::FiltrationT: ColumnFiltration,
     S: Backend<M::RowT, M::CoefficientField>,
+    C: ColumnRepresentation,
 {
     let mut reduction_columns: FxHashMap<M::ColT, ReductionColumn<M::CoefficientField, M::ColT>> =
         FxHashMap::default();
@@ -656,7 +657,7 @@ where
             .into_iter()
             .map(|i| boundary.sub_basis(dim).element(i))
             .collect();
-        let reducer = DimensionReducer::<M, S>::new(&boundary, cols, &clearing);
+        let reducer = DimensionReducer::<M, S, C>::new(&boundary, cols, &clearing, columns);
         (0..reducer.cols.len())
             .into_par_iter()
             .with_max_len(MAX_TASK_LEN)

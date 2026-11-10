@@ -60,7 +60,9 @@ Most of `phlite`'s performance comes from optimisations we have adapted from Rip
   leaving the simplices in zero-persistence apparent pairs out of the columns to reduce, and truncating the Vietoris-Rips filtration at the enclosing radius;
 * from giotto-ph: the parallel structure of each dimension's reduction (classifying all columns in parallel and giving per-column state
   only to the few that need reducing, which are then reduced with the lock-free algorithm of [[8]](#8)), building the columns to reduce
-  in parallel, and truncating at the enclosing radius by default.
+  in parallel, and truncating at the enclosing radius by default;
+* from OAT [[10]](#10): reducing a column by lazily merging sorted columns, rather than pushing every entry into one heap
+  (see `phlite::columns::MergedColumns`), which keeps the heap small enough to stay in cache when columns are long.
 
 `phlite`'s contribution is making these available for any filtration, behind generic traits, rather than just Vietoris-Rips.
 
@@ -110,7 +112,7 @@ The `python-tests` folder holds fuzz tests and benchmarks of the Python bindings
 
 ### Medium priority
 
-- [ ] Improve handling of binary-heap column addition (the bottleneck for GrPPH)
+- [x] Improve handling of binary-heap column addition (the bottleneck for GrPPH)
 - [ ] Compute H_0 of Rips with union-find (the bottleneck for large Rips inputs)
 
 ### Low priority
@@ -156,3 +158,6 @@ Morozov, Dmitriy, and Arnur Nigmetov. "Towards lockfree persistent homology." Pr
 
 <a id="9">[9]</a>
 Pérez, Julián Burella, et al. "giotto-ph: A python library for high-performance computation of persistent homology of Vietoris-Rips filtrations." arXiv preprint arXiv:2107.05412 (2021). [Github repo.](https://github.com/giotto-ai/giotto-ph)
+
+<a id="10">[10]</a>
+Open Applied Topology (OAT). [Github repo.](https://github.com/OpenAppliedTopology/oat_rust)

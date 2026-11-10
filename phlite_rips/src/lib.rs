@@ -37,6 +37,7 @@ mod python;
 use ordered_float::NotNan;
 use phlite::{
     barcode::{self, Algorithm, Bar},
+    columns::ColumnRepresentation,
     fields::Z2,
     matrices::{BasisElement, MatrixOracle, SplitBasis},
 };
@@ -552,12 +553,12 @@ pub fn rips_index_fits(n_points: usize, max_dim: usize) -> bool {
 ///
 /// # Panics
 /// If simplices of dimension `max_dim + 1` (which both methods need) do not fit in a [`RipsIndex`], see [`rips_index_fits`].
-pub fn rips_barcode(
+pub fn rips_barcode<R: ColumnRepresentation>(
     distances: Vec<Vec<NotNan<f64>>>,
     max_dim: usize,
     threshold: NotNan<f64>,
     method: Method,
-    algorithm: Algorithm<'_>,
+    algorithm: Algorithm<'_, R>,
     representatives: bool,
 ) -> Vec<RipsBar> {
     let n_points = distances.len();
@@ -622,6 +623,7 @@ mod tests {
         use ordered_float::NotNan;
         use phlite::{
             barcode::{self, Algorithm},
+            columns::{HeapColumns, MergedColumns},
             fields::Z2,
             reduction::{Clearing, Standard},
         };
@@ -660,12 +662,14 @@ mod tests {
         };
         let coboundary = build_rips_coboundary_matrix::<Z2>(distances.clone(), 2);
         let expected = summary(barcode::cohomology(&coboundary, Algorithm::default()));
-        for algorithm in [
-            Algorithm::Standard(Standard::new()),
-            Algorithm::Clearing(Clearing::new()),
-            Algorithm::ParallelClearing(Clearing::new().parallel()),
-        ] {
-            let bars = rips_barcode(
+        // Each representation gives a different type of algorithm, so loop over each separately
+        macro_rules! check_algorithms {
+            ($columns:expr) => {
+                for algorithm in [
+                    Algorithm::Standard(Standard::new().with_columns($columns)),
+                    Algorithm::Clearing(Clearing::new().with_columns($columns)),
+                    Algorithm::ParallelClearing(Clearing::new().with_columns($columns).parallel()),
+                ] {  let bars = rips_barcode(
                 distances.clone(),
                 2,
                 NotNan::new(f64::INFINITY).unwrap(),
@@ -701,6 +705,10 @@ mod tests {
             let cohom: Vec<_> = expected.iter().map(|(b, d, _)| (*b, *d)).collect();
             assert_eq!(hom, cohom);
         }
+            };
+        }
+        check_algorithms!(MergedColumns);
+        check_algorithms!(HeapColumns);
     }
 
     /// Truncating at the enclosing radius must not change the barcode, but should shrink the complex

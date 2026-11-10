@@ -599,9 +599,10 @@ mod tests {
 
     use crate::coboundary::{produce_edge_total_coboundary, PathHomCell};
     use phlite::{
+        columns::HeapColumns,
         fields::{Z2, Z3},
         matrices::{HasRowFiltration, MatrixOracle},
-        reduction::{Clearing, ReductionAlgorithm},
+        reduction::{Clearing, ReductionAlgorithm, Standard},
     };
 
     use super::{build_primary_bridge_map, GrPPHCoboundary};
@@ -631,6 +632,116 @@ mod tests {
 
         println!("Size of cell: {}", mem::size_of::<PathHomCell>());
         assert_eq!(mem::size_of::<PathHomCell>(), 10);
+    }
+
+    /// A random digraph on `n` vertices, each edge present with probability `p`, with integer weights in 1..=5
+    /// (so that there are plenty of ties), filtered by shortest path length.
+    fn random_digraph(
+        n: u16,
+        p: f64,
+        seed: u64,
+    ) -> (Vec<Vec<Option<NotNan<f64>>>>, FxHashSet<(u16, u16)>) {
+        let mut state = seed.wrapping_add(1);
+        let mut next = move || {
+            state = state
+                .wrapping_mul(6364136223846793005)
+                .wrapping_add(1442695040888963407);
+            (state >> 11) as f64 / (1u64 << 53) as f64
+        };
+        let n_ = n as usize;
+        let mut dist = vec![vec![None; n_]; n_];
+        let mut edge_set = FxHashSet::default();
+        for i in 0..n_ {
+            for j in 0..n_ {
+                if i != j && next() < p {
+                    dist[i][j] = Some(1.0 + (next() * 5.0).floor());
+                    edge_set.insert((i as u16, j as u16));
+                }
+            }
+        }
+        // Floyd-Warshall
+        for k in 0..n_ {
+            for i in 0..n_ {
+                for j in 0..n_ {
+                    if let (Some(a), Some(b)) = (dist[i][k], dist[k][j]) {
+                        if dist[i][j].is_none_or(|d| a + b < d) {
+                            dist[i][j] = Some(a + b);
+                        }
+                    }
+                }
+            }
+        }
+        let filtration = (0..n_)
+            .map(|i| {
+                (0..n_)
+                    .map(|j| {
+                        (i != j)
+                            .then_some(dist[i][j])
+                            .flatten()
+                            .map(|d| NotNan::new(d).unwrap())
+                    })
+                    .collect()
+            })
+            .collect();
+        (filtration, edge_set)
+    }
+
+    fn merge_and_heap_agree<
+        CF: phlite::fields::Invertible + std::fmt::Debug + Send + Sync + 'static,
+    >() {
+        for (n, p) in [
+            (4, 0.6),
+            (6, 0.6),
+            (8, 0.3),
+            (12, 0.6),
+            (15, 0.3),
+            (20, 0.1),
+            (20, 0.3),
+        ] {
+            for seed in 0..6 {
+                let (filtration, edge_set) = random_digraph(n, p, seed);
+                let d = GrPPHCoboundary::<CF, _>::build(&filtration, &edge_set, n);
+                let d = (&d).reverse();
+                let heap = Clearing::new().with_columns(HeapColumns).reduce(&d).diagram;
+                for (name, merge) in [
+                    ("serial", Clearing::new().reduce(&d).diagram),
+                    ("parallel", Clearing::new().parallel().reduce(&d).diagram),
+                    ("standard", Standard::new().reduce(&d).diagram),
+                    (
+                        "standard heap",
+                        Standard::new().with_columns(HeapColumns).reduce(&d).diagram,
+                    ),
+                    (
+                        "parallel heap",
+                        Clearing::new()
+                            .with_columns(HeapColumns)
+                            .parallel()
+                            .reduce(&d)
+                            .diagram,
+                    ),
+                ] {
+                    assert_eq!(
+                        heap.pairings, merge.pairings,
+                        "{name} n={n} p={p} seed={seed}"
+                    );
+                    assert_eq!(
+                        heap.essential, merge.essential,
+                        "{name} n={n} p={p} seed={seed}"
+                    );
+                }
+            }
+        }
+    }
+
+    /// Reducing by merging sorted runs gives exactly the same diagram as the heap columns (and the standard algorithm)
+    #[test]
+    fn test_merge_and_heap_agree_z2() {
+        merge_and_heap_agree::<Z2>();
+    }
+
+    #[test]
+    fn test_merge_and_heap_agree_z3() {
+        merge_and_heap_agree::<Z3>();
     }
 
     #[test]

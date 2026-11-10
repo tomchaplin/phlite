@@ -33,6 +33,7 @@
 use std::{cmp::Reverse, fmt::Debug, hash::Hash};
 
 use crate::{
+    columns::{ColumnRepresentation, MergedColumns},
     fields::{Invertible, NonZeroCoefficient},
     matrices::{
         combinators::product, BasisElement, FiltrationValue, HasRowFiltration, HasSplitColBasis,
@@ -45,16 +46,18 @@ use crate::{
 use crate::reduction::ParallelClearing;
 
 /// Which reduction algorithm to run, see the [`reduction`](crate::reduction) module docs.
+///
+/// Every algorithm represents the columns it reduces with `R`, see [`ColumnRepresentation`].
 #[derive(Debug, Clone)]
 #[non_exhaustive]
-pub enum Algorithm<'p> {
+pub enum Algorithm<'p, R = MergedColumns> {
     /// [`Standard`], the standard algorithm with no optimisations.
-    Standard(Standard),
+    Standard(Standard<R>),
     /// [`Clearing`], the standard algorithm with the clearing optimisation.
-    Clearing(Clearing),
+    Clearing(Clearing<R>),
     /// [`ParallelClearing`], clearing with each dimension reduced in parallel (feature `parallel`).
     #[cfg(feature = "parallel")]
-    ParallelClearing(ParallelClearing<'p>),
+    ParallelClearing(ParallelClearing<'p, R>),
     #[doc(hidden)]
     #[cfg(not(feature = "parallel"))]
     _Lifetime(std::marker::PhantomData<&'p ()>, std::convert::Infallible),
@@ -122,12 +125,12 @@ pub trait MaybeSync {}
 impl<T> MaybeSync for T {}
 
 /// Requirements on cells (row and column indices) for every [`Algorithm`]. Blanket-implemented.
-pub trait Cell: BasisElement + Hash + Debug + MaybeSync + 'static {}
-impl<T: BasisElement + Hash + Debug + MaybeSync + 'static> Cell for T {}
+pub trait Cell: BasisElement + Hash + Debug + Send + Sync + 'static {}
+impl<T: BasisElement + Hash + Debug + Send + Sync + 'static> Cell for T {}
 
 /// Requirements on the coefficient field for every [`Algorithm`]. Blanket-implemented.
-pub trait Field: Invertible + MaybeSync + 'static {}
-impl<T: Invertible + MaybeSync + 'static> Field for T {}
+pub trait Field: Invertible + Send + Sync + 'static {}
+impl<T: Invertible + Send + Sync + 'static> Field for T {}
 
 /// A filtered matrix, with rows and columns indexed by `C` and a column basis split by dimension, that every [`Algorithm`] can reduce.
 /// Blanket-implemented, you should never need to implement this yourself.
@@ -163,16 +166,17 @@ trait ReductionVisitor<C, CF, Out> {
 
 /// Run `algorithm` on `matrix` and pass the result to `then`.
 /// The type of `V` depends on the algorithm, hence the visitor.
-fn run<C, F, CF, M, Out>(
+fn run<C, F, CF, M, R, Out>(
     matrix: M,
-    algorithm: Algorithm<'_>,
+    algorithm: Algorithm<'_, R>,
     then: impl ReductionVisitor<C, CF, Out>,
 ) -> Out
 where
     C: Cell,
-    F: FiltrationValue + MaybeSync,
+    F: FiltrationValue + Send + Sync,
     CF: Field,
     M: Reducible<C, F, CF>,
+    R: ColumnRepresentation,
 {
     // Zero-persistence apparent pairs would only become zero-length bars, which we discard
     match algorithm {
@@ -209,16 +213,17 @@ where
 ///
 /// If `representatives` is true then every bar comes with a representative cycle:
 /// the column of `R = D V` at the death cell for finite bars, or the column of `V` at the birth cell for essential bars.
-pub fn homology<C, F, CF, M>(
+pub fn homology<C, F, CF, M, R>(
     boundary: M,
-    algorithm: Algorithm<'_>,
+    algorithm: Algorithm<'_, R>,
     representatives: bool,
 ) -> Vec<Bar<C, F, CF>>
 where
     C: Cell,
-    F: FiltrationValue + MaybeSync,
+    F: FiltrationValue + Send + Sync,
     CF: Field,
     M: Reducible<C, F, CF>,
+    R: ColumnRepresentation,
 {
     struct Visitor<M>(M, bool);
     impl<C, F, CF, M> ReductionVisitor<C, CF, Vec<Bar<C, F, CF>>> for Visitor<M>
@@ -315,12 +320,13 @@ where
 /// Unlike [`homology`], the column basis only needs cells up to dimension `max_dim` to get correct bars in dimensions `0..=max_dim`.
 ///
 /// No representatives are computed, see [`cohomology_with_involution`].
-pub fn cohomology<C, F, CF, M>(coboundary: M, algorithm: Algorithm<'_>) -> Vec<Bar<C, F, CF>>
+pub fn cohomology<C, F, CF, M, R>(coboundary: M, algorithm: Algorithm<'_, R>) -> Vec<Bar<C, F, CF>>
 where
     C: Cell,
-    F: FiltrationValue + MaybeSync,
+    F: FiltrationValue + Send + Sync,
     CF: Field,
     M: Reducible<C, F, CF>,
+    R: ColumnRepresentation,
 {
     let diagram: Diagram<Reverse<C>> = run(coboundary.reverse(), algorithm, DiagramVisitor);
     cohomology_bars(coboundary, &diagram)
@@ -337,15 +343,16 @@ where
 /// # Panics
 /// In debug builds, if the involuted reduction disagrees with the cohomology pairing.
 /// This indicates that the attached transpose is not really the transpose.
-pub fn cohomology_with_involution<C, F, CF, M>(
+pub fn cohomology_with_involution<C, F, CF, M, R>(
     coboundary: M,
-    algorithm: Algorithm<'_>,
+    algorithm: Algorithm<'_, R>,
 ) -> Vec<Bar<C, F, CF>>
 where
     C: Cell,
-    F: FiltrationValue + MaybeSync,
+    F: FiltrationValue + Send + Sync,
     CF: Field,
     M: Reducible<C, F, CF> + HasTranspose,
+    R: ColumnRepresentation,
 {
     let diagram: Diagram<Reverse<C>> = run(coboundary.reverse(), algorithm, DiagramVisitor);
     let mut bars = cohomology_bars(coboundary, &diagram);
@@ -398,6 +405,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::columns::HeapColumns;
     use crate::{
         fields::Z2,
         matrices::{implementors::SimpleZ2Matrix, SplitBasis},
@@ -444,12 +452,13 @@ mod tests {
         out
     }
 
-    fn algorithms() -> Vec<Algorithm<'static>> {
+    /// Every algorithm, representing columns with `R`
+    fn algorithms<R: ColumnRepresentation>() -> Vec<Algorithm<'static, R>> {
         vec![
-            Algorithm::Standard(Standard::new()),
-            Algorithm::Clearing(Clearing::new()),
+            Algorithm::Standard(Standard::new().with_columns(R::default())),
+            Algorithm::Clearing(Clearing::new().with_columns(R::default())),
             #[cfg(feature = "parallel")]
-            Algorithm::ParallelClearing(Clearing::new().parallel()),
+            Algorithm::ParallelClearing(Clearing::new().with_columns(R::default()).parallel()),
         ]
     }
 
@@ -467,6 +476,11 @@ mod tests {
 
     #[test]
     fn homology_and_cohomology_agree() {
+        homology_and_cohomology_agree_with::<MergedColumns>();
+        homology_and_cohomology_agree_with::<HeapColumns>();
+    }
+
+    fn homology_and_cohomology_agree_with<R: ColumnRepresentation>() {
         // Filtration value = index
         let d = boundary().with_filtration(|i| i);
         let d = (&d).with_basis(basis(2));
@@ -482,7 +496,7 @@ mod tests {
         let mut expected = expected;
         expected.sort();
 
-        for algorithm in algorithms() {
+        for algorithm in algorithms::<R>() {
             let hom = homology(&d, algorithm.clone(), true);
             assert_eq!(summary(&hom), expected);
             let cohom = cohomology(&delta, algorithm.clone());
@@ -528,6 +542,11 @@ mod tests {
     /// Attaching transposes turns on apparent pairs, which must not change the bars or representatives
     #[test]
     fn transposes_give_same_bars() {
+        transposes_give_same_bars_with::<MergedColumns>();
+        transposes_give_same_bars_with::<HeapColumns>();
+    }
+
+    fn transposes_give_same_bars_with<R: ColumnRepresentation>() {
         let b = boundary();
         let co = coboundary();
         let d = (&b).with_filtration(|i| i);
@@ -547,7 +566,7 @@ mod tests {
             e.sort();
             e
         };
-        for algorithm in algorithms() {
+        for algorithm in algorithms::<R>() {
             // `d` and `delta` are already references (WithTranspose of references is Copy)
             let hom = homology(d, algorithm.clone(), true);
             assert_eq!(summary(&hom), expected, "{algorithm:?}");
