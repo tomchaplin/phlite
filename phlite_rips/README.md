@@ -43,12 +43,17 @@ To build it you need [`just`](https://github.com/casey/just) and [`uv`](https://
 
 ## Optimisations
 
-`phlite_rips` implements the main optimisations of [Ripser](https://github.com/Ripser/ripser) and [giotto-ph](https://github.com/giotto-ai/giotto-ph):
-* clearing, and a parallel lock-free reduction;
-* apparent pairs: simplices in zero-persistence apparent pairs (nearly all of them) are never even put in the column basis;
-* emergent pairs: a column whose pivot is unclaimed is finished as soon as its pivot is found, and pivots are found by
+`phlite_rips` implements the main optimisations of [Ripser](https://github.com/Ripser/ripser)
+(Bauer, "Ripser: efficient computation of Vietoris–Rips persistence barcodes", J. Appl. Comput. Topol. 2021)
+and [giotto-ph](https://github.com/giotto-ai/giotto-ph)
+(Pérez et al., "giotto-ph: A python library for high-performance computation of persistent homology of Vietoris-Rips filtrations", arXiv:2107.05412),
+from which they are adapted:
+* clearing (Ripser), and a parallel lock-free reduction (giotto-ph, after Morozov and Nigmetov);
+* apparent pairs (Ripser): simplices in zero-persistence apparent pairs (nearly all of them) are never even put in the column basis,
+  which is built in parallel (giotto-ph);
+* emergent pairs (Ripser): a column whose pivot is unclaimed is finished as soon as its pivot is found, and pivots are found by
   enumerating cofacets in order and stopping at the first with the simplex's own diameter;
-* truncation at the enclosing radius (and an optional threshold).
+* truncation at the enclosing radius (Ripser and giotto-ph), and an optional threshold.
 
 It does not (yet) support sparse distance matrices, edge collapse, or union-find for H_0.
 

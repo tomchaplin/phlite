@@ -53,6 +53,17 @@ In particular, when the implementation of $D$ satisfies sufficient constraints, 
 If you can also provide the transpose of $D$ (e.g. the boundary matrix, for a coboundary matrix), the reduction recognises _apparent pairs_ [[1]](#1), which need no reduction or storage.
 `phlite::barcode` turns all of this into persistence barcodes, optionally with a representative cycle for every bar.
 
+Most of `phlite`'s performance comes from optimisations we have adapted from Ripser [[1]](#1) and giotto-ph [[9]](#9):
+* from Ripser: computing cohomology with clearing, storing $V$ rather than $R$ and recomputing columns on demand,
+  _apparent_ and _emergent_ pairs (finishing a column as soon as its unclaimed pivot is found, by enumerating cofacets in order and
+  stopping at the first with the simplex's own diameter), finding apparent pairs with early-stopping facet and cofacet searches,
+  leaving the simplices in zero-persistence apparent pairs out of the columns to reduce, and truncating the Vietoris-Rips filtration at the enclosing radius;
+* from giotto-ph: the parallel structure of each dimension's reduction (classifying all columns in parallel and giving per-column state
+  only to the few that need reducing, which are then reduced with the lock-free algorithm of [[8]](#8)), building the columns to reduce
+  in parallel, and truncating at the enclosing radius by default.
+
+`phlite`'s contribution is making these available for any filtration, behind generic traits, rather than just Vietoris-Rips.
+
 With these, `phlite_rips` is several times faster than Ripser serially and on par with giotto-ph [[9]](#9) in parallel,
 using a fraction of Ripser's memory, on the following benchmark.
 
