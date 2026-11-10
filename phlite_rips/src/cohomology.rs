@@ -2,7 +2,7 @@ use std::marker::PhantomData;
 
 use ordered_float::NotNan;
 
-use crate::{build_rips_bases, RipsIndex, Vertices};
+use crate::{build_rips_bases_with_threshold, RipsIndex, Vertices};
 use phlite::{
     columns::ColumnEntry,
     fields::{Invertible, NonZeroCoefficient},
@@ -15,6 +15,8 @@ use super::RipsBasis;
 
 pub struct RipsCoboundary<CF: NonZeroCoefficient + Invertible> {
     distances: Vec<Vec<NotNan<f64>>>,
+    /// Cofacets with a larger diameter are not in the complex
+    threshold: NotNan<f64>,
     phantom: PhantomData<CF>,
 }
 
@@ -23,8 +25,15 @@ impl<CF: NonZeroCoefficient + Invertible> RipsCoboundary<CF> {
     pub fn new(distances: Vec<Vec<NotNan<f64>>>) -> Self {
         Self {
             distances,
+            threshold: NotNan::new(f64::INFINITY).unwrap(),
             phantom: PhantomData,
         }
+    }
+
+    /// Only include simplices with diameter at most `threshold` (the default is no limit).
+    pub fn with_threshold(mut self, threshold: NotNan<f64>) -> Self {
+        self.threshold = threshold;
+        self
     }
 
     fn n_points(&self) -> usize {
@@ -105,9 +114,8 @@ impl<CF: NonZeroCoefficient> Iterator for CoboundaryIterator<CF> {
         }
 
         // Insert the digit for next_vertex at insertion_position, shifting the higher digits up by one
-        let index = RipsIndex(
-            self.low + ((self.high * self.radix) + self.next_vertex + 1) * self.place,
-        );
+        let index =
+            RipsIndex(self.low + ((self.high * self.radix) + self.next_vertex + 1) * self.place);
         let coeff = if self.insertion_position % 2 == 0 {
             CF::one()
         } else {
@@ -135,7 +143,8 @@ impl<CF: NonZeroCoefficient + Invertible> MatrixOracle for RipsCoboundary<CF> {
         &self,
         col: Self::ColT,
     ) -> impl Iterator<Item = (Self::CoefficientField, Self::RowT)> {
-        CoboundaryIterator::new(col, self.n_points()).map(|(coeff, idx, _inserted_vertex)| (coeff, idx))
+        self.column_with_filtration(col)
+            .map(|entry| (entry.coeff, entry.row_index))
     }
 }
 
@@ -158,7 +167,7 @@ impl<CF: NonZeroCoefficient + Invertible> HasRowFiltration for RipsCoboundary<CF
         let col_vertices = col.vertices(n_points);
         let max_pd_amongst_col = col_vertices.diameter(&self.distances);
 
-        coboundary_iterator.map(move |(coeff, row_index, inserted_vertex)| {
+        coboundary_iterator.filter_map(move |(coeff, row_index, inserted_vertex)| {
             let max_to_inserted = col_vertices
                 .iter()
                 .map(|v| self.distances[*v][inserted_vertex])
@@ -167,11 +176,11 @@ impl<CF: NonZeroCoefficient + Invertible> HasRowFiltration for RipsCoboundary<CF
 
             let filtration_value = max_pd_amongst_col.max(max_to_inserted);
 
-            ColumnEntry {
+            (filtration_value <= self.threshold).then_some(ColumnEntry {
                 filtration_value,
                 row_index,
                 coeff,
-            }
+            })
         })
     }
 
@@ -195,6 +204,9 @@ impl<CF: NonZeroCoefficient + Invertible> HasRowFiltration for RipsCoboundary<CF
                 .max()
                 .unwrap()
                 .max(diameter);
+            if filtration_value > self.threshold {
+                continue;
+            }
             // On ties keep the earlier, smaller, index
             if best
                 .as_ref()
@@ -220,21 +232,29 @@ pub fn build_rips_coboundary_matrix<CF: Invertible>(
     distances: Vec<Vec<NotNan<f64>>>,
     max_dim: usize,
 ) -> RipsCoboundaryAllDims<CF> {
+    build_rips_coboundary_matrix_with_threshold(
+        distances,
+        max_dim,
+        NotNan::new(f64::INFINITY).unwrap(),
+    )
+}
+
+/// As [`build_rips_coboundary_matrix`], but only the simplices with diameter at most `threshold`.
+pub fn build_rips_coboundary_matrix_with_threshold<CF: Invertible>(
+    distances: Vec<Vec<NotNan<f64>>>,
+    max_dim: usize,
+    threshold: NotNan<f64>,
+) -> RipsCoboundaryAllDims<CF> {
     // Pass in the Reverse functor to revere filtration order on columns in basis
-    let basis = build_rips_bases(&distances, max_dim);
+    let basis = build_rips_bases_with_threshold(&distances, max_dim, threshold);
     RipsCoboundaryAllDims {
-        matrix: RipsCoboundary {
-            distances,
-            phantom: PhantomData,
-        },
+        matrix: RipsCoboundary::new(distances).with_threshold(threshold),
         basis,
     }
 }
 // TODO: Write some proper tests
 #[cfg(test)]
 mod tests {
-    use std::marker::PhantomData;
-
     use ordered_float::NotNan;
 
     use crate::{
@@ -271,6 +291,78 @@ mod tests {
         }
     }
 
+    /// Skipping zero-persistence apparent pairs must drop exactly those pairs from the diagram, serially and in parallel
+    #[test]
+    fn test_skip_zero_apparent_pairs() {
+        use crate::homology::RipsBoundary;
+        use phlite::reduction::Clearing;
+        // Twelve points on a noisy circle, plus integer distances (lots of ties)
+        let points: Vec<(f64, f64)> = (0..12)
+            .map(|i| {
+                let t = i as f64 * std::f64::consts::TAU / 12.0;
+                let r = 1.0 + 0.1 * ((i * 7 % 5) as f64 - 2.0);
+                (r * t.cos(), r * t.sin())
+            })
+            .collect();
+        let circle: Vec<Vec<NotNan<f64>>> = points
+            .iter()
+            .map(|a| {
+                points
+                    .iter()
+                    .map(|b| {
+                        NotNan::new(((a.0 - b.0).powi(2) + (a.1 - b.1).powi(2)).sqrt()).unwrap()
+                    })
+                    .collect()
+            })
+            .collect();
+        let ties: Vec<Vec<NotNan<f64>>> = (0..9)
+            .map(|i| {
+                (0..9)
+                    .map(|j| {
+                        NotNan::new(if i == j {
+                            0.0
+                        } else {
+                            ((i * j + i + j) % 3) as f64
+                        })
+                        .unwrap()
+                    })
+                    .collect()
+            })
+            .collect();
+        for distances in [circle, ties] {
+            let boundary = RipsBoundary::<Z2>::new(distances.clone());
+            let coboundary = build_rips_coboundary_matrix::<Z2>(distances, 2);
+            let with_t = (&coboundary).with_transpose(&boundary);
+            let anti = (&with_t).reverse();
+            let full = Clearing::new().reduce(&anti).diagram;
+            for skipped in [
+                Clearing::new()
+                    .skip_zero_apparent_pairs()
+                    .reduce(&anti)
+                    .diagram,
+                Clearing::new()
+                    .parallel()
+                    .skip_zero_apparent_pairs()
+                    .reduce(&anti)
+                    .diagram,
+            ] {
+                assert_eq!(skipped.essential, full.essential);
+                assert!(skipped.pairings.is_subset(&full.pairings));
+                let dropped: Vec<_> = full.pairings.difference(&skipped.pairings).collect();
+                assert!(!dropped.is_empty(), "nothing was skipped");
+                for (row, col) in &full.pairings {
+                    let zero = anti.filtration_value(*row) == anti.filtration_value(*col);
+                    let apparent = anti.first_column_in_row(*row) == Some(*col);
+                    assert_eq!(
+                        skipped.pairings.contains(&(*row, *col)),
+                        !(zero && apparent),
+                        "{row:?} {col:?}"
+                    );
+                }
+            }
+        }
+    }
+
     /// Cofacet and facet indices are computed arithmetically; check them against encoding the vertex sets directly
     #[test]
     fn test_index_arithmetic_matches_encoding() {
@@ -278,10 +370,20 @@ mod tests {
         use phlite::fields::{NonZeroCoefficient, Z3};
         use phlite::matrices::{ColBasis, HasSplitColBasis};
         // Over Z3 so that the signs are checked too
-        let sign = |position: usize| if position.is_multiple_of(2) { Z3::one() } else { Z3::one().additive_inverse() };
+        let sign = |position: usize| {
+            if position.is_multiple_of(2) {
+                Z3::one()
+            } else {
+                Z3::one().additive_inverse()
+            }
+        };
         let n = 9;
         let distances: Vec<Vec<NotNan<f64>>> = (0..n)
-            .map(|i| (0..n).map(|j| NotNan::new(if i == j { 0.0 } else { (i + j) as f64 }).unwrap()).collect())
+            .map(|i| {
+                (0..n)
+                    .map(|j| NotNan::new(if i == j { 0.0 } else { (i + j) as f64 }).unwrap())
+                    .collect()
+            })
             .collect();
         let coboundary = build_rips_coboundary_matrix::<Z3>(distances.clone(), 3);
         let boundary = RipsBoundary::<Z3>::new(distances);
@@ -301,7 +403,10 @@ mod tests {
                         cofacet.push(v);
                         cofacet.sort();
                         let position = cofacet.iter().position(|w| *w == v).unwrap();
-                        (sign(position), RipsIndex::from_indices(cofacet.into_iter(), n).unwrap())
+                        (
+                            sign(position),
+                            RipsIndex::from_indices(cofacet.into_iter(), n).unwrap(),
+                        )
                     })
                     .collect();
                 let got: Vec<_> = coboundary.matrix.column(simplex).collect();
@@ -312,7 +417,11 @@ mod tests {
                 } else {
                     (0..=dim)
                         .map(|i| {
-                            let facet = vertices.iter().enumerate().filter(|(j, _)| *j != i).map(|(_, v)| *v);
+                            let facet = vertices
+                                .iter()
+                                .enumerate()
+                                .filter(|(j, _)| *j != i)
+                                .map(|(_, v)| *v);
                             (sign(i), RipsIndex::from_indices(facet, n).unwrap())
                         })
                         .collect()
@@ -334,7 +443,14 @@ mod tests {
         let distances: Vec<Vec<NotNan<f64>>> = (0..n)
             .map(|i| {
                 (0..n)
-                    .map(|j| NotNan::new(if i == j { 0.0 } else { ((i * j + i + j) % 4) as f64 }).unwrap())
+                    .map(|j| {
+                        NotNan::new(if i == j {
+                            0.0
+                        } else {
+                            ((i * j + i + j) % 4) as f64
+                        })
+                        .unwrap()
+                    })
                     .collect()
             })
             .collect();
@@ -349,7 +465,10 @@ mod tests {
                         entries.windows(2).all(|w| w[0].row_index < w[1].row_index),
                         "cofacets of {col:?} not in increasing order"
                     );
-                    let brute = entries.into_iter().min().map(|e| (e.filtration_value, e.row_index));
+                    let brute = entries
+                        .into_iter()
+                        .min()
+                        .map(|e| (e.filtration_value, e.row_index));
                     let fast = coboundary
                         .matrix
                         .column_min(col)
@@ -363,10 +482,7 @@ mod tests {
     #[test]
     fn test_coboundary() {
         let distance_matrix = distance_matrix();
-        let coboundary: RipsCoboundary<Z2> = RipsCoboundary {
-            distances: distance_matrix,
-            phantom: PhantomData,
-        };
+        let coboundary: RipsCoboundary<Z2> = RipsCoboundary::new(distance_matrix);
 
         let smplx = RipsIndex::from_indices(vec![1, 2, 3].into_iter(), 4).unwrap();
         let coboundary_vec: Vec<_> = coboundary.column(smplx).collect();

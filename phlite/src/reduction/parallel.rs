@@ -54,6 +54,8 @@ use crate::matrices::{ColBasis, HasRowFiltration, HasSplitColBasis, MatrixOracle
 /// Largest block of consecutive columns handed to a single rayon task.
 /// Columns vary a lot in cost, so fine-grained tasks let rayon balance the load dynamically.
 const MAX_TASK_LEN: usize = 16;
+/// The fewest columns classified per task: classifying a column is cheap, so tasks must be big to amortise rayon's overhead
+const MIN_CLASSIFY_LEN: usize = 1024;
 
 /// `FxHasher` followed by a finaliser: Fx puts its entropy in the high bits, but the concurrent maps also use the low ones.
 #[derive(Default)]
@@ -90,23 +92,23 @@ type FxBuild = BuildHasherDefault<MixedFx>;
 // ====== Published columns =======================================
 
 /// An immutable snapshot of a column: `V_j` (including its diagonal) and the pivot of `R_j = D V_j`.
-struct PublishedColumn<RowT, CF> {
-    /// Entries `(coefficient, dimension-local column index)`.
+struct PublishedColumn<ColT, CF> {
+    /// Entries `(coefficient, column label)`.
     /// Empty when `V_j = e_j` (the commonest case), so as not to allocate; use [`v_entries`].
-    v: Vec<(CF, usize)>,
+    v: Vec<(CF, ColT)>,
     /// Row label and coefficient of the pivot of `R_j`, or `None` if `R_j = 0`
-    pivot: Option<(RowT, CF)>,
+    pivot: Option<(ColT, CF)>,
 }
 
-type Snapshot<RowT, CF> = Arc<PublishedColumn<RowT, CF>>;
+type Snapshot<ColT, CF> = Arc<PublishedColumn<ColT, CF>>;
 
-/// The entries of `V_j` from its published snapshot (expanding the empty, trivial case to `e_j`).
-fn v_entries<RowT, CF: NonZeroCoefficient>(
-    snapshot: &PublishedColumn<RowT, CF>,
-    j: usize,
-) -> impl Iterator<Item = (CF, usize)> + '_ {
-    let trivial = snapshot.v.is_empty().then(|| (CF::one(), j));
-    trivial.into_iter().chain(snapshot.v.iter().copied())
+/// The entries of `V_j` from its published snapshot (expanding the empty, trivial case to `e_j`, where `label` is column `j`).
+fn v_entries<'s, ColT: Clone, CF: NonZeroCoefficient>(
+    snapshot: &'s PublishedColumn<ColT, CF>,
+    label: &ColT,
+) -> impl Iterator<Item = (CF, ColT)> + 's {
+    let trivial = snapshot.v.is_empty().then(|| (CF::one(), label.clone()));
+    trivial.into_iter().chain(snapshot.v.iter().cloned())
 }
 
 // ====== Storage backends ========================================
@@ -220,10 +222,20 @@ mod lock_free_backend {
 
 // ====== Reduction of a single dimension =========================
 
+/// The column that owns a pivot row
+enum Owner<ColT, CF> {
+    /// A column of this dimension's columns to reduce, by its local index, with a consistent snapshot
+    Published(usize, Snapshot<ColT, CF>),
+    /// An apparent pair: column `.0` (which is not one of the columns to reduce, and has `V = e`) with pivot coefficient `.1`
+    Apparent(ColT, CF),
+}
+
 struct DimensionReducer<'a, M: HasRowFiltration, S> {
     boundary: &'a M,
-    /// The uncleared columns of this dimension, in basis order. Position in this vec is the local index.
+    /// The columns of this dimension that need reducing, in basis order. Position in this vec is the local index.
     cols: Vec<M::ColT>,
+    /// The columns cleared in this dimension (keys), which own no pivots
+    cleared: &'a FxHashMap<M::RowT, M::ColT>,
     state: S,
     _marker: PhantomData<M>,
 }
@@ -233,7 +245,7 @@ type RCol<M> = BHCol<
     <M as MatrixOracle>::RowT,
     <M as MatrixOracle>::CoefficientField,
 >;
-type VCol<M> = BHCol<(), usize, <M as MatrixOracle>::CoefficientField>;
+type VCol<M> = BHCol<(), <M as MatrixOracle>::ColT, <M as MatrixOracle>::CoefficientField>;
 
 impl<'a, M, S> DimensionReducer<'a, M, S>
 where
@@ -242,25 +254,26 @@ where
     M::RowT: Hash,
     S: Backend<M::RowT, M::CoefficientField>,
 {
-    fn new(boundary: &'a M, cols: Vec<M::ColT>) -> Self {
+    fn new(boundary: &'a M, cols: Vec<M::ColT>, cleared: &'a FxHashMap<M::RowT, M::ColT>) -> Self {
         Self {
             boundary,
             state: S::new(cols.len()),
             cols,
+            cleared,
             _marker: PhantomData,
         }
     }
 
-    /// The entries of `mult * D V` for the column `V` given as `(coefficient, local index)` pairs.
+    /// The entries of `mult * D V` for the column `V` given as `(coefficient, label)` pairs.
     fn d_times_v<'b>(
         &'b self,
-        v: impl Iterator<Item = (M::CoefficientField, usize)> + 'b,
+        v: impl Iterator<Item = (M::CoefficientField, M::ColT)> + 'b,
         mult: M::CoefficientField,
     ) -> impl Iterator<Item = ColumnEntry<M::FiltrationT, M::RowT, M::CoefficientField>> + 'b {
-        v.flat_map(move |(coeff, k)| {
+        v.flat_map(move |(coeff, label)| {
             let scale = coeff * mult;
             self.boundary
-                .column_with_filtration(self.cols[k].clone())
+                .column_with_filtration(label)
                 .map(move |entry| entry * scale)
         })
     }
@@ -269,20 +282,21 @@ where
     fn initial_state(&self, j: usize) -> (RCol<M>, VCol<M>) {
         let r = self.boundary.build_bhcol(self.cols[j].clone());
         let mut v = VCol::<M>::default();
-        v.add_tuple((M::CoefficientField::one(), j, ()));
+        v.add_tuple((M::CoefficientField::one(), self.cols[j].clone(), ()));
         (r, v)
     }
 
-    /// Reconstruct the working state of a column from a published snapshot (recomputing `R = D V`)
+    /// Reconstruct the working state of column `j` from a published snapshot (recomputing `R = D V`)
     fn state_from(
         &self,
-        snapshot: &PublishedColumn<M::RowT, M::CoefficientField>,
+        snapshot: &PublishedColumn<M::ColT, M::CoefficientField>,
         j: usize,
     ) -> (RCol<M>, VCol<M>) {
+        let label = &self.cols[j];
         let mut r = self.boundary.empty_bhcol();
-        r.add_entries(self.d_times_v(v_entries(snapshot, j), M::CoefficientField::one()));
+        r.add_entries(self.d_times_v(v_entries(snapshot, label), M::CoefficientField::one()));
         let mut v = VCol::<M>::default();
-        v.add_tuples(v_entries(snapshot, j).map(|(coeff, k)| (coeff, k, ())));
+        v.add_tuples(v_entries(snapshot, label).map(|(coeff, k)| (coeff, k, ())));
         (r, v)
     }
 
@@ -309,10 +323,15 @@ where
         );
     }
 
-    /// Find the column owning pivot row `l`, together with a consistent snapshot of it.
+    /// Publish column `j` with `V_j = e_j` and the given pivot of `D_j`
+    fn publish_trivial(&self, j: usize, pivot: Option<(M::RowT, M::CoefficientField)>) {
+        self.state
+            .store(j, Arc::new(PublishedColumn { v: vec![], pivot }));
+    }
+
+    /// Find the column owning pivot row `l` (with a consistent snapshot, if it is one of ours).
     /// Retries if the column has since changed pivot (see the paper's `Algorithm 3`).
-    #[allow(clippy::type_complexity)]
-    fn get_owner(&self, l: &M::RowT) -> Option<(usize, Snapshot<M::RowT, M::CoefficientField>)> {
+    fn get_owner(&self, l: &M::RowT) -> Option<Owner<M::ColT, M::CoefficientField>> {
         loop {
             let Some(owner) = self.state.pivot_owner(l) else {
                 return self.apparent_owner(l);
@@ -322,63 +341,36 @@ where
                 .load(owner)
                 .expect("A column is always published before it is made a pivot owner");
             if snapshot.pivot.as_ref().map(|(row, _)| row) == Some(l) {
-                return Some((owner, snapshot));
+                return Some(Owner::Published(owner, snapshot));
             }
         }
     }
 
     /// If `l` is the pivot of the first column in its row then that column owns it (an apparent pair).
-    /// Apparent pairs are never published, so we recompute them, and make a snapshot (`V = e`) on the fly.
-    #[allow(clippy::type_complexity)]
-    fn apparent_owner(
-        &self,
-        l: &M::RowT,
-    ) -> Option<(usize, Snapshot<M::RowT, M::CoefficientField>)> {
+    /// Apparent pairs are never published, so we recompute them.
+    fn apparent_owner(&self, l: &M::RowT) -> Option<Owner<M::ColT, M::CoefficientField>> {
         let first = self.boundary.first_column_in_row(l.clone())?;
-        // Columns are in basis order, which is sorted by filtration value then label
-        let key = |col: &M::ColT| (self.boundary.filtration_value(col.clone()), col.clone());
-        let target = key(&first);
-        let k = self
-            .cols
-            .binary_search_by(|col| key(col).cmp(&target))
-            .ok()?;
-        let pivot = self.boundary.column_pivot(first)?;
-        (pivot.row_index == *l).then(|| {
-            let snapshot = PublishedColumn {
-                v: vec![],
-                pivot: Some((pivot.row_index, pivot.coeff)),
-            };
-            (k, Arc::new(snapshot))
-        })
+        // A cleared column has R = 0 so owns nothing (this can't happen for a chain complex, but costs little to check)
+        if self.cleared.contains_key(&first) {
+            return None;
+        }
+        let pivot = self.boundary.column_pivot(first.clone())?;
+        (pivot.row_index == *l).then_some(Owner::Apparent(first, pivot.coeff))
     }
 
-    /// Whether column `j` forms an apparent pair with its pivot row `l`
-    fn is_apparent(&self, j: usize, l: &M::RowT) -> bool {
-        self.boundary.first_column_in_row(l.clone()).as_ref() == Some(&self.cols[j])
-    }
-
-    /// Publish column `j` with `V_j = e_j` and the given pivot of `D_j`
-    fn publish_trivial(&self, j: usize, pivot: Option<(M::RowT, M::CoefficientField)>) {
-        self.state
-            .store(j, Arc::new(PublishedColumn { v: vec![], pivot }));
-    }
-
-    /// Reduce column `j`, returning its pivot row if it forms an apparent pair (which is then neither published nor claimed).
-    fn reduce_column(&self, j: usize) -> Option<M::RowT> {
-        // Most columns need no reduction: they are apparent pairs, their pivot is not yet claimed, or they are zero.
+    /// Reduce column `j` (which is not cleared, zero or an apparent pair)
+    fn reduce_column(&self, j: usize) {
+        // Most columns need no reduction: their pivot is not yet claimed.
         // Try to finish those without building the whole column.
         match self.boundary.column_pivot(self.cols[j].clone()) {
             None => {
                 self.publish_trivial(j, None);
-                return None;
-            }
-            Some(entry) if self.is_apparent(j, &entry.row_index) => {
-                return Some(entry.row_index);
+                return;
             }
             Some(entry) if self.get_owner(&entry.row_index).is_none() => {
                 self.publish_trivial(j, Some((entry.row_index.clone(), entry.coeff)));
                 if self.state.compare_set_pivot(&entry.row_index, None, j) {
-                    return None;
+                    return;
                 }
                 // Someone else claimed the pivot in the meantime, so reduce as usual
             }
@@ -392,7 +384,7 @@ where
             let Some(pivot_entry) = r.clone_pivot() else {
                 // Reduced to zero: a cycle
                 self.publish(w, &mut v, None);
-                return None;
+                return;
             };
             let l = pivot_entry.row_index;
             let coeff = pivot_entry.coeff;
@@ -401,20 +393,31 @@ where
                 None => {
                     self.publish(w, &mut v, Some((l.clone(), coeff)));
                     if self.state.compare_set_pivot(&l, None, w) {
-                        return None;
+                        return;
                     }
                     // Someone beat us to it, our local state is still what we published so just go round again
                 }
-                Some((owner, snapshot)) if owner < w => {
+                Some(Owner::Apparent(owner, owner_coeff)) => {
+                    // The first column in row l is always to our left, and has V = e
+                    let multiple = coeff.additive_inverse() * owner_coeff.mult_inverse();
+                    r.add_entries(
+                        self.boundary
+                            .column_with_filtration(owner.clone())
+                            .map(|entry| entry * multiple),
+                    );
+                    v.add_tuple((multiple, owner, ()));
+                }
+                Some(Owner::Published(owner, snapshot)) if owner < w => {
                     let owner_coeff = snapshot.pivot.as_ref().unwrap().1;
                     let multiple = coeff.additive_inverse() * owner_coeff.mult_inverse();
-                    r.add_entries(self.d_times_v(v_entries(&snapshot, owner), multiple));
+                    let label = &self.cols[owner];
+                    r.add_entries(self.d_times_v(v_entries(&snapshot, label), multiple));
                     v.add_entries(
-                        v_entries(&snapshot, owner)
+                        v_entries(&snapshot, label)
                             .map(|(c, k)| ColumnEntry::from((c * multiple, k, ()))),
                     );
                 }
-                Some((owner, snapshot)) if owner > w => {
+                Some(Owner::Published(owner, snapshot)) if owner > w => {
                     self.publish(w, &mut v, Some((l.clone(), coeff)));
                     if self.state.compare_set_pivot(&l, Some(owner), w) {
                         // We now own the pivot and the displaced column is ours to reduce further
@@ -422,11 +425,44 @@ where
                         (r, v) = self.state_from(&snapshot, owner);
                     }
                 }
-                Some(_) => {
+                Some(Owner::Published(..)) => {
                     unreachable!("A column cannot own the pivot of the column being reduced")
                 }
             }
         }
+    }
+}
+
+/// How the columns of a dimension were dealt with before any reduction, collected per thread
+struct Classified<C> {
+    /// Columns in this dimension cleared by the previous one: `(column, its V = R of this column)`
+    cleared: Vec<(C, C)>,
+    /// Zero columns (so essential, with `V = e`)
+    zero: Vec<C>,
+    /// Apparent pairs `(pivot row, column, whether to record it in the diagram)`
+    apparent: Vec<(C, C, bool)>,
+    /// Positions in the basis of the columns that need reducing
+    to_reduce: Vec<usize>,
+}
+
+impl<C> Default for Classified<C> {
+    fn default() -> Self {
+        Self {
+            cleared: vec![],
+            zero: vec![],
+            apparent: vec![],
+            to_reduce: vec![],
+        }
+    }
+}
+
+impl<C> Classified<C> {
+    fn merge(mut self, mut other: Self) -> Self {
+        self.cleared.append(&mut other.cleared);
+        self.zero.append(&mut other.zero);
+        self.apparent.append(&mut other.apparent);
+        self.to_reduce.append(&mut other.to_reduce);
+        self
     }
 }
 
@@ -477,6 +513,12 @@ impl<'p> ParallelClearing<'p> {
         }
     }
 
+    /// See [`Clearing::skip_zero_apparent_pairs`].
+    pub fn skip_zero_apparent_pairs(mut self) -> Self {
+        self.clearing = self.clearing.skip_zero_apparent_pairs();
+        self
+    }
+
     /// Choose the concurrent data structures to use.
     pub fn storage(mut self, storage: Storage) -> Self {
         self.storage = storage;
@@ -495,15 +537,20 @@ where
 
     fn reduce(self, boundary: M) -> Reduction<Self::V, M::ColT> {
         let dimension_order = self.clearing.dimension_order(&boundary);
+        let skip_zero_apparent_pairs = self.clearing.skip_zero_apparent_pairs;
         let run = move || {
             let (v, diagram) = match self.storage {
-                Storage::Locking => {
-                    build_with_diagram_using::<M, LockingBackend<_, _>>(boundary, dimension_order)
-                }
+                Storage::Locking => build_with_diagram_using::<M, LockingBackend<_, _>>(
+                    boundary,
+                    dimension_order,
+                    skip_zero_apparent_pairs,
+                ),
                 #[cfg(feature = "lock-free")]
-                Storage::LockFree => {
-                    build_with_diagram_using::<M, LockFreeBackend<_, _>>(boundary, dimension_order)
-                }
+                Storage::LockFree => build_with_diagram_using::<M, LockFreeBackend<_, _>>(
+                    boundary,
+                    dimension_order,
+                    skip_zero_apparent_pairs,
+                ),
             };
             Reduction { v, diagram }
         };
@@ -518,6 +565,7 @@ where
 fn build_with_diagram_using<M, S>(
     boundary: M,
     dimension_order: Vec<usize>,
+    skip_zero_apparent_pairs: bool,
 ) -> (ClearedReductionMatrix<'static, M>, Diagram<M::ColT>)
 where
     M: MatrixOracle + SquareMatrix + HasRowFiltration + HasSplitColBasis + Sync,
@@ -530,54 +578,90 @@ where
         FxHashMap::default();
     let mut essential = FxHashSet::default();
     let mut pairings = FxHashSet::default();
-
     // The pairs `pivot row -> column` found in the previous dimension, whose rows are the columns to clear in this one
     let mut previous_pairs: FxHashMap<M::RowT, M::ColT> = FxHashMap::default();
     let n_dims = dimension_order.len();
 
     for (position, dim) in dimension_order.into_iter().enumerate() {
         let is_last = position + 1 == n_dims;
-        // Collect the columns that can't be cleared, recording the ones that can (V_i = R_j where (i, j) was a pair)
-        let cols: Vec<M::ColT> = {
-            let basis = boundary.sub_basis(dim);
-            (0..basis.size())
-                .map(|i| basis.element(i))
-                .filter(|elem| match previous_pairs.remove(elem) {
-                    Some(birth) => {
-                        reduction_columns.insert(elem.clone(), ReductionColumn::Cleared(birth));
-                        false
-                    }
-                    None => true,
-                })
-                .collect()
-        };
-        // Rows paired in the previous dimension that weren't columns of this one are never needed
-        previous_pairs.clear();
-        let mut record_pair = |pivot_row: M::RowT, label: M::ColT| {
-            if !is_last {
-                previous_pairs.insert(pivot_row.clone(), label.clone());
-            }
-            pairings.insert((pivot_row, label));
-        };
+        // The pairs of the previous dimension: their rows are the columns to clear in this one
+        let clearing = std::mem::take(&mut previous_pairs);
 
-        let reducer = DimensionReducer::<M, S>::new(&boundary, cols);
-        let apparent: Vec<(usize, M::RowT)> = (0..reducer.cols.len())
+        // 1. Classify every column in parallel: cleared, zero, apparent, or needing reduction.
+        //    Only the last get any per-column state, and there are usually very few of them.
+        let basis_size = boundary.sub_basis(dim).size();
+        let classified = (0..basis_size)
+            .into_par_iter()
+            .with_min_len(MIN_CLASSIFY_LEN)
+            .fold(Classified::default, |mut acc, i| {
+                let col = boundary.sub_basis(dim).element(i);
+                if let Some(birth) = clearing.get(&col) {
+                    acc.cleared.push((col, birth.clone()));
+                    return acc;
+                }
+                match boundary.column_pivot(col.clone()) {
+                    None => acc.zero.push(col),
+                    Some(entry)
+                        if boundary
+                            .first_column_in_row(entry.row_index.clone())
+                            .as_ref()
+                            == Some(&col) =>
+                    {
+                        let record = !(skip_zero_apparent_pairs
+                            && boundary.filtration_value(entry.row_index.clone())
+                                == boundary.filtration_value(col.clone()));
+                        // Unrecorded pairs are still needed to clear the next dimension
+                        if record || !is_last {
+                            acc.apparent.push((entry.row_index, col, record));
+                        }
+                    }
+                    Some(_) => acc.to_reduce.push(i),
+                }
+                acc
+            })
+            .reduce(Classified::default, Classified::merge);
+        let Classified {
+            cleared,
+            zero,
+            apparent,
+            mut to_reduce,
+        } = classified;
+        for (col, birth) in cleared {
+            reduction_columns.insert(col, ReductionColumn::Cleared(birth));
+        }
+        essential.extend(zero);
+        for (pivot_row, col, record) in apparent {
+            if !is_last {
+                previous_pairs.insert(pivot_row.clone(), col.clone());
+            }
+            if record {
+                pairings.insert((pivot_row, col));
+            }
+        }
+
+        // 2. Reduce the remaining columns in parallel (in basis order, for the pivot-stealing logic)
+        to_reduce.par_sort_unstable();
+        let cols: Vec<M::ColT> = to_reduce
+            .into_iter()
+            .map(|i| boundary.sub_basis(dim).element(i))
+            .collect();
+        let reducer = DimensionReducer::<M, S>::new(&boundary, cols, &clearing);
+        (0..reducer.cols.len())
             .into_par_iter()
             .with_max_len(MAX_TASK_LEN)
-            .filter_map(|j| reducer.reduce_column(j).map(|row| (j, row)))
-            .collect();
+            .for_each(|j| reducer.reduce_column(j));
 
-        // Read off the results sequentially
-        for (j, pivot_row) in apparent {
-            record_pair(pivot_row, reducer.cols[j].clone());
-        }
+        // 3. Read off the results
         for (j, label) in reducer.cols.iter().enumerate() {
-            // Apparent pairs are never published (and have V = e)
-            let Some(snapshot) = reducer.state.load(j) else {
-                continue;
-            };
+            let snapshot = reducer
+                .state
+                .load(j)
+                .expect("Every column is published by the end of reduction");
             if let Some((pivot_row, _)) = &snapshot.pivot {
-                record_pair(pivot_row.clone(), label.clone());
+                if !is_last {
+                    previous_pairs.insert(pivot_row.clone(), label.clone());
+                }
+                pairings.insert((pivot_row.clone(), label.clone()));
             } else {
                 essential.insert(label.clone());
             }
@@ -589,8 +673,8 @@ where
                         snapshot
                             .v
                             .iter()
-                            .filter(|&&(_, k)| k != j)
-                            .map(|&(coeff, k)| (coeff, reducer.cols[k].clone()))
+                            .filter(|(_, k)| k != label)
+                            .cloned()
                             .collect(),
                     ),
                 );

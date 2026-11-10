@@ -7,6 +7,7 @@ use phlite::{
     matrices::{combinators::product, ColBasis, HasRowFiltration, HasSplitColBasis, MatrixOracle},
     reduction::{Clearing, Diagram, ReductionAlgorithm, Storage},
 };
+use phlite_grpph::boundary::GrPPHBoundary;
 use phlite_grpph::coboundary::{GrPPHCoboundary, VecDigraphFiltration};
 use rustc_hash::{FxHashMap, FxHashSet};
 
@@ -74,16 +75,32 @@ fn storages() -> Vec<Storage> {
 fn check(n: u16, p: f64, seed: u64, storage: Storage) {
     let (filtration, edge_set) = random_digraph(n, p, seed);
     let d = GrPPHCoboundary::<Z2, _>::build(&filtration, &edge_set, n);
-    let d_rev = (&d).reverse();
+    check_matrix((&d).reverse(), storage);
+    // With the transpose attached, apparent pairs are skipped by the reduction (and V refers to columns outside it)
+    let boundary = GrPPHBoundary::<Z2, _>::new(&filtration, &edge_set);
+    let with_t = (&d).with_transpose(&boundary);
+    check_matrix((&with_t).reverse(), storage);
+}
 
-    let serial = Clearing::new().reduce(&d_rev).diagram;
-    let reduction = Clearing::new().parallel().storage(storage).reduce(&d_rev);
+fn check_matrix<M>(d_rev: M, storage: Storage)
+where
+    M: MatrixOracle<CoefficientField = Z2, RowT = <M as MatrixOracle>::ColT>
+        + HasRowFiltration
+        + HasSplitColBasis
+        + Copy
+        + Sync
+        + Send,
+    M::ColT: std::hash::Hash + std::fmt::Debug + Send + Sync + Copy + 'static,
+    M::FiltrationT: Send + Sync,
+{
+    let serial = Clearing::new().reduce(d_rev).diagram;
+    let reduction = Clearing::new().parallel().storage(storage).reduce(d_rev);
     let (v_par, parallel) = (reduction.v, reduction.diagram);
     assert_same_diagram(&serial, &parallel);
 
     // Independently check that V really reduces D: recompute R = D V and read the pairing off its pivots
     let v_trivial = (&v_par).with_trivial_filtration();
-    let r = product(&d_rev, &v_trivial);
+    let r = product(d_rev, &v_trivial);
     let mut pivot_of_row: FxHashMap<_, _> = FxHashMap::default();
     let mut essential = FxHashSet::default();
     for dim in 0..=1 {
