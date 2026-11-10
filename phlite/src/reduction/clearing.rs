@@ -22,6 +22,8 @@ use rustc_hash::{FxHashMap, FxHashSet};
 
 #[derive(Clone)]
 #[allow(clippy::module_name_repetitions)]
+///
+/// Columns with `V_i = e_i` (the vast majority, typically) are not stored at all.
 pub(crate) enum ReductionColumn<CF, ColT> {
     /// This variant is used when `(i, j)` is found as a pair, in which case column `i` can be reduced by setting the column `V_i = R_j`, we store j here.
     Cleared(ColT),
@@ -69,10 +71,9 @@ where
     /// A column that was cleared by the clearing optimisation is necessarily a cycle.
     /// Otherwise, if the column was conventionally reduced then we have to build that column in R.
     pub fn col_is_cycle(&self, col: M::ColT) -> bool {
-        let v_col = self.reduction_columns.get(&col).unwrap();
-        match v_col {
-            ReductionColumn::Cleared(_) => true,
-            ReductionColumn::Reduced(_) => {
+        match self.reduction_columns.get(&col) {
+            Some(ReductionColumn::Cleared(_)) => true,
+            Some(ReductionColumn::Reduced(_)) | None => {
                 let r_matrix = product(&self.boundary, &self);
                 let mut r_col = r_matrix.build_bhcol(col);
                 r_col.pop_pivot().is_none()
@@ -111,21 +112,19 @@ where
         &self,
         col: Self::ColT,
     ) -> impl Iterator<Item = (Self::CoefficientField, Self::RowT)> {
-        // TODO: Check that this doesn't actually Clone!
-        let reduction_col = self.reduction_columns.get(&col).unwrap();
-
         // TODO: Is there a way to do this without Box?
-
         let output_iter: Box<dyn Iterator<Item = (M::CoefficientField, M::RowT)>> =
-            match reduction_col {
-                ReductionColumn::Cleared(death_idx) => {
+            match self.reduction_columns.get(&col) {
+                // Columns that needed no reduction are not stored: V_i = e_i
+                None => Box::new(iter::once((M::CoefficientField::one(), col))),
+                Some(ReductionColumn::Cleared(death_idx)) => {
                     // This returns the death_idx column of R = D V
                     let v_j = self.column(death_idx.clone());
                     // v_j should be of the Reduced variant
                     Box::new(matrix_col_product!(self.boundary, v_j))
                     //Box::new(vec.iter().copied())
                 }
-                ReductionColumn::Reduced(vec) => Box::new(
+                Some(ReductionColumn::Reduced(vec)) => Box::new(
                     // We don't store the diagonal so we have to chain +1 on the diagonal to the output
                     vec.iter()
                         .cloned()
@@ -173,11 +172,17 @@ where
     }
 }
 
-struct CRMBuilder<M, DimIter, RowT, CF> {
+/// The pivot table of a dimension: `pivot row -> (column, coefficient of the pivot)`.
+/// Apparent pairs are not stored here, see [`CRMBuilder::owner`].
+type LowInverse<RowT, CF> = FxHashMap<RowT, (RowT, CF)>;
+
+struct CRMBuilder<M, DimIter: Iterator, RowT, CF> {
     boundary: M,
-    dimension_order: DimIter,
+    dimension_order: std::iter::Peekable<DimIter>,
     diagram: Diagram<RowT>,
     reduction_columns: FxHashMap<RowT, ReductionColumn<CF, RowT>>,
+    /// The pairs `pivot row -> column` found in the previous dimension, whose rows are the columns to clear in this one
+    previous_pairs: FxHashMap<RowT, RowT>,
 }
 
 impl<M, DimIter> CRMBuilder<M, DimIter, M::RowT, M::CoefficientField>
@@ -189,26 +194,44 @@ where
     ColumnEntry<M::FiltrationT, M::RowT, M::CoefficientField>: Clone,
 {
     fn init(boundary: M, dimension_order: DimIter) -> Self {
-        let essential = FxHashSet::default();
-        let pairings = FxHashSet::default();
-        let diagram = Diagram {
-            essential,
-            pairings,
-        };
-
-        let reduction_columns: FxHashMap<M::ColT, ReductionColumn<M::CoefficientField, M::ColT>> =
-            FxHashMap::default();
         Self {
             boundary,
-            dimension_order,
-            diagram,
-            reduction_columns,
+            dimension_order: dimension_order.peekable(),
+            diagram: Diagram {
+                essential: FxHashSet::default(),
+                pairings: FxHashSet::default(),
+            },
+            reduction_columns: FxHashMap::default(),
+            previous_pairs: FxHashMap::default(),
         }
+    }
+
+    /// The column that owns `row` as its pivot (in the current dimension), and the coefficient of that pivot.
+    ///
+    /// Apparent pairs are never stored, so if `row` is not in `low_inverse` we check whether it is the pivot of the first column in its row.
+    fn owner(
+        &self,
+        low_inverse: &LowInverse<M::RowT, M::CoefficientField>,
+        row: &M::RowT,
+    ) -> Option<(M::ColT, M::CoefficientField)> {
+        if let Some(owner) = low_inverse.get(row) {
+            return Some(owner.clone());
+        }
+        let first = self.boundary.first_column_in_row(row.clone())?;
+        // A cleared column has R = 0 so owns nothing (this can't happen for a chain complex, but costs nothing to check)
+        if matches!(
+            self.reduction_columns.get(&first),
+            Some(ReductionColumn::Cleared(_))
+        ) {
+            return None;
+        }
+        let pivot = self.boundary.column_pivot(first.clone())?;
+        (pivot.row_index == *row).then_some((first, pivot.coeff))
     }
 
     fn reduce_column(
         &self,
-        low_inverse: &FxHashMap<M::RowT, (M::ColT, M::CoefficientField)>,
+        low_inverse: &LowInverse<M::RowT, M::CoefficientField>,
         r_i: &mut BHCol<M::FiltrationT, M::RowT, M::CoefficientField>,
         v_i: &mut BHCol<(), M::RowT, M::CoefficientField>,
     ) {
@@ -219,7 +242,8 @@ where
             };
 
             // Check if there is a column with the same pivot
-            let Some((j_basis_element, j_coeff)) = low_inverse.get(&pivot_entry.row_index) else {
+            let Some((j_basis_element, j_coeff)) = self.owner(low_inverse, &pivot_entry.row_index)
+            else {
                 // Cannot reduce further -> found boundary -> break and save pivot
                 return;
             };
@@ -250,57 +274,65 @@ where
         }
     }
 
+    /// Record that the column `basis_element` has been reduced, with the given pivot (if any).
+    /// Apparent pairs are not added to `low_inverse`, since [`owner`](Self::owner) recomputes them.
+    fn record_reduced(
+        &mut self,
+        basis_element: M::ColT,
+        pivot: Option<(M::RowT, M::CoefficientField)>,
+        apparent: bool,
+        low_inverse: &mut LowInverse<M::RowT, M::CoefficientField>,
+        new_pairs: &mut Option<FxHashMap<M::RowT, M::ColT>>,
+    ) {
+        let Some((pivot_row, pivot_coeff)) = pivot else {
+            self.diagram.essential.insert(basis_element);
+            return;
+        };
+        if !apparent {
+            low_inverse.insert(pivot_row.clone(), (basis_element.clone(), pivot_coeff));
+        }
+        // Remember the pair so that the pivot row's column can be cleared in the next dimension
+        if let Some(new_pairs) = new_pairs {
+            new_pairs.insert(pivot_row.clone(), basis_element.clone());
+        }
+        // If dimensions are visited in a sensible order then we see pairings before their birth columns are reduced.
+        // Otherwise the birth may already be marked essential, which is fixed up once at the end.
+        self.diagram.pairings.insert((pivot_row, basis_element));
+    }
+
     fn save_column(
         &mut self,
         basis_element: M::ColT,
-        low_inverse: &mut FxHashMap<M::RowT, (M::ColT, M::CoefficientField)>,
+        low_inverse: &mut LowInverse<M::RowT, M::CoefficientField>,
+        new_pairs: &mut Option<FxHashMap<M::RowT, M::ColT>>,
         r_i: &BHCol<M::FiltrationT, M::RowT, M::CoefficientField>,
         mut v_i: BHCol<(), M::RowT, M::CoefficientField>,
     ) {
-        // If we have a pivot
-        if let Some(pivot_entry) = r_i.peek_pivot().cloned() {
-            // NOTE: Safe to call peek_pivot because we only ever break after calling clone_pivot
-            // Save it to low inverse
-            low_inverse.insert(
-                pivot_entry.row_index.clone(),
-                (basis_element.clone(), pivot_entry.coeff),
-            );
+        // NOTE: Safe to call peek_pivot because we only ever break after calling clone_pivot
+        let pivot = r_i
+            .peek_pivot()
+            .map(|entry| (entry.row_index.clone(), entry.coeff));
+        self.record_reduced(basis_element.clone(), pivot, false, low_inverse, new_pairs);
 
-            // and clear out the birth column
-            self.reduction_columns.insert(
-                pivot_entry.row_index.clone(),
-                ReductionColumn::Cleared(basis_element.clone()),
-            );
-
-            // Update diagram
-            // If dimensions are visited in a sensible order then we see pairings before their birth columns are reduced.
-            // Otherwise the birth may already be marked essential, which is fixed up once at the end.
-            self.diagram
-                .pairings
-                .insert((pivot_entry.row_index, basis_element.clone()));
-        } else {
-            // Update diagram
-            self.diagram.essential.insert(basis_element.clone());
-        }
-
-        // Then save v_i to reduction matrix
+        // Then save v_i (minus the diagonal) to the reduction matrix, unless it is trivial
         // TODO: Add option to only store this column when pivot is Some
         // Because otherwise we will never need the column again during reduction
-        self.reduction_columns.insert(
-            basis_element,
-            ReductionColumn::Reduced(
-                v_i.drain_sorted()
-                    .map(|entry| (entry.coeff, entry.row_index))
-                    .collect(),
-            ),
-        );
+        let v_i: Vec<_> = v_i
+            .drain_sorted()
+            .map(|entry| (entry.coeff, entry.row_index))
+            .collect();
+        if !v_i.is_empty() {
+            self.reduction_columns
+                .insert(basis_element, ReductionColumn::Reduced(v_i));
+        }
     }
 
-    fn reduce_dimension(&mut self, dim: usize) {
+    fn reduce_dimension(&mut self, dim: usize, is_last: bool) {
         // low_inverse[i]=(j, lambda) means R[j] has lowest non-zero in row i with coefficient lambda
         // We build a new one for each dimension
-        let mut low_inverse: FxHashMap<M::RowT, (M::ColT, M::CoefficientField)> =
-            FxHashMap::default();
+        let mut low_inverse: LowInverse<M::RowT, M::CoefficientField> = FxHashMap::default();
+        // The pairs found in this dimension, for clearing the next one (if there is one)
+        let mut new_pairs = (!is_last).then(FxHashMap::default);
 
         let basis_size = self.boundary.sub_basis(dim).size();
 
@@ -308,12 +340,39 @@ where
             // Reduce column i
             let basis_element = self.boundary.sub_basis(dim).element(i);
 
-            // First check whether already cleared
-            if self.reduction_columns.contains_key(&basis_element) {
+            // First check whether it can be cleared: V_i = R_j where (i, j) was a pair in the previous dimension
+            if let Some(birth) = self.previous_pairs.remove(&basis_element) {
+                self.reduction_columns
+                    .insert(basis_element, ReductionColumn::Cleared(birth));
                 continue 'column_loop;
             }
 
-            // Otheewise clear and update the builder accordingly
+            // Most columns need no reduction: their pivot is not yet claimed (or they are zero).
+            // Find the pivot without building the whole column, and only build it if there is work to do.
+            let pivot = self.boundary.column_pivot(basis_element.clone());
+            let apparent = pivot.as_ref().is_some_and(|entry| {
+                self.boundary
+                    .first_column_in_row(entry.row_index.clone())
+                    .as_ref()
+                    == Some(&basis_element)
+            });
+            match pivot {
+                Some(entry)
+                    if !apparent && self.owner(&low_inverse, &entry.row_index).is_some() => {}
+                pivot => {
+                    let pivot = pivot.map(|entry| (entry.row_index, entry.coeff));
+                    self.record_reduced(
+                        basis_element,
+                        pivot,
+                        apparent,
+                        &mut low_inverse,
+                        &mut new_pairs,
+                    );
+                    continue 'column_loop;
+                }
+            }
+
+            // Otherwise reduce the column and update the builder accordingly
             let mut v_i = {
                 let self_borrow = &self.boundary;
                 self_borrow.with_trivial_filtration().empty_bhcol()
@@ -323,14 +382,16 @@ where
                 self_borrow.build_bhcol(basis_element.clone())
             };
             self.reduce_column(&low_inverse, &mut r_i, &mut v_i);
-            self.save_column(basis_element, &mut low_inverse, &r_i, v_i);
+            self.save_column(basis_element, &mut low_inverse, &mut new_pairs, &r_i, v_i);
         }
+        // Rows paired in the previous dimension that weren't columns of this one are never needed
+        self.previous_pairs = new_pairs.unwrap_or_default();
     }
 
     fn reduce_all_dimension(&mut self) {
-        // TODO: Surely there's a nicer way to write this iteration?
         while let Some(dim) = self.dimension_order.next() {
-            self.reduce_dimension(dim);
+            let is_last = self.dimension_order.peek().is_none();
+            self.reduce_dimension(dim, is_last);
         }
     }
 }
@@ -367,7 +428,10 @@ impl Clearing {
     /// Reduce only the given dimensions, in the order given, instead of detecting them.
     ///
     /// For example to only reduce up to dimension `max_dim` of a coboundary matrix use `0..=max_dim`, and for a boundary matrix `(0..=max_dim).rev()`.
-    pub fn with_dimension_order(mut self, dimension_order: impl IntoIterator<Item = usize>) -> Self {
+    pub fn with_dimension_order(
+        mut self,
+        dimension_order: impl IntoIterator<Item = usize>,
+    ) -> Self {
         self.dimension_order = Some(dimension_order.into_iter().collect());
         self
     }

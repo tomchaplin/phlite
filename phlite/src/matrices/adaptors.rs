@@ -18,7 +18,7 @@ use crate::columns::{BHCol, ColumnEntry};
 
 use super::{
     BasisElement, ColBasis, FiltrationValue, HasColBasis, HasRowFiltration, HasSplitColBasis,
-    MatrixOracle, SplitByDimension,
+    HasTranspose, MatrixOracle, SplitByDimension, SquareMatrix,
 };
 
 /// Return type of [`MatrixOracle::with_trivial_filtration`].
@@ -405,6 +405,36 @@ where
     fn filtration_value(&self, row: Self::RowT) -> Self::FiltrationT {
         self.matrix.filtration_value(row)
     }
+
+    fn column_with_filtration(
+        &self,
+        col: Self::ColT,
+    ) -> impl Iterator<Item = ColumnEntry<Self::FiltrationT, Self::RowT, Self::CoefficientField>>
+    {
+        self.matrix.column_with_filtration(col)
+    }
+
+    fn column_pivot(
+        &self,
+        col: Self::ColT,
+    ) -> Option<ColumnEntry<Self::FiltrationT, Self::RowT, Self::CoefficientField>> {
+        self.matrix.column_pivot(col)
+    }
+
+    fn column_min(
+        &self,
+        col: Self::ColT,
+    ) -> Option<ColumnEntry<Self::FiltrationT, Self::RowT, Self::CoefficientField>> {
+        self.matrix.column_min(col)
+    }
+
+    fn first_column_in_row(&self, row: Self::RowT) -> Option<Self::ColT> {
+        self.matrix.first_column_in_row(row)
+    }
+
+    fn last_column_in_row(&self, row: Self::RowT) -> Option<Self::ColT> {
+        self.matrix.last_column_in_row(row)
+    }
 }
 
 impl<M, B> HasColBasis for MatrixWithBasis<M, B>
@@ -517,6 +547,36 @@ where
     fn filtration_value(&self, row: Self::RowT) -> Self::FiltrationT {
         self.oracle.filtration_value(row)
     }
+
+    fn column_with_filtration(
+        &self,
+        col: Self::ColT,
+    ) -> impl Iterator<Item = ColumnEntry<Self::FiltrationT, Self::RowT, Self::CoefficientField>>
+    {
+        self.oracle.column_with_filtration(col)
+    }
+
+    fn column_pivot(
+        &self,
+        col: Self::ColT,
+    ) -> Option<ColumnEntry<Self::FiltrationT, Self::RowT, Self::CoefficientField>> {
+        self.oracle.column_pivot(col)
+    }
+
+    fn column_min(
+        &self,
+        col: Self::ColT,
+    ) -> Option<ColumnEntry<Self::FiltrationT, Self::RowT, Self::CoefficientField>> {
+        self.oracle.column_min(col)
+    }
+
+    fn first_column_in_row(&self, row: Self::RowT) -> Option<Self::ColT> {
+        self.oracle.first_column_in_row(row)
+    }
+
+    fn last_column_in_row(&self, row: Self::RowT) -> Option<Self::ColT> {
+        self.oracle.last_column_in_row(row)
+    }
 }
 
 impl<M> HasColBasis for WithSubBasis<M>
@@ -585,6 +645,38 @@ where
     {
         let normal_col = self.oracle.column_with_filtration(col.0);
         normal_col.map(|entry| ColumnEntry {
+            filtration_value: Reverse(entry.filtration_value),
+            row_index: Reverse(entry.row_index),
+            coeff: entry.coeff,
+        })
+    }
+
+    // Reversing the order swaps the first and last columns in each row
+    fn first_column_in_row(&self, row: Self::RowT) -> Option<Self::ColT> {
+        self.oracle.last_column_in_row(row.0).map(Reverse)
+    }
+
+    fn last_column_in_row(&self, row: Self::RowT) -> Option<Self::ColT> {
+        self.oracle.first_column_in_row(row.0).map(Reverse)
+    }
+
+    // Reversing the order swaps the largest and smallest entries of each column
+    fn column_pivot(
+        &self,
+        col: Self::ColT,
+    ) -> Option<ColumnEntry<Self::FiltrationT, Self::RowT, Self::CoefficientField>> {
+        self.oracle.column_min(col.0).map(|entry| ColumnEntry {
+            filtration_value: Reverse(entry.filtration_value),
+            row_index: Reverse(entry.row_index),
+            coeff: entry.coeff,
+        })
+    }
+
+    fn column_min(
+        &self,
+        col: Self::ColT,
+    ) -> Option<ColumnEntry<Self::FiltrationT, Self::RowT, Self::CoefficientField>> {
+        self.oracle.column_pivot(col.0).map(|entry| ColumnEntry {
             filtration_value: Reverse(entry.filtration_value),
             row_index: Reverse(entry.row_index),
             coeff: entry.coeff,
@@ -727,6 +819,36 @@ where
             coeff: entry.coeff,
         })
     }
+
+    // Reversing the order swaps the first and last columns in each row
+    fn first_column_in_row(&self, row: Self::RowT) -> Option<Self::ColT> {
+        self.oracle
+            .last_column_in_row(Reverse(row))
+            .map(|col| col.0)
+    }
+
+    fn last_column_in_row(&self, row: Self::RowT) -> Option<Self::ColT> {
+        self.oracle
+            .first_column_in_row(Reverse(row))
+            .map(|col| col.0)
+    }
+
+    // Reversing the order swaps the largest and smallest entries of each column
+    fn column_pivot(&self, col: Self::ColT) -> Option<ColumnEntry<FilT, RowT, Self::CoefficientField>> {
+        self.oracle.column_min(Reverse(col)).map(|entry| ColumnEntry {
+            filtration_value: entry.filtration_value.0,
+            row_index: entry.row_index.0,
+            coeff: entry.coeff,
+        })
+    }
+
+    fn column_min(&self, col: Self::ColT) -> Option<ColumnEntry<FilT, RowT, Self::CoefficientField>> {
+        self.oracle.column_pivot(Reverse(col)).map(|entry| ColumnEntry {
+            filtration_value: entry.filtration_value.0,
+            row_index: entry.row_index.0,
+            coeff: entry.coeff,
+        })
+    }
 }
 
 impl<M, ColT, RowT> HasColBasis for UnreverseMatrix<M>
@@ -802,5 +924,177 @@ where
 
     fn in_dimension(self, dimension: usize) -> Self::SubBasisT {
         UnreverseBasis(self.0.in_dimension(dimension))
+    }
+}
+
+// ========= Attaching a transpose ==============================
+
+/// Return type of [`MatrixOracle::with_transpose`]: a matrix together with an oracle for its transpose,
+/// which is used to find the first and last columns in each row (and hence apparent pairs).
+/// Everything else is forwarded to the matrix.
+#[derive(Debug, Clone, Copy)]
+pub struct WithTranspose<M, T> {
+    /// The matrix.
+    pub matrix: M,
+    /// An oracle for the transpose: column `r` of `transpose` lists the non-zero entries in row `r` of `matrix`.
+    pub transpose: T,
+}
+
+impl<M: MatrixOracle, T> MatrixOracle for WithTranspose<M, T> {
+    type CoefficientField = M::CoefficientField;
+    type ColT = M::ColT;
+    type RowT = M::RowT;
+
+    fn column(
+        &self,
+        col: Self::ColT,
+    ) -> impl Iterator<Item = (Self::CoefficientField, Self::RowT)> {
+        self.matrix.column(col)
+    }
+}
+
+impl<M, T> WithTranspose<M, T>
+where
+    M: HasRowFiltration + SquareMatrix,
+    T: MatrixOracle<CoefficientField = M::CoefficientField, ColT = M::RowT, RowT = M::ColT>,
+{
+    /// The least (or greatest) column with a non-zero entry in `row`, in the order on (filtration value, column).
+    fn extreme_column_in_row(&self, row: M::RowT, greatest: bool) -> Option<M::ColT> {
+        let key = |col: &M::ColT| (self.matrix.filtration_value(col.clone()), col.clone());
+        let better = |candidate: &(M::FiltrationT, M::ColT),
+                      current: &(M::FiltrationT, M::ColT)| {
+            if greatest {
+                candidate > current
+            } else {
+                candidate < current
+            }
+        };
+        // The best column seen so far, and the summed coefficient of every entry in it (None if they cancel)
+        let mut best: Option<(M::FiltrationT, M::ColT)> = None;
+        let mut sum: Option<M::CoefficientField> = None;
+        for (coeff, col) in self.transpose.column(row.clone()) {
+            let k = key(&col);
+            match &best {
+                Some(current) if *current == k => sum = coeff + sum,
+                Some(current) if !better(&k, current) => {}
+                _ => {
+                    best = Some(k);
+                    sum = Some(coeff);
+                }
+            }
+        }
+        match (best, sum) {
+            (None, _) => None,
+            (Some((_f, col)), Some(_)) => Some(col),
+            // The best column cancelled out, so sum everything up properly
+            (Some(_), None) => {
+                let mut entries: Vec<_> = self
+                    .transpose
+                    .column(row)
+                    .map(|(coeff, col)| (key(&col), coeff))
+                    .collect();
+                entries.sort_by(|a, b| a.0.cmp(&b.0));
+                if greatest {
+                    entries.reverse();
+                }
+                let mut i = 0;
+                while i < entries.len() {
+                    let mut total = Some(entries[i].1);
+                    let mut j = i + 1;
+                    while j < entries.len() && entries[j].0 == entries[i].0 {
+                        total = entries[j].1 + total;
+                        j += 1;
+                    }
+                    if total.is_some() {
+                        return Some(entries[i].0 .1.clone());
+                    }
+                    i = j;
+                }
+                None
+            }
+        }
+    }
+}
+
+impl<M, T> HasRowFiltration for WithTranspose<M, T>
+where
+    M: HasRowFiltration + SquareMatrix,
+    T: MatrixOracle<CoefficientField = M::CoefficientField, ColT = M::RowT, RowT = M::ColT>,
+{
+    type FiltrationT = M::FiltrationT;
+
+    fn filtration_value(&self, row: Self::RowT) -> Self::FiltrationT {
+        self.matrix.filtration_value(row)
+    }
+
+    fn column_with_filtration(
+        &self,
+        col: Self::ColT,
+    ) -> impl Iterator<Item = ColumnEntry<Self::FiltrationT, Self::RowT, Self::CoefficientField>>
+    {
+        self.matrix.column_with_filtration(col)
+    }
+
+    fn column_pivot(
+        &self,
+        col: Self::ColT,
+    ) -> Option<ColumnEntry<Self::FiltrationT, Self::RowT, Self::CoefficientField>> {
+        self.matrix.column_pivot(col)
+    }
+
+    fn column_min(
+        &self,
+        col: Self::ColT,
+    ) -> Option<ColumnEntry<Self::FiltrationT, Self::RowT, Self::CoefficientField>> {
+        self.matrix.column_min(col)
+    }
+
+    fn first_column_in_row(&self, row: Self::RowT) -> Option<Self::ColT> {
+        self.extreme_column_in_row(row, false)
+    }
+
+    fn last_column_in_row(&self, row: Self::RowT) -> Option<Self::ColT> {
+        self.extreme_column_in_row(row, true)
+    }
+}
+
+impl<M: HasColBasis, T> HasColBasis for WithTranspose<M, T> {
+    type BasisT<'a>
+        = M::BasisT<'a>
+    where
+        Self: 'a;
+
+    fn basis(&self) -> Self::BasisT<'_> {
+        self.matrix.basis()
+    }
+}
+
+impl<M: HasSplitColBasis, T> HasSplitColBasis for WithTranspose<M, T> {
+    type SubBasisT<'a>
+        = M::SubBasisT<'a>
+    where
+        Self: 'a;
+
+    fn sub_basis(&self, dimension: usize) -> Self::SubBasisT<'_> {
+        self.matrix.sub_basis(dimension)
+    }
+
+    fn n_dimensions(&self) -> usize {
+        self.matrix.n_dimensions()
+    }
+}
+
+impl<M, T> HasTranspose for WithTranspose<M, T>
+where
+    M: MatrixOracle,
+    T: MatrixOracle<CoefficientField = M::CoefficientField, ColT = M::RowT, RowT = M::ColT>,
+{
+    type TransposeT<'a>
+        = &'a T
+    where
+        Self: 'a;
+
+    fn transpose(&self) -> Self::TransposeT<'_> {
+        &self.transpose
     }
 }

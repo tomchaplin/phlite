@@ -26,7 +26,7 @@ use crate::{
 pub use self::bases::{BasisSlice, SplitBasis};
 use self::adaptors::{
     MatrixWithBasis, ReverseBasis, ReverseMatrix, UnreverseBasis, UnreverseMatrix,
-    UsingColBasisIndex, WithFuncFiltration, WithSubBasis, WithTrivialFiltration,
+    UsingColBasisIndex, WithFuncFiltration, WithSubBasis, WithTranspose, WithTrivialFiltration,
 };
 
 pub mod adaptors;
@@ -163,6 +163,22 @@ pub trait MatrixOracle {
         MatrixWithBasis {
             matrix: self,
             basis,
+        }
+    }
+
+    /// Endows `self` with an oracle for its transpose, so that the reduction algorithms can use apparent pairs
+    /// (see [`first_column_in_row`](HasRowFiltration::first_column_in_row)).
+    ///
+    /// Column `r` of `transpose` must contain exactly the non-zero entries of row `r` of `self`.
+    /// For a coboundary matrix, the transpose is the boundary matrix, and vice versa.
+    fn with_transpose<T>(self, transpose: T) -> WithTranspose<Self, T>
+    where
+        Self: Sized,
+        T: MatrixOracle<CoefficientField = Self::CoefficientField, ColT = Self::RowT, RowT = Self::ColT>,
+    {
+        WithTranspose {
+            matrix: self,
+            transpose,
         }
     }
 
@@ -322,6 +338,119 @@ pub trait HasRowFiltration: MatrixOracle {
         })
     }
 
+    /// The pivot of the column `col`: its largest non-zero entry, ordered by filtration value and then [`RowT`](MatrixOracle::RowT),
+    /// or `None` if the column is zero.
+    ///
+    /// The default implementation makes a single pass over [`column_with_filtration`](HasRowFiltration::column_with_filtration)
+    /// without allocating, summing the coefficients of any repeated rows.
+    /// Only if the largest row cancels out does it fall back to building the whole column with [`build_bhcol`](HasRowFiltration::build_bhcol).
+    ///
+    /// The reduction algorithms call this for every column, and most columns need no further work
+    /// (their pivot is not yet claimed), so you may wish to override it if you can find the pivot without visiting every entry.
+    fn column_pivot(
+        &self,
+        col: Self::ColT,
+    ) -> Option<ColumnEntry<Self::FiltrationT, Self::RowT, Self::CoefficientField>> {
+        // The largest entry seen so far, and the summed coefficient of every entry in its row (None if they cancel)
+        let mut best: Option<ColumnEntry<Self::FiltrationT, Self::RowT, Self::CoefficientField>> =
+            None;
+        let mut sum: Option<Self::CoefficientField> = None;
+        for entry in self.column_with_filtration(col.clone()) {
+            let ordering = best.as_ref().map(|current| entry.cmp(current));
+            match ordering {
+                Some(std::cmp::Ordering::Less) => {}
+                Some(std::cmp::Ordering::Equal) => sum = entry.coeff + sum,
+                Some(std::cmp::Ordering::Greater) | None => {
+                    sum = Some(entry.coeff);
+                    best = Some(entry);
+                }
+            }
+        }
+        match (best, sum) {
+            (None, _) => None,
+            (Some(mut entry), Some(coeff)) => {
+                entry.coeff = coeff;
+                Some(entry)
+            }
+            // The largest row cancelled, so the pivot is further down
+            (Some(_), None) => self.build_bhcol(col).pop_pivot(),
+        }
+    }
+
+    /// The smallest non-zero entry of the column `col`, ordered by filtration value and then [`RowT`](MatrixOracle::RowT),
+    /// or `None` if the column is zero.
+    ///
+    /// This is the pivot of the [`reverse`](MatrixOracle::reverse)d matrix, which is how cohomology is computed,
+    /// so override it if you can find the smallest entry without visiting every entry
+    /// (for example, if you can enumerate the column in order and know a lower bound on its filtration values).
+    /// The default implementation is a single pass like [`column_pivot`](HasRowFiltration::column_pivot).
+    fn column_min(
+        &self,
+        col: Self::ColT,
+    ) -> Option<ColumnEntry<Self::FiltrationT, Self::RowT, Self::CoefficientField>> {
+        // The smallest entry seen so far, and the summed coefficient of every entry in its row (None if they cancel)
+        let mut best: Option<ColumnEntry<Self::FiltrationT, Self::RowT, Self::CoefficientField>> =
+            None;
+        let mut sum: Option<Self::CoefficientField> = None;
+        for entry in self.column_with_filtration(col.clone()) {
+            let ordering = best.as_ref().map(|current| entry.cmp(current));
+            match ordering {
+                Some(std::cmp::Ordering::Greater) => {}
+                Some(std::cmp::Ordering::Equal) => sum = entry.coeff + sum,
+                Some(std::cmp::Ordering::Less) | None => {
+                    sum = Some(entry.coeff);
+                    best = Some(entry);
+                }
+            }
+        }
+        match (best, sum) {
+            (None, _) => None,
+            (Some(mut entry), Some(coeff)) => {
+                entry.coeff = coeff;
+                Some(entry)
+            }
+            // The smallest row cancelled, so sum up the whole column and take the smallest survivor
+            (Some(_), None) => {
+                let mut entries: Vec<_> = self.column_with_filtration(col).collect();
+                entries.sort();
+                let mut i = 0;
+                while i < entries.len() {
+                    let mut total = Some(entries[i].coeff);
+                    let mut j = i + 1;
+                    while j < entries.len() && entries[j] == entries[i] {
+                        total = entries[j].coeff + total;
+                        j += 1;
+                    }
+                    if let Some(coeff) = total {
+                        let mut entry = entries.swap_remove(i);
+                        entry.coeff = coeff;
+                        return Some(entry);
+                    }
+                    i = j;
+                }
+                None
+            }
+        }
+    }
+
+    /// Of the columns with a non-zero entry in `row`, the first in the order on filtration value and then [`ColT`](MatrixOracle::ColT),
+    /// or `None` if this is not known (the default).
+    ///
+    /// Only meaningful for square matrices (so that columns have filtration values), whose column bases are sorted in this order.
+    /// The reduction algorithms use it to detect *apparent pairs*: if the pivot of column `c` is `r`, and `c` is the first column in row `r`,
+    /// then `(r, c)` is a persistence pair that needs no reduction (nor storage, since it can be recomputed).
+    /// Implement it if you can find this column cheaply, typically by computing the pivot of the corresponding column of the transpose
+    /// (see [`with_transpose`](MatrixOracle::with_transpose)).
+    /// If you implement it, it must be correct: returning a column that is not the first in its row gives wrong results.
+    fn first_column_in_row(&self, _row: Self::RowT) -> Option<Self::ColT> {
+        None
+    }
+
+    /// As [`first_column_in_row`](HasRowFiltration::first_column_in_row), but the last column. Used for [`reverse`](MatrixOracle::reverse)d matrices.
+    fn last_column_in_row(&self, _row: Self::RowT) -> Option<Self::ColT> {
+        None
+    }
+
     /// Initialise an empty binary heap that can accept entries from this matrix.
     /// Mostly an implementation detail of [`build_bhcol`](HasRowFiltration::build_bhcol).
     fn empty_bhcol(&self) -> BHCol<Self::FiltrationT, Self::RowT, Self::CoefficientField> {
@@ -350,6 +479,67 @@ where
 
     fn filtration_value(&self, row: Self::RowT) -> Self::FiltrationT {
         (*self).filtration_value(row)
+    }
+
+    fn column_pivot(
+        &self,
+        col: Self::ColT,
+    ) -> Option<ColumnEntry<Self::FiltrationT, Self::RowT, Self::CoefficientField>> {
+        (*self).column_pivot(col)
+    }
+
+    fn column_min(
+        &self,
+        col: Self::ColT,
+    ) -> Option<ColumnEntry<Self::FiltrationT, Self::RowT, Self::CoefficientField>> {
+        (*self).column_min(col)
+    }
+
+    fn first_column_in_row(&self, row: Self::RowT) -> Option<Self::ColT> {
+        (*self).first_column_in_row(row)
+    }
+
+    fn last_column_in_row(&self, row: Self::RowT) -> Option<Self::ColT> {
+        (*self).last_column_in_row(row)
+    }
+    fn column_with_filtration(
+        &self,
+        col: Self::ColT,
+    ) -> impl Iterator<Item = ColumnEntry<Self::FiltrationT, Self::RowT, Self::CoefficientField>>
+    {
+        (*self).column_with_filtration(col)
+    }
+}
+
+// ======== Access to the transpose ============================
+
+/// A matrix with an oracle for its transpose, typically attached with [`with_transpose`](MatrixOracle::with_transpose).
+///
+/// For a coboundary matrix the transpose is the boundary matrix, and vice versa.
+/// This is used to find apparent pairs during reduction, and to compute representatives by involution
+/// (see [`cohomology_with_involution`](crate::barcode::cohomology_with_involution)).
+pub trait HasTranspose: MatrixOracle {
+    /// The type of the oracle for the transpose.
+    type TransposeT<'a>: MatrixOracle<
+            CoefficientField = Self::CoefficientField,
+            ColT = Self::RowT,
+            RowT = Self::ColT,
+        > + Copy
+    where
+        Self: 'a;
+
+    /// The transpose: column `r` lists the non-zero entries in row `r` of `self`.
+    fn transpose(&self) -> Self::TransposeT<'_>;
+}
+
+impl<M: HasTranspose> HasTranspose for &M {
+    type TransposeT<'a>
+        = M::TransposeT<'a>
+    where
+        Self: 'a;
+
+    fn transpose(&self) -> Self::TransposeT<'_> {
+        (*self).transpose()
     }
 }
 

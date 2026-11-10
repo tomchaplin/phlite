@@ -111,10 +111,14 @@ pub fn grpph_barcode(
     info!("Built coboundary matrix");
     let boundary = GrPPHBoundary::<Z2, _>::new(filtration, edge_set);
 
+    // Each matrix is given its transpose, so that the reduction can skip apparent pairs
+    // (tests/transpose.rs checks that these really are transposes)
     let bars = match (method, representatives) {
-        (Method::Cohomology, false) => barcode::cohomology(&coboundary, algorithm),
+        (Method::Cohomology, false) => {
+            barcode::cohomology((&coboundary).with_transpose(&boundary), algorithm)
+        }
         (Method::Cohomology, true) => {
-            barcode::cohomology_with_involution(&coboundary, boundary, algorithm)
+            barcode::cohomology_with_involution((&coboundary).with_transpose(&boundary), algorithm)
         }
         (Method::Homology, _) => {
             let basis = SplitBasis::from_dimensions([
@@ -123,8 +127,9 @@ pub fn grpph_barcode(
                 all_two_cells(&coboundary),
             ]);
             info!("Enumerated 2-cells");
-            let boundary = boundary.with_basis(basis);
-            let mut bars = barcode::homology(&boundary, algorithm, representatives);
+            let boundary = (&boundary).with_basis(basis);
+            let boundary = (&boundary).with_transpose(&coboundary.matrix);
+            let mut bars = barcode::homology(boundary, algorithm, representatives);
             // There are no 3-cells, so 2-cells look essential but we don't compute H_2
             bars.retain(|bar| bar.birth.dimension() <= 1);
             bars
