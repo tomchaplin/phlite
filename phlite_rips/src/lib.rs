@@ -1,3 +1,34 @@
+//! Vietoris-Rips persistent homology, implemented with [`phlite`].
+//!
+//! The quickest way in is [`rips_barcode`], which computes the barcode of a distance matrix (optionally with representatives),
+//! by either cohomology or homology and with any of `phlite`'s reduction algorithms.
+//! With the `python` feature this crate also builds the `phlite_rips` Python module.
+//!
+//! # How it is put together
+//!
+//! * Simplices are indexed by [`RipsIndex`]: the vertices, in increasing order, as the digits of a base-`(n + 1)` number.
+//!   Cofacet and facet indices are computed arithmetically, by inserting or removing one digit.
+//! * [`cohomology::RipsCoboundary`] and [`homology::RipsBoundary`] are the coboundary and boundary oracles,
+//!   each of which is the other's transpose.
+//!   They override the [optional performance hooks](phlite::matrices#optional-performance-hooks):
+//!   cofacets are enumerated in increasing index order and none can be smaller than the simplex itself,
+//!   so the first cofacet with the simplex's own diameter is its oldest one, and similarly for facets.
+//!   Since nearly every Rips pair has zero persistence, these searches nearly always stop early.
+//! * [`build_reduction_bases`] builds the column bases, omitting every simplex in a zero-persistence apparent pair
+//!   (see [`in_zero_apparent_pair`]); for Rips these are nearly all of them.
+//!   The full bases are available from [`build_rips_bases`] and friends.
+//! * Simplices with diameter above the [`enclosing_radius`] are never built, since by then the complex is a cone,
+//!   and a smaller `threshold` truncates the filtration as in ripser.
+//!
+//! These are, broadly, the optimisations that ripser and giotto-ph make.
+//!
+//! # Tutorial
+//!
+//! The source of this crate doubles as a tutorial for implementing a filtration with `phlite`
+//! (see the comments marked `TUTORIAL`): start in `lib.rs`, then `homology.rs`, `cohomology.rs` and `main.rs`.
+//! The tutorial builds the full bases, which is the simplest way to use `phlite`;
+//! [`rips_barcode`] shows the optimised version.
+
 pub mod cohomology;
 pub mod homology;
 #[cfg(feature = "python")]

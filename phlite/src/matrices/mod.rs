@@ -2,6 +2,35 @@
 //!
 //! This module provides matrix traits that should be implemented by users.
 //! Also provides various wrappers to attach additional data to matrices, change their indexing types or multiply two matrices.
+//!
+//! # The traits
+//!
+//! * [`MatrixOracle`] (required): the non-zero entries of each column, produced lazily.
+//! * [`HasRowFiltration`] (required for reduction): a filtration value for each row.
+//!   It also has optional methods which the reduction algorithms use to do less work, see below.
+//! * [`HasColBasis`] / [`HasSplitColBasis`] (required for reduction): the ordered basis of columns to reduce,
+//!   split by dimension for the clearing algorithms. Usually attached with [`with_basis`](MatrixOracle::with_basis),
+//!   for example as a [`SplitBasis`].
+//! * [`HasTranspose`] (optional): an oracle for the transpose, attached with [`with_transpose`](MatrixOracle::with_transpose).
+//!   For a coboundary matrix the transpose is the boundary matrix, and vice versa.
+//!
+//! # Optional performance hooks
+//!
+//! Default implementations are provided for these, but overriding them can make a big difference
+//! (see the [`reduction`](crate::reduction#doing-less-work) module docs for how they are used):
+//! * [`HasRowFiltration::column_with_filtration`]: the column together with its rows' filtration values,
+//!   if you can compute these together more cheaply than one row at a time.
+//! * [`HasRowFiltration::column_pivot`] and [`HasRowFiltration::column_min`]: the largest and smallest entries of a column.
+//!   Most columns need no reduction beyond finding their pivot, so if you can find it without visiting every entry
+//!   (say, by enumerating the column in order and knowing a bound on its filtration values) then override these.
+//!   A [`reverse`](MatrixOracle::reverse)d matrix's pivot is the original matrix's [`column_min`](HasRowFiltration::column_min).
+//! * [`HasRowFiltration::first_column_in_row`] and [`HasRowFiltration::last_column_in_row`]:
+//!   these let the reduction algorithms recognise *apparent pairs*.
+//!   [`with_transpose`](MatrixOracle::with_transpose) provides them by scanning the transpose,
+//!   but implement them on your matrix if you can find them faster (the transpose's version is then used only as a fallback).
+//!
+//! The wrappers in [`adaptors`] forward these methods to the matrix they wrap where that makes sense,
+//! and [`ReverseMatrix`] swaps the first/last and largest/smallest versions.
 
 // TODO: Add reasonable constraints to reverse and unreverse methods on bases and matrices
 

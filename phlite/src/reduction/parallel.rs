@@ -3,10 +3,20 @@
 //!
 //! Run it with `Clearing::new().parallel().reduce(matrix)`, see [`ParallelClearing`].
 //!
-//! Compared to the serial [`Clearing`] this reduces all (uncleared) columns of a
-//! dimension concurrently, using the same out-of-order scheme as the paper:
-//! a thread reduces a private copy of a column and, whenever it finds a pivot owned by a column to its *right*,
-//! it publishes its own column, steals the pivot and carries on reducing the displaced column.
+//! Compared to the serial [`Clearing`], each dimension is reduced in three phases (much as in giotto-ph):
+//!
+//! 1. **Classify** every column of the dimension in parallel: cleared (by a pair from the previous dimension),
+//!    zero, an apparent pair (if the matrix provides [`first_column_in_row`](HasRowFiltration::first_column_in_row)),
+//!    or needing reduction. The results go into per-thread vectors, so this phase shares no state.
+//!    Typically only a tiny fraction of columns need reduction, and only those get any per-column state below.
+//! 2. **Reduce** the columns needing it concurrently, using the same out-of-order scheme as the paper:
+//!    a thread reduces a private copy of a column and, whenever it finds a pivot owned by a column to its *right*,
+//!    it publishes its own column, steals the pivot and carries on reducing the displaced column.
+//!    A column whose pivot is not yet claimed is finished without building it in full
+//!    (see [`column_pivot`](HasRowFiltration::column_pivot)).
+//!    Pivots owned by apparent pairs are recomputed rather than stored, since apparent pairs never change.
+//! 3. **Read off** the pairs, from the per-thread vectors and the reduced columns.
+//!
 //! By the pairing uniqueness lemma the resulting diagram is the same as the serial algorithm's
 //! (the reduction matrix `V` that comes out may differ, but is still a valid one).
 //!
@@ -14,11 +24,12 @@
 //!
 //! * **Rows are never indexed.**
 //!   The pivot table is a concurrent hash map keyed by the row *label* ([`RowT`](MatrixOracle::RowT)),
-//!   which only ever holds rows that are the pivot of some column (so at most one entry per column).
+//!   which only ever holds rows that are the pivot of some reduced column (so at most one entry per column).
 //!   Row order comes from the usual `(filtration value, label)` order on column entries.
 //!   This means we never enumerate the row space, which is the main saving of cohomology.
-//! * **Columns are indexed densely per dimension** by their position in the (uncleared part of the) column basis.
-//!   That is exactly the order the serial algorithm sweeps in, and it's all the algorithm needs from the columns.
+//! * **Only the columns needing reduction are indexed**, densely, by their position (in basis order) in that short list.
+//!   That is exactly the order the serial algorithm sweeps in, and it's all the pivot-stealing logic needs.
+//!   Entries of `V` are column *labels*, so they can refer to columns outside the list (apparent pairs, with `V = e`).
 //! * **We store `V`, not `R`.** The paper reduces `R` in place and never touches `V`.
 //!   Here each published column is a snapshot of `V_j` together with the cached pivot (row label and coefficient) of `R_j = D V_j`.
 //!   Readers check that cached pivot against the row they are looking up, which is the same

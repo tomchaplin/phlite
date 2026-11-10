@@ -24,6 +24,8 @@ pub type StandardReductionMatrix<CF, ColT> = MapVecMatrix<'static, CF, ColT, Col
 /// The standard reduction algorithm, with no optimisations.
 ///
 /// Columns are reduced according to their order in the attached [`ColBasis`].
+/// Every column is built in full and its reduction column stored, and apparent pairs are not recognised,
+/// so the column basis must contain every cell (unlike for [`Clearing`](crate::reduction::Clearing)).
 /// The reduction matrix V is returned as a [`StandardReductionMatrix`].
 #[derive(Debug, Clone, Copy, Default)]
 pub struct Standard;

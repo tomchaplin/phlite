@@ -49,41 +49,67 @@ In order to use the library, you must
 
 Given such an implementation, `phlite` provides memory-efficient methods for computing $R = D V$ decompositions and hence computing persistent homology.
 In line with Ripser's approach, the output of these methods is an oracle for the matrix $V$, from which $R$ can be readily computed.
-In particular, when the implementation of $D$ satisfies sufficient constraints, `phlite` provides an implementation of the _clearing_ optimisation (first introduced in [[2]](#2)).
+In particular, when the implementation of $D$ satisfies sufficient constraints, `phlite` provides an implementation of the _clearing_ optimisation (first introduced in [[2]](#2)), both serially and in parallel (following [[8]](#8)).
+If you can also provide the transpose of $D$ (e.g. the boundary matrix, for a coboundary matrix), the reduction recognises _apparent pairs_ [[1]](#1), which need no reduction or storage.
+`phlite::barcode` turns all of this into persistence barcodes, optionally with a representative cycle for every bar.
+
+With these, `phlite_rips` is several times faster than Ripser serially and on par with giotto-ph [[9]](#9) in parallel,
+using a fraction of Ripser's memory, on the following benchmark.
+
+**Test case:** $n$ points sampled uniformly from the unit cube $[0, 1]^3$ (seed 0), with Euclidean distances (rounded to `float32`, so every implementation sees identical input),
+computing persistent homology in dimensions 0, 1 and 2 over $\mathbb{Z}/2$ by cohomology.
+We compare `phlite_rips` (`algorithm="clearing"`, serial) with [ripser.py](https://github.com/scikit-tda/ripser.py) (serial),
+and `phlite_rips` (`algorithm="parallel"`, 4 threads) with giotto-ph (`n_threads=4`).
+Times are the best of 2 runs and peak memory is the extra resident memory used during the computation,
+each run in a fresh process on one 8-core Linux machine; all implementations produced the same barcodes.
+
+| $n$ | Ripser (serial) | `phlite_rips` (serial) | giotto-ph (4 threads) | `phlite_rips` (4 threads) |
+|---|---|---|---|---|
+| 200 | 0.52s / 55 MB | 0.16s / 0.8 MB | 0.065s / 1.5 MB | 0.077s / 2.6 MB |
+| 300 | 2.20s / 209 MB | 0.57s / 3.5 MB | 0.22s / 7.2 MB | 0.27s / 7.2 MB |
+| 400 | 5.10s / 389 MB | 1.10s / 4.4 MB | 0.56s / 7.3 MB | 0.50s / 8.4 MB |
+
+These are a single family of inputs on a single machine, so treat them as indicative.
+To reproduce, run `just bench-rips --sizes 200 300 400 --max-dim 2 --threads 4 --repeats 2` in the `python-tests` folder
+(see its README for the other implementations and options).
 
 For more details, please refer to the documentation on `docs.rs`.
 If you need support implementing `phlite` traits for your specific application, please get in touch!
 
 ## Crates
 
-* `phlite` - Core library, matrix oracle traits, reduction algorithms.
-* `phlite_rips` - Implementation of VR filtration, à la Ripser. Rust library + basic CLI.
+* `phlite` - Core library, matrix oracle traits, reduction algorithms, barcodes with representatives.
+* `phlite_rips` - Implementation of VR filtration, à la Ripser. Rust library + basic CLI + Python bindings via PyO3.
 * `phlite_grpph` - Implementation of GrPPH [[7]](#7). Rust library + Python bindings via PyO3.
+* `phlite_pyutils` - Shared helpers for the Python bindings (the `Barcode` result type and argument handling).
+
+The `python-tests` folder holds fuzz tests and benchmarks of the Python bindings against ripser, giotto-ph and grpphati.
 
 ## TODO
 
 ### High Priority
 
-- [ ] Investigate apparent and emergent pairs
+- [x] Investigate apparent and emergent pairs
 - [ ] Documentation all traits and APIs
 - [ ] Tests (unit + integration + property)
 - [ ] Explain Rips implementation in docs
-- [ ] Add a trait that captures ability to compute involuted PH representatives
-- [ ] Implement lockfree reduction algo
+- [x] Add a way to compute involuted PH representatives (see `phlite::barcode`)
+- [x] Implement lockfree reduction algo
 - [ ] Implement dynamic priority queues (as done in Flagser)
 
 ### Medium priority
 
-- [ ] Improve handling of binary-heap column addition
+- [ ] Improve handling of binary-heap column addition (the bottleneck for GrPPH)
+- [ ] Compute H_0 of Rips with union-find (the bottleneck for large Rips inputs)
 
 ### Low priority
 
-- [ ] Optional parallel construction of Rips basis
+- [x] Optional parallel construction of Rips basis
 - [ ] Add optional logging
 - [ ] Write some Rust examples
 - [ ] Ripser comaptible CLI?
 - [ ] Web interface for Rips?
-- [ ] Python bindings?
+- [x] Python bindings?
 - [ ] Serialisation of V matrices
 - [ ] Implement magnitude homology
 - [ ] Implement directed flag complex
@@ -113,3 +139,9 @@ Tralie, Christopher, Nathaniel Saul, and Rann Bar-On. "Ripser. py: A lean persis
 Chaplin, T., Harrington, H.A. and Tillmann, U., 2022.
 Grounded persistent path homology: a stable, topological descriptor for weighted digraphs.
 arXiv preprint [arXiv:2210.11274](https://arxiv.org/abs/2210.11274).
+
+<a id="8">[8]</a>
+Morozov, Dmitriy, and Arnur Nigmetov. "Towards lockfree persistent homology." Proceedings of the 32nd ACM Symposium on Parallelism in Algorithms and Architectures. 2020. [DOI.](https://doi.org/10.1145/3350755.3400244)
+
+<a id="9">[9]</a>
+Pérez, Julián Burella, et al. "giotto-ph: A python library for high-performance computation of persistent homology of Vietoris-Rips filtrations." arXiv preprint arXiv:2107.05412 (2021). [Github repo.](https://github.com/giotto-ai/giotto-ph)
