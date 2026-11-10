@@ -1,4 +1,4 @@
-use super::MultiDimRipsBasisWithFilt;
+use super::RipsBasis;
 use crate::{build_rips_bases, max_pairwise_distance, RipsIndex};
 use ordered_float::NotNan;
 use phlite::{
@@ -96,7 +96,7 @@ impl<CF: NonZeroCoefficient + Invertible> HasRowFiltration for RipsBoundary<CF> 
 // For this we use `MatrixWithBasis` which is provided by `phltie`.
 // We also provide a helper function for constructing such a thing directly from a distance matrix.
 
-pub type RipsBoundaryAllDims<CF> = MatrixWithBasis<RipsBoundary<CF>, MultiDimRipsBasisWithFilt>;
+pub type RipsBoundaryAllDims<CF> = MatrixWithBasis<RipsBoundary<CF>, RipsBasis>;
 
 pub fn build_rips_boundary_matrix<CF: Invertible>(
     distances: Vec<Vec<NotNan<f64>>>,

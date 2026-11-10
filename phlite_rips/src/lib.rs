@@ -2,7 +2,7 @@ pub mod cohomology;
 pub mod homology;
 
 use ordered_float::NotNan;
-use phlite::matrices::{BasisElement, ColBasis, SplitByDimension};
+use phlite::matrices::{BasisElement, SplitBasis};
 
 // TUTORIAL:
 // First we implement the types that index into our boundary an coboundary matrix
@@ -61,81 +61,32 @@ impl RipsIndex {
 
 // TUTORIAL:
 // Now we decide on the type for our column bases.
-// We have one type for the simplices in a given dimension and another type for the collection of all dimensions.
+// All we need is a basis for the simplices of every dimension, with an efficient way to get at the simplices of a single dimension.
+// `phlite` provides `SplitBasis` for exactly this: all of the simplices are stored in one flat `Vec`,
+// along with a table of offsets marking where each dimension starts.
+// Its implementation of `SplitByDimension` hands out slices of that `Vec` by value, so
+// we never need to build (or own) a separate basis type per dimension.
 //
 // In most applications your bases should look fairly similar to this.
 // Don't bother reversing any filtration orders for cohomology because you can just use [`MatrixOracle::reverse`]
+// (this works on the views that `SplitBasis` hands out, so no `unsafe` is required anywhere).
 
-// TUTORIAL:
-// The single-dimensional basis is just a `Vec` of `RipsIndex` stored alongside the simplex's filtration value (so that we can quickly sort).
-// We wrap it in a new type.
-
-// Wrapper around the default structure that contains the basis for Rips homology
-#[derive(Clone)]
-pub struct SingleDimRipsBasisWithFilt(Vec<(NotNan<f64>, RipsIndex)>);
-
-// TUTORIAL:
-// We must implement `ColBasis` on the wrapper, to retrieve elements from the structure.
-
-impl ColBasis for SingleDimRipsBasisWithFilt {
-    type ElemT = RipsIndex;
-
-    fn element(&self, index: usize) -> Self::ElemT {
-        self.0[index].1
-    }
-
-    fn size(&self) -> usize {
-        self.0.len()
-    }
-}
-
-// TUTORIAL:
-// The multi-dimensional basis is just a `Vec` of single-dimensional bases, wrapped in a new type.
-// Again we have to implement `ColBasis`.
-// Technically there is a choice on how we interleave simplices in each dimension.
-// However, it doesn't change PH so we just flatten the vector of vectors.
-
-#[derive(Clone)]
-pub struct MultiDimRipsBasisWithFilt(Vec<SingleDimRipsBasisWithFilt>);
-
-impl ColBasis for MultiDimRipsBasisWithFilt {
-    type ElemT = RipsIndex;
-
-    fn element(&self, index: usize) -> Self::ElemT {
-        let mut working = index;
-        let mut dim = 0;
-        while working >= self.0[dim].size() {
-            working -= self.0[dim].size();
-            dim += 1;
-        }
-        self.0[dim].element(working)
-    }
-
-    fn size(&self) -> usize {
-        self.0.iter().map(|basis| basis.size()).sum()
-    }
-}
-
-// TUTORIAL:
-// The multi-dimensional basis contains a number of single-dimensional bases.
-// You must provide access to each of these "sub-bases".
-
-impl SplitByDimension for MultiDimRipsBasisWithFilt {
-    type SubBasisT = SingleDimRipsBasisWithFilt;
-
-    fn in_dimension(&self, dimension: usize) -> &Self::SubBasisT {
-        &self.0[dimension]
-    }
-}
+/// The column basis for Rips (co)homology: all simplices up to some dimension, split by dimension.
+pub type RipsBasis = SplitBasis<RipsIndex>;
 
 // TUTORIAL:
 // Now we provide some functions for building up a basis for Rips (co)homology
 // This will be quite different depending on your application.
 // Remember: You only need to construct and sort a basis for the column space of each matrix.
 // If you are computing cohomology then to compute H^K just compute a basis for C_K.
+//
+// While building we keep each simplex's filtration value alongside it (so that we can sort),
+// then throw the filtration values away when we assemble the final `SplitBasis`.
+
+type SimplicesWithFilt = Vec<(NotNan<f64>, RipsIndex)>;
 
 fn add_cofacets(
-    bases: &mut Vec<SingleDimRipsBasisWithFilt>,
+    bases: &mut [SimplicesWithFilt],
     simplex_as_vec: &mut Vec<usize>,
     fil_value: NotNan<f64>,
     distances: &Vec<Vec<NotNan<f64>>>,
@@ -161,7 +112,7 @@ fn add_cofacets(
         simplex_as_vec.push(v);
         // Insert into basis
         let index = RipsIndex::from_indices(simplex_as_vec.iter().copied(), n_vertices).unwrap();
-        bases[new_dimension].0.push((new_filtration_value, index));
+        bases[new_dimension].push((new_filtration_value, index));
         // Recurse to cofacets
         if new_dimension < max_dim {
             add_cofacets(
@@ -177,17 +128,14 @@ fn add_cofacets(
     }
 }
 
-pub fn build_rips_bases(
-    distances: &Vec<Vec<NotNan<f64>>>,
-    max_dim: usize,
-) -> MultiDimRipsBasisWithFilt {
-    let mut bases = vec![SingleDimRipsBasisWithFilt(vec![]); max_dim + 1];
+pub fn build_rips_bases(distances: &Vec<Vec<NotNan<f64>>>, max_dim: usize) -> RipsBasis {
+    let mut bases: Vec<SimplicesWithFilt> = vec![vec![]; max_dim + 1];
 
     let n_points = distances.len();
     // Build up the basis
     for v in 0..(distances.len()) {
         let mut simplex = vec![v];
-        bases[0].0.push((
+        bases[0].push((
             NotNan::new(0.0_f64).unwrap(),
             RipsIndex::from_indices(vec![v].into_iter(), n_points).unwrap(),
         ));
@@ -200,11 +148,16 @@ pub fn build_rips_bases(
         );
     }
 
-    for basis in bases.iter_mut().take(max_dim + 1) {
+    for basis in bases.iter_mut() {
         // Sort by filtration value then index
-        basis.0.sort_unstable();
+        basis.sort_unstable();
     }
-    MultiDimRipsBasisWithFilt(bases)
+    // Drop the filtration values and flatten into a single allocation
+    SplitBasis::from_dimensions(
+        bases
+            .into_iter()
+            .map(|dim| dim.into_iter().map(|(_filtration, index)| index)),
+    )
 }
 
 pub(crate) fn max_pairwise_distance(

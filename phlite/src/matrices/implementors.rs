@@ -78,13 +78,12 @@ impl<'a, CF: NonZeroCoefficient, RowT: BasisElement> MatrixOracle for VecVecMatr
 }
 
 impl<CF: NonZeroCoefficient, RowT: BasisElement> HasColBasis for VecVecMatrix<'_, CF, RowT> {
-    type BasisT = StandardBasis;
-    type BasisRef<'b>
+    type BasisT<'b>
         = StandardBasis
     where
         Self: 'b;
 
-    fn basis(&self) -> Self::BasisRef<'_> {
+    fn basis(&self) -> Self::BasisT<'_> {
         StandardBasis {
             n_cols: self.columns.len(),
         }

@@ -9,7 +9,7 @@ use crate::matrices::{implementors::SimpleZ2Matrix, HasRowFiltration};
 
 use crate::columns::BHCol;
 
-use super::{ColBasis, HasColBasis};
+use super::{ColBasis, HasColBasis, HasSplitColBasis, SplitBasis, SplitByDimension};
 
 // TODO: Test column cacher
 
@@ -197,4 +197,63 @@ fn test_basis_reverse() {
         .build_bhcol(unrev_matrix.basis().element(0))
         .to_sorted_vec();
     println!("{:?}", unrev_col);
+}
+
+fn split_basis() -> SplitBasis<usize> {
+    // Dimension 0: [0, 1, 3], dimension 1: [2, 5], dimension 2: [4]
+    SplitBasis::from_dimensions(vec![vec![0, 1, 3], vec![2, 5], vec![4]])
+}
+
+#[test]
+fn test_split_basis_views() {
+    let basis = split_basis();
+    assert_eq!(basis.n_dimensions(), 3);
+    assert_eq!(basis.size(), 6);
+    // Total basis is the concatenation of the dimensions
+    let total: Vec<_> = (0..basis.size()).map(|i| basis.element(i)).collect();
+    assert_eq!(total, vec![0, 1, 3, 2, 5, 4]);
+
+    // Sub-bases are views into the same allocation, returned by value
+    let view = &basis;
+    let sizes: Vec<_> = (0..3).map(|d| view.in_dimension(d).size()).collect();
+    assert_eq!(sizes, vec![3, 2, 1]);
+    assert_eq!(view.in_dimension(1).element(1), 5);
+}
+
+#[test]
+fn test_split_basis_reverse_unreverse() {
+    let base_matrix = SimpleZ2Matrix::new_all_one(vec![vec![]; 6]).with_basis(split_basis());
+    let rev_matrix = (&base_matrix).reverse();
+    let unrev_matrix = (&rev_matrix).unreverse();
+
+    // Reversal acts within each dimension and keeps the dimension labels
+    let rev_dim0: Vec<_> = (0..3)
+        .map(|i| rev_matrix.sub_basis(0).element(i))
+        .collect();
+    assert_eq!(rev_dim0, vec![Reverse(3), Reverse(1), Reverse(0)]);
+    let rev_dim1: Vec<_> = (0..2)
+        .map(|i| rev_matrix.sub_basis(1).element(i))
+        .collect();
+    assert_eq!(rev_dim1, vec![Reverse(5), Reverse(2)]);
+
+    // Unreversing recovers the original sub-bases
+    for (dim, expected) in [(0, vec![0, 1, 3]), (1, vec![2, 5]), (2, vec![4])] {
+        let got: Vec<_> = (0..expected.len())
+            .map(|i| unrev_matrix.sub_basis(dim).element(i))
+            .collect();
+        assert_eq!(got, expected);
+    }
+}
+
+#[test]
+fn test_sub_matrix_in_dimension() {
+    let base_matrix = SimpleZ2Matrix::new_all_one(vec![vec![]; 6]).with_basis(split_basis());
+    // Works on a borrowed matrix, and the sub-basis re-indexes from 0
+    let sub = (&base_matrix).sub_matrix_in_dimension(1);
+    assert_eq!(sub.basis().size(), 2);
+    assert_eq!(sub.basis().element(0), 2);
+    assert_eq!(sub.basis().element(1), 5);
+    // Reversing a sub-matrix also works
+    let rev_sub = (&sub).reverse();
+    assert_eq!(rev_sub.basis().element(0), Reverse(5));
 }

@@ -5,9 +5,11 @@
 
 // TODO: Add reasonable constraints to reverse and unreverse methods on bases and matrices
 
+// Bases are handed out as by-value views, so nothing in this module (including its adaptors) needs `unsafe`.
+#![forbid(unsafe_code)]
+
 use std::cell::RefCell;
 use std::hash::Hash;
-use std::ops::Deref;
 use std::rc::Rc;
 use std::sync::Arc;
 use std::{cmp::Reverse, collections::HashMap};
@@ -21,12 +23,14 @@ use crate::{
     fields::NonZeroCoefficient,
 };
 
+pub use self::bases::{BasisSlice, SplitBasis};
 use self::adaptors::{
     MatrixWithBasis, ReverseBasis, ReverseMatrix, UnreverseBasis, UnreverseMatrix,
     UsingColBasisIndex, WithFuncFiltration, WithSubBasis, WithTrivialFiltration,
 };
 
 pub mod adaptors;
+pub mod bases;
 pub mod combinators;
 pub mod implementors;
 #[cfg(test)]
@@ -422,24 +426,60 @@ where
 
 /// Represents a matrix that has an indexable column basis, typically this is pre-computed to save time.
 /// Usually constructed via [`with_basis`](MatrixOracle::with_basis).
+///
+/// The basis is handed out as a cheap, [`Copy`] *view* (often `&'a B`, or a wrapper around such a reference).
+/// Adaptors such as [`ReverseBasis`] and [`WithSubBasis`] simply wrap or transform these views by value,
+/// so no references into temporaries (and hence no `unsafe` pointer casts) are ever required.
 pub trait HasColBasis: MatrixOracle {
-    /// The type of the column basis that this matrix is equipped with.
-    type BasisT: ColBasis<ElemT = Self::ColT>;
-    /// The type of the reference to the column basis returned by [`basis`](Self::basis), this is often `&'a Self::BasisT`.
-    /// However, if the basis is cheap to clone (or wrapped in a smart pointer), you might prefer to construct on the fly and hand over ownership.
-    type BasisRef<'a>: Deref<Target = Self::BasisT>
+    /// The type of the view of the column basis that this matrix is equipped with.
+    /// This borrows from `self` for `'a` and should be cheap to copy.
+    type BasisT<'a>: ColBasis<ElemT = Self::ColT> + Copy
     where
         Self: 'a;
 
-    /// Return a reference to the basis attached to this matrix.
-    fn basis(&self) -> Self::BasisRef<'_>;
+    /// Return a view of the basis attached to this matrix.
+    fn basis(&self) -> Self::BasisT<'_>;
+}
+
+impl<T> HasColBasis for &T
+where
+    T: HasColBasis,
+{
+    type BasisT<'b>
+        = T::BasisT<'b>
+    where
+        Self: 'b;
+
+    fn basis(&self) -> Self::BasisT<'_> {
+        (*self).basis()
+    }
+}
+
+/// Represents a matrix whose column basis is split into multiple sub-bases, according to an integer "dimension".
+///
+/// For example, the Rips (co)boundary matrix whose basis is split according to simplex dimension.
+/// This is what the clearing algorithm needs in order to reduce one dimension at a time.
+///
+/// The lifetime of the sub-basis view appears only in the signature of [`sub_basis`](Self::sub_basis),
+/// never in a `for<'a>` bound, which keeps generic code (and borrowed matrices) free of `'static` requirements.
+/// The sub-basis is returned by value, so it never needs to exist as an owned object inside the matrix.
+/// For matrices built with [`with_basis`](MatrixOracle::with_basis) this is implemented automatically
+/// whenever `&B` implements [`SplitByDimension`] (e.g. [`SplitBasis`]).
+pub trait HasSplitColBasis: HasColBasis {
+    /// The type of the view of the sub-basis in a given dimension.
+    type SubBasisT<'a>: ColBasis<ElemT = Self::ColT> + Copy
+    where
+        Self: 'a;
+
+    /// Return a view of the sub-basis of columns in the provided `dimension`.
+    fn sub_basis(&self, dimension: usize) -> Self::SubBasisT<'_>;
 
     /// Yields the same matrix but equipped with the sub-basis in the provided `dimension`.
     /// Basis indices are now according to this sub-basis.
     /// This is essentially a sub-matrix view.
     fn sub_matrix_in_dimension(self, dimension: usize) -> WithSubBasis<Self>
     where
-        Self: MatrixOracle + HasColBasis<BasisT: SplitByDimension> + Sized,
+        Self: Sized,
     {
         WithSubBasis {
             oracle: self,
@@ -448,46 +488,31 @@ pub trait HasColBasis: MatrixOracle {
     }
 }
 
-impl<T> HasColBasis for &T
+impl<T> HasSplitColBasis for &T
 where
-    T: HasColBasis,
+    T: HasSplitColBasis,
 {
-    type BasisT = T::BasisT;
-    type BasisRef<'b>
-        = T::BasisRef<'b>
+    type SubBasisT<'b>
+        = T::SubBasisT<'b>
     where
         Self: 'b;
 
-    fn basis(&self) -> Self::BasisRef<'_> {
-        (*self).basis()
+    fn sub_basis(&self, dimension: usize) -> Self::SubBasisT<'_> {
+        (*self).sub_basis(dimension)
     }
 }
-
-// TODO: This puts a pretty strong constraint on the ColBasis
-// In particular at must own each of the SubBasisT pre-constructed and then piece them together in order to extract its elements.
-// Is there a better way to do this?
-// TODO: Repeat what we did with HasColBasis, allow arbitrary ref type
-// TODO: Maybe provided a default implementation, storing a split basis as a Vec<B> and maybe a dimension offset?
 
 /// Represents a [`ColBasis`] which is split into multiple sub-bases, according to an integer "dimension".
 ///
-/// For example, the Rips (co)boundary matrix whose basis is split according to simplex dimension.
-/// A basis implementing this type is typically stored as a [`Vec<B>`] where [`B: ColBasis`](ColBasis).
-pub trait SplitByDimension: ColBasis {
+/// Implementors are expected to be cheap [`Copy`] *views* (e.g. `&'a SplitBasis<T>`), and
+/// [`in_dimension`](Self::in_dimension) consumes the view, returning another view.
+/// Since the returned sub-basis is not tied to a borrow of `self`, wrappers such as [`ReverseBasis`] can build
+/// it on the fly without owning pre-constructed sub-bases (and without `unsafe`).
+/// See [`SplitBasis`] for a ready-made implementation backed by a single flat allocation.
+pub trait SplitByDimension: ColBasis + Sized {
     /// The type of each sub-basis.
-    type SubBasisT: ColBasis<ElemT = Self::ElemT>;
+    type SubBasisT: ColBasis<ElemT = Self::ElemT> + Copy;
 
-    /// Should return a reference to the sub-basis of columns in the provided `dimension`.
-    fn in_dimension(&self, dimension: usize) -> &Self::SubBasisT;
-}
-
-impl<T> SplitByDimension for &T
-where
-    T: SplitByDimension,
-{
-    type SubBasisT = T::SubBasisT;
-
-    fn in_dimension(&self, dimension: usize) -> &Self::SubBasisT {
-        (*self).in_dimension(dimension)
-    }
+    /// Return the sub-basis of columns in the provided `dimension`.
+    fn in_dimension(self, dimension: usize) -> Self::SubBasisT;
 }

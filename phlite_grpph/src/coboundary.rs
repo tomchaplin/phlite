@@ -10,7 +10,7 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use phlite::{
     columns::ColumnEntry,
     fields::NonZeroCoefficient,
-    matrices::{BasisElement, ColBasis, HasRowFiltration, MatrixOracle, SplitByDimension},
+    matrices::{BasisElement, ColBasis, HasRowFiltration, MatrixOracle, SplitBasis},
 };
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -304,8 +304,8 @@ pub fn produce_node_total_coboundary<'a, CF: NonZeroCoefficient>(
 
 #[derive(Debug, Clone)]
 pub struct PathHomSingleBasis(pub Vec<(NotNan<f64>, PathHomCell)>);
-#[derive(Debug, Clone)]
-pub struct PathHomMultiBasis(Vec<PathHomSingleBasis>);
+/// The column basis for the coboundary matrix: cells split by dimension, stored in one flat allocation.
+pub type PathHomMultiBasis = SplitBasis<PathHomCell>;
 
 // TODO: Make this generic over (edge_set, n_vertices, filtration) which is a digraph with filtration
 pub struct GrPPHCoboundary<'a, CF, F: DigraphFiltration> {
@@ -375,10 +375,12 @@ fn build_basis(
     }
     degree_0.sort_unstable();
     degree_1.sort_unstable();
-    PathHomMultiBasis(vec![
-        PathHomSingleBasis(degree_0),
-        PathHomSingleBasis(degree_1),
-    ])
+    // Drop the filtration values (only needed for sorting) and flatten into a single allocation
+    SplitBasis::from_dimensions([degree_0, degree_1].map(|dim| {
+        dim.into_iter()
+            .map(|(_filtration, cell)| cell)
+            .collect::<Vec<_>>()
+    }))
 }
 
 impl ColBasis for PathHomSingleBasis {
@@ -390,32 +392,6 @@ impl ColBasis for PathHomSingleBasis {
 
     fn size(&self) -> usize {
         self.0.len()
-    }
-}
-
-impl ColBasis for PathHomMultiBasis {
-    type ElemT = PathHomCell;
-
-    fn element(&self, index: usize) -> Self::ElemT {
-        let mut working = index;
-        let mut dim = 0;
-        while working >= self.0[dim].size() {
-            working -= self.0[dim].size();
-            dim += 1;
-        }
-        self.0[dim].element(working)
-    }
-
-    fn size(&self) -> usize {
-        self.0.iter().map(|basis| basis.size()).sum()
-    }
-}
-
-impl SplitByDimension for PathHomMultiBasis {
-    type SubBasisT = PathHomSingleBasis;
-
-    fn in_dimension(&self, dimension: usize) -> &Self::SubBasisT {
-        &self.0[dimension]
     }
 }
 

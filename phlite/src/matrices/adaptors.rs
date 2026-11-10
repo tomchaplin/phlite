@@ -12,15 +12,13 @@ use std::{
     cmp::Reverse,
     collections::HashMap,
     hash::Hash,
-    marker::PhantomData,
-    ops::Deref,
 };
 
 use crate::columns::{BHCol, ColumnEntry};
 
 use super::{
-    BasisElement, ColBasis, FiltrationValue, HasColBasis, HasRowFiltration, MatrixOracle,
-    SplitByDimension,
+    BasisElement, ColBasis, FiltrationValue, HasColBasis, HasRowFiltration, HasSplitColBasis,
+    MatrixOracle, SplitByDimension,
 };
 
 /// Return type of [`MatrixOracle::with_trivial_filtration`].
@@ -52,14 +50,27 @@ impl<M: MatrixOracle> HasColBasis for WithTrivialFiltration<M>
 where
     M: HasColBasis,
 {
-    type BasisT = M::BasisT;
-    type BasisRef<'a>
-        = M::BasisRef<'a>
+    type BasisT<'a>
+        = M::BasisT<'a>
     where
         Self: 'a;
 
-    fn basis(&self) -> Self::BasisRef<'_> {
+    fn basis(&self) -> Self::BasisT<'_> {
         self.oracle.basis()
+    }
+}
+
+impl<M: MatrixOracle> HasSplitColBasis for WithTrivialFiltration<M>
+where
+    M: HasSplitColBasis,
+{
+    type SubBasisT<'a>
+        = M::SubBasisT<'a>
+    where
+        Self: 'a;
+
+    fn sub_basis(&self, dimension: usize) -> Self::SubBasisT<'_> {
+        self.oracle.sub_basis(dimension)
     }
 }
 
@@ -108,14 +119,27 @@ impl<M: MatrixOracle, FT: FiltrationValue, F: Fn(M::RowT) -> FT> HasColBasis
 where
     M: HasColBasis,
 {
-    type BasisT = M::BasisT;
-    type BasisRef<'a>
-        = M::BasisRef<'a>
+    type BasisT<'a>
+        = M::BasisT<'a>
     where
         Self: 'a;
 
-    fn basis(&self) -> Self::BasisRef<'_> {
+    fn basis(&self) -> Self::BasisT<'_> {
         self.oracle.basis()
+    }
+}
+
+impl<M: MatrixOracle, FT: FiltrationValue, F: Fn(M::RowT) -> FT> HasSplitColBasis for WithFuncFiltration<M, FT, F>
+where
+    M: HasSplitColBasis,
+{
+    type SubBasisT<'a>
+        = M::SubBasisT<'a>
+    where
+        Self: 'a;
+
+    fn sub_basis(&self, dimension: usize) -> Self::SubBasisT<'_> {
+        self.oracle.sub_basis(dimension)
     }
 }
 
@@ -173,14 +197,27 @@ impl<M: MatrixOracle> HasColBasis for Consolidator<M>
 where
     M: HasColBasis,
 {
-    type BasisT = M::BasisT;
-    type BasisRef<'a>
-        = M::BasisRef<'a>
+    type BasisT<'a>
+        = M::BasisT<'a>
     where
         Self: 'a;
 
-    fn basis(&self) -> Self::BasisRef<'_> {
+    fn basis(&self) -> Self::BasisT<'_> {
         self.oracle.basis()
+    }
+}
+
+impl<M: MatrixOracle> HasSplitColBasis for Consolidator<M>
+where
+    M: HasSplitColBasis,
+{
+    type SubBasisT<'a>
+        = M::SubBasisT<'a>
+    where
+        Self: 'a;
+
+    fn sub_basis(&self, dimension: usize) -> Self::SubBasisT<'_> {
+        self.oracle.sub_basis(dimension)
     }
 }
 
@@ -272,15 +309,29 @@ where
     M: HasColBasis,
     M::ColT: Hash,
 {
-    type BasisT = M::BasisT;
+    type BasisT<'a>
 
-    type BasisRef<'a>
-        = M::BasisRef<'a>
+        = M::BasisT<'a>
     where
         Self: 'a;
 
-    fn basis(&self) -> Self::BasisRef<'_> {
+    fn basis(&self) -> Self::BasisT<'_> {
         self.oracle.basis()
+    }
+}
+
+impl<M> HasSplitColBasis for WithCachedCols<M>
+where
+    M: HasSplitColBasis,
+    M::ColT: Hash,
+{
+    type SubBasisT<'a>
+        = M::SubBasisT<'a>
+    where
+        Self: 'a;
+
+    fn sub_basis(&self, dimension: usize) -> Self::SubBasisT<'_> {
+        self.oracle.sub_basis(dimension)
     }
 }
 
@@ -345,14 +396,29 @@ where
     M: MatrixOracle,
     B: ColBasis<ElemT = M::ColT>,
 {
-    type BasisT = B;
-    type BasisRef<'a>
+    type BasisT<'a>
         = &'a B
     where
         Self: 'a;
 
     fn basis(&self) -> &B {
         &self.basis
+    }
+}
+
+impl<M, B> HasSplitColBasis for MatrixWithBasis<M, B>
+where
+    M: MatrixOracle,
+    B: ColBasis<ElemT = M::ColT>,
+    for<'a> &'a B: SplitByDimension + ColBasis<ElemT = M::ColT>,
+{
+    type SubBasisT<'a>
+        = <&'a B as SplitByDimension>::SubBasisT
+    where
+        Self: 'a;
+
+    fn sub_basis(&self, dimension: usize) -> Self::SubBasisT<'_> {
+        (&self.basis).in_dimension(dimension)
     }
 }
 
@@ -397,16 +463,16 @@ where
 
 // ====== WithSubBasis =========================
 
-/// Return type of [`HasColBasis::sub_matrix_in_dimension`].
+/// Return type of [`HasSplitColBasis::sub_matrix_in_dimension`].
 #[derive(Clone, Copy, Debug)]
-pub struct WithSubBasis<M: MatrixOracle + HasColBasis<BasisT: SplitByDimension>> {
+pub struct WithSubBasis<M: HasSplitColBasis> {
     pub(crate) oracle: M,
     pub(crate) dimension: usize,
 }
 
 impl<M> MatrixOracle for WithSubBasis<M>
 where
-    M: MatrixOracle + HasColBasis<BasisT: SplitByDimension>,
+    M: HasSplitColBasis,
 {
     type CoefficientField = M::CoefficientField;
 
@@ -424,7 +490,7 @@ where
 
 impl<M> HasRowFiltration for WithSubBasis<M>
 where
-    M: MatrixOracle + HasColBasis<BasisT: SplitByDimension> + HasRowFiltration,
+    M: HasSplitColBasis + HasRowFiltration,
 {
     type FiltrationT = M::FiltrationT;
 
@@ -433,55 +499,17 @@ where
     }
 }
 
-struct SubBasisRefInner<'a, B, Ref> {
-    total_basis: Ref,
-    dimension: usize,
-    phantom: PhantomData<&'a B>,
-}
-
-impl<B, Ref> Deref for SubBasisRefInner<'_, B, Ref>
-where
-    Ref: Deref<Target = B>,
-    B: SplitByDimension,
-{
-    type Target = B::SubBasisT;
-    fn deref(&self) -> &B::SubBasisT {
-        self.total_basis.deref().in_dimension(self.dimension)
-    }
-}
-
-/// Return type of [`WithSubBasis::basis`].
-pub struct SubBasisRef<'a, M>(SubBasisRefInner<'a, M::BasisT, M::BasisRef<'a>>)
-where
-    M: HasColBasis + 'a;
-
-impl<'a, M> Deref for SubBasisRef<'a, M>
-where
-    M: HasColBasis<BasisT: SplitByDimension> + 'a,
-{
-    type Target = <M::BasisT as SplitByDimension>::SubBasisT;
-
-    fn deref(&self) -> &Self::Target {
-        self.0.deref()
-    }
-}
-
 impl<M> HasColBasis for WithSubBasis<M>
 where
-    M: MatrixOracle + HasColBasis<BasisT: SplitByDimension>,
+    M: HasSplitColBasis,
 {
-    type BasisT = <M::BasisT as SplitByDimension>::SubBasisT;
-    type BasisRef<'a>
-        = SubBasisRef<'a, M>
+    type BasisT<'a>
+        = M::SubBasisT<'a>
     where
         Self: 'a;
 
-    fn basis(&self) -> Self::BasisRef<'_> {
-        SubBasisRef(SubBasisRefInner {
-            total_basis: self.oracle.basis(),
-            dimension: self.dimension,
-            phantom: PhantomData,
-        })
+    fn basis(&self) -> Self::BasisT<'_> {
+        self.oracle.sub_basis(self.dimension)
     }
 }
 
@@ -548,22 +576,34 @@ impl<M> HasColBasis for ReverseMatrix<M>
 where
     M: MatrixOracle + HasColBasis,
 {
-    type BasisT = ReverseBasis<M::BasisT>;
-    type BasisRef<'a>
-        = ReverseBasis<M::BasisRef<'a>>
+    type BasisT<'a>
+        = ReverseBasis<M::BasisT<'a>>
     where
         Self: 'a;
 
-    fn basis(&self) -> Self::BasisRef<'_> {
+    fn basis(&self) -> Self::BasisT<'_> {
         ReverseBasis(self.oracle.basis())
+    }
+}
+
+impl<M> HasSplitColBasis for ReverseMatrix<M>
+where
+    M: MatrixOracle + HasSplitColBasis,
+{
+    type SubBasisT<'a>
+        = ReverseBasis<M::SubBasisT<'a>>
+    where
+        Self: 'a;
+
+    fn sub_basis(&self, dimension: usize) -> Self::SubBasisT<'_> {
+        ReverseBasis(self.oracle.sub_basis(dimension))
     }
 }
 
 /// Return type of [`ReverseMatrix::basis`].
 ///
-/// Note that layout is `repr(transparent)` so can transmute references.
+/// This is just a by-value wrapper around another basis view, so nothing here needs `unsafe`.
 #[derive(Clone, Copy, Debug)]
-#[repr(transparent)]
 pub struct ReverseBasis<B>(pub B);
 
 impl<B> ReverseBasis<B> {
@@ -571,21 +611,6 @@ impl<B> ReverseBasis<B> {
     /// This is more efficient because it just takes the inner basis out of its [`ReverseBasis`] wrapper.
     pub fn unreverse(self) -> B {
         self.0
-    }
-}
-
-impl<B, Ref> Deref for ReverseBasis<Ref>
-where
-    Ref: Deref<Target = B>,
-{
-    type Target = ReverseBasis<B>;
-
-    fn deref(&self) -> &Self::Target {
-        let original_basis: *const _ = self.0.deref();
-        let rev_basis = original_basis.cast();
-        // Is this sound if Ref is not &B ?
-        // Should be because deref gives us a &B
-        unsafe { &*rev_basis }
     }
 }
 
@@ -610,10 +635,8 @@ where
 {
     type SubBasisT = ReverseBasis<B::SubBasisT>;
 
-    fn in_dimension(&self, dimension: usize) -> &Self::SubBasisT {
-        let original_basis: *const _ = self.0.in_dimension(dimension);
-        let rev_basis = original_basis.cast();
-        unsafe { &*rev_basis }
+    fn in_dimension(self, dimension: usize) -> Self::SubBasisT {
+        ReverseBasis(self.0.in_dimension(dimension))
     }
 }
 
@@ -678,46 +701,42 @@ where
     }
 }
 
-impl<M, ColT, RowT, BasisT> HasColBasis for UnreverseMatrix<M>
+impl<M, ColT, RowT> HasColBasis for UnreverseMatrix<M>
 where
     M: MatrixOracle<ColT = Reverse<ColT>, RowT = Reverse<RowT>>,
     RowT: BasisElement,
     ColT: BasisElement,
-    M: HasColBasis<BasisT = BasisT>,
-    BasisT: ColBasis<ElemT = Reverse<ColT>>,
+    M: HasColBasis,
 {
-    type BasisT = UnreverseBasis<BasisT>;
-    type BasisRef<'a>
-        = UnreverseBasis<M::BasisRef<'a>>
+    type BasisT<'a>
+        = UnreverseBasis<M::BasisT<'a>>
     where
         Self: 'a;
 
-    fn basis(&self) -> Self::BasisRef<'_> {
+    fn basis(&self) -> Self::BasisT<'_> {
         UnreverseBasis(self.oracle.basis())
-        //let rev_basis: *const _ = self.oracle.basis();
-        //let unrev_basis = rev_basis.cast();
-        //unsafe { &*unrev_basis }
     }
 }
 
-impl<B, Ref> Deref for UnreverseBasis<Ref>
+impl<M, ColT, RowT> HasSplitColBasis for UnreverseMatrix<M>
 where
-    Ref: Deref<Target = B>,
+    M: MatrixOracle<ColT = Reverse<ColT>, RowT = Reverse<RowT>>,
+    RowT: BasisElement,
+    ColT: BasisElement,
+    M: HasSplitColBasis,
 {
-    type Target = UnreverseBasis<B>;
+    type SubBasisT<'a>
+        = UnreverseBasis<M::SubBasisT<'a>>
+    where
+        Self: 'a;
 
-    fn deref(&self) -> &Self::Target {
-        let rev_basis: *const _ = self.0.deref();
-        let unrev_basis = rev_basis.cast();
-        unsafe { &*unrev_basis }
+    fn sub_basis(&self, dimension: usize) -> Self::SubBasisT<'_> {
+        UnreverseBasis(self.oracle.sub_basis(dimension))
     }
 }
 
 /// Return type of [`UnreverseMatrix::basis`].
-///
-/// Note that layout is `repr(transparent)` so can transmute references.
 #[derive(Clone, Copy, Debug)]
-#[repr(transparent)]
 pub struct UnreverseBasis<B>(pub B);
 
 impl<B, T> ColBasis for UnreverseBasis<B>
@@ -737,17 +756,15 @@ where
     }
 }
 
-impl<B, T, SbT> SplitByDimension for UnreverseBasis<B>
+impl<B, T> SplitByDimension for UnreverseBasis<B>
 where
-    B: ColBasis<ElemT = Reverse<T>>,
-    B: SplitByDimension<SubBasisT = SbT>,
-    SbT: ColBasis<ElemT = Reverse<T>>,
+    B: ColBasis<ElemT = Reverse<T>> + SplitByDimension,
+    B::SubBasisT: ColBasis<ElemT = Reverse<T>>,
     T: BasisElement,
 {
-    type SubBasisT = UnreverseBasis<SbT>;
-    fn in_dimension(&self, dimension: usize) -> &Self::SubBasisT {
-        let rev_basis: *const _ = self.0.in_dimension(dimension);
-        let unrev_basis = rev_basis.cast();
-        unsafe { &*unrev_basis }
+    type SubBasisT = UnreverseBasis<B::SubBasisT>;
+
+    fn in_dimension(self, dimension: usize) -> Self::SubBasisT {
+        UnreverseBasis(self.0.in_dimension(dimension))
     }
 }
