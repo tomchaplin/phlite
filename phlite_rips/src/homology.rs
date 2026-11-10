@@ -1,5 +1,5 @@
 use super::RipsBasis;
-use crate::{build_rips_bases_with_threshold, RipsIndex};
+use crate::{build_rips_bases_with_threshold, cohomology::oldest_cofacet, RipsIndex};
 use ordered_float::NotNan;
 use phlite::{
     fields::{Invertible, NonZeroCoefficient},
@@ -18,6 +18,8 @@ use std::marker::PhantomData;
 
 pub struct RipsBoundary<CF: NonZeroCoefficient + Invertible> {
     distances: Vec<Vec<NotNan<f64>>>,
+    /// Simplices with a larger diameter are not in the complex (only matters for finding cofacets)
+    threshold: NotNan<f64>,
     phantom: PhantomData<CF>,
 }
 
@@ -26,8 +28,15 @@ impl<CF: NonZeroCoefficient + Invertible> RipsBoundary<CF> {
     pub fn new(distances: Vec<Vec<NotNan<f64>>>) -> Self {
         Self {
             distances,
+            threshold: NotNan::new(f64::INFINITY).unwrap(),
             phantom: PhantomData,
         }
+    }
+
+    /// Only include simplices with diameter at most `threshold` (the default is no limit).
+    pub fn with_threshold(mut self, threshold: NotNan<f64>) -> Self {
+        self.threshold = threshold;
+        self
     }
 
     fn n_points(&self) -> usize {
@@ -93,6 +102,11 @@ impl<CF: NonZeroCoefficient + Invertible> HasRowFiltration for RipsBoundary<CF> 
         row.vertices(self.n_points()).diameter(&self.distances)
     }
 
+    // Row sigma has entries in the columns of its cofacets, so the first is its oldest cofacet
+    fn first_column_in_row(&self, row: Self::RowT) -> Option<Self::ColT> {
+        oldest_cofacet::<CF>(&self.distances, self.threshold, row).map(|entry| entry.row_index)
+    }
+
     // TODO:Can we override column with filtration to compute more efficiently?
 }
 
@@ -119,10 +133,7 @@ pub fn build_rips_boundary_matrix_with_threshold<CF: Invertible>(
 ) -> RipsBoundaryAllDims<CF> {
     let basis = build_rips_bases_with_threshold(&distances, max_dim, threshold);
     RipsBoundaryAllDims {
-        matrix: RipsBoundary {
-            distances,
-            phantom: PhantomData,
-        },
+        matrix: RipsBoundary::new(distances).with_threshold(threshold),
         basis,
     }
 }

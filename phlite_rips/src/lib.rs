@@ -233,6 +233,50 @@ pub fn build_rips_bases_with_threshold(
     )
 }
 
+/// The youngest facet of `simplex` (largest in (diameter, index) order) and its diameter, or `None` for a vertex.
+///
+/// Removing each vertex in turn (smallest first) gives the facets in decreasing index order.
+/// No facet is bigger than the simplex, so the first with the same diameter is the youngest and we can stop there;
+/// for a simplex with at least three vertices that happens as soon as we keep its longest edge, so almost immediately.
+pub(crate) fn youngest_facet(
+    simplex: RipsIndex,
+    distances: &[Vec<NotNan<f64>>],
+) -> Option<(NotNan<f64>, RipsIndex)> {
+    let n_points = distances.len();
+    let radix = n_points + 1;
+    let vertices = simplex.vertices(n_points);
+    if vertices.len() < 2 {
+        return None;
+    }
+    let diameter = vertices.diameter(distances);
+    let index = simplex.0;
+    let mut best: Option<(NotNan<f64>, RipsIndex)> = None;
+    let mut place = 1usize;
+    for removed in 0..vertices.len() {
+        let facet = RipsIndex(index % place + index / place / radix * place);
+        let mut facet_diameter = NotNan::new(0.0).unwrap();
+        for (i, &v) in vertices.iter().enumerate() {
+            if i == removed {
+                continue;
+            }
+            for (j, &w) in vertices.iter().enumerate().skip(i + 1) {
+                if j != removed {
+                    facet_diameter = facet_diameter.max(distances[v][w]);
+                }
+            }
+        }
+        // On ties keep the earlier, larger, index
+        if best.is_none_or(|(current, _)| facet_diameter > current) {
+            best = Some((facet_diameter, facet));
+            if facet_diameter == diameter {
+                break;
+            }
+        }
+        place = place.wrapping_mul(radix);
+    }
+    best
+}
+
 /// The enclosing radius `min_i max_j d(i, j)`: at this diameter the Rips complex is a cone on some point,
 /// so all homology (apart from one component) has died and nothing changes afterwards.
 /// Infinite if there are no points.
