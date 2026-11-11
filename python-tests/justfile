@@ -80,6 +80,7 @@ bench-baseline: build
 
 # Run every Python benchmark into benchmarks/results/ and regenerate BENCHMARKS.md (`just bench-docs` at the root adds Rust)
 bench-docs: build
+    mkdir -p benchmarks/results
     uv run --no-sync pytest {{main_benches}} --benchmark-json=benchmarks/results/main.json
     {{latest}} pytest {{latest_benches}} --benchmark-json=benchmarks/results/latest.json
     uv run --no-sync python benchmarks/report.py benchmarks/results/main.json benchmarks/results/latest.json --out BENCHMARKS.md

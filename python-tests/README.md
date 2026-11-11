@@ -81,10 +81,11 @@ Each benchmark is one implementation on one case, so the usual pytest options se
 `just bench-py -k "grid and phlite"` or `just bench-py -m quick`. Each one (see `benchmarks/common.py`):
 
 1. builds its input, untimed, and runs once to check its barcode against the reference implementation's (a
-   fingerprint: the number of bars and total persistence in each dimension) and to measure peak memory: the peak
-   resident memory during the run minus what was in use before it, stored in the results as `extra_info["peak_mb"]`.
-   On Linux this is exact for that run (we reset the kernel's high-water mark `VmHWM` first); elsewhere it falls back
-   to `getrusage`, which under-reports runs that stay below an earlier peak;
+   fingerprint: the number of bars and total persistence in each dimension) and to measure peak memory with
+   [memray](https://bloomberg.github.io/memray/): the most heap memory allocated at once during the run, including
+   native allocations (such as Rust's, on any thread), stored in the results as `extra_info["peak_mb"]`. Since every
+   benchmark runs in the same process, this is more reliable than resident memory, which doesn't grow when a run
+   reuses memory freed by an earlier one (memray works on Linux and macOS);
 2. is timed over `PHLITE_BENCH_ROUNDS` runs (default 3) with `benchmark.pedantic`, building a fresh input before each,
    untimed, since some implementations reduce their input in place.
 

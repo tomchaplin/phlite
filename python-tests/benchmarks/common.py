@@ -2,8 +2,8 @@
 
 Every benchmark is one implementation on one case. `run(benchmark, ...)`:
 
-1. builds the input (untimed) and runs the implementation once, recording the peak memory of that run in the
-   benchmark's `extra_info["peak_mb"]` and checking its barcode against the reference implementation's;
+1. builds the input (untimed) and runs the implementation once under memray, recording the peak heap memory of that
+   run in the benchmark's `extra_info["peak_mb"]`, and checking its barcode against the reference implementation's;
 2. times `ROUNDS` more runs with `benchmark.pedantic`, building a fresh input before each (untimed), since some
    implementations reduce their input in place.
 
@@ -13,8 +13,9 @@ Environment variables: `PHLITE_BENCH_THREADS` (threads for parallel implementati
 
 import math
 import os
-import resource
-import sys
+import tempfile
+
+import memray
 
 THREADS = int(os.environ.get("PHLITE_BENCH_THREADS", min(4, os.cpu_count() or 1)))
 ROUNDS = int(os.environ.get("PHLITE_BENCH_ROUNDS", 3))
@@ -23,35 +24,18 @@ ROUNDS = int(os.environ.get("PHLITE_BENCH_ROUNDS", 3))
 # ====== Peak memory ======================================================
 
 
-def _proc_status_mb(field):
-    with open("/proc/self/status") as f:
-        for line in f:
-            if line.startswith(field + ":"):
-                return int(line.split()[1]) / 1024  # reported in kB
-    raise KeyError(field)
+def peak_heap_mb(function):
+    """Call `function()`, returning its result and the peak of the memory it had allocated at once, in MB.
 
-
-def reset_peak_rss():
-    """Start measuring peak memory from now, returning the current memory use in MB.
-
-    On Linux we reset the kernel's high-water mark (VmHWM), so the peak is that of what runs next. Elsewhere we can
-    only use the lifetime peak, so runs that stay below an earlier peak report ~0.
+    Measured with memray, which also sees native allocations (so those made in Rust, on any thread). Unlike resident
+    memory, this isn't hidden when a run reuses memory the process already holds from earlier benchmarks.
     """
-    try:
-        with open("/proc/self/clear_refs", "w") as f:
-            f.write("5")
-        return _proc_status_mb("VmRSS")
-    except OSError:
-        return peak_rss_mb()
-
-
-def peak_rss_mb():
-    try:
-        return _proc_status_mb("VmHWM")
-    except OSError:
-        rss = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
-        # Linux reports KiB, macOS reports bytes
-        return rss / (1024 * 1024) if sys.platform == "darwin" else rss / 1024
+    with tempfile.TemporaryDirectory() as directory:
+        path = os.path.join(directory, "memray.bin")
+        with memray.Tracker(path):
+            result = function()
+        peak = memray.FileReader(path).metadata.peak_memory
+    return result, peak / 1e6
 
 
 # ====== Barcodes =========================================================
@@ -86,9 +70,9 @@ def run(benchmark, *, group, implementation, make_input, reference=None):
     benchmark.extra_info["threads"] = THREADS
 
     data = make_input()
-    baseline = reset_peak_rss()
-    result = _resolve(implementation(data))
-    benchmark.extra_info["peak_mb"] = round(max(peak_rss_mb() - baseline, 0.0), 1)
+    result, peak = peak_heap_mb(lambda: implementation(data))
+    benchmark.extra_info["peak_mb"] = round(peak, 1)
+    result = _resolve(result)
     del data
     if reference is not None:
         assert result == reference(), "barcode differs from the reference implementation's"

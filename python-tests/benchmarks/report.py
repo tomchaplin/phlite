@@ -7,6 +7,7 @@ This only formats results; run them with `just bench-docs` at the root of the re
 
 import argparse
 import json
+import re
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent.parent
@@ -110,9 +111,14 @@ def criterion_section(directory):
     out = ["", f"## {CRITERION['title']}", "", CRITERION["description"], ""]
     out.append("| case | " + " | ".join(columns) + " |")
     out.append("|---|" + "---:|" * len(columns))
-    for group, row in results.items():
+    for group, row in sorted(results.items(), key=lambda item: natural_key(item[0])):
         out.append(f"| {group} | " + " | ".join(format_seconds(row[c]) if c in row else "" for c in columns) + " |")
     return out
+
+
+def natural_key(text):
+    """Sort with numbers in order, so that n=50 comes before n=100."""
+    return [int(part) if part.isdigit() else part for part in re.split(r"(\d+)", text)]
 
 
 def criterion_order(name):
@@ -135,8 +141,9 @@ def report(paths, criterion):
         "phlite's Python bindings against reference implementations (with "
         "[pytest-benchmark](https://pytest-benchmark.readthedocs.io/)), and the Rust reduction on its own (with "
         "[criterion](https://bheisler.github.io/criterion.rs/book/)), on one machine.",
-        "In the Python tables each time is the fastest of several runs, with the peak memory of a separate run (above "
-        f"what was in use before it) in MB. Parallel implementations use {', '.join(map(str, sorted(t for t in threads if t)))} "
+        "In the Python tables each time is the fastest of several runs, with the peak heap memory allocated during a "
+        "separate run in MB (measured with [memray](https://bloomberg.github.io/memray/), which includes native "
+        f"allocations, such as Rust's). Parallel implementations use {', '.join(map(str, sorted(t for t in threads if t)))} "
         "threads. Every barcode agrees with the reference implementation's (each benchmark checks this).",
         "",
         f"* Machine: {machine['cpu'].get('brand_raw', machine['processor'])} ({machine['cpu'].get('count', '?')} "
