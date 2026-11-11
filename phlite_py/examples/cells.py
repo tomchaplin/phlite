@@ -30,7 +30,10 @@ cells = [
     for k in range(1, 4)
     for vs in itertools.combinations(range(4), k)
 ]
-barcode = phlite.CellComplex(cells).persistence(representatives=True)
+# Values default to each cell's entrance_time
+barcode = (
+    phlite.ChainComplex.from_cells(cells).filtration().persistence(representatives=True)
+)
 print(barcode)
 for bar in barcode.bars:
     print(f"H_{bar.dimension} [{bar.birth_value:.2f}, {bar.death_value:.2f}):")
@@ -45,7 +48,7 @@ for bar in barcode.bars:
 # Plain tuples work too, if you say how to get dimensions and boundaries.
 # Over Z/3, with an oriented boundary given as a mapping from faces to coefficients
 simplices = [vs for k in range(1, 4) for vs in itertools.combinations(range(4), k)]
-complex = phlite.CellComplex(
+chain = phlite.ChainComplex.from_cells(
     simplices,
     dimension=lambda s: len(s) - 1,
     boundary=lambda s: (
@@ -53,4 +56,9 @@ complex = phlite.CellComplex(
     ),
     modulus=3,
 )
-print(complex, complex.persistence(representatives=True).bar((1, 2, 3)))
+print(chain)
+# A lower-star filtration: values on vertices, extended to every simplex
+barcode = chain.filtration(
+    {(0,): 0.0, (1,): 1.0, (2,): 2.0, (3,): 3.0}, extend=True
+).persistence(representatives=True)
+print(barcode.bar((1, 2, 3)))

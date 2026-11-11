@@ -19,16 +19,16 @@ boundaries = [
     (2, [6, 8, 9]),
     (2, [4, 5, 6]),
 ]
-complex = phlite.FilteredComplex(boundaries)
-barcode = complex.persistence(representatives=True)
-print(complex)
+chain = phlite.ChainComplex.from_columns(boundaries)
+barcode = chain.filtration().persistence(representatives=True)
+print(chain)
 print(barcode)
 print("pairings:", barcode.pairings)
 print("essential:", barcode.essential)
-print("representatives:", barcode.representatives)
+print("representatives:", {bar.birth: bar.representative for bar in barcode.bars})
 
-# The same complex with real filtration values: diagrams are in terms of these
+# The same chain complex with real filtration values: diagrams are in terms of these
 values = [0, 0, 0, 0, 1, 1, 1, 2, 2, 2, 3, 3, 3, 4]
-barcode = phlite.FilteredComplex(boundaries, values=values).persistence()
+barcode = chain.filtration(values).persistence()
 for dim, diagram in enumerate(barcode.diagrams()):
     print(f"H_{dim}:", diagram.tolist())

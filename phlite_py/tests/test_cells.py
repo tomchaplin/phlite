@@ -4,7 +4,7 @@ import random
 
 import pytest
 
-import phlite
+from helpers import cell_filtered, filtered
 from reference import random_simplicial_complex, rp2
 
 
@@ -64,7 +64,7 @@ def random_case(seed):
     simplices, values, dimensions, columns, _ = random_simplicial_complex(
         rng, n_vertices=rng.randint(4, 8), n_top=rng.randint(1, 6), top_dim=3
     )
-    indexed = phlite.FilteredComplex(columns, dimensions, values)
+    indexed = filtered(columns, dimensions, values)
     return simplices, values, indexed
 
 
@@ -93,7 +93,7 @@ def test_protocol_cells(seed, method):
     expected = as_cells(indexed.persistence(method=method), simplices)
     cells = [Simplex(s, v) for s, v in zip(simplices, values)]
     # Shuffle: cells may be given in any order, entrance times decide (ties broken by position)
-    barcode = phlite.CellComplex(cells).persistence(method=method)
+    barcode = cell_filtered(cells).persistence(method=method)
     assert vertex_tuples(barcode) == expected
 
 
@@ -102,7 +102,7 @@ def test_grpphati_style_columns(seed):
     simplices, values, indexed = random_case(seed)
     expected = as_cells(indexed.persistence(), simplices)
     cells = [GrpphatiStyleColumn(s, v) for s, v in zip(simplices, values)]
-    assert vertex_tuples(phlite.CellComplex(cells).persistence()) == expected
+    assert vertex_tuples(cell_filtered(cells).persistence()) == expected
 
 
 @pytest.mark.parametrize("seed", range(20))
@@ -115,12 +115,12 @@ def test_plain_tuples_with_functions(seed):
         return [s[:i] + s[i + 1 :] for i in range(len(s))] if len(s) > 1 else []
 
     for vals in [value_of, value_of.__getitem__, values]:
-        complex = phlite.CellComplex(
+        complex = cell_filtered(
             simplices, boundary=faces, dimension=lambda s: len(s) - 1, values=vals
         )
         assert vertex_tuples(complex.persistence(), lambda c: c) == expected
     # A mapping from cells to boundaries
-    complex = phlite.CellComplex(
+    complex = cell_filtered(
         {s: faces(s) for s in simplices},
         dimension=lambda s: len(s) - 1,
         values=value_of,
@@ -134,20 +134,18 @@ def test_cells_in_any_order(seed):
     # The index filtration (no ties, so no zero-length bars)
     index = {s: i for i, s in enumerate(simplices)}
     columns = [[index[f.vertices] for f in Simplex(s).boundary()] for s in simplices]
-    indexed = phlite.FilteredComplex(columns, [len(s) - 1 for s in simplices])
+    indexed = filtered(columns, [len(s) - 1 for s in simplices])
     pairs, essential = as_cells(indexed.persistence(), simplices)
     # The same entrance times, but give the cells backwards (cofaces before faces)
     cells = [Simplex(s, float(i)) for i, s in enumerate(simplices)][::-1]
-    got_pairs, got_essential = vertex_tuples(phlite.CellComplex(cells).persistence())
+    got_pairs, got_essential = vertex_tuples(cell_filtered(cells).persistence())
     # Bars are listed in the order the cells were given, so compare as sets
     assert sorted(got_pairs) == sorted(pairs)
     assert sorted(got_essential) == sorted(essential)
     # Representatives are in decreasing filtration order, even though positions now run the other way
     for method in ["cohomology", "homology"]:
         for bar in (
-            phlite.CellComplex(cells)
-            .persistence(method=method, representatives=True)
-            .bars
+            cell_filtered(cells).persistence(method=method, representatives=True).bars
         ):
             times = [cell.entrance_time for cell, _ in bar.representative]
             assert bar.representative[0][0] == bar.birth
@@ -205,14 +203,17 @@ def test_key_and_from_key(seed):
 
     key = lambda c: encode(c.vertices)  # noqa: E731
     with pytest.raises(TypeError, match="not hashable"):
-        phlite.CellComplex(cells, boundary=boundary, values=lambda c: c.value)
-    complex = phlite.CellComplex(
-        cells, boundary=boundary, values=lambda c: c.value, key=key
-    )
+        cell_filtered(cells, boundary=boundary, values=lambda c: c.value)
+    complex = cell_filtered(cells, boundary=boundary, values=lambda c: c.value, key=key)
     assert vertex_tuples(complex.persistence()) == expected
     # Without the cells stored: results are rebuilt from keys
-    complex = phlite.CellComplex(
-        cells, boundary=boundary, values=lambda c: c.value, key=key, from_key=decode
+    # Values functions would be given the rebuilt cells (here tuples), so give values in cell order instead
+    complex = cell_filtered(
+        cells,
+        boundary=boundary,
+        values=[c.value for c in cells],
+        key=key,
+        from_key=decode,
     )
     assert vertex_tuples(complex.persistence(), lambda c: c) == expected
 
@@ -222,7 +223,7 @@ def test_face_keys(seed):
     simplices, values, indexed = random_case(seed)
     expected = as_cells(indexed.persistence(), simplices)
     keys = {s: 1000 + i for i, s in enumerate(simplices)}
-    complex = phlite.CellComplex(
+    complex = cell_filtered(
         [Simplex(s, v) for s, v in zip(simplices, values)],
         key=lambda c: keys[c.vertices],
         # Faces given by key, not as Simplex objects
@@ -231,28 +232,28 @@ def test_face_keys(seed):
     )
     assert vertex_tuples(complex.persistence()) == expected
     with pytest.raises(ValueError, match="not the key of a cell"):
-        phlite.CellComplex(
+        cell_filtered(
             [Simplex((0,), 0), Simplex((0, 1), 1)],
             key=lambda c: len(c.vertices),
             boundary=lambda c: [5] if c.dimension else [],
             face_keys=True,
         )
     with pytest.raises(ValueError, match="must contain integer keys"):
-        phlite.CellComplex(
+        cell_filtered(
             [Simplex((0,), 0), Simplex((0, 1), 1)],
             key=lambda c: len(c.vertices),
             face_keys=True,
         )
     with pytest.raises(ValueError, match="needs key"):
-        phlite.CellComplex([], face_keys=True)
+        cell_filtered([], face_keys=True)
 
 
 def test_duplicate_keys():
     cells = [Simplex((0,), 0), Simplex((1,), 0)]
     with pytest.raises(ValueError, match="same key 7"):
-        phlite.CellComplex(cells, key=lambda c: 7)
+        cell_filtered(cells, key=lambda c: 7)
     with pytest.raises(ValueError, match="from_key can only"):
-        phlite.CellComplex(cells, from_key=lambda k: k)
+        cell_filtered(cells, from_key=lambda k: k)
 
 
 # ====== Representatives and coefficients ==================================
@@ -267,7 +268,7 @@ def oriented_boundary(s):
 @pytest.mark.parametrize("p", [2, 3, 5])
 def test_rp2_with_coefficients(p):
     simplices, *_ = rp2()
-    complex = phlite.CellComplex(
+    complex = cell_filtered(
         simplices, boundary=oriented_boundary, dimension=lambda s: len(s) - 1, modulus=p
     )
     barcode = complex.persistence(representatives=True)
@@ -299,10 +300,10 @@ def test_bar_lookups():
             ((0, 2), 4),
         ]
     ]
-    complex = phlite.CellComplex(cells)
-    assert complex.index_of(Simplex((1, 2))) == 4
-    assert complex.cell_at(4) is cells[4]
-    assert Simplex((0, 2)) in complex and Simplex((5,)) not in complex
+    complex = cell_filtered(cells)
+    assert complex.chain.index_of(Simplex((1, 2))) == 4
+    assert complex.chain.cell_at(4) is cells[4]
+    assert Simplex((0, 2)) in complex.chain and Simplex((5,)) not in complex.chain
     barcode = complex.persistence()
     assert barcode.pairings == [(cells[1], cells[3]), (cells[2], cells[4])]
     assert barcode.essential == [cells[0], cells[5]]
@@ -324,9 +325,7 @@ def test_bar_lookups():
 
 
 def test_filtered_complex_bars():
-    barcode = phlite.FilteredComplex([[], [], [0, 1]], [0, 0, 1]).persistence(
-        representatives=True
-    )
+    barcode = filtered([[], [], [0, 1]], [0, 0, 1]).persistence(representatives=True)
     bars = barcode.bars
     assert [(b.birth, b.death) for b in bars] == [(0, None), (1, 2)]
     assert bars[1].representative == [(1, 1), (0, 1)]
@@ -340,7 +339,7 @@ def test_errors_name_cells():
         ValueError,
         match=r"boundary of Col \(0, 1\) :: 1 contains Col \(2,\) :: None, which is not a cell",
     ):
-        phlite.CellComplex(
+        cell_filtered(
             [
                 GrpphatiStyleColumn((0,), 0),
                 GrpphatiStyleColumn((1,), 0),
@@ -348,17 +347,21 @@ def test_errors_name_cells():
             ]
         )
     with pytest.raises(ValueError, match="given more than once"):
-        phlite.CellComplex([Simplex((0,), 0), Simplex((0,), 1)])
+        cell_filtered([Simplex((0,), 0), Simplex((0,), 1)])
     with pytest.raises(
         ValueError, match=r"Simplex\(vertices=\(0, 1\).*enter the filtration first"
     ):
-        phlite.CellComplex([Simplex((0,), 2), Simplex((1,), 0), Simplex((0, 1), 1)])
+        cell_filtered([Simplex((0,), 2), Simplex((1,), 0), Simplex((0, 1), 1)])
     with pytest.raises(ValueError, match="Could not get the dimension"):
-        phlite.CellComplex([(0,)], boundary=lambda c: [])
-    with pytest.raises(ValueError, match="Could not get the filtration value"):
-        phlite.CellComplex([Simplex((0,), 0), Simplex((1,))])
+        cell_filtered([(0,)], boundary=lambda c: [])
+    # The first cell has an entrance time, so every cell needs one
+    with pytest.raises(
+        ValueError,
+        match=r"The cell Simplex\(vertices=\(1,\).* has no filtration value \(pass extend=True",
+    ):
+        cell_filtered([Simplex((0,), 0), Simplex((1,))])
     with pytest.raises(ValueError, match="dimension one lower"):
-        phlite.CellComplex(
+        cell_filtered(
             [(0,), (0, 1)],
             boundary=lambda c: [(0,)] if len(c) == 2 else [],
             dimension=lambda c: 0,
@@ -390,7 +393,7 @@ def test_real_grpphati():
             cols = homology.get_cells(
                 [0, 1], filtration.ground(G)
             ) + homology.get_cells([2], filtration)
-            barcode = phlite.CellComplex(cols).persistence(1)
+            barcode = cell_filtered(cols).persistence(1)
             got = sorted(
                 (b.birth_value, b.death_value) for b in barcode.bars if b.dimension == 1
             )

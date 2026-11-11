@@ -1,4 +1,9 @@
 //! The `phlite` Python module (feature `python`).
+//!
+//! * [`ChainComplex`] holds a validated chain complex (no filtration), and how to translate between Python cells and
+//!   cell indices.
+//! * [`FilteredComplex`] is a chain complex with a filtration attached, ready to reduce.
+//! * [`Barcode`] holds the result, and translates cell indices back to cells.
 
 use numpy::{
     ndarray::Array2, IntoPyArray, PyArray1, PyArray2, PyArrayMethods, PyUntypedArray,
@@ -13,25 +18,51 @@ use phlite_pyutils::{parse_method, AlgorithmArg};
 use pyo3::{
     exceptions::{PyTypeError, PyValueError},
     prelude::*,
-    types::{PyDict, PyList, PyTuple},
+    types::{PyList, PyTuple},
 };
 use pyo3_stub_gen::derive::*;
 
 use crate::{
-    complex::{Cell, Complex, ComplexError, RawComplex},
+    complex::{Cell, Chain, Complex, ComplexError, RawChain},
     field::IntField,
 };
 
-mod cells;
-pub use cells::{CellBarcode, CellComplex};
+/// Run `$body` with `$c` bound to the inner value of `$any` (an `AnyChain` or `AnyComplex`), whatever its field.
+macro_rules! dispatch {
+    ($enum:ident, $any:expr, $c:ident => $body:expr) => {
+        match $any {
+            $enum::Z2($c) => $body,
+            $enum::Z3($c) => $body,
+            $enum::Z5($c) => $body,
+            $enum::Z7($c) => $body,
+            $enum::Z11($c) => $body,
+            $enum::Z13($c) => $body,
+        }
+    };
+}
+
+mod chain;
+mod filtered;
+pub use chain::ChainComplex;
+pub use filtered::{Barcode, FilteredComplex};
 
 // ====== Coefficient fields ===============================================
 
 /// The supported moduli, for error messages.
 const MODULI: &str = "2, 3, 5, 7, 11 or 13";
 
-/// A complex over one of the supported fields.
+/// A chain complex over one of the supported fields.
 /// Each field is a separate monomorphisation of the whole reduction, so we keep the list short.
+pub(crate) enum AnyChain {
+    Z2(Chain<Z2>),
+    Z3(Chain<Z3>),
+    Z5(Chain<Z5>),
+    Z7(Chain<Z7>),
+    Z11(Chain<Z11>),
+    Z13(Chain<Z13>),
+}
+
+/// A filtered complex over one of the supported fields.
 pub(crate) enum AnyComplex {
     Z2(Complex<Z2>),
     Z3(Complex<Z3>),
@@ -41,31 +72,17 @@ pub(crate) enum AnyComplex {
     Z13(Complex<Z13>),
 }
 
-/// Run `$body` with `$c` bound to the complex inside `$any`, whatever its field.
-macro_rules! dispatch {
-    ($any:expr, $c:ident => $body:expr) => {
-        match $any {
-            AnyComplex::Z2($c) => $body,
-            AnyComplex::Z3($c) => $body,
-            AnyComplex::Z5($c) => $body,
-            AnyComplex::Z7($c) => $body,
-            AnyComplex::Z11($c) => $body,
-            AnyComplex::Z13($c) => $body,
-        }
-    };
-}
-
-impl AnyComplex {
-    /// Build a complex over Z/`modulus`.
+impl AnyChain {
+    /// Build a chain complex over Z/`modulus`.
     /// The outer error is for an unsupported modulus, the inner for an invalid complex.
-    fn build(raw: RawComplex, modulus: u64) -> PyResult<Result<Self, ComplexError>> {
+    fn build(raw: RawChain, modulus: u64) -> PyResult<Result<Self, ComplexError>> {
         Ok(match modulus {
-            2 => Complex::from_raw(raw).map(Self::Z2),
-            3 => Complex::from_raw(raw).map(Self::Z3),
-            5 => Complex::from_raw(raw).map(Self::Z5),
-            7 => Complex::from_raw(raw).map(Self::Z7),
-            11 => Complex::from_raw(raw).map(Self::Z11),
-            13 => Complex::from_raw(raw).map(Self::Z13),
+            2 => Chain::from_raw(raw).map(Self::Z2),
+            3 => Chain::from_raw(raw).map(Self::Z3),
+            5 => Chain::from_raw(raw).map(Self::Z5),
+            7 => Chain::from_raw(raw).map(Self::Z7),
+            11 => Chain::from_raw(raw).map(Self::Z11),
+            13 => Chain::from_raw(raw).map(Self::Z13),
             other => {
                 return Err(PyValueError::new_err(format!(
                     "Unsupported modulus {other}, expected one of {MODULI}"
@@ -74,6 +91,42 @@ impl AnyComplex {
         })
     }
 
+    fn filter(&self, values: Option<Vec<f64>>) -> Result<AnyComplex, ComplexError> {
+        Ok(match self {
+            Self::Z2(c) => AnyComplex::Z2(c.filter(values)?),
+            Self::Z3(c) => AnyComplex::Z3(c.filter(values)?),
+            Self::Z5(c) => AnyComplex::Z5(c.filter(values)?),
+            Self::Z7(c) => AnyComplex::Z7(c.filter(values)?),
+            Self::Z11(c) => AnyComplex::Z11(c.filter(values)?),
+            Self::Z13(c) => AnyComplex::Z13(c.filter(values)?),
+        })
+    }
+
+    fn extend(&self, partial: Vec<Option<f64>>) -> Result<Vec<f64>, ComplexError> {
+        dispatch!(Self, self, c => c.extend(partial))
+    }
+
+    fn n_cells(&self) -> usize {
+        dispatch!(Self, self, c => c.n_cells())
+    }
+
+    fn n_entries(&self) -> usize {
+        dispatch!(Self, self, c => c.n_entries())
+    }
+
+    fn top_dimension(&self) -> Option<usize> {
+        dispatch!(Self, self, c => c.top_dimension())
+    }
+
+    fn modulus(&self) -> u64 {
+        fn of<CF: IntField>(_: &Chain<CF>) -> u64 {
+            CF::MODULUS
+        }
+        dispatch!(Self, self, c => of(c))
+    }
+}
+
+impl AnyComplex {
     /// Compute the barcode (without the GIL).
     #[allow(clippy::too_many_arguments)]
     fn persistence(
@@ -84,34 +137,23 @@ impl AnyComplex {
         algorithm: &str,
         representatives: bool,
         threads: Option<usize>,
-    ) -> PyResult<Barcode> {
+    ) -> PyResult<BarData> {
         let method = parse_method(method)?;
         let algorithm = AlgorithmArg::parse(algorithm)?;
-        dispatch!(self, c => py.detach(|| {
+        dispatch!(Self, self, c => py.detach(|| {
             algorithm.run(threads, |algorithm| {
                 let bars = c.barcode(max_dim, method, algorithm, representatives);
-                Barcode::new(c, bars, max_dim, representatives)
+                BarData::new(c, bars, max_dim, representatives)
             })
         }))
     }
 
     fn n_cells(&self) -> usize {
-        dispatch!(self, c => c.n_cells())
+        dispatch!(Self, self, c => c.n_cells())
     }
 
-    fn n_entries(&self) -> usize {
-        dispatch!(self, c => c.n_entries())
-    }
-
-    fn top_dimension(&self) -> Option<usize> {
-        dispatch!(self, c => c.top_dimension())
-    }
-
-    fn modulus(&self) -> u64 {
-        fn of<CF: IntField>(_: &Complex<CF>) -> u64 {
-            CF::MODULUS
-        }
-        dispatch!(self, c => of(c))
+    fn value(&self, cell: u32) -> f64 {
+        dispatch!(Self, self, c => c.value(Cell(cell)))
     }
 }
 
@@ -224,12 +266,12 @@ fn split_pair<'py>(item: &Bound<'py, PyAny>) -> Option<(i64, Bound<'py, PyAny>)>
 }
 
 /// Parse the columns of the boundary matrix, given as a sequence of columns or of `(dimension, column)` pairs.
-fn read_columns(
+pub(crate) fn read_columns(
     boundaries: &Bound<'_, PyAny>,
     dimensions: Option<&Bound<'_, PyAny>>,
     coefficients: Option<&Bound<'_, PyAny>>,
-) -> PyResult<RawComplex> {
-    let mut raw = RawComplex {
+) -> PyResult<RawChain> {
+    let mut raw = RawChain {
         indptr: vec![0],
         ..Default::default()
     };
@@ -308,177 +350,7 @@ fn read_columns(
     Ok(raw)
 }
 
-// ====== FilteredComplex ==================================================
-
-/// A filtered chain complex, given by its sparse boundary matrix, ready to compute persistent homology.
-///
-/// Cells are numbered `0, ..., n - 1` and the boundary of cell `j` is a linear combination of cells.
-/// Cells enter the filtration in order of their filtration value, breaking ties by index
-/// (by default the value of cell `j` is `j`, as in PHAT).
-/// Every face must have dimension one lower than its coface and enter the filtration before it,
-/// otherwise a `ValueError` is raised.
-///
-/// The complex is validated and stored on construction (as the boundary matrix and its transpose, with
-/// each column sorted), so you can compute several barcodes from one complex cheaply.
-///
-/// Args:
-///     boundaries: The boundary of every cell, as a sequence of columns (each a sequence of cell indices),
-///         or as a sequence of `(dimension, column)` pairs, as in PHAT and LoPHAT.
-///         Repeated entries in a column are summed.
-///     dimensions: The dimension of every cell. Required unless `boundaries` gives `(dimension, column)` pairs.
-///     values: The filtration value of every cell (default: the cell's index).
-///         Infinite values are allowed, and mean the cell never appears.
-///     coefficients: The coefficient of every boundary entry, as a sequence of sequences matching `boundaries`
-///         (default: all 1). Reduced modulo `modulus`, and entries that become 0 are dropped.
-///     modulus: The characteristic of the coefficient field: 2, 3, 5, 7, 11 or 13.
-#[gen_stub_pyclass]
-#[pyclass(frozen, module = "phlite")]
-pub struct FilteredComplex {
-    complex: AnyComplex,
-}
-
-#[gen_stub_pymethods]
-#[pymethods]
-impl FilteredComplex {
-    #[new]
-    #[pyo3(signature = (boundaries, dimensions = None, values = None, *, coefficients = None, modulus = 2))]
-    fn new(
-        py: Python<'_>,
-        #[gen_stub(override_type(type_repr = "typing.Iterable[typing.Union[typing.Sequence[builtins.int], tuple[builtins.int, typing.Sequence[builtins.int]]]]", imports = ("builtins", "typing")))]
-        boundaries: &Bound<'_, PyAny>,
-        #[gen_stub(override_type(type_repr = "typing.Optional[typing.Union[numpy.typing.NDArray[numpy.integer], typing.Sequence[builtins.int]]]", imports = ("builtins", "numpy", "numpy.typing", "typing")))]
-        dimensions: Option<&Bound<'_, PyAny>>,
-        #[gen_stub(override_type(type_repr = "typing.Optional[typing.Union[numpy.typing.NDArray[numpy.floating], typing.Sequence[builtins.float]]]", imports = ("builtins", "numpy", "numpy.typing", "typing")))]
-        values: Option<&Bound<'_, PyAny>>,
-        #[gen_stub(override_type(type_repr = "typing.Optional[typing.Iterable[typing.Sequence[builtins.int]]]", imports = ("builtins", "typing")))]
-        coefficients: Option<&Bound<'_, PyAny>>,
-        modulus: u64,
-    ) -> PyResult<Self> {
-        let mut raw = read_columns(boundaries, dimensions, coefficients)?;
-        raw.values = values.map(|v| read_floats(v, "values")).transpose()?;
-        let complex = py
-            .detach(|| AnyComplex::build(raw, modulus))?
-            .map_err(|e| PyValueError::new_err(e.to_string()))?;
-        Ok(Self { complex })
-    }
-
-    /// Build a complex from a boundary matrix in compressed sparse column (CSC) format.
-    ///
-    /// The boundary of cell `j` is `indices[indptr[j]:indptr[j + 1]]`, with coefficients from `data` if given.
-    /// numpy arrays are read directly, so this is the fastest way to build a large complex.
-    /// For a scipy sparse matrix `m`, use
-    /// `FilteredComplex.from_csc(m.indptr, m.indices, dimensions, data=m.data)`
-    /// after converting with `m = m.tocsc()`.
-    ///
-    /// Args:
-    ///     indptr: Column pointers, of length `n + 1` for `n` cells.
-    ///     indices: The row (face) of every non-zero entry.
-    ///     dimensions: The dimension of every cell.
-    ///     values: The filtration value of every cell (default: the cell's index).
-    ///     data: The coefficient of every non-zero entry (default: all 1). Must be whole numbers.
-    ///     modulus: The characteristic of the coefficient field: 2, 3, 5, 7, 11 or 13.
-    #[staticmethod]
-    #[pyo3(signature = (indptr, indices, dimensions, values = None, *, data = None, modulus = 2))]
-    fn from_csc(
-        py: Python<'_>,
-        #[gen_stub(override_type(type_repr = "typing.Union[numpy.typing.NDArray[numpy.integer], typing.Sequence[builtins.int]]", imports = ("builtins", "numpy", "numpy.typing", "typing")))]
-        indptr: &Bound<'_, PyAny>,
-        #[gen_stub(override_type(type_repr = "typing.Union[numpy.typing.NDArray[numpy.integer], typing.Sequence[builtins.int]]", imports = ("builtins", "numpy", "numpy.typing", "typing")))]
-        indices: &Bound<'_, PyAny>,
-        #[gen_stub(override_type(type_repr = "typing.Union[numpy.typing.NDArray[numpy.integer], typing.Sequence[builtins.int]]", imports = ("builtins", "numpy", "numpy.typing", "typing")))]
-        dimensions: &Bound<'_, PyAny>,
-        #[gen_stub(override_type(type_repr = "typing.Optional[typing.Union[numpy.typing.NDArray[numpy.floating], typing.Sequence[builtins.float]]]", imports = ("builtins", "numpy", "numpy.typing", "typing")))]
-        values: Option<&Bound<'_, PyAny>>,
-        #[gen_stub(override_type(type_repr = "typing.Optional[typing.Union[numpy.typing.NDArray[numpy.number], typing.Sequence[builtins.int]]]", imports = ("builtins", "numpy", "numpy.typing", "typing")))]
-        data: Option<&Bound<'_, PyAny>>,
-        modulus: u64,
-    ) -> PyResult<Self> {
-        let raw = RawComplex {
-            dimensions: read_ints(dimensions, "dimensions")?,
-            values: values.map(|v| read_floats(v, "values")).transpose()?,
-            indptr: read_ints(indptr, "indptr")?,
-            indices: read_ints(indices, "indices")?,
-            coefficients: data.map(|d| read_ints(d, "data")).transpose()?,
-        };
-        let complex = py
-            .detach(|| AnyComplex::build(raw, modulus))?
-            .map_err(|e| PyValueError::new_err(e.to_string()))?;
-        Ok(Self { complex })
-    }
-
-    /// Compute persistent homology in dimensions `0, ..., max_dim`.
-    ///
-    /// Args:
-    ///     max_dim: The maximum homology dimension to compute (default: the largest dimension of a cell).
-    ///         Lower is faster: with `method='cohomology'` cells above dimension `max_dim + 1` are never looked at.
-    ///     method: `'cohomology'` (the default) reduces the coboundary matrix, which is usually much faster.
-    ///         `'homology'` reduces the boundary matrix instead.
-    ///     algorithm: The reduction algorithm: `'standard'`, `'clearing'` (the default), `'parallel'`
-    ///         (clearing, with each dimension reduced in parallel) or `'parallel-lock-free'`
-    ///         (the same, using lock-free data structures).
-    ///     representatives: Whether to also compute a representative cycle for every bar.
-    ///         With `method='cohomology'` these are computed via involution.
-    ///     threads: The number of threads for the parallel algorithms (default: all cores).
-    ///
-    /// Returns:
-    ///     The barcode. Bars of length zero (birth and death at the same filtration value) are omitted.
-    #[pyo3(signature = (max_dim = None, *, method = "cohomology", algorithm = "clearing", representatives = false, threads = None))]
-    fn persistence(
-        &self,
-        py: Python<'_>,
-        max_dim: Option<usize>,
-        #[gen_stub(override_type(type_repr = "typing.Literal['cohomology', 'homology']", imports = ("typing")))]
-        method: &str,
-        #[gen_stub(override_type(type_repr = "typing.Literal['standard', 'clearing', 'parallel', 'parallel-lock-free']", imports = ("typing")))]
-        algorithm: &str,
-        representatives: bool,
-        threads: Option<usize>,
-    ) -> PyResult<Barcode> {
-        self.complex
-            .persistence(py, max_dim, method, algorithm, representatives, threads)
-    }
-
-    /// The number of cells.
-    #[getter]
-    fn n_cells(&self) -> usize {
-        self.complex.n_cells()
-    }
-
-    /// The number of non-zero entries in the boundary matrix (after summing repeated entries).
-    #[getter]
-    fn n_entries(&self) -> usize {
-        self.complex.n_entries()
-    }
-
-    /// The largest dimension of a cell, or `None` for an empty complex.
-    #[getter]
-    fn dimension(&self) -> Option<usize> {
-        self.complex.top_dimension()
-    }
-
-    /// The characteristic of the coefficient field.
-    #[getter]
-    fn modulus(&self) -> u64 {
-        self.complex.modulus()
-    }
-
-    fn __len__(&self) -> usize {
-        self.n_cells()
-    }
-
-    fn __repr__(&self) -> String {
-        format!(
-            "FilteredComplex(n_cells={}, n_entries={}, dimension={}, modulus={})",
-            self.n_cells(),
-            self.n_entries(),
-            self.dimension()
-                .map_or("None".to_string(), |d| d.to_string()),
-            self.modulus()
-        )
-    }
-}
-
-// ====== Barcode ==========================================================
+// ====== Bars =============================================================
 
 /// A bar, with the complex's data copied in so that the barcode is self-contained.
 pub(crate) struct Record {
@@ -492,23 +364,16 @@ pub(crate) struct Record {
     representative: Option<Vec<(u32, u64)>>,
 }
 
-/// A persistence barcode, as computed by `FilteredComplex.persistence`.
-///
-/// Bars are identified by their birth cell (no cell gives birth to two bars) and, for finite bars,
-/// their death cell, as indices into the complex.
-/// Bars of length zero are omitted.
-#[gen_stub_pyclass]
-#[pyclass(frozen, module = "phlite")]
-pub struct Barcode {
+/// The bars of a barcode, in terms of cell indices (the Python `Barcode` translates them to cells).
+pub(crate) struct BarData {
     /// Sorted by birth cell.
     pub(crate) bars: Vec<Record>,
     pub(crate) n_dims: usize,
-    pub(crate) modulus: u64,
     pub(crate) representatives: bool,
 }
 
-impl Barcode {
-    fn new<CF: IntField>(
+impl BarData {
+    pub(crate) fn new<CF: IntField>(
         complex: &Complex<CF>,
         bars: Vec<PhliteBar<Cell, NotNan<f64>, CF>>,
         max_dim: Option<usize>,
@@ -543,7 +408,6 @@ impl Barcode {
         Self {
             bars,
             n_dims,
-            modulus: CF::MODULUS,
             representatives,
         }
     }
@@ -628,7 +492,7 @@ pub(crate) fn chain<'py>(
 
 /// A bar of a barcode: a homology class with its birth and death.
 ///
-/// Cells are cell indices for a `FilteredComplex`, or your own cell objects for a `CellComplex`.
+/// Cells are ints for a complex built from columns or arrays, and your own objects for one built from cells.
 #[gen_stub_pyclass]
 #[pyclass(frozen, module = "phlite")]
 pub struct Bar {
@@ -733,108 +597,15 @@ impl Bar {
     }
 }
 
-#[gen_stub_pymethods]
-#[pymethods]
-impl Barcode {
-    /// The finite bars, as `(birth, death)` pairs of cell indices, sorted by birth.
-    #[getter]
-    #[gen_stub(override_return_type(type_repr = "builtins.list[tuple[builtins.int, builtins.int]]", imports = ("builtins")))]
-    fn pairings<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyList>> {
-        PyList::new(
-            py,
-            self.bars
-                .iter()
-                .filter_map(|bar| bar.death.map(|death| (bar.birth, death))),
-        )
-    }
-
-    /// The birth cells of the essential (infinite) bars, sorted.
-    #[getter]
-    #[gen_stub(override_return_type(type_repr = "builtins.list[builtins.int]", imports = ("builtins")))]
-    fn essential<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyList>> {
-        PyList::new(
-            py,
-            self.bars
-                .iter()
-                .filter(|bar| bar.death.is_none())
-                .map(|bar| bar.birth),
-        )
-    }
-
-    /// A representative cycle for every bar, keyed by birth cell, or `None` if they were not requested.
-    ///
-    /// Over Z/2 a cycle is a list of cells; over Z/p it is a list of `(cell, coefficient)` pairs
-    /// with coefficients in `1, ..., p - 1`. Cells are listed in decreasing filtration order.
-    /// A finite bar's representative is a cycle that becomes a boundary at its death.
-    #[getter]
-    #[gen_stub(override_return_type(type_repr = "typing.Optional[typing.Union[builtins.dict[builtins.int, builtins.list[builtins.int]], builtins.dict[builtins.int, builtins.list[tuple[builtins.int, builtins.int]]]]]", imports = ("builtins", "typing")))]
-    fn representatives<'py>(&self, py: Python<'py>) -> PyResult<Option<Bound<'py, PyDict>>> {
-        if !self.representatives {
-            return Ok(None);
-        }
-        let dict = PyDict::new(py);
-        for bar in &self.bars {
-            let rep = bar
-                .representative
-                .as_ref()
-                .expect("representatives were requested");
-            let rep = if self.modulus == 2 {
-                PyList::new(py, rep.iter().map(|&(cell, _)| cell))?
-            } else {
-                PyList::new(py, rep.iter().copied())?
-            };
-            dict.set_item(bar.birth, rep)?;
-        }
-        Ok(Some(dict))
-    }
-
-    /// The persistence diagram in dimension `dim`, as an array of shape `(k, 2)` of `(birth, death)`
-    /// filtration values, sorted. Essential bars have death `inf`.
-    #[gen_stub(override_return_type(type_repr = "numpy.typing.NDArray[numpy.float64]", imports = ("numpy", "numpy.typing")))]
-    fn diagram<'py>(&self, py: Python<'py>, dim: usize) -> Bound<'py, PyArray2<f64>> {
-        self.diagram_array(py, dim)
-    }
-
-    /// The persistence diagrams in dimensions `0, ..., max_dim`, see `diagram`.
-    #[gen_stub(override_return_type(type_repr = "builtins.list[numpy.typing.NDArray[numpy.float64]]", imports = ("builtins", "numpy", "numpy.typing")))]
-    fn diagrams<'py>(&self, py: Python<'py>) -> Vec<Bound<'py, PyArray2<f64>>> {
-        (0..self.n_dims)
-            .map(|dim| self.diagram_array(py, dim))
-            .collect()
-    }
-
-    /// The dimension of the bar born at `birth` (the dimension of the cell `birth`).
-    fn dimension_of(&self, birth: u32) -> PyResult<usize> {
-        self.find(birth)
-            .map(|bar| bar.dimension)
-            .ok_or_else(|| PyValueError::new_err(format!("No bar is born at cell {birth}")))
-    }
-
-    /// Every bar, sorted by birth cell.
-    #[getter]
-    fn bars(&self, py: Python<'_>) -> PyResult<Vec<Bar>> {
-        self.make_bars(py, |cell| Ok(cell.into_pyobject(py)?.into_any()))
-    }
-
-    fn __len__(&self) -> usize {
-        self.bars.len()
-    }
-
-    fn __repr__(&self) -> String {
-        self.repr("Barcode")
-    }
-}
-
 // ====== The module =======================================================
 
 /// Persistent homology of sparse filtered chain complexes, computed with `phlite`.
 #[pymodule(name = "phlite", gil_used = false)]
 fn phlite_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
     pyo3_log::init();
+    m.add_class::<ChainComplex>()?;
     m.add_class::<FilteredComplex>()?;
     m.add_class::<Barcode>()?;
     m.add_class::<Bar>()?;
-    m.add_class::<CellComplex>()?;
-    m.add_class::<CellBarcode>()?;
     Ok(())
 }

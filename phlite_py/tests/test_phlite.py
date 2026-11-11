@@ -4,9 +4,9 @@ import random
 
 import numpy as np
 import pytest
+from helpers import filtered, filtered_csc
 from reference import boundary_of_chain, in_span, random_simplicial_complex, reduce, rp2
 
-import phlite
 
 METHODS = ["cohomology", "homology"]
 ALGORITHMS = ["standard", "clearing", "parallel", "parallel-lock-free"]
@@ -28,7 +28,7 @@ def complex_for(seed, p=2, top_dim=3):
     simplices, values, dimensions, columns, coefficients = random_simplicial_complex(
         rng, n_vertices=rng.randint(4, 9), n_top=rng.randint(1, 8), top_dim=top_dim
     )
-    complex = phlite.FilteredComplex(
+    complex = filtered(
         columns,
         dimensions,
         values,
@@ -80,7 +80,7 @@ def test_matches_lophat(seed):
     _, _, _, dimensions, columns, _ = complex_for(seed)
     # Index filtration, so that no bar has length zero and lophat's output is directly comparable
     pairs = list(zip(dimensions, columns))
-    barcode = phlite.FilteredComplex(pairs).persistence()
+    barcode = filtered(pairs).persistence()
     expected = lophat.compute_pairings(pairs)
     assert dict(barcode.pairings) == {
         b: d for b, d in expected.items() if d is not None
@@ -94,9 +94,7 @@ def test_rp2_torsion():
     assert sum((-1) ** d for d in dimensions) == 1  # Euler characteristic
     betti = {}
     for p in MODULI:
-        complex = phlite.FilteredComplex(
-            columns, dimensions, coefficients=coefficients, modulus=p
-        )
+        complex = filtered(columns, dimensions, coefficients=coefficients, modulus=p)
         for method in METHODS:
             barcode = complex.persistence(method=method)
             betti[p, method] = [
@@ -120,15 +118,16 @@ def test_representatives(seed, p, method):
     if p == 2:
         coefficients = [[1] * len(col) for col in columns]
     barcode = complex.persistence(method=method, representatives=True)
-    reps = barcode.representatives
+    reps = {bar.birth: bar.representative for bar in barcode.bars}
     deaths = dict(barcode.pairings)
     assert set(reps) == set(deaths) | set(barcode.essential)
     key = lambda i: (values[i], i)
     for birth, rep in reps.items():
-        chain = {cell: 1 for cell in rep} if p == 2 else dict(rep)
+        assert barcode.representative(birth) == rep
+        chain = dict(rep)
         assert all(0 < c < p for c in chain.values())
         # Cells listed in decreasing filtration order, the leading one is the birth cell, all the same dimension
-        cells = [cell for cell in rep] if p == 2 else [cell for cell, _ in rep]
+        cells = [cell for cell, _ in rep]
         assert cells == sorted(cells, key=key, reverse=True)
         assert cells[0] == birth
         assert all(dimensions[c] == dimensions[birth] for c in cells)
@@ -147,7 +146,9 @@ def test_representatives(seed, p, method):
 
 def test_no_representatives_by_default():
     complex, *_ = complex_for(0)
-    assert complex.persistence().representatives is None
+    barcode = complex.persistence()
+    assert all(bar.representative is None for bar in barcode.bars)
+    assert barcode.representative(barcode.essential[0]) is None
 
 
 # ====== Input formats =====================================================
@@ -165,13 +166,9 @@ def test_input_formats_agree():
         )
 
     # (dimension, column) pairs, from a generator, numpy arrays everywhere
+    same(filtered(((d, c) for d, c in zip(dimensions, columns)), values=values))
     same(
-        phlite.FilteredComplex(
-            ((d, c) for d, c in zip(dimensions, columns)), values=values
-        )
-    )
-    same(
-        phlite.FilteredComplex(
+        filtered(
             [np.array(c, dtype=np.int32) for c in columns],
             np.array(dimensions),
             np.array(values, dtype=np.float32),
@@ -180,7 +177,7 @@ def test_input_formats_agree():
     # CSC arrays, and scipy
     indptr = np.cumsum([0] + [len(c) for c in columns])
     indices = np.array(list(itertools.chain.from_iterable(columns)))
-    same(phlite.FilteredComplex.from_csc(indptr, indices, dimensions, values))
+    same(filtered_csc(indptr, indices, dimensions, values))
     scipy_sparse = pytest.importorskip("scipy.sparse")
     n = len(columns)
     matrix = scipy_sparse.csc_matrix(
@@ -188,7 +185,7 @@ def test_input_formats_agree():
     )
     matrix = matrix.tocsc()
     same(
-        phlite.FilteredComplex.from_csc(
+        filtered_csc(
             matrix.indptr, matrix.indices, dimensions, values, data=matrix.data
         )
     )
@@ -199,10 +196,10 @@ def test_coefficients_reduce_mod_p():
     columns = [[], [], [0, 1]]
     dims = [0, 0, 1]
     coeffs = [[], [], [-3, 3]]
-    z3 = phlite.FilteredComplex(columns, dims, coefficients=coeffs, modulus=3)
-    assert z3.n_entries == 0
+    z3 = filtered(columns, dims, coefficients=coeffs, modulus=3)
+    assert z3.chain.n_entries == 0
     assert z3.persistence().essential == [0, 1, 2]
-    z2 = phlite.FilteredComplex(columns, dims, coefficients=coeffs)
+    z2 = filtered(columns, dims, coefficients=coeffs)
     assert z2.persistence().pairings == [(1, 2)]
 
 
@@ -211,21 +208,23 @@ def test_diagram_values():
     columns = [[], [], [], [0, 1], [1, 2], [0, 2], [3, 4, 5], []]
     dims = [0, 0, 0, 1, 1, 1, 2, 0]
     values = [0.0, 1.0, 1.0, 1.0, 1.5, 2.0, 2.0, math.inf]
-    barcode = phlite.FilteredComplex(columns, dims, values).persistence()
+    barcode = filtered(columns, dims, values).persistence()
     # (1, 3) and (5, 6) have length zero, so are omitted
     assert barcode.pairings == [(2, 4)]
     assert barcode.essential == [0, 7]
     # Vertex 7 is born at infinity, so never appears in a diagram
     np.testing.assert_array_equal(barcode.diagram(0), [[0.0, math.inf], [1.0, 1.5]])
     assert barcode.diagram(1).shape == (0, 2)
-    assert barcode.dimension_of(2) == 0
+    assert barcode.bar(2).dimension == 0
     with pytest.raises(ValueError, match="No bar"):
-        barcode.dimension_of(3)
+        barcode.bar(3)
+    with pytest.raises(ValueError, match="not a cell"):
+        barcode.bar(99)
 
 
 def test_empty_complex():
-    complex = phlite.FilteredComplex([])
-    assert len(complex) == 0 and complex.dimension is None
+    complex = filtered([])
+    assert len(complex) == 0 and complex.chain.dimension is None
     barcode = complex.persistence()
     assert len(barcode) == 0 and barcode.diagrams() == []
 
@@ -264,7 +263,7 @@ def test_empty_complex():
 )
 def test_errors(kwargs, match):
     with pytest.raises(ValueError, match=match):
-        phlite.FilteredComplex(**kwargs)
+        filtered(**kwargs)
 
 
 def test_bad_arguments():
@@ -276,6 +275,6 @@ def test_bad_arguments():
     with pytest.raises(ValueError, match="threads can only be set"):
         complex.persistence(threads=2)
     with pytest.raises(TypeError, match="sequence of integers"):
-        phlite.FilteredComplex([[], "ab"], [0, 1])
+        filtered([[], "ab"], [0, 1])
     with pytest.raises(ValueError, match="1-dimensional"):
-        phlite.FilteredComplex.from_csc(np.zeros((2, 2), dtype=np.int64), [], [0])
+        filtered_csc(np.zeros((2, 2), dtype=np.int64), [], [0])

@@ -53,7 +53,7 @@ print(
 )
 
 start = time.perf_counter()
-complex = phlite.FilteredComplex(columns, dims, values)
+complex = phlite.ChainComplex.from_columns(columns, dims).filtration(values)
 build = time.perf_counter() - start
 
 for method in ["cohomology", "homology"]:

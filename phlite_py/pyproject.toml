@@ -30,6 +30,7 @@ dev = [
 # Reference implementations for the tests
 compare = [
     "lophat",
+    "networkx",
     "scipy",
 ]
 

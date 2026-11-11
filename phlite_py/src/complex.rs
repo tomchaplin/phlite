@@ -1,17 +1,21 @@
-//! An explicit sparse filtered chain complex, presented to `phlite` as a pair of matrix oracles.
+//! An explicit sparse chain complex, and its filtrations, presented to `phlite` as a pair of matrix oracles.
 //!
-//! The complex is given as a boundary matrix in compressed sparse column (CSC) format, together with the dimension and
-//! filtration value of every cell. On construction we
-//! * validate it (faces have dimension one lower, and come earlier in the filtration);
-//! * sort every column in *decreasing* filtration order and sum repeated entries, so that the pivot of a column is its
-//!   first entry and its smallest entry is its last ([`column_pivot`](HasRowFiltration::column_pivot) and
-//!   [`column_min`](HasRowFiltration::column_min) are then O(1), and most columns need nothing more);
-//! * build the transpose (the coboundary matrix), sorted the same way, so that the reduction can recognise
-//!   apparent pairs in O(1) via [`first_column_in_row`](HasRowFiltration::first_column_in_row)
-//!   and cohomology representatives can be computed by involution.
+//! There are two stages, so that one chain complex can be given many filtrations cheaply.
 //!
-//! Cells are indexed by `u32`, so storage costs 4 bytes per non-zero entry in each of the two matrices
-//! (coefficients in [`Z2`](phlite::fields::Z2) are zero-sized), plus 16 bytes per cell.
+//! 1. A [`Chain`] is the boundary matrix in compressed sparse column (CSC) format, with the dimension of every cell.
+//!    On construction it is validated (every face has dimension one lower than its coface), and repeated entries in a
+//!    column are summed.
+//! 2. [`Chain::filter`] attaches a filtration value to every cell, giving a [`Complex`]. This checks that every face
+//!    enters before its cofaces, then
+//!    * sorts every column in *decreasing* filtration order, so that the pivot of a column is its first entry and its
+//!      smallest entry is its last ([`column_pivot`](HasRowFiltration::column_pivot) and
+//!      [`column_min`](HasRowFiltration::column_min) are then O(1), and most columns need nothing more);
+//!    * builds the transpose (the coboundary matrix), sorted the same way, so that the reduction can recognise
+//!      apparent pairs in O(1) via [`first_column_in_row`](HasRowFiltration::first_column_in_row)
+//!      and cohomology representatives can be computed by involution.
+//!
+//! Cells are indexed by `u32`, so each matrix costs 4 bytes per non-zero entry
+//! (coefficients in [`Z2`](phlite::fields::Z2) are zero-sized), plus a few bytes per cell.
 
 use std::cmp::Reverse;
 use std::ops::Range;
@@ -45,13 +49,11 @@ impl Cell {
 /// Orders cells by decreasing (filtration value, index).
 type SortKey = Reverse<(NotNan<f64>, usize)>;
 
-/// The complex as it arrives from the user, before any validation.
+/// A chain complex as it arrives from the user, before any validation.
 #[derive(Debug, Clone, Default)]
-pub struct RawComplex {
+pub struct RawChain {
     /// The dimension of every cell.
     pub dimensions: Vec<i64>,
-    /// The filtration value of every cell, or `None` to use the cell indices.
-    pub values: Option<Vec<f64>>,
     /// Column `j` of the boundary matrix is `indices[indptr[j]..indptr[j + 1]]`.
     pub indptr: Vec<i64>,
     /// The row (face) of every non-zero entry.
@@ -60,7 +62,8 @@ pub struct RawComplex {
     pub coefficients: Option<Vec<i64>>,
 }
 
-/// A sparse matrix in CSC format whose columns are sorted in decreasing filtration order, with no repeated rows.
+/// A sparse matrix in CSC format with no repeated rows in a column.
+/// In a [`Chain`] columns are sorted by row index; in a [`Complex`], in decreasing filtration order.
 #[derive(Debug, Clone)]
 struct Csc<CF> {
     indptr: Vec<usize>,
@@ -163,7 +166,7 @@ impl<'a, CF: IntField> HasRowFiltration for View<'a, CF> {
     }
 }
 
-/// Why a [`RawComplex`] is not a valid filtered complex.
+/// Why a [`RawChain`] is not a valid chain complex, or a filtration is not valid for it.
 ///
 /// Errors about particular cells record their indices, so that callers can name the cells however they like
 /// (see [`describe`](Self::describe)).
@@ -175,6 +178,8 @@ pub enum ComplexError {
     BadDimension { cell: u32, dimension: i64 },
     /// A filtration value is NaN.
     NanValue { cell: u32 },
+    /// A cell has no filtration value and no faces to extend one from.
+    MissingValue { cell: u32 },
     /// A boundary entry is not a cell.
     FaceOutOfRange {
         cell: u32,
@@ -203,10 +208,14 @@ impl ComplexError {
         match self {
             Self::Input(message) => message.clone(),
             Self::BadDimension { cell, dimension } => format!(
-                "{} has dimension {dimension}, but dimensions must be between 0 and {MAX_DIMENSION}",
+                "The {} has dimension {dimension}, but dimensions must be between 0 and {MAX_DIMENSION}",
                 name(*cell)
             ),
-            Self::NanValue { cell } => format!("{} has filtration value NaN", name(*cell)),
+            Self::NanValue { cell } => format!("The {} has filtration value NaN", name(*cell)),
+            Self::MissingValue { cell } => format!(
+                "The {} has no filtration value, and no faces to take one from",
+                name(*cell)
+            ),
             Self::FaceOutOfRange {
                 cell,
                 face,
@@ -250,13 +259,20 @@ impl std::fmt::Display for ComplexError {
 
 impl std::error::Error for ComplexError {}
 
-impl<CF: IntField> Complex<CF> {
-    /// Validate `raw` and build the boundary and coboundary matrices.
-    pub fn from_raw(raw: RawComplex) -> Result<Self, ComplexError> {
+/// A chain complex with coefficients in `CF`: cells, their dimensions and boundaries, but no filtration.
+#[derive(Debug, Clone)]
+pub struct Chain<CF> {
+    dimensions: Vec<u32>,
+    /// Columns sorted by row index.
+    boundary: Csc<CF>,
+}
+
+impl<CF: IntField> Chain<CF> {
+    /// Validate `raw`, and sum repeated entries in each column.
+    pub fn from_raw(raw: RawChain) -> Result<Self, ComplexError> {
         use ComplexError::Input;
-        let RawComplex {
+        let RawChain {
             dimensions,
-            values,
             indptr,
             indices,
             coefficients,
@@ -268,8 +284,6 @@ impl<CF: IntField> Complex<CF> {
                 u32::MAX
             )));
         }
-
-        // ---- Per-cell data ----
         let dimensions: Vec<u32> = dimensions
             .into_iter()
             .enumerate()
@@ -281,25 +295,6 @@ impl<CF: IntField> Complex<CF> {
                 }),
             })
             .collect::<Result<_, _>>()?;
-        let values: Vec<NotNan<f64>> = match values {
-            None => (0..n).map(|i| NotNan::new(i as f64).unwrap()).collect(),
-            Some(values) => {
-                if values.len() != n {
-                    return Err(Input(format!(
-                        "values has length {} but there are {n} cells",
-                        values.len()
-                    )));
-                }
-                values
-                    .into_iter()
-                    .enumerate()
-                    .map(|(i, v)| {
-                        NotNan::new(v).map_err(|_| ComplexError::NanValue { cell: i as u32 })
-                    })
-                    .collect::<Result<_, _>>()?
-            }
-        };
-        let key = |cell: usize| (values[cell], cell);
 
         // ---- The shape of the CSC arrays ----
         if indptr.len() != n + 1 {
@@ -333,13 +328,12 @@ impl<CF: IntField> Complex<CF> {
             }
         }
 
-        // ---- Columns of the boundary: validate, sort decreasing, sum repeats ----
+        // ---- Columns: validate, sort by row, sum repeats ----
         let mut out_indptr = Vec::with_capacity(n + 1);
         out_indptr.push(0usize);
         let mut out_rows: Vec<Cell> = Vec::with_capacity(indices.len());
         let mut out_coeffs: Vec<CF> = Vec::with_capacity(indices.len());
-        // (reversed (value, row) key, coefficient) for each entry in the current column
-        let mut scratch: Vec<(SortKey, i64)> = Vec::new();
+        let mut scratch: Vec<(u32, i64)> = Vec::new();
         for col in 0..n {
             scratch.clear();
             for i in indptr[col] as usize..indptr[col + 1] as usize {
@@ -361,59 +355,157 @@ impl<CF: IntField> Complex<CF> {
                         face_dimension: dimensions[row],
                     });
                 }
-                if key(row) >= key(col) {
-                    return Err(ComplexError::FaceAfterCell {
-                        cell: col as u32,
-                        cell_value: values[col].into_inner(),
-                        face: row as u32,
-                        face_value: values[row].into_inner(),
-                    });
-                }
                 let coeff = coefficients.as_ref().map_or(1, |c| c[i]);
-                scratch.push((Reverse(key(row)), coeff));
+                scratch.push((row as u32, coeff));
             }
-            scratch.sort_unstable_by_key(|(k, _)| *k);
+            scratch.sort_unstable_by_key(|&(row, _)| row);
             let mut k = 0;
             while k < scratch.len() {
                 // Sum the coefficients of a run of repeated rows (in i128, so that the sum can't overflow)
-                let (row_key, _) = scratch[k];
+                let row = scratch[k].0;
                 let mut total: i128 = 0;
-                while k < scratch.len() && scratch[k].0 == row_key {
+                while k < scratch.len() && scratch[k].0 == row {
                     total += scratch[k].1 as i128;
                     k += 1;
                 }
                 let residue = total.rem_euclid(CF::MODULUS as i128) as i64;
                 if let Some(coeff) = CF::from_int(residue) {
-                    out_rows.push(Cell(row_key.0 .1 as u32));
+                    out_rows.push(Cell(row));
                     out_coeffs.push(coeff);
                 }
             }
             out_indptr.push(out_rows.len());
         }
-        drop(indices);
-        drop(coefficients);
         out_rows.shrink_to_fit();
         out_coeffs.shrink_to_fit();
-        let boundary = Csc {
-            indptr: out_indptr,
-            rows: out_rows,
-            coeffs: out_coeffs,
-        };
+        Ok(Self {
+            dimensions,
+            boundary: Csc {
+                indptr: out_indptr,
+                rows: out_rows,
+                coeffs: out_coeffs,
+            },
+        })
+    }
 
-        // ---- The filtration order, and the transpose ----
+    /// The number of cells.
+    pub fn n_cells(&self) -> usize {
+        self.dimensions.len()
+    }
+
+    /// The number of non-zero entries in the boundary matrix (after summing repeated entries).
+    pub fn n_entries(&self) -> usize {
+        self.boundary.rows.len()
+    }
+
+    /// The largest dimension of a cell, or `None` if there are no cells.
+    pub fn top_dimension(&self) -> Option<usize> {
+        self.dimensions.iter().max().map(|&d| d as usize)
+    }
+
+    /// Fill in missing filtration values: a cell without one gets the largest value of its faces.
+    ///
+    /// For example, giving values only to vertices of a simplicial complex produces the lower-star filtration.
+    /// Given values are kept as they are (even if smaller than a face's, which [`filter`](Self::filter) will reject).
+    pub fn extend(&self, partial: Vec<Option<f64>>) -> Result<Vec<f64>, ComplexError> {
+        let n = self.n_cells();
+        if partial.len() != n {
+            return Err(ComplexError::Input(format!(
+                "There are {} values but {n} cells",
+                partial.len()
+            )));
+        }
+        // Faces have lower dimension, so visiting cells by dimension sees every face before its cofaces
+        let mut by_dimension: Vec<u32> = (0..n as u32).collect();
+        by_dimension.sort_by_key(|&c| self.dimensions[c as usize]);
+        let mut values = partial;
+        for cell in by_dimension {
+            if values[cell as usize].is_some() {
+                continue;
+            }
+            let faces = &self.boundary.rows[self.boundary.range(Cell(cell))];
+            let max = faces
+                .iter()
+                .map(|face| values[face.idx()].expect("faces were visited first"))
+                .max_by(f64::total_cmp);
+            match max {
+                Some(max) => values[cell as usize] = Some(max),
+                None => return Err(ComplexError::MissingValue { cell }),
+            }
+        }
+        Ok(values.into_iter().map(|v| v.expect("all filled")).collect())
+    }
+
+    /// Attach a filtration: a value for every cell, or `None` to use the order of the cells.
+    ///
+    /// Cells enter in order of value, breaking ties by index; every face must enter before its cofaces.
+    pub fn filter(&self, values: Option<Vec<f64>>) -> Result<Complex<CF>, ComplexError> {
+        let n = self.n_cells();
+        let values: Vec<NotNan<f64>> = match values {
+            None => (0..n).map(|i| NotNan::new(i as f64).unwrap()).collect(),
+            Some(values) => {
+                if values.len() != n {
+                    return Err(ComplexError::Input(format!(
+                        "There are {} values but {n} cells",
+                        values.len()
+                    )));
+                }
+                values
+                    .into_iter()
+                    .enumerate()
+                    .map(|(i, v)| {
+                        NotNan::new(v).map_err(|_| ComplexError::NanValue { cell: i as u32 })
+                    })
+                    .collect::<Result<_, _>>()?
+            }
+        };
+        let key = |cell: usize| (values[cell], cell);
+
+        // Check the order, and sort each column in decreasing filtration order
+        let source = &self.boundary;
+        let mut rows: Vec<Cell> = Vec::with_capacity(source.rows.len());
+        let mut coeffs: Vec<CF> = Vec::with_capacity(source.rows.len());
+        let mut scratch: Vec<(SortKey, Cell, CF)> = Vec::new();
+        for col in 0..n {
+            scratch.clear();
+            for i in source.range(Cell(col as u32)) {
+                let row = source.rows[i];
+                if key(row.idx()) >= key(col) {
+                    return Err(ComplexError::FaceAfterCell {
+                        cell: col as u32,
+                        cell_value: values[col].into_inner(),
+                        face: row.0,
+                        face_value: values[row.idx()].into_inner(),
+                    });
+                }
+                scratch.push((Reverse(key(row.idx())), row, source.coeffs[i]));
+            }
+            scratch.sort_unstable_by_key(|(k, _, _)| *k);
+            for &(_, row, coeff) in &scratch {
+                rows.push(row);
+                coeffs.push(coeff);
+            }
+        }
+        let boundary = Csc {
+            indptr: source.indptr.clone(),
+            rows,
+            coeffs,
+        };
         let mut order: Vec<Cell> = (0..n as u32).map(Cell).collect();
         order.sort_unstable_by_key(|cell| key(cell.idx()));
         let coboundary = transpose(&boundary, &order, n);
 
-        Ok(Self {
-            dimensions,
+        Ok(Complex {
+            dimensions: self.dimensions.clone(),
             values,
             order,
             boundary,
             coboundary,
         })
     }
+}
 
+impl<CF: IntField> Complex<CF> {
     /// The number of cells.
     pub fn n_cells(&self) -> usize {
         self.dimensions.len()
@@ -563,7 +655,7 @@ mod tests {
 
     /// The boundary of a hollow triangle, filled in last, with a lone extra vertex.
     /// 0,1,2,3: vertices; 4: {0,1}; 5: {0,2}; 6: {1,2}; 7: {0,1,2}
-    fn triangle(values: Option<Vec<f64>>) -> RawComplex {
+    fn triangle() -> RawChain {
         let columns: Vec<Vec<i64>> = vec![
             vec![],
             vec![],
@@ -580,13 +672,19 @@ mod tests {
             indices.extend(col);
             indptr.push(indices.len() as i64);
         }
-        RawComplex {
+        RawChain {
             dimensions: vec![0, 0, 0, 0, 1, 1, 1, 2],
-            values,
             indptr,
             indices,
             coefficients: None,
         }
+    }
+
+    fn build<CF: IntField>(
+        raw: RawChain,
+        values: Option<Vec<f64>>,
+    ) -> Result<Complex<CF>, ComplexError> {
+        Chain::<CF>::from_raw(raw)?.filter(values)
     }
 
     fn summary<CF>(mut bars: Vec<Bar<Cell, NotNan<f64>, CF>>) -> Vec<(u32, Option<u32>)> {
@@ -600,7 +698,7 @@ mod tests {
 
     #[test]
     fn triangle_pairs() {
-        let complex = Complex::<Z2>::from_raw(triangle(None)).unwrap();
+        let complex = build::<Z2>(triangle(), None).unwrap();
         let expected = vec![
             (0, None),
             (1, Some(4)),
@@ -624,7 +722,7 @@ mod tests {
 
     #[test]
     fn max_dim_restricts() {
-        let complex = Complex::<Z2>::from_raw(triangle(None)).unwrap();
+        let complex = build::<Z2>(triangle(), None).unwrap();
         for method in [Method::Cohomology, Method::Homology] {
             let bars = complex.barcode(Some(0), method, Algorithm::default(), false);
             assert_eq!(
@@ -638,14 +736,14 @@ mod tests {
     fn zero_length_bars_dropped() {
         // Everything at time 0 except the triangle at time 1
         let values = Some(vec![0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0]);
-        let complex = Complex::<Z2>::from_raw(triangle(values)).unwrap();
+        let complex = build::<Z2>(triangle(), values).unwrap();
         let bars = complex.barcode(None, Method::Cohomology, Algorithm::default(), false);
         assert_eq!(summary(bars), vec![(0, None), (3, None), (6, Some(7))]);
     }
 
     #[test]
     fn columns_sorted_and_transposed() {
-        let complex = Complex::<Z2>::from_raw(triangle(None)).unwrap();
+        let complex = build::<Z2>(triangle(), None).unwrap();
         let b = complex.boundary();
         let col: Vec<_> = b.column(Cell(7)).map(|(_, r)| r.0).collect();
         assert_eq!(col, vec![6, 5, 4]);
@@ -663,17 +761,30 @@ mod tests {
     }
 
     #[test]
+    fn columns_follow_the_filtration() {
+        // Edge 6 enters first, so is the smallest entry of the triangle's boundary
+        let values = Some(vec![0.0, 0.0, 0.0, 0.0, 2.0, 3.0, 1.0, 4.0]);
+        let complex = build::<Z2>(triangle(), values).unwrap();
+        let col: Vec<_> = complex
+            .boundary()
+            .column(Cell(7))
+            .map(|(_, r)| r.0)
+            .collect();
+        assert_eq!(col, vec![5, 4, 6]);
+    }
+
+    #[test]
     fn repeated_entries_sum() {
-        let mut raw = triangle(None);
+        let mut raw = triangle();
         // Edge 4 = {0, 1}: add vertex 2 twice, which cancels mod 2
         raw.indices.splice(0..0, [2, 2]);
         for p in raw.indptr.iter_mut().skip(5) {
             *p += 2;
         }
-        let complex = Complex::<Z2>::from_raw(raw.clone()).unwrap();
+        let complex = build::<Z2>(raw.clone(), None).unwrap();
         assert_eq!(complex.n_entries(), 9);
         // But not mod 3, so with coefficients the edge has boundary 2*v2 + v0 + v1, which fails d^2 = 0 but is a valid matrix
-        let complex = Complex::<Z3>::from_raw(raw).unwrap();
+        let complex = build::<Z3>(raw, None).unwrap();
         let col: Vec<_> = complex
             .boundary()
             .column(Cell(4))
@@ -685,9 +796,9 @@ mod tests {
     #[test]
     fn coefficients_over_z3() {
         // An oriented triangle: d{01} = v1 - v0, etc, d{012} = {12} - {02} + {01}
-        let mut raw = triangle(None);
+        let mut raw = triangle();
         raw.coefficients = Some(vec![-1, 1, -1, 1, -1, 1, 1, -1, 1]);
-        let complex = Complex::<Z3>::from_raw(raw).unwrap();
+        let complex = build::<Z3>(raw, None).unwrap();
         let bars = complex.barcode(None, Method::Cohomology, Algorithm::default(), true);
         assert_eq!(
             summary(bars),
@@ -703,29 +814,29 @@ mod tests {
 
     #[test]
     fn rejects_bad_input() {
-        let mut raw = triangle(None);
+        let mut raw = triangle();
         raw.dimensions[4] = 2;
-        assert!(Complex::<Z2>::from_raw(raw)
+        assert!(build::<Z2>(raw, None)
             .unwrap_err()
             .to_string()
             .contains("dimension one lower"));
 
-        let raw = triangle(Some(vec![0.0, 0.0, 5.0, 0.0, 1.0, 1.0, 1.0, 2.0]));
-        assert!(Complex::<Z2>::from_raw(raw)
+        let values = Some(vec![0.0, 0.0, 5.0, 0.0, 1.0, 1.0, 1.0, 2.0]);
+        assert!(build::<Z2>(triangle(), values)
             .unwrap_err()
             .to_string()
             .contains("enter the filtration first"));
 
-        let mut raw = triangle(None);
+        let mut raw = triangle();
         raw.indices[0] = 99;
-        assert!(Complex::<Z2>::from_raw(raw)
+        assert!(build::<Z2>(raw, None)
             .unwrap_err()
             .to_string()
             .contains("only 8 cells"));
 
-        let mut raw = triangle(Some(vec![0.0; 8]));
-        raw.values.as_mut().unwrap()[3] = f64::NAN;
-        assert!(Complex::<Z2>::from_raw(raw)
+        let mut values = vec![0.0; 8];
+        values[3] = f64::NAN;
+        assert!(build::<Z2>(triangle(), Some(values))
             .unwrap_err()
             .to_string()
             .contains("NaN"));
@@ -735,7 +846,7 @@ mod tests {
     fn values_need_not_follow_index_order() {
         // Edge 6 enters before edges 4, 5; the filtration is still valid
         let values = Some(vec![0.0, 0.0, 0.0, 0.0, 2.0, 3.0, 1.0, 4.0]);
-        let complex = Complex::<Z2>::from_raw(triangle(values)).unwrap();
+        let complex = build::<Z2>(triangle(), values).unwrap();
         let bars = complex.barcode(None, Method::Homology, Algorithm::default(), false);
         assert_eq!(
             summary(bars),
@@ -746,6 +857,42 @@ mod tests {
                 (3, None),
                 (5, Some(7))
             ]
+        );
+    }
+
+    #[test]
+    fn one_chain_many_filtrations() {
+        let chain = Chain::<Z2>::from_raw(triangle()).unwrap();
+        let a = chain.filter(None).unwrap();
+        let b = chain
+            .filter(Some(vec![0.0, 0.0, 0.0, 0.0, 2.0, 3.0, 1.0, 4.0]))
+            .unwrap();
+        let bars = |c: &Complex<Z2>| {
+            summary(c.barcode(None, Method::Cohomology, Algorithm::default(), false))
+        };
+        assert_eq!(bars(&a)[4], (6, Some(7)));
+        assert_eq!(bars(&b)[4], (5, Some(7)));
+    }
+
+    #[test]
+    fn extend_takes_max_of_faces() {
+        let chain = Chain::<Z2>::from_raw(triangle()).unwrap();
+        // Lower-star: values on vertices only
+        let mut partial = vec![None; 8];
+        for (v, x) in [3.0, 1.0, 2.0, 0.5].into_iter().enumerate() {
+            partial[v] = Some(x);
+        }
+        // ... and one edge given explicitly
+        partial[6] = Some(5.0);
+        let values = chain.extend(partial).unwrap();
+        assert_eq!(values, vec![3.0, 1.0, 2.0, 0.5, 3.0, 3.0, 5.0, 5.0]);
+        assert!(chain.filter(Some(values)).is_ok());
+
+        let mut partial = vec![None; 8];
+        partial[0] = Some(0.0);
+        assert_eq!(
+            chain.extend(partial),
+            Err(ComplexError::MissingValue { cell: 1 })
         );
     }
 }
