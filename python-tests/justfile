@@ -1,5 +1,5 @@
-# Fuzz tests and benchmarks for phlite_grpph and phlite_rips against reference implementations
-# (ripser, giotto-ph and grpphati). Requires `just` and `uv`; uses its own Python 3.11 environment.
+# Fuzz tests and benchmarks for phlite_grpph, phlite_rips and phlite_py against reference implementations
+# (ripser, giotto-ph, grpphati, PHAT and LoPHAT). Requires `just` and `uv`; uses its own Python 3.11 environment.
 
 set shell := ["bash", "-euo", "pipefail", "-c"]
 
@@ -7,14 +7,33 @@ set shell := ["bash", "-euo", "pipefail", "-c"]
 default:
     @just --list
 
+# PHAT's only PyPI release is an sdist whose metadata doesn't match its version, which uv and pip refuse to install,
+# so we unpack it and build it from the directory. It needs pybind11 < 3 to build.
+phat_url := "https://files.pythonhosted.org/packages/43/82/c14de81dc2953a71a060f72f2bc34c41996307956b162751f2a47e2c78f7/phat-1.5.0a.tar.gz"
+phat_sha256 := "51e7fe5e05adf5c7e0895765572fff05b979731234251f13011610d71d4980ab"
+
 # Create .venv with the reference implementations
 venv:
     uv sync --inexact
+    uv run --no-sync python -c "import phat" 2>/dev/null || just install-phat
 
-# Build phlite_grpph and phlite_rips (release mode) into .venv
+# Build PHAT's Python bindings into .venv
+install-phat:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    dir=$(mktemp -d)
+    trap 'rm -rf "$dir"' EXIT
+    curl -sSfL -o "$dir/phat.tar.gz" "{{phat_url}}"
+    echo "{{phat_sha256}}  $dir/phat.tar.gz" | sha256sum -c --quiet
+    tar -xzf "$dir/phat.tar.gz" -C "$dir"
+    uv pip install "pybind11<3" setuptools
+    uv pip install --no-build-isolation "$dir"/phat-*/
+
+# Build phlite_grpph, phlite_rips and phlite_py (release mode) into .venv
 build: venv
     uv run --no-sync maturin develop --uv --release -m ../phlite_grpph/Cargo.toml
     uv run --no-sync maturin develop --uv --release -m ../phlite_rips/Cargo.toml
+    uv run --no-sync maturin develop --uv --release -m ../phlite_py/Cargo.toml
 
 # Run the fuzz tests briefly (100 examples per test)
 test *pytest_args: build
@@ -31,6 +50,10 @@ bench-rips *args: build
 # Benchmark phlite_grpph against grpphati, see `just bench-grpph --help`
 bench-grpph *args: build
     uv run --no-sync python benchmarks/bench_grpph.py {{args}}
+
+# Benchmark phlite_py against PHAT and LoPHAT, see `just bench-sparse --help`
+bench-sparse *args: build
+    uv run --no-sync python benchmarks/bench_sparse.py {{args}}
 
 # Remove .venv and hypothesis' example database
 clean:

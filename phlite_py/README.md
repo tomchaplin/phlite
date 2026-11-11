@@ -132,6 +132,10 @@ The `Barcode` is in terms of your cells (ints for `from_columns` / `from_csc`):
 Representatives are lists of `(cell, coefficient)` pairs in decreasing filtration order, so the birth cell comes first.
 As with Ripser, `method="cohomology"` is usually much faster; it computes representatives by involution.
 
+Like Ripser, `phlite` stores only the reduction matrix V and recomputes columns of R = DV as it needs them. This saves a
+lot of memory on the sparse matrices typical of persistent homology, but is slow when the boundary matrix is dense
+(cells with hundreds of faces); there PHAT, which stores R, can be orders of magnitude faster.
+
 **Zero-length bars are omitted** (birth and death at the same filtration value), as everywhere in `phlite`. With the
 default index filtration no bar has length zero, so you get every pair, as with PHAT.
 

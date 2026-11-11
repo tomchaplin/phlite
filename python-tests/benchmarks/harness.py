@@ -1,6 +1,7 @@
 """A tiny benchmark harness: each case runs in a fresh subprocess so that peak memory can be measured per case.
 
-A benchmark script defines `IMPLEMENTATIONS` (name -> function(input, case) returning a barcode fingerprint),
+A benchmark script defines `IMPLEMENTATIONS` (name -> function(input, case) returning a barcode fingerprint, or a
+function computing it, which isn't timed),
 `make_input(case)` and `case_label(case)`, then calls `main(...)`.
 When re-invoked with `--worker <json>` the script runs a single case and prints a JSON result.
 """
@@ -65,6 +66,9 @@ def run_worker(implementations, make_input, case_json):
     start = time.perf_counter()
     result = function(data, case)
     seconds = time.perf_counter() - start
+    # Implementations may return a function that computes the fingerprint, so that isn't timed
+    if callable(result):
+        result = result()
     print(json.dumps({"seconds": seconds, "peak_mb": max(peak_rss_mb() - baseline, 0.0), "fingerprint": result}))
 
 
@@ -112,8 +116,8 @@ def main(description, implementations, make_input, case_label, add_arguments, ca
         names.insert(0, reference)
 
     rows = []
-    print(f"| {'case':<24} | {'implementation':<30} | {'time (s)':>9} | {'peak MB':>8} | agrees |")
-    print(f"|{'-' * 26}|{'-' * 32}|{'-' * 11}|{'-' * 10}|--------|")
+    print(f"| {'case':<24} | {'implementation':<36} | {'time (s)':>9} | {'peak MB':>8} | agrees |")
+    print(f"|{'-' * 26}|{'-' * 38}|{'-' * 11}|{'-' * 10}|--------|")
     for base_case in cases_from_args(args):
         expected = None
         for name in names:
@@ -137,7 +141,7 @@ def main(description, implementations, make_input, case_label, add_arguments, ca
                 agrees = "" if expected is None else ("yes" if best["fingerprint"] == expected else "**NO**")
                 time_str, mem_str = f"{best['seconds']:.3f}", f"{row['peak_mb']:.1f}"
             rows.append(row)
-            print(f"| {case_label(base_case):<24} | {name:<30} | {time_str:>9} | {mem_str:>8} | {agrees:>6} |", flush=True)
+            print(f"| {case_label(base_case):<24} | {name:<36} | {time_str:>9} | {mem_str:>8} | {agrees:>6} |", flush=True)
 
     if args.json:
         with open(args.json, "w") as f:
