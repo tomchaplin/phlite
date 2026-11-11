@@ -73,14 +73,15 @@ using a fraction of Ripser's memory, on the following benchmark.
 computing persistent homology in dimensions 0, 1 and 2 over $\mathbb{Z}/2$ by cohomology.
 We compare `phlite_rips` (`Algorithm.serial()`) with [ripser.py](https://github.com/scikit-tda/ripser.py) (serial),
 and `phlite_rips` (`Algorithm.parallel(threads=4)`) with giotto-ph (`n_threads=4`).
-Times are the best of 2 runs and peak memory is the extra resident memory used during the computation,
-each run in a fresh process on one 8-core Linux machine; all implementations produced the same barcodes.
+Times are the best of 3 runs, and peak memory is the most heap memory allocated at once during the computation
+(measured with [memray](https://bloomberg.github.io/memray/), including native allocations), on one 8-core Linux machine;
+all implementations produced the same barcodes.
 
 | $n$ | Ripser (serial) | `phlite_rips` (serial) | giotto-ph (4 threads) | `phlite_rips` (4 threads) |
 |---|---|---|---|---|
-| 200 | 0.52s / 55 MB | 0.16s / 0.8 MB | 0.065s / 1.5 MB | 0.077s / 2.6 MB |
-| 300 | 2.20s / 209 MB | 0.57s / 3.5 MB | 0.22s / 7.2 MB | 0.27s / 7.2 MB |
-| 400 | 5.10s / 389 MB | 1.10s / 4.4 MB | 0.56s / 7.3 MB | 0.50s / 8.4 MB |
+| 200 | 0.38s / 66 MB | 0.092s / 3.3 MB | 0.035s / 1.3 MB | 0.032s / 3.6 MB |
+| 300 | 1.59s / 260 MB | 0.31s / 11 MB | 0.13s / 4.8 MB | 0.12s / 12 MB |
+| 400 | 3.52s / 518 MB | 0.63s / 23 MB | 0.36s / 5.5 MB | 0.26s / 24 MB |
 
 These are a single family of inputs on a single machine, so treat them as indicative.
 To reproduce, run `just bench-py -k test_rips` (the Rips benchmarks, which include these cases).
