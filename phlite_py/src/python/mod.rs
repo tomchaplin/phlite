@@ -10,11 +10,12 @@ use numpy::{
     PyUntypedArrayMethods,
 };
 use ordered_float::NotNan;
+use phlite::columns::ColumnRepresentation;
 use phlite::{
     barcode::Bar as PhliteBar,
     fields::{Z11, Z13, Z2, Z3, Z5, Z7},
 };
-use phlite_pyutils::{parse_method, AlgorithmArg};
+use phlite_pyutils::{add_algorithm_class, parse_method, AlgorithmConfig, AlgorithmVisitor};
 use pyo3::{
     exceptions::{PyTypeError, PyValueError},
     prelude::*,
@@ -128,22 +129,21 @@ impl AnyChain {
 
 impl AnyComplex {
     /// Compute the barcode (without the GIL).
-    #[allow(clippy::too_many_arguments)]
     fn persistence(
         &self,
         py: Python<'_>,
         max_dim: Option<usize>,
         method: &str,
-        algorithm: &str,
+        algorithm: &AlgorithmConfig,
         representatives: bool,
-        threads: Option<usize>,
     ) -> PyResult<BarData> {
         let method = parse_method(method)?;
-        let algorithm = AlgorithmArg::parse(algorithm)?;
-        dispatch!(Self, self, c => py.detach(|| {
-            algorithm.run(threads, |algorithm| {
-                let bars = c.barcode(max_dim, method, algorithm, representatives);
-                BarData::new(c, bars, max_dim, representatives)
+        dispatch!(Self, self, complex => py.detach(|| {
+            algorithm.run(Run {
+                complex,
+                max_dim,
+                method,
+                representatives,
             })
         }))
     }
@@ -154,6 +154,28 @@ impl AnyComplex {
 
     fn value(&self, cell: u32) -> f64 {
         dispatch!(Self, self, c => c.value(Cell(cell)))
+    }
+}
+
+/// Compute a barcode with whichever algorithm is configured.
+struct Run<'a, CF> {
+    complex: &'a Complex<CF>,
+    max_dim: Option<usize>,
+    method: phlite::barcode::Method,
+    representatives: bool,
+}
+
+impl<CF: IntField> AlgorithmVisitor for Run<'_, CF> {
+    type Output = BarData;
+
+    fn visit<R: ColumnRepresentation>(
+        self,
+        algorithm: phlite::barcode::Algorithm<'_, R>,
+    ) -> BarData {
+        let bars = self
+            .complex
+            .barcode(self.max_dim, self.method, algorithm, self.representatives);
+        BarData::new(self.complex, bars, self.max_dim, self.representatives)
     }
 }
 
@@ -607,5 +629,6 @@ fn phlite_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<FilteredComplex>()?;
     m.add_class::<Barcode>()?;
     m.add_class::<Bar>()?;
+    add_algorithm_class(m, "phlite")?;
     Ok(())
 }

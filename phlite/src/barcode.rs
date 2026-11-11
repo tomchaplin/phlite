@@ -24,8 +24,8 @@
 //! Attach the transpose of your matrix with [`with_transpose`](crate::matrices::MatrixOracle::with_transpose)
 //! (the boundary for a coboundary matrix, and vice versa), even if you don't want representatives:
 //! the clearing algorithms then recognise *apparent pairs*, which need no reduction or storage.
-//! These functions also turn on [`skip_zero_apparent_pairs`](crate::reduction::Clearing::skip_zero_apparent_pairs),
-//! since those pairs would only become zero-length bars.
+//! The clearing algorithms also [skip zero-persistence apparent pairs](crate::reduction::Clearing::skip_zero_apparent_pairs)
+//! by default, since those pairs would only become zero-length bars.
 //! This means your column basis needn't contain the cells of zero-persistence apparent pairs at all,
 //! which in many filtrations (such as Vietoris-Rips) are nearly all of them (see `phlite_rips::build_reduction_bases`).
 //! The [`Standard`] algorithm doesn't look for apparent pairs, so needs the full basis.
@@ -178,14 +178,11 @@ where
     M: Reducible<C, F, CF>,
     R: ColumnRepresentation,
 {
-    // Zero-persistence apparent pairs would only become zero-length bars, which we discard
     match algorithm {
         Algorithm::Standard(alg) => then.visit(alg.reduce(matrix)),
-        Algorithm::Clearing(alg) => then.visit(alg.skip_zero_apparent_pairs().reduce(matrix)),
+        Algorithm::Clearing(alg) => then.visit(alg.reduce(matrix)),
         #[cfg(feature = "parallel")]
-        Algorithm::ParallelClearing(alg) => {
-            then.visit(alg.skip_zero_apparent_pairs().reduce(matrix))
-        }
+        Algorithm::ParallelClearing(alg) => then.visit(alg.reduce(matrix)),
         #[cfg(not(feature = "parallel"))]
         Algorithm::_Lifetime(_, never) => match never {},
     }
@@ -584,6 +581,64 @@ mod tests {
                 };
                 assert_eq!(rep_cells(bar), expected_rep, "{bar:?}");
             }
+        }
+    }
+
+    /// Skipping zero-persistence apparent pairs must give the same diagram as not skipping (minus those pairs),
+    /// whatever order the dimensions are reduced in, serially and in parallel.
+    #[test]
+    fn skipping_is_correct_in_any_dimension_order() {
+        use crate::reduction::{Diagram, ReductionAlgorithm};
+        // Edges 4 = {0,1} and 5 = {0,2} enter with the vertices, so are zero-persistence apparent pairs
+        let value = |i: usize| [0usize, 0, 0, 0, 0, 0, 1, 2][i];
+        let b = boundary();
+        let co = coboundary();
+        let d = (&b).with_filtration(value);
+        let d = (&d).with_basis(basis(2));
+        let d = (&d).with_transpose(&co);
+        let delta = (&co).with_filtration(value);
+        let delta = (&delta).with_basis(basis(2));
+        let delta = (&delta).with_transpose(&b);
+        let anti = (&delta).reverse();
+
+        fn check<T: std::hash::Hash + Eq + Clone + std::fmt::Debug>(
+            full: &Diagram<T>,
+            skipped: &Diagram<T>,
+            context: &str,
+        ) {
+            assert_eq!(skipped.essential, full.essential, "{context}");
+            assert!(skipped.pairings.is_subset(&full.pairings), "{context}");
+        }
+
+        for order in [vec![0, 1, 2], vec![2, 1, 0], vec![1, 0, 2], vec![2, 0, 1]] {
+            let clearing = Clearing::new().with_dimension_order(order.clone());
+            let context = format!("order {order:?}");
+            let full = clearing
+                .clone()
+                .skip_zero_apparent_pairs(false)
+                .reduce(d)
+                .diagram;
+            assert_eq!(full.essential, Standard::new().reduce(d).diagram.essential);
+            check(&full, &clearing.clone().reduce(d).diagram, &context);
+            #[cfg(feature = "parallel")]
+            check(
+                &full,
+                &clearing.clone().parallel().reduce(d).diagram,
+                &context,
+            );
+            // And the anti-transposed coboundary, as used for cohomology
+            let full = clearing
+                .clone()
+                .skip_zero_apparent_pairs(false)
+                .reduce(anti)
+                .diagram;
+            check(&full, &clearing.clone().reduce(anti).diagram, &context);
+            #[cfg(feature = "parallel")]
+            check(
+                &full,
+                &clearing.clone().parallel().reduce(anti).diagram,
+                &context,
+            );
         }
     }
 }

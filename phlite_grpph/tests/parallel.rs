@@ -93,8 +93,16 @@ where
     M::ColT: std::hash::Hash + std::fmt::Debug + Send + Sync + Copy + 'static,
     M::FiltrationT: Send + Sync,
 {
-    let serial = Clearing::new().reduce(d_rev).diagram;
-    let reduction = Clearing::new().parallel().storage(storage).reduce(d_rev);
+    // Keep every pair (including zero-persistence apparent ones), since we compare against the full pairing of R = D V
+    let serial = Clearing::new()
+        .skip_zero_apparent_pairs(false)
+        .reduce(d_rev)
+        .diagram;
+    let reduction = Clearing::new()
+        .skip_zero_apparent_pairs(false)
+        .parallel()
+        .storage(storage)
+        .reduce(d_rev);
     let (v_par, parallel) = (reduction.v, reduction.diagram);
     assert_same_diagram(&serial, &parallel);
 

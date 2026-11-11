@@ -4,6 +4,8 @@ use numpy::{IntoPyArray, PyArray1, PyArray2};
 use pyo3::{exceptions::PyValueError, prelude::*, types::PyList};
 use pyo3_stub_gen::derive::*;
 
+use phlite_pyutils::AlgorithmConfig;
+
 use super::{chain, AnyComplex, Bar, BarData, ChainComplex, Record};
 
 /// A chain complex with a filtration attached, ready to compute persistent homology.
@@ -25,33 +27,34 @@ impl FilteredComplex {
     ///         Lower is faster: with `method='cohomology'` cells above dimension `max_dim + 1` are never looked at.
     ///     method: `'cohomology'` (the default) reduces the coboundary matrix, which is usually much faster.
     ///         `'homology'` reduces the boundary matrix instead.
-    ///     algorithm: The reduction algorithm: `'standard'`, `'clearing'` (the default), `'parallel'`
-    ///         (clearing, with each dimension reduced in parallel) or `'parallel-lock-free'`
-    ///         (the same, using lock-free data structures).
+    ///     algorithm: The reduction algorithm and its options, as an `Algorithm` (default: `Algorithm.serial()`),
+    ///         or one of the names `'standard'`, `'clearing'` (the same as `Algorithm.serial()`), `'parallel'`
+    ///         (the same as `Algorithm.parallel()`) or `'parallel-lock-free'`.
     ///     representatives: Whether to also compute a representative cycle for every bar.
     ///         With `method='cohomology'` these are computed via involution.
-    ///     threads: The number of threads for the parallel algorithms (default: all cores).
+    ///     threads: The number of threads for a parallel algorithm (default: all cores);
+    ///         short for `algorithm.with_threads(threads)`.
     ///
     /// Returns:
     ///     The barcode. Bars of length zero (birth and death at the same filtration value) are omitted.
-    #[pyo3(signature = (max_dim = None, *, method = "cohomology", algorithm = "clearing", representatives = false, threads = None))]
+    #[pyo3(signature = (max_dim = None, *, method = "cohomology", algorithm = None, representatives = false, threads = None))]
     fn persistence(
         slf: &Bound<'_, Self>,
         max_dim: Option<usize>,
         #[gen_stub(override_type(type_repr = "typing.Literal['cohomology', 'homology']", imports = ("typing")))]
         method: &str,
-        #[gen_stub(override_type(type_repr = "typing.Literal['standard', 'clearing', 'parallel', 'parallel-lock-free']", imports = ("typing")))]
-        algorithm: &str,
+        #[gen_stub(override_type(type_repr = "typing.Union[Algorithm, typing.Literal['standard', 'clearing', 'parallel', 'parallel-lock-free'], None]", imports = ("typing")))]
+        algorithm: Option<&Bound<'_, PyAny>>,
         representatives: bool,
         threads: Option<usize>,
     ) -> PyResult<Barcode> {
+        let algorithm = AlgorithmConfig::from_arg(algorithm, threads)?;
         let data = slf.get().complex.persistence(
             slf.py(),
             max_dim,
             method,
-            algorithm,
+            &algorithm,
             representatives,
-            threads,
         )?;
         Ok(Barcode {
             data,

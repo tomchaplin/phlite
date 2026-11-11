@@ -121,7 +121,11 @@ pub fn build_rips_boundary_matrix<CF: Invertible>(
     distances: Vec<Vec<NotNan<f64>>>,
     max_dim: usize,
 ) -> RipsBoundaryAllDims<CF> {
-    build_rips_boundary_matrix_with_threshold(distances, max_dim, NotNan::new(f64::INFINITY).unwrap())
+    build_rips_boundary_matrix_with_threshold(
+        distances,
+        max_dim,
+        NotNan::new(f64::INFINITY).unwrap(),
+    )
 }
 
 /// As [`build_rips_boundary_matrix`], but only the simplices with diameter at most `threshold`.
@@ -219,7 +223,9 @@ mod tests {
             .map(|a| {
                 points
                     .iter()
-                    .map(|b| NotNan::new(((a.0 - b.0).powi(2) + (a.1 - b.1).powi(2)).sqrt()).unwrap())
+                    .map(|b| {
+                        NotNan::new(((a.0 - b.0).powi(2) + (a.1 - b.1).powi(2)).sqrt()).unwrap()
+                    })
                     .collect()
             })
             .collect()
@@ -237,15 +243,30 @@ mod tests {
             );
 
             let standard = Standard::new().reduce(&boundary).diagram;
-            let detected = Clearing::new().reduce(&boundary).diagram;
+            // Keep every pair, to compare with the standard algorithm
+            let full = Clearing::new().skip_zero_apparent_pairs(false);
+            let detected = full.clone().reduce(&boundary).diagram;
             // Ascending is the wrong way round for a boundary matrix: no clearing happens, but the diagram is still right
-            let wrong_order = Clearing::new()
+            let wrong_order = full
                 .with_dimension_order(0..=max_dim)
                 .reduce(&boundary)
                 .diagram;
             for diagram in [&detected, &wrong_order] {
                 assert_eq!(standard.essential, diagram.essential);
                 assert_eq!(standard.pairings, diagram.pairings);
+            }
+            // Skipping zero-persistence apparent pairs (the default) drops some pairs, but never makes their births
+            // essential, in either order
+            for order in [
+                (0..=max_dim).collect::<Vec<_>>(),
+                (0..=max_dim).rev().collect(),
+            ] {
+                let skipped = Clearing::new()
+                    .with_dimension_order(order)
+                    .reduce(&boundary)
+                    .diagram;
+                assert_eq!(standard.essential, skipped.essential);
+                assert!(skipped.pairings.is_subset(&standard.pairings));
             }
         }
     }

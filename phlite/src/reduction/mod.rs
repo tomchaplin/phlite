@@ -23,8 +23,8 @@
 //!   [`with_transpose`](crate::matrices::MatrixOracle::with_transpose)), then *apparent pairs* are recognised:
 //!   a column `c` whose pivot `r` has `c` as the first column in its row is a persistence pair that needs no reduction.
 //!   Apparent pairs are never stored in pivot tables, since whenever another column hits pivot `r` the owner `c` can be recomputed.
-//!   So the column basis needn't even contain them; with
-//!   [`skip_zero_apparent_pairs`](Clearing::skip_zero_apparent_pairs) those of zero persistence are also left out of the diagram.
+//!   So the column basis needn't even contain them; those of zero persistence are also left out of the diagram, unless
+//!   you turn off [`skip_zero_apparent_pairs`](Clearing::skip_zero_apparent_pairs).
 //!
 //! [`Standard`] makes none of these optimisations: it builds every column and needs the full column basis.
 //!

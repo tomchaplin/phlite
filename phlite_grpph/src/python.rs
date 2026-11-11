@@ -2,7 +2,14 @@
 //!
 //! The `Barcode` type and argument handling are shared with the other bindings, see [`phlite_pyutils`].
 
-use phlite_pyutils::{add_barcode_class, parse_method, AlgorithmArg, Barcode, SortedBars};
+use phlite::{
+    barcode::{Algorithm, Method},
+    columns::ColumnRepresentation,
+};
+use phlite_pyutils::{
+    add_algorithm_class, add_barcode_class, parse_method, AlgorithmConfig, AlgorithmVisitor,
+    Barcode, SortedBars,
+};
 use pyo3::{
     exceptions::{PyTypeError, PyValueError},
     prelude::*,
@@ -10,7 +17,11 @@ use pyo3::{
 };
 use pyo3_stub_gen::derive::*;
 
-use crate::{build_edge_set, build_filtration, coboundary::PathHomCell, grpph_barcode};
+use crate::{
+    build_edge_set, build_filtration,
+    coboundary::{DigraphEdgeSet, PathHomCell, VecDigraphFiltration},
+    grpph_barcode,
+};
 
 // ====== The entry point ==================================================
 
@@ -119,13 +130,14 @@ fn from_networkx(graph: &Bound<'_, PyAny>, weight: &str) -> PyResult<LabelledDig
 ///     weight: Only for a networkx graph: the edge attribute holding the weight (default `'weight'`).
 ///     method: `'cohomology'` (the default) reduces the coboundary matrix, which is usually much faster.
 ///         `'homology'` reduces the boundary matrix instead, which needs every 2-cell up front.
-///     algorithm: The reduction algorithm: `'standard'`, `'clearing'` (the default), `'parallel'`
-///         (clearing, with each dimension reduced in parallel) or `'parallel-lock-free'`
-///         (the same, using lock-free data structures).
+///     algorithm: The reduction algorithm and its options, as an `Algorithm` (default: `Algorithm.serial()`),
+///         or one of the names `'standard'`, `'clearing'` (the same as `Algorithm.serial()`), `'parallel'`
+///         (the same as `Algorithm.parallel()`) or `'parallel-lock-free'`.
 ///     representatives: Whether to also compute a representative cycle for every bar.
 ///         With `method='cohomology'` these are computed via involution.
 ///         For a networkx graph, cells are tuples of node labels, otherwise of node indices.
-///     threads: The number of threads for the parallel algorithms (default: all cores).
+///     threads: The number of threads for a parallel algorithm (default: all cores);
+///         short for `algorithm.with_threads(threads)`.
 ///
 /// Weights must be non-negative and may be infinite (the edge is then only used for grounding).
 /// Self-loops are not supported.
@@ -145,7 +157,7 @@ fn from_networkx(graph: &Bound<'_, PyAny>, weight: &str) -> PyResult<LabelledDig
         *,
         weight: builtins.str = "weight",
         method: typing.Literal['cohomology', 'homology'] = "cohomology",
-        algorithm: typing.Literal['standard', 'clearing', 'parallel', 'parallel-lock-free'] = "clearing",
+        algorithm: typing.Union[Algorithm, typing.Literal['standard', 'clearing', 'parallel', 'parallel-lock-free'], None] = None,
         representatives: builtins.bool = False,
         threads: typing.Optional[builtins.int] = None,
     ) -> Barcode: ...
@@ -156,7 +168,7 @@ fn from_networkx(graph: &Bound<'_, PyAny>, weight: &str) -> PyResult<LabelledDig
         /,
         *,
         method: typing.Literal['cohomology', 'homology'] = "cohomology",
-        algorithm: typing.Literal['standard', 'clearing', 'parallel', 'parallel-lock-free'] = "clearing",
+        algorithm: typing.Union[Algorithm, typing.Literal['standard', 'clearing', 'parallel', 'parallel-lock-free'], None] = None,
         representatives: builtins.bool = False,
         threads: typing.Optional[builtins.int] = None,
     ) -> Barcode: ...
@@ -164,7 +176,7 @@ fn from_networkx(graph: &Bound<'_, PyAny>, weight: &str) -> PyResult<LabelledDig
     no_default_overload = true
 )]
 #[pyfunction]
-#[pyo3(signature = (graph, edges = None, /, *, weight = "weight", method = "cohomology", algorithm = "clearing", representatives = false, threads = None))]
+#[pyo3(signature = (graph, edges = None, /, *, weight = "weight", method = "cohomology", algorithm = None, representatives = false, threads = None))]
 #[allow(clippy::too_many_arguments)]
 fn grpph(
     py: Python<'_>,
@@ -172,7 +184,7 @@ fn grpph(
     edges: Option<Vec<(u32, u32, f64)>>,
     weight: &str,
     method: &str,
-    algorithm: &str,
+    algorithm: Option<&Bound<'_, PyAny>>,
     representatives: bool,
     threads: Option<usize>,
 ) -> PyResult<Barcode> {
@@ -196,30 +208,51 @@ fn grpph(
         };
     validate(n_vertices, &edges)?;
     let method = parse_method(method)?;
-    let algorithm = AlgorithmArg::parse(algorithm)?;
+    let algorithm = AlgorithmConfig::from_arg(algorithm, threads)?;
 
     let bars = py.detach(|| {
         let filtration = build_filtration(n_vertices, &edges);
         let edge_set = build_edge_set(&edges);
-        algorithm.run(threads, |algorithm| {
-            let bars = grpph_barcode(
-                &filtration,
-                &edge_set,
-                n_vertices as u16,
-                method,
-                algorithm,
-                representatives,
-            );
-            SortedBars::new(bars, 2, |cell| match *cell {
-                PathHomCell::Node(a) => (0, vec![a as u32]),
-                PathHomCell::Edge(a, b) => (1, vec![a as u32, b as u32]),
-                PathHomCell::TwoCell(_) => {
-                    unreachable!("GrPPH bars and representatives live in dimensions 0 and 1")
-                }
-            })
+        algorithm.run(GrPPHRun {
+            filtration: &filtration,
+            edge_set: &edge_set,
+            n_vertices: n_vertices as u16,
+            method,
+            representatives,
         })
     })?;
     bars.into_python(py, representatives, labels.as_deref())
+}
+
+/// Compute the GrPPH barcode with whichever algorithm is configured.
+struct GrPPHRun<'a> {
+    filtration: &'a VecDigraphFiltration,
+    edge_set: &'a DigraphEdgeSet,
+    n_vertices: u16,
+    method: Method,
+    representatives: bool,
+}
+
+impl AlgorithmVisitor for GrPPHRun<'_> {
+    type Output = SortedBars;
+
+    fn visit<R: ColumnRepresentation>(self, algorithm: Algorithm<'_, R>) -> SortedBars {
+        let bars = grpph_barcode(
+            self.filtration,
+            self.edge_set,
+            self.n_vertices,
+            self.method,
+            algorithm,
+            self.representatives,
+        );
+        SortedBars::new(bars, 2, |cell| match *cell {
+            PathHomCell::Node(a) => (0, vec![a as u32]),
+            PathHomCell::Edge(a, b) => (1, vec![a as u32, b as u32]),
+            PathHomCell::TwoCell(_) => {
+                unreachable!("GrPPH bars and representatives live in dimensions 0 and 1")
+            }
+        })
+    }
 }
 
 /// Grounded persistent path homology (GrPPH) of weighted digraphs, computed with `phlite`.
@@ -229,5 +262,6 @@ fn phlite_grpph(m: &Bound<'_, PyModule>) -> PyResult<()> {
 
     m.add_function(wrap_pyfunction!(grpph, m)?)?;
     add_barcode_class(m, "phlite_grpph")?;
+    add_algorithm_class(m, "phlite_grpph")?;
     Ok(())
 }

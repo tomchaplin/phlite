@@ -194,6 +194,9 @@ where
     /// The pairs `pivot row -> column` found in the previous dimension, whose rows are the columns to clear in this one
     previous_pairs: FxHashMap<RowT, RowT>,
     skip_zero_apparent_pairs: bool,
+    /// Births of skipped (zero-persistence apparent) pairs that weren't cleared, and so may be wrongly marked essential.
+    /// Only ever non-empty when dimensions are reduced against the direction of the matrix.
+    skipped_births: FxHashSet<RowT>,
     columns: C,
     /// Shared by the columns reduced in the current dimension
     cache: C::Cache<FilT, RowT, CF>,
@@ -226,6 +229,7 @@ where
             },
             reduction_columns: FxHashMap::default(),
             previous_pairs: FxHashMap::default(),
+            skipped_births: FxHashSet::default(),
         }
     }
 
@@ -318,7 +322,11 @@ where
             && self.skip_zero_apparent_pairs
             && self.boundary.filtration_value(pivot_row.clone())
                 == self.boundary.filtration_value(basis_element.clone());
-        if !skip {
+        if skip {
+            // The birth's column may already have been reduced (if dimensions are visited against the direction of the
+            // matrix), and then marked essential since nothing had claimed it yet
+            self.diagram.essential.remove(&pivot_row);
+        } else {
             self.diagram.pairings.insert((pivot_row, basis_element));
         }
     }
@@ -409,8 +417,19 @@ where
         }
         // Columns of D are only ever added to columns of the same dimension
         self.cache = Default::default();
-        // Rows paired in the previous dimension that weren't columns of this one are never needed
-        self.previous_pairs = new_pairs.unwrap_or_default();
+        // Rows paired in the previous dimension that weren't columns of this one aren't needed for clearing.
+        // But if their pair was skipped, the row's column may be reduced in a later dimension and marked essential.
+        // (When dimensions are visited in the direction of the matrix there are no such rows.)
+        let leftover = std::mem::replace(&mut self.previous_pairs, new_pairs.unwrap_or_default());
+        if self.skip_zero_apparent_pairs {
+            for (row, col) in leftover {
+                if self.boundary.filtration_value(row.clone())
+                    == self.boundary.filtration_value(col)
+                {
+                    self.skipped_births.insert(row);
+                }
+            }
+        }
     }
 
     fn reduce_all_dimension(&mut self) {
@@ -442,15 +461,27 @@ where
 ///
 /// The algorithm is generic over how it represents the column being reduced, see [`ColumnRepresentation`];
 /// the default is [`MergedColumns`]. Choose another with [`with_columns`](Clearing::with_columns).
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct Clearing<C = MergedColumns> {
     dimension_order: Option<Vec<usize>>,
     pub(crate) skip_zero_apparent_pairs: bool,
     pub(crate) columns: C,
 }
 
+impl<C: Default> Default for Clearing<C> {
+    fn default() -> Self {
+        Self {
+            dimension_order: None,
+            skip_zero_apparent_pairs: true,
+            columns: C::default(),
+        }
+    }
+}
+
 impl Clearing {
     /// Reduce every dimension of the matrix, in whichever direction the matrix maps between them.
+    /// Zero-persistence apparent pairs are left out of the diagram, see
+    /// [`skip_zero_apparent_pairs`](Self::skip_zero_apparent_pairs).
     ///
     /// The direction is detected by looking at the first non-zero column we find (in dimension `d`) and checking
     /// whether its pivot row lies in dimension `d - 1` (descending, like a boundary matrix) or not (ascending, like a coboundary matrix).
@@ -481,14 +512,16 @@ impl<C: ColumnRepresentation> Clearing<C> {
         self
     }
 
-    /// Don't record apparent pairs of zero persistence (whose row and column have the same filtration value) in the diagram.
+    /// Whether to leave apparent pairs of zero persistence (whose row and column have the same filtration value) out of
+    /// the diagram. On by default.
     ///
     /// Apparent pairs need no reduction, but in many filtrations nearly every pair is a zero-persistence apparent pair,
     /// so recording them dominates the time and memory of the reduction.
-    /// They are still used for clearing, and the reduction matrix `V` is unaffected.
+    /// They are still used for clearing, and the reduction matrix `V` is unaffected. Their births are never reported
+    /// as essential, whatever the dimension order.
     /// Only matrices with [`first_column_in_row`](crate::matrices::HasRowFiltration::first_column_in_row) have apparent pairs.
-    pub fn skip_zero_apparent_pairs(mut self) -> Self {
-        self.skip_zero_apparent_pairs = true;
+    pub fn skip_zero_apparent_pairs(mut self, skip: bool) -> Self {
+        self.skip_zero_apparent_pairs = skip;
         self
     }
 
@@ -574,6 +607,9 @@ where
             ClearedReductionMatrix::build_from_owned(builder.boundary, builder.reduction_columns);
         let mut diagram = builder.diagram;
         diagram.remove_births_from_essential();
+        diagram
+            .essential
+            .retain(|elem| !builder.skipped_births.contains(elem));
         Reduction { v, diagram }
     }
 }

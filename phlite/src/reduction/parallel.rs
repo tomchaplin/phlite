@@ -511,8 +511,8 @@ impl<'p, C: ColumnRepresentation> ParallelClearing<'p, C> {
     }
 
     /// See [`Clearing::skip_zero_apparent_pairs`].
-    pub fn skip_zero_apparent_pairs(mut self) -> Self {
-        self.clearing = self.clearing.skip_zero_apparent_pairs();
+    pub fn skip_zero_apparent_pairs(mut self, skip: bool) -> Self {
+        self.clearing = self.clearing.skip_zero_apparent_pairs(skip);
         self
     }
 
@@ -592,6 +592,9 @@ where
     let mut pairings = FxHashSet::default();
     // The pairs `pivot row -> column` found in the previous dimension, whose rows are the columns to clear in this one
     let mut previous_pairs: FxHashMap<M::RowT, M::ColT> = FxHashMap::default();
+    // Births of skipped (zero-persistence apparent) pairs that weren't cleared, and so may be wrongly marked essential.
+    // Only ever non-empty when dimensions are reduced against the direction of the matrix.
+    let mut skipped_births: FxHashSet<M::RowT> = FxHashSet::default();
     let n_dims = dimension_order.len();
 
     for (position, dim) in dimension_order.into_iter().enumerate() {
@@ -622,8 +625,9 @@ where
                         let record = !(skip_zero_apparent_pairs
                             && boundary.filtration_value(entry.row_index.clone())
                                 == boundary.filtration_value(col.clone()));
-                        // Unrecorded pairs are still needed to clear the next dimension
-                        if record || !is_last {
+                        // Unrecorded pairs are still needed to clear the next dimension, and to un-mark their birth
+                        // as essential if its dimension was reduced earlier (against the direction of the matrix)
+                        if record || !is_last || essential.contains(&entry.row_index) {
                             acc.apparent.push((entry.row_index, col, record));
                         }
                     }
@@ -648,6 +652,8 @@ where
             }
             if record {
                 pairings.insert((pivot_row, col));
+            } else {
+                essential.remove(&pivot_row);
             }
         }
 
@@ -662,6 +668,24 @@ where
             .into_par_iter()
             .with_max_len(MAX_TASK_LEN)
             .for_each(|j| reducer.reduce_column(j));
+
+        // Rows paired in the previous dimension that weren't columns of this one aren't needed for clearing.
+        // But if their pair was skipped, the row's column may be reduced in a later dimension and marked essential.
+        // (When dimensions are visited in the direction of the matrix there are no such rows.)
+        if skip_zero_apparent_pairs {
+            for (row, col) in &clearing {
+                let was_cleared = matches!(
+                    reduction_columns.get(row),
+                    Some(ReductionColumn::Cleared(_))
+                );
+                if !was_cleared
+                    && boundary.filtration_value(row.clone())
+                        == boundary.filtration_value(col.clone())
+                {
+                    skipped_births.insert(row.clone());
+                }
+            }
+        }
 
         // 3. Read off the results
         for (j, label) in reducer.cols.iter().enumerate() {
@@ -700,5 +724,8 @@ where
         pairings,
     };
     diagram.remove_births_from_essential();
+    diagram
+        .essential
+        .retain(|elem| !skipped_births.contains(elem));
     (v, diagram)
 }
