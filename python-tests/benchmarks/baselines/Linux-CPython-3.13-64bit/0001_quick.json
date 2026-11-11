@@ -1,0 +1,4875 @@
+{
+    "machine_info": {
+        "processor": "",
+        "machine": "x86_64",
+        "python_compiler": "Clang 22.1.3 ",
+        "python_implementation": "CPython",
+        "python_implementation_version": "3.13.13",
+        "python_version": "3.13.13",
+        "python_build": [
+            "main",
+            "May 10 2026 19:26:54"
+        ],
+        "release": "7.0.10-arch1-1",
+        "system": "Linux",
+        "cpu": {
+            "python_version": "3.13.13.final.0 (64 bit)",
+            "cpuinfo_version": [
+                10,
+                1,
+                1
+            ],
+            "cpuinfo_version_string": "10.1.1",
+            "arch": "X86_64",
+            "bits": 64,
+            "count": 8,
+            "arch_string_raw": "x86_64",
+            "vendor_id_raw": "GenuineIntel",
+            "brand_raw": "11th Gen Intel(R) Core(TM) i7-1185G7 @ 3.00GHz",
+            "hz_advertised_friendly": "3.0000 GHz",
+            "hz_advertised": [
+                3000000000,
+                0
+            ],
+            "stepping": 1,
+            "model": 140,
+            "family": 6,
+            "flags": [
+                "3dnowprefetch",
+                "abm",
+                "acpi",
+                "adx",
+                "aes",
+                "aperfmperf",
+                "apic",
+                "arat",
+                "arch_capabilities",
+                "arch_perfmon",
+                "art",
+                "avx",
+                "avx2",
+                "avx512_bitalg",
+                "avx512_vbmi2",
+                "avx512_vnni",
+                "avx512_vp2intersect",
+                "avx512_vpopcntdq",
+                "avx512bitalg",
+                "avx512bw",
+                "avx512cd",
+                "avx512dq",
+                "avx512f",
+                "avx512ifma",
+                "avx512vbmi",
+                "avx512vbmi2",
+                "avx512vl",
+                "avx512vnni",
+                "avx512vpopcntdq",
+                "bmi1",
+                "bmi2",
+                "bts",
+                "cat_l2",
+                "cdp_l2",
+                "clflush",
+                "clflushopt",
+                "clwb",
+                "cmov",
+                "constant_tsc",
+                "cpuid",
+                "cpuid_fault",
+                "cx16",
+                "cx8",
+                "de",
+                "ds_cpl",
+                "dtes64",
+                "dtherm",
+                "dts",
+                "epb",
+                "ept",
+                "ept_ad",
+                "erms",
+                "est",
+                "f16c",
+                "flexpriority",
+                "flush_l1d",
+                "fma",
+                "fpu",
+                "fsgsbase",
+                "fsrm",
+                "fxsr",
+                "gfni",
+                "ht",
+                "hwp",
+                "hwp_act_window",
+                "hwp_epp",
+                "hwp_notify",
+                "hwp_pkg_req",
+                "ibpb",
+                "ibrs",
+                "ibrs_enhanced",
+                "ibt",
+                "ida",
+                "intel_pt",
+                "invpcid",
+                "lahf_lm",
+                "lm",
+                "mca",
+                "mce",
+                "md_clear",
+                "mmx",
+                "monitor",
+                "movbe",
+                "movdir64b",
+                "movdiri",
+                "msr",
+                "mtrr",
+                "nonstop_tsc",
+                "nopl",
+                "nx",
+                "ospke",
+                "osxsave",
+                "pae",
+                "pat",
+                "pbe",
+                "pcid",
+                "pclmulqdq",
+                "pdcm",
+                "pdpe1gb",
+                "pebs",
+                "pge",
+                "pku",
+                "pln",
+                "pni",
+                "popcnt",
+                "pqe",
+                "pse",
+                "pse36",
+                "pts",
+                "rdpid",
+                "rdrand",
+                "rdrnd",
+                "rdseed",
+                "rdt_a",
+                "rdtscp",
+                "rep_good",
+                "sdbg",
+                "sep",
+                "sha",
+                "sha_ni",
+                "smap",
+                "smep",
+                "smx",
+                "split_lock_detect",
+                "ss",
+                "ssbd",
+                "sse",
+                "sse2",
+                "sse4_1",
+                "sse4_2",
+                "ssse3",
+                "stibp",
+                "syscall",
+                "tm",
+                "tm2",
+                "tme",
+                "tpr_shadow",
+                "tsc",
+                "tsc_adjust",
+                "tsc_deadline_timer",
+                "tsc_known_freq",
+                "tscdeadline",
+                "umip",
+                "user_shstk",
+                "vaes",
+                "vme",
+                "vmx",
+                "vnmi",
+                "vpclmulqdq",
+                "vpid",
+                "x2apic",
+                "xgetbv1",
+                "xsave",
+                "xsavec",
+                "xsaveopt",
+                "xsaves",
+                "xtopology",
+                "xtpr"
+            ],
+            "l3_cache_size": 12582912,
+            "l2_cache_size": 5242880,
+            "l1_data_cache_size": 196608,
+            "l1_instruction_cache_size": 131072,
+            "l2_cache_line_size": 256,
+            "l2_cache_associativity": 7
+        }
+    },
+    "commit_info": {
+        "id": "0c4bcf02c4ceb12978c893d8c986085545408aa9",
+        "time": "2026-11-11T09:13:59Z",
+        "author_time": "2026-11-11T09:13:59Z",
+        "dirty": false,
+        "project": "phlite",
+        "branch": "phlite-py-complex"
+    },
+    "benchmarks": [
+        {
+            "group": "rips n=100 dim\u22642",
+            "name": "test_sparse[rips n=100 dim\\u22642-phat (twist)]",
+            "fullname": "benchmarks/bench_sparse.py::test_sparse[rips n=100 dim\\u22642-phat (twist)]",
+            "params": {
+                "case": {
+                    "kind": "rips",
+                    "n": 100,
+                    "top_dim": 2,
+                    "density": 0.3,
+                    "seed": 0
+                },
+                "implementation": "phat (twist)"
+            },
+            "param": "rips n=100 dim\\u22642-phat (twist)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 35.6,
+                "fingerprint": [
+                    [
+                        99,
+                        1,
+                        6.827409
+                    ],
+                    [
+                        16,
+                        0,
+                        0.706501
+                    ],
+                    [
+                        0,
+                        156849,
+                        0
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.18309829800000443,
+                "max": 0.21248580500014214,
+                "mean": 0.19170601340010762,
+                "stddev": 0.012510139805873493,
+                "rounds": 5,
+                "median": 0.18515214800027024,
+                "iqr": 0.015657106249818753,
+                "q1": 0.18329214075015443,
+                "q3": 0.19894924699997318,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.18309829800000443,
+                "hd15iqr": 0.21248580500014214,
+                "ops": 5.216320459979054,
+                "total": 0.9585300670005381,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "rips n=100 dim\u22642",
+            "name": "test_sparse[rips n=100 dim\\u22642-phat (twist, reduce)]",
+            "fullname": "benchmarks/bench_sparse.py::test_sparse[rips n=100 dim\\u22642-phat (twist, reduce)]",
+            "params": {
+                "case": {
+                    "kind": "rips",
+                    "n": 100,
+                    "top_dim": 2,
+                    "density": 0.3,
+                    "seed": 0
+                },
+                "implementation": "phat (twist, reduce)"
+            },
+            "param": "rips n=100 dim\\u22642-phat (twist, reduce)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 26.6,
+                "fingerprint": [
+                    [
+                        99,
+                        1,
+                        6.827409
+                    ],
+                    [
+                        16,
+                        0,
+                        0.706501
+                    ],
+                    [
+                        0,
+                        156849,
+                        0
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.08488866399966355,
+                "max": 0.08687254300002678,
+                "mean": 0.08605104420003044,
+                "stddev": 0.0009234117865205937,
+                "rounds": 5,
+                "median": 0.08654812700024195,
+                "iqr": 0.0016212090008593805,
+                "q1": 0.08513925399961408,
+                "q3": 0.08676046300047346,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.08488866399966355,
+                "hd15iqr": 0.08687254300002678,
+                "ops": 11.62100947520688,
+                "total": 0.43025522100015223,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "rips n=100 dim\u22642",
+            "name": "test_sparse[rips n=100 dim\\u22642-phat (chunk)]",
+            "fullname": "benchmarks/bench_sparse.py::test_sparse[rips n=100 dim\\u22642-phat (chunk)]",
+            "params": {
+                "case": {
+                    "kind": "rips",
+                    "n": 100,
+                    "top_dim": 2,
+                    "density": 0.3,
+                    "seed": 0
+                },
+                "implementation": "phat (chunk)"
+            },
+            "param": "rips n=100 dim\\u22642-phat (chunk)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 23.0,
+                "fingerprint": [
+                    [
+                        99,
+                        1,
+                        6.827409
+                    ],
+                    [
+                        16,
+                        0,
+                        0.706501
+                    ],
+                    [
+                        0,
+                        156849,
+                        0
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.18956924699978117,
+                "max": 0.1941482049996921,
+                "mean": 0.1915170741998736,
+                "stddev": 0.0021685222610610933,
+                "rounds": 5,
+                "median": 0.19014744700052688,
+                "iqr": 0.003738845500492971,
+                "q1": 0.18999043574945063,
+                "q3": 0.1937292812499436,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.18956924699978117,
+                "hd15iqr": 0.1941482049996921,
+                "ops": 5.221466567290845,
+                "total": 0.957585370999368,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "rips n=100 dim\u22642",
+            "name": "test_sparse[rips n=100 dim\\u22642-phat (standard, vector_vector)]",
+            "fullname": "benchmarks/bench_sparse.py::test_sparse[rips n=100 dim\\u22642-phat (standard, vector_vector)]",
+            "params": {
+                "case": {
+                    "kind": "rips",
+                    "n": 100,
+                    "top_dim": 2,
+                    "density": 0.3,
+                    "seed": 0
+                },
+                "implementation": "phat (standard, vector_vector)"
+            },
+            "param": "rips n=100 dim\\u22642-phat (standard, vector_vector)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 19.6,
+                "fingerprint": [
+                    [
+                        99,
+                        1,
+                        6.827409
+                    ],
+                    [
+                        16,
+                        0,
+                        0.706501
+                    ],
+                    [
+                        0,
+                        156849,
+                        0
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.21632730400051514,
+                "max": 0.2286791960004848,
+                "mean": 0.21963324220032518,
+                "stddev": 0.005114390009501939,
+                "rounds": 5,
+                "median": 0.21775068900024053,
+                "iqr": 0.0040860190003968455,
+                "q1": 0.21686118625007111,
+                "q3": 0.22094720525046796,
+                "iqr_outliers": 1,
+                "stddev_outliers": 1,
+                "outliers": "1;1",
+                "ld15iqr": 0.21632730400051514,
+                "hd15iqr": 0.21836987500046234,
+                "ops": 4.553044839578111,
+                "total": 1.098166211001626,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "rips n=100 dim\u22642",
+            "name": "test_sparse[rips n=100 dim\\u22642-lophat (1 thread)]",
+            "fullname": "benchmarks/bench_sparse.py::test_sparse[rips n=100 dim\\u22642-lophat (1 thread)]",
+            "params": {
+                "case": {
+                    "kind": "rips",
+                    "n": 100,
+                    "top_dim": 2,
+                    "density": 0.3,
+                    "seed": 0
+                },
+                "implementation": "lophat (1 thread)"
+            },
+            "param": "rips n=100 dim\\u22642-lophat (1 thread)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 45.3,
+                "fingerprint": [
+                    [
+                        99,
+                        1,
+                        6.827409
+                    ],
+                    [
+                        16,
+                        0,
+                        0.706501
+                    ],
+                    [
+                        0,
+                        156849,
+                        0
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.08387288599988096,
+                "max": 0.08726608399956604,
+                "mean": 0.08504264639996109,
+                "stddev": 0.0013163319564916238,
+                "rounds": 5,
+                "median": 0.08462002099986421,
+                "iqr": 0.0013691902504433529,
+                "q1": 0.08425311649989453,
+                "q3": 0.08562230675033788,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.08387288599988096,
+                "hd15iqr": 0.08726608399956604,
+                "ops": 11.75880622643062,
+                "total": 0.42521323199980543,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "rips n=100 dim\u22642",
+            "name": "test_sparse[rips n=100 dim\\u22642-lophat (parallel)]",
+            "fullname": "benchmarks/bench_sparse.py::test_sparse[rips n=100 dim\\u22642-lophat (parallel)]",
+            "params": {
+                "case": {
+                    "kind": "rips",
+                    "n": 100,
+                    "top_dim": 2,
+                    "density": 0.3,
+                    "seed": 0
+                },
+                "implementation": "lophat (parallel)"
+            },
+            "param": "rips n=100 dim\\u22642-lophat (parallel)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 26.0,
+                "fingerprint": [
+                    [
+                        99,
+                        1,
+                        6.827409
+                    ],
+                    [
+                        16,
+                        0,
+                        0.706501
+                    ],
+                    [
+                        0,
+                        156849,
+                        0
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.09162225799991575,
+                "max": 0.09881853099977889,
+                "mean": 0.09509662699983892,
+                "stddev": 0.0030672172519770934,
+                "rounds": 5,
+                "median": 0.09384960299939848,
+                "iqr": 0.0050944489992161834,
+                "q1": 0.09295515275039179,
+                "q3": 0.09804960174960797,
+                "iqr_outliers": 0,
+                "stddev_outliers": 2,
+                "outliers": "2;0",
+                "ld15iqr": 0.09162225799991575,
+                "hd15iqr": 0.09881853099977889,
+                "ops": 10.515620075585792,
+                "total": 0.4754831349991946,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "rips n=100 dim\u22642",
+            "name": "test_sparse[rips n=100 dim\\u22642-phlite (serial)]",
+            "fullname": "benchmarks/bench_sparse.py::test_sparse[rips n=100 dim\\u22642-phlite (serial)]",
+            "params": {
+                "case": {
+                    "kind": "rips",
+                    "n": 100,
+                    "top_dim": 2,
+                    "density": 0.3,
+                    "seed": 0
+                },
+                "implementation": "phlite (serial)"
+            },
+            "param": "rips n=100 dim\\u22642-phlite (serial)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 15.4,
+                "fingerprint": [
+                    [
+                        99,
+                        1,
+                        6.827409
+                    ],
+                    [
+                        16,
+                        0,
+                        0.706501
+                    ],
+                    [
+                        0,
+                        156849,
+                        0
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.08278695999979391,
+                "max": 0.08668864399987797,
+                "mean": 0.08425531419998152,
+                "stddev": 0.001576680628108897,
+                "rounds": 5,
+                "median": 0.08434160799970414,
+                "iqr": 0.0021877787496578094,
+                "q1": 0.08288782075032941,
+                "q3": 0.08507559949998722,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.08278695999979391,
+                "hd15iqr": 0.08668864399987797,
+                "ops": 11.86868756582501,
+                "total": 0.42127657099990756,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "rips n=100 dim\u22642",
+            "name": "test_sparse[rips n=100 dim\\u22642-phlite (serial, csc)]",
+            "fullname": "benchmarks/bench_sparse.py::test_sparse[rips n=100 dim\\u22642-phlite (serial, csc)]",
+            "params": {
+                "case": {
+                    "kind": "rips",
+                    "n": 100,
+                    "top_dim": 2,
+                    "density": 0.3,
+                    "seed": 0
+                },
+                "implementation": "phlite (serial, csc)"
+            },
+            "param": "rips n=100 dim\\u22642-phlite (serial, csc)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 12.4,
+                "fingerprint": [
+                    [
+                        99,
+                        1,
+                        6.827409
+                    ],
+                    [
+                        16,
+                        0,
+                        0.706501
+                    ],
+                    [
+                        0,
+                        156849,
+                        0
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.060155612000016845,
+                "max": 0.06311558800007333,
+                "mean": 0.06149136239982909,
+                "stddev": 0.001113998222096562,
+                "rounds": 5,
+                "median": 0.061252331999639864,
+                "iqr": 0.0014773414995943313,
+                "q1": 0.06077020924999488,
+                "q3": 0.06224755074958921,
+                "iqr_outliers": 0,
+                "stddev_outliers": 2,
+                "outliers": "2;0",
+                "ld15iqr": 0.060155612000016845,
+                "hd15iqr": 0.06311558800007333,
+                "ops": 16.262446642469893,
+                "total": 0.30745681199914543,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "rips n=100 dim\u22642",
+            "name": "test_sparse[rips n=100 dim\\u22642-phlite (serial, reduce)]",
+            "fullname": "benchmarks/bench_sparse.py::test_sparse[rips n=100 dim\\u22642-phlite (serial, reduce)]",
+            "params": {
+                "case": {
+                    "kind": "rips",
+                    "n": 100,
+                    "top_dim": 2,
+                    "density": 0.3,
+                    "seed": 0
+                },
+                "implementation": "phlite (serial, reduce)"
+            },
+            "param": "rips n=100 dim\\u22642-phlite (serial, reduce)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 10.8,
+                "fingerprint": [
+                    [
+                        99,
+                        1,
+                        6.827409
+                    ],
+                    [
+                        16,
+                        0,
+                        0.706501
+                    ],
+                    [
+                        0,
+                        156849,
+                        0
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.015804998000021442,
+                "max": 0.019802506999440084,
+                "mean": 0.017059876199891733,
+                "stddev": 0.0016339137245611082,
+                "rounds": 5,
+                "median": 0.016671766999934334,
+                "iqr": 0.0019637714997315925,
+                "q1": 0.015851593250090446,
+                "q3": 0.017815364749822038,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.015804998000021442,
+                "hd15iqr": 0.019802506999440084,
+                "ops": 58.61707249706456,
+                "total": 0.08529938099945866,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "rips n=100 dim\u22642",
+            "name": "test_sparse[rips n=100 dim\\u22642-phlite (parallel)]",
+            "fullname": "benchmarks/bench_sparse.py::test_sparse[rips n=100 dim\\u22642-phlite (parallel)]",
+            "params": {
+                "case": {
+                    "kind": "rips",
+                    "n": 100,
+                    "top_dim": 2,
+                    "density": 0.3,
+                    "seed": 0
+                },
+                "implementation": "phlite (parallel)"
+            },
+            "param": "rips n=100 dim\\u22642-phlite (parallel)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 13.0,
+                "fingerprint": [
+                    [
+                        99,
+                        1,
+                        6.827409
+                    ],
+                    [
+                        16,
+                        0,
+                        0.706501
+                    ],
+                    [
+                        0,
+                        156849,
+                        0
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.08132565399955638,
+                "max": 0.08298114100034581,
+                "mean": 0.08226940120021027,
+                "stddev": 0.0006019061073323558,
+                "rounds": 5,
+                "median": 0.08235981000052561,
+                "iqr": 0.0006086774997129396,
+                "q1": 0.08198916100036513,
+                "q3": 0.08259783850007807,
+                "iqr_outliers": 0,
+                "stddev_outliers": 2,
+                "outliers": "2;0",
+                "ld15iqr": 0.08132565399955638,
+                "hd15iqr": 0.08298114100034581,
+                "ops": 12.155187535234475,
+                "total": 0.41134700600105134,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "rips n=100 dim\u22642",
+            "name": "test_sparse[rips n=100 dim\\u22642-phlite (parallel, reduce)]",
+            "fullname": "benchmarks/bench_sparse.py::test_sparse[rips n=100 dim\\u22642-phlite (parallel, reduce)]",
+            "params": {
+                "case": {
+                    "kind": "rips",
+                    "n": 100,
+                    "top_dim": 2,
+                    "density": 0.3,
+                    "seed": 0
+                },
+                "implementation": "phlite (parallel, reduce)"
+            },
+            "param": "rips n=100 dim\\u22642-phlite (parallel, reduce)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 0.0,
+                "fingerprint": [
+                    [
+                        99,
+                        1,
+                        6.827409
+                    ],
+                    [
+                        16,
+                        0,
+                        0.706501
+                    ],
+                    [
+                        0,
+                        156849,
+                        0
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.01567765799973131,
+                "max": 0.02448733999972319,
+                "mean": 0.017690483600017615,
+                "stddev": 0.0038110749517933375,
+                "rounds": 5,
+                "median": 0.016173359000276832,
+                "iqr": 0.0026889852499607514,
+                "q1": 0.015718905000085215,
+                "q3": 0.018407890250045966,
+                "iqr_outliers": 1,
+                "stddev_outliers": 1,
+                "outliers": "1;1",
+                "ld15iqr": 0.01567765799973131,
+                "hd15iqr": 0.01638140700015356,
+                "ops": 56.52756717170831,
+                "total": 0.08845241800008807,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "rips n=100 dim\u22642",
+            "name": "test_sparse[rips n=100 dim\\u22642-phlite (homology, reduce)]",
+            "fullname": "benchmarks/bench_sparse.py::test_sparse[rips n=100 dim\\u22642-phlite (homology, reduce)]",
+            "params": {
+                "case": {
+                    "kind": "rips",
+                    "n": 100,
+                    "top_dim": 2,
+                    "density": 0.3,
+                    "seed": 0
+                },
+                "implementation": "phlite (homology, reduce)"
+            },
+            "param": "rips n=100 dim\\u22642-phlite (homology, reduce)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 32.1,
+                "fingerprint": [
+                    [
+                        99,
+                        1,
+                        6.827409
+                    ],
+                    [
+                        16,
+                        0,
+                        0.706501
+                    ],
+                    [
+                        0,
+                        156849,
+                        0
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.7697471399997085,
+                "max": 0.7849610800003575,
+                "mean": 0.775100315599957,
+                "stddev": 0.005930234670385033,
+                "rounds": 5,
+                "median": 0.7729104700001699,
+                "iqr": 0.006668873500075279,
+                "q1": 0.7714601737498015,
+                "q3": 0.7781290472498767,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.7697471399997085,
+                "hd15iqr": 0.7849610800003575,
+                "ops": 1.2901555835723821,
+                "total": 3.875501577999785,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "rips n=100 dim\u22642",
+            "name": "test_sparse[rips n=100 dim\\u22642-phlite (homology, parallel, reduce)]",
+            "fullname": "benchmarks/bench_sparse.py::test_sparse[rips n=100 dim\\u22642-phlite (homology, parallel, reduce)]",
+            "params": {
+                "case": {
+                    "kind": "rips",
+                    "n": 100,
+                    "top_dim": 2,
+                    "density": 0.3,
+                    "seed": 0
+                },
+                "implementation": "phlite (homology, parallel, reduce)"
+            },
+            "param": "rips n=100 dim\\u22642-phlite (homology, parallel, reduce)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 52.4,
+                "fingerprint": [
+                    [
+                        99,
+                        1,
+                        6.827409
+                    ],
+                    [
+                        16,
+                        0,
+                        0.706501
+                    ],
+                    [
+                        0,
+                        156849,
+                        0
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.3900896819995978,
+                "max": 0.4240679229997113,
+                "mean": 0.41056473719982023,
+                "stddev": 0.013488012381253052,
+                "rounds": 5,
+                "median": 0.41495709999981045,
+                "iqr": 0.019286339500013128,
+                "q1": 0.40101739874990017,
+                "q3": 0.4203037382499133,
+                "iqr_outliers": 0,
+                "stddev_outliers": 2,
+                "outliers": "2;0",
+                "ld15iqr": 0.3900896819995978,
+                "hd15iqr": 0.4240679229997113,
+                "ops": 2.435669480092987,
+                "total": 2.052823685999101,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "rips n=100 dim\u22642",
+            "name": "test_sparse[rips n=100 dim\\u22642-phlite (heap, reduce)]",
+            "fullname": "benchmarks/bench_sparse.py::test_sparse[rips n=100 dim\\u22642-phlite (heap, reduce)]",
+            "params": {
+                "case": {
+                    "kind": "rips",
+                    "n": 100,
+                    "top_dim": 2,
+                    "density": 0.3,
+                    "seed": 0
+                },
+                "implementation": "phlite (heap, reduce)"
+            },
+            "param": "rips n=100 dim\\u22642-phlite (heap, reduce)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 0.1,
+                "fingerprint": [
+                    [
+                        99,
+                        1,
+                        6.827409
+                    ],
+                    [
+                        16,
+                        0,
+                        0.706501
+                    ],
+                    [
+                        0,
+                        156849,
+                        0
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.01689155900021433,
+                "max": 0.020966482999938307,
+                "mean": 0.018035282799974083,
+                "stddev": 0.0017165042610786157,
+                "rounds": 5,
+                "median": 0.017114047999712056,
+                "iqr": 0.0018814904992723314,
+                "q1": 0.01699313150038506,
+                "q3": 0.018874621999657393,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.01689155900021433,
+                "hd15iqr": 0.020966482999938307,
+                "ops": 55.44687106328252,
+                "total": 0.09017641399987042,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "rips n=100 dim\u22642",
+            "name": "test_sparse[rips n=100 dim\\u22642-phlite (no skipping, reduce)]",
+            "fullname": "benchmarks/bench_sparse.py::test_sparse[rips n=100 dim\\u22642-phlite (no skipping, reduce)]",
+            "params": {
+                "case": {
+                    "kind": "rips",
+                    "n": 100,
+                    "top_dim": 2,
+                    "density": 0.3,
+                    "seed": 0
+                },
+                "implementation": "phlite (no skipping, reduce)"
+            },
+            "param": "rips n=100 dim\\u22642-phlite (no skipping, reduce)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 0.0,
+                "fingerprint": [
+                    [
+                        99,
+                        1,
+                        6.827409
+                    ],
+                    [
+                        16,
+                        0,
+                        0.706501
+                    ],
+                    [
+                        0,
+                        156849,
+                        0
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.015482955999686965,
+                "max": 0.01642563500081451,
+                "mean": 0.01606475920016237,
+                "stddev": 0.0003856969969019455,
+                "rounds": 5,
+                "median": 0.01626594000026671,
+                "iqr": 0.0005460895001760946,
+                "q1": 0.015771503499991013,
+                "q3": 0.016317593000167108,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.015482955999686965,
+                "hd15iqr": 0.01642563500081451,
+                "ops": 62.24805411274965,
+                "total": 0.08032379600081185,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "rips n=100 dim\u22642",
+            "name": "test_sparse[rips n=100 dim\\u22642-phlite (standard, reduce)]",
+            "fullname": "benchmarks/bench_sparse.py::test_sparse[rips n=100 dim\\u22642-phlite (standard, reduce)]",
+            "params": {
+                "case": {
+                    "kind": "rips",
+                    "n": 100,
+                    "top_dim": 2,
+                    "density": 0.3,
+                    "seed": 0
+                },
+                "implementation": "phlite (standard, reduce)"
+            },
+            "param": "rips n=100 dim\\u22642-phlite (standard, reduce)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 0.0,
+                "fingerprint": [
+                    [
+                        99,
+                        1,
+                        6.827409
+                    ],
+                    [
+                        16,
+                        0,
+                        0.706501
+                    ],
+                    [
+                        0,
+                        156849,
+                        0
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 1.3860823300001357,
+                "max": 1.422066463000192,
+                "mean": 1.4033934996001336,
+                "stddev": 0.01735236938544019,
+                "rounds": 5,
+                "median": 1.4010403849997601,
+                "iqr": 0.0338714932502171,
+                "q1": 1.3869997225001498,
+                "q3": 1.420871215750367,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 1.3860823300001357,
+                "hd15iqr": 1.422066463000192,
+                "ops": 0.7125585235252467,
+                "total": 7.0169674980006675,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "rips n=100 dim\u22642",
+            "name": "test_sparse[rips n=100 dim\\u22642-phlite (reps, reduce)]",
+            "fullname": "benchmarks/bench_sparse.py::test_sparse[rips n=100 dim\\u22642-phlite (reps, reduce)]",
+            "params": {
+                "case": {
+                    "kind": "rips",
+                    "n": 100,
+                    "top_dim": 2,
+                    "density": 0.3,
+                    "seed": 0
+                },
+                "implementation": "phlite (reps, reduce)"
+            },
+            "param": "rips n=100 dim\\u22642-phlite (reps, reduce)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 0.0,
+                "fingerprint": [
+                    [
+                        99,
+                        1,
+                        6.827409
+                    ],
+                    [
+                        16,
+                        0,
+                        0.706501
+                    ],
+                    [
+                        0,
+                        156849,
+                        0
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 1.590346486999806,
+                "max": 1.6171933510004237,
+                "mean": 1.6017601790001208,
+                "stddev": 0.010158916672313518,
+                "rounds": 5,
+                "median": 1.6012241999997059,
+                "iqr": 0.013250453750060842,
+                "q1": 1.594331074250249,
+                "q3": 1.6075815280003098,
+                "iqr_outliers": 0,
+                "stddev_outliers": 2,
+                "outliers": "2;0",
+                "ld15iqr": 1.590346486999806,
+                "hd15iqr": 1.6171933510004237,
+                "ops": 0.6243131856506995,
+                "total": 8.008800895000604,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "grid 300x300",
+            "name": "test_sparse[grid 300x300-phat (twist)]",
+            "fullname": "benchmarks/bench_sparse.py::test_sparse[grid 300x300-phat (twist)]",
+            "params": {
+                "case": {
+                    "kind": "grid",
+                    "n": 300,
+                    "top_dim": 2,
+                    "density": 0.3,
+                    "seed": 0
+                },
+                "implementation": "phat (twist)"
+            },
+            "param": "grid 300x300-phat (twist)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 37.3,
+                "fingerprint": [
+                    [
+                        8910,
+                        1,
+                        940.103916
+                    ],
+                    [
+                        2861,
+                        0,
+                        517.770301
+                    ],
+                    [
+                        0,
+                        0,
+                        0
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.2302082740006881,
+                "max": 0.2536486680000962,
+                "mean": 0.24168214600013016,
+                "stddev": 0.00903000294888277,
+                "rounds": 5,
+                "median": 0.23936295400017116,
+                "iqr": 0.01291724749921741,
+                "q1": 0.23597005675037508,
+                "q3": 0.2488873042495925,
+                "iqr_outliers": 0,
+                "stddev_outliers": 2,
+                "outliers": "2;0",
+                "ld15iqr": 0.2302082740006881,
+                "hd15iqr": 0.2536486680000962,
+                "ops": 4.137666006985313,
+                "total": 1.2084107300006508,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "grid 300x300",
+            "name": "test_sparse[grid 300x300-phat (twist, reduce)]",
+            "fullname": "benchmarks/bench_sparse.py::test_sparse[grid 300x300-phat (twist, reduce)]",
+            "params": {
+                "case": {
+                    "kind": "grid",
+                    "n": 300,
+                    "top_dim": 2,
+                    "density": 0.3,
+                    "seed": 0
+                },
+                "implementation": "phat (twist, reduce)"
+            },
+            "param": "grid 300x300-phat (twist, reduce)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 30.4,
+                "fingerprint": [
+                    [
+                        8910,
+                        1,
+                        940.103916
+                    ],
+                    [
+                        2861,
+                        0,
+                        517.770301
+                    ],
+                    [
+                        0,
+                        0,
+                        0
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.020141236999734247,
+                "max": 0.036908512999616505,
+                "mean": 0.03015370819994132,
+                "stddev": 0.006901210726692912,
+                "rounds": 5,
+                "median": 0.03209379500003706,
+                "iqr": 0.010899849000452377,
+                "q1": 0.0247906677498122,
+                "q3": 0.03569051675026458,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.020141236999734247,
+                "hd15iqr": 0.036908512999616505,
+                "ops": 33.16341702881989,
+                "total": 0.1507685409997066,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "grid 300x300",
+            "name": "test_sparse[grid 300x300-phat (chunk)]",
+            "fullname": "benchmarks/bench_sparse.py::test_sparse[grid 300x300-phat (chunk)]",
+            "params": {
+                "case": {
+                    "kind": "grid",
+                    "n": 300,
+                    "top_dim": 2,
+                    "density": 0.3,
+                    "seed": 0
+                },
+                "implementation": "phat (chunk)"
+            },
+            "param": "grid 300x300-phat (chunk)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 26.3,
+                "fingerprint": [
+                    [
+                        8910,
+                        1,
+                        940.103916
+                    ],
+                    [
+                        2861,
+                        0,
+                        517.770301
+                    ],
+                    [
+                        0,
+                        0,
+                        0
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.2364560670002902,
+                "max": 0.2513794649994452,
+                "mean": 0.24491948559989396,
+                "stddev": 0.006228198037084029,
+                "rounds": 5,
+                "median": 0.24672518100032903,
+                "iqr": 0.010313861250097034,
+                "q1": 0.23958627899969542,
+                "q3": 0.24990014024979246,
+                "iqr_outliers": 0,
+                "stddev_outliers": 2,
+                "outliers": "2;0",
+                "ld15iqr": 0.2364560670002902,
+                "hd15iqr": 0.2513794649994452,
+                "ops": 4.082974441787056,
+                "total": 1.2245974279994698,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "grid 300x300",
+            "name": "test_sparse[grid 300x300-phat (standard, vector_vector)]",
+            "fullname": "benchmarks/bench_sparse.py::test_sparse[grid 300x300-phat (standard, vector_vector)]",
+            "params": {
+                "case": {
+                    "kind": "grid",
+                    "n": 300,
+                    "top_dim": 2,
+                    "density": 0.3,
+                    "seed": 0
+                },
+                "implementation": "phat (standard, vector_vector)"
+            },
+            "param": "grid 300x300-phat (standard, vector_vector)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 24.3,
+                "fingerprint": [
+                    [
+                        8910,
+                        1,
+                        940.103916
+                    ],
+                    [
+                        2861,
+                        0,
+                        517.770301
+                    ],
+                    [
+                        0,
+                        0,
+                        0
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.2840015109995875,
+                "max": 0.29414590999931534,
+                "mean": 0.28851752659993507,
+                "stddev": 0.00491623462329746,
+                "rounds": 5,
+                "median": 0.2861594440000772,
+                "iqr": 0.009097455249730046,
+                "q1": 0.2845749880002586,
+                "q3": 0.29367244324998865,
+                "iqr_outliers": 0,
+                "stddev_outliers": 2,
+                "outliers": "2;0",
+                "ld15iqr": 0.2840015109995875,
+                "hd15iqr": 0.29414590999931534,
+                "ops": 3.465993944231411,
+                "total": 1.4425876329996754,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "grid 300x300",
+            "name": "test_sparse[grid 300x300-lophat (1 thread)]",
+            "fullname": "benchmarks/bench_sparse.py::test_sparse[grid 300x300-lophat (1 thread)]",
+            "params": {
+                "case": {
+                    "kind": "grid",
+                    "n": 300,
+                    "top_dim": 2,
+                    "density": 0.3,
+                    "seed": 0
+                },
+                "implementation": "lophat (1 thread)"
+            },
+            "param": "grid 300x300-lophat (1 thread)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 49.9,
+                "fingerprint": [
+                    [
+                        8910,
+                        1,
+                        940.103916
+                    ],
+                    [
+                        2861,
+                        0,
+                        517.770301
+                    ],
+                    [
+                        0,
+                        0,
+                        0
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.8614951979998295,
+                "max": 0.8734494350001114,
+                "mean": 0.8663857574001668,
+                "stddev": 0.004873132010622116,
+                "rounds": 5,
+                "median": 0.8663378360006391,
+                "iqr": 0.007601641250857938,
+                "q1": 0.8620596277496588,
+                "q3": 0.8696612690005168,
+                "iqr_outliers": 0,
+                "stddev_outliers": 2,
+                "outliers": "2;0",
+                "ld15iqr": 0.8614951979998295,
+                "hd15iqr": 0.8734494350001114,
+                "ops": 1.154220266732893,
+                "total": 4.331928787000834,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "grid 300x300",
+            "name": "test_sparse[grid 300x300-lophat (parallel)]",
+            "fullname": "benchmarks/bench_sparse.py::test_sparse[grid 300x300-lophat (parallel)]",
+            "params": {
+                "case": {
+                    "kind": "grid",
+                    "n": 300,
+                    "top_dim": 2,
+                    "density": 0.3,
+                    "seed": 0
+                },
+                "implementation": "lophat (parallel)"
+            },
+            "param": "grid 300x300-lophat (parallel)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 20.3,
+                "fingerprint": [
+                    [
+                        8910,
+                        1,
+                        940.103916
+                    ],
+                    [
+                        2861,
+                        0,
+                        517.770301
+                    ],
+                    [
+                        0,
+                        0,
+                        0
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.9100105590005114,
+                "max": 0.9460044990000824,
+                "mean": 0.9236663280000357,
+                "stddev": 0.014489023490555612,
+                "rounds": 5,
+                "median": 0.9243834449998758,
+                "iqr": 0.02010069225002553,
+                "q1": 0.9111764624999523,
+                "q3": 0.9312771547499779,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.9100105590005114,
+                "hd15iqr": 0.9460044990000824,
+                "ops": 1.0826420425709848,
+                "total": 4.618331640000179,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "grid 300x300",
+            "name": "test_sparse[grid 300x300-phlite (serial)]",
+            "fullname": "benchmarks/bench_sparse.py::test_sparse[grid 300x300-phlite (serial)]",
+            "params": {
+                "case": {
+                    "kind": "grid",
+                    "n": 300,
+                    "top_dim": 2,
+                    "density": 0.3,
+                    "seed": 0
+                },
+                "implementation": "phlite (serial)"
+            },
+            "param": "grid 300x300-phlite (serial)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 4.0,
+                "fingerprint": [
+                    [
+                        8910,
+                        1,
+                        940.103916
+                    ],
+                    [
+                        2861,
+                        0,
+                        517.770301
+                    ],
+                    [
+                        0,
+                        0,
+                        0
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.2685918719998881,
+                "max": 0.29242429100031586,
+                "mean": 0.2755409847999545,
+                "stddev": 0.00957732001855885,
+                "rounds": 5,
+                "median": 0.2721339629997601,
+                "iqr": 0.006816031250082233,
+                "q1": 0.27092705399991246,
+                "q3": 0.2777430852499947,
+                "iqr_outliers": 1,
+                "stddev_outliers": 1,
+                "outliers": "1;1",
+                "ld15iqr": 0.2685918719998881,
+                "hd15iqr": 0.27284934999988764,
+                "ops": 3.629224163243846,
+                "total": 1.3777049239997723,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "grid 300x300",
+            "name": "test_sparse[grid 300x300-phlite (serial, csc)]",
+            "fullname": "benchmarks/bench_sparse.py::test_sparse[grid 300x300-phlite (serial, csc)]",
+            "params": {
+                "case": {
+                    "kind": "grid",
+                    "n": 300,
+                    "top_dim": 2,
+                    "density": 0.3,
+                    "seed": 0
+                },
+                "implementation": "phlite (serial, csc)"
+            },
+            "param": "grid 300x300-phlite (serial, csc)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 0.0,
+                "fingerprint": [
+                    [
+                        8910,
+                        1,
+                        940.103916
+                    ],
+                    [
+                        2861,
+                        0,
+                        517.770301
+                    ],
+                    [
+                        0,
+                        0,
+                        0
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.21894169700044586,
+                "max": 0.23829714099974808,
+                "mean": 0.22420929960026115,
+                "stddev": 0.007994543551607359,
+                "rounds": 5,
+                "median": 0.22090334200038342,
+                "iqr": 0.00676651849926202,
+                "q1": 0.21986071475066638,
+                "q3": 0.2266272332499284,
+                "iqr_outliers": 1,
+                "stddev_outliers": 1,
+                "outliers": "1;1",
+                "ld15iqr": 0.21894169700044586,
+                "hd15iqr": 0.2227372639999885,
+                "ops": 4.460118299209188,
+                "total": 1.1210464980013057,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "grid 300x300",
+            "name": "test_sparse[grid 300x300-phlite (serial, reduce)]",
+            "fullname": "benchmarks/bench_sparse.py::test_sparse[grid 300x300-phlite (serial, reduce)]",
+            "params": {
+                "case": {
+                    "kind": "grid",
+                    "n": 300,
+                    "top_dim": 2,
+                    "density": 0.3,
+                    "seed": 0
+                },
+                "implementation": "phlite (serial, reduce)"
+            },
+            "param": "grid 300x300-phlite (serial, reduce)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 0.0,
+                "fingerprint": [
+                    [
+                        8910,
+                        1,
+                        940.103916
+                    ],
+                    [
+                        2861,
+                        0,
+                        517.770301
+                    ],
+                    [
+                        0,
+                        0,
+                        0
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.13425193400053104,
+                "max": 0.1395961680000255,
+                "mean": 0.1373739894001119,
+                "stddev": 0.0019373630634012592,
+                "rounds": 5,
+                "median": 0.13762787800078513,
+                "iqr": 0.0015849977505695279,
+                "q1": 0.13671125149949148,
+                "q3": 0.138296249250061,
+                "iqr_outliers": 1,
+                "stddev_outliers": 2,
+                "outliers": "2;1",
+                "ld15iqr": 0.13753102399914496,
+                "hd15iqr": 0.1395961680000255,
+                "ops": 7.27939840989422,
+                "total": 0.6868699470005595,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "grid 300x300",
+            "name": "test_sparse[grid 300x300-phlite (parallel)]",
+            "fullname": "benchmarks/bench_sparse.py::test_sparse[grid 300x300-phlite (parallel)]",
+            "params": {
+                "case": {
+                    "kind": "grid",
+                    "n": 300,
+                    "top_dim": 2,
+                    "density": 0.3,
+                    "seed": 0
+                },
+                "implementation": "phlite (parallel)"
+            },
+            "param": "grid 300x300-phlite (parallel)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 0.0,
+                "fingerprint": [
+                    [
+                        8910,
+                        1,
+                        940.103916
+                    ],
+                    [
+                        2861,
+                        0,
+                        517.770301
+                    ],
+                    [
+                        0,
+                        0,
+                        0
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.24750441100059106,
+                "max": 0.2586022380000941,
+                "mean": 0.25182587780000176,
+                "stddev": 0.004373199719977876,
+                "rounds": 5,
+                "median": 0.2500515659994562,
+                "iqr": 0.005871437750101904,
+                "q1": 0.248941802499985,
+                "q3": 0.2548132402500869,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.24750441100059106,
+                "hd15iqr": 0.2586022380000941,
+                "ops": 3.970997773287591,
+                "total": 1.2591293890000088,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "grid 300x300",
+            "name": "test_sparse[grid 300x300-phlite (parallel, reduce)]",
+            "fullname": "benchmarks/bench_sparse.py::test_sparse[grid 300x300-phlite (parallel, reduce)]",
+            "params": {
+                "case": {
+                    "kind": "grid",
+                    "n": 300,
+                    "top_dim": 2,
+                    "density": 0.3,
+                    "seed": 0
+                },
+                "implementation": "phlite (parallel, reduce)"
+            },
+            "param": "grid 300x300-phlite (parallel, reduce)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 0.0,
+                "fingerprint": [
+                    [
+                        8910,
+                        1,
+                        940.103916
+                    ],
+                    [
+                        2861,
+                        0,
+                        517.770301
+                    ],
+                    [
+                        0,
+                        0,
+                        0
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.10153015899959428,
+                "max": 0.11807082100040134,
+                "mean": 0.10824971600013669,
+                "stddev": 0.007743735942148866,
+                "rounds": 5,
+                "median": 0.10504243200011842,
+                "iqr": 0.014082946499911486,
+                "q1": 0.10163558725025723,
+                "q3": 0.11571853375016872,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.10153015899959428,
+                "hd15iqr": 0.11807082100040134,
+                "ops": 9.23789952482404,
+                "total": 0.5412485800006834,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "grid 300x300",
+            "name": "test_sparse[grid 300x300-phlite (homology, reduce)]",
+            "fullname": "benchmarks/bench_sparse.py::test_sparse[grid 300x300-phlite (homology, reduce)]",
+            "params": {
+                "case": {
+                    "kind": "grid",
+                    "n": 300,
+                    "top_dim": 2,
+                    "density": 0.3,
+                    "seed": 0
+                },
+                "implementation": "phlite (homology, reduce)"
+            },
+            "param": "grid 300x300-phlite (homology, reduce)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 0.0,
+                "fingerprint": [
+                    [
+                        8910,
+                        1,
+                        940.103916
+                    ],
+                    [
+                        2861,
+                        0,
+                        517.770301
+                    ],
+                    [
+                        0,
+                        0,
+                        0
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.09146987700023601,
+                "max": 0.09305974199924094,
+                "mean": 0.09226857799985737,
+                "stddev": 0.0007492947822700419,
+                "rounds": 5,
+                "median": 0.09210595500007912,
+                "iqr": 0.0014263522507462767,
+                "q1": 0.09161826974946052,
+                "q3": 0.0930446220002068,
+                "iqr_outliers": 0,
+                "stddev_outliers": 3,
+                "outliers": "3;0",
+                "ld15iqr": 0.09146987700023601,
+                "hd15iqr": 0.09305974199924094,
+                "ops": 10.837925777956022,
+                "total": 0.46134288999928685,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "grid 300x300",
+            "name": "test_sparse[grid 300x300-phlite (homology, parallel, reduce)]",
+            "fullname": "benchmarks/bench_sparse.py::test_sparse[grid 300x300-phlite (homology, parallel, reduce)]",
+            "params": {
+                "case": {
+                    "kind": "grid",
+                    "n": 300,
+                    "top_dim": 2,
+                    "density": 0.3,
+                    "seed": 0
+                },
+                "implementation": "phlite (homology, parallel, reduce)"
+            },
+            "param": "grid 300x300-phlite (homology, parallel, reduce)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 0.0,
+                "fingerprint": [
+                    [
+                        8910,
+                        1,
+                        940.103916
+                    ],
+                    [
+                        2861,
+                        0,
+                        517.770301
+                    ],
+                    [
+                        0,
+                        0,
+                        0
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.05003316599959362,
+                "max": 0.055756500000825326,
+                "mean": 0.05208659620002436,
+                "stddev": 0.0021994153273973125,
+                "rounds": 5,
+                "median": 0.051311777000591974,
+                "iqr": 0.0023248170009537716,
+                "q1": 0.05081062649924206,
+                "q3": 0.053135443500195834,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.05003316599959362,
+                "hd15iqr": 0.055756500000825326,
+                "ops": 19.198797252171612,
+                "total": 0.2604329810001218,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "grid 300x300",
+            "name": "test_sparse[grid 300x300-phlite (heap, reduce)]",
+            "fullname": "benchmarks/bench_sparse.py::test_sparse[grid 300x300-phlite (heap, reduce)]",
+            "params": {
+                "case": {
+                    "kind": "grid",
+                    "n": 300,
+                    "top_dim": 2,
+                    "density": 0.3,
+                    "seed": 0
+                },
+                "implementation": "phlite (heap, reduce)"
+            },
+            "param": "grid 300x300-phlite (heap, reduce)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 0.0,
+                "fingerprint": [
+                    [
+                        8910,
+                        1,
+                        940.103916
+                    ],
+                    [
+                        2861,
+                        0,
+                        517.770301
+                    ],
+                    [
+                        0,
+                        0,
+                        0
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.11655867100034811,
+                "max": 0.12911820200042712,
+                "mean": 0.1197772088004058,
+                "stddev": 0.005287681684016649,
+                "rounds": 5,
+                "median": 0.11823792599989247,
+                "iqr": 0.004373646999738412,
+                "q1": 0.11663700250073816,
+                "q3": 0.12101064950047657,
+                "iqr_outliers": 1,
+                "stddev_outliers": 1,
+                "outliers": "1;1",
+                "ld15iqr": 0.11655867100034811,
+                "hd15iqr": 0.11830813200049306,
+                "ops": 8.348833722335097,
+                "total": 0.5988860440020289,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "grid 300x300",
+            "name": "test_sparse[grid 300x300-phlite (no skipping, reduce)]",
+            "fullname": "benchmarks/bench_sparse.py::test_sparse[grid 300x300-phlite (no skipping, reduce)]",
+            "params": {
+                "case": {
+                    "kind": "grid",
+                    "n": 300,
+                    "top_dim": 2,
+                    "density": 0.3,
+                    "seed": 0
+                },
+                "implementation": "phlite (no skipping, reduce)"
+            },
+            "param": "grid 300x300-phlite (no skipping, reduce)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 0.0,
+                "fingerprint": [
+                    [
+                        8910,
+                        1,
+                        940.103916
+                    ],
+                    [
+                        2861,
+                        0,
+                        517.770301
+                    ],
+                    [
+                        0,
+                        0,
+                        0
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.14679462500043883,
+                "max": 0.1536324249991594,
+                "mean": 0.14883269300007668,
+                "stddev": 0.00279851562893645,
+                "rounds": 5,
+                "median": 0.14791789099945163,
+                "iqr": 0.0030482779998237675,
+                "q1": 0.14696118875053799,
+                "q3": 0.15000946675036175,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.14679462500043883,
+                "hd15iqr": 0.1536324249991594,
+                "ops": 6.718953879303149,
+                "total": 0.7441634650003834,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "grid 300x300",
+            "name": "test_sparse[grid 300x300-phlite (standard, reduce)]",
+            "fullname": "benchmarks/bench_sparse.py::test_sparse[grid 300x300-phlite (standard, reduce)]",
+            "params": {
+                "case": {
+                    "kind": "grid",
+                    "n": 300,
+                    "top_dim": 2,
+                    "density": 0.3,
+                    "seed": 0
+                },
+                "implementation": "phlite (standard, reduce)"
+            },
+            "param": "grid 300x300-phlite (standard, reduce)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 0.0,
+                "fingerprint": [
+                    [
+                        8910,
+                        1,
+                        940.103916
+                    ],
+                    [
+                        2861,
+                        0,
+                        517.770301
+                    ],
+                    [
+                        0,
+                        0,
+                        0
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 1.9078698040002564,
+                "max": 1.946184076999998,
+                "mean": 1.930628969600002,
+                "stddev": 0.015142979208898885,
+                "rounds": 5,
+                "median": 1.937232326999947,
+                "iqr": 0.02087913174955247,
+                "q1": 1.919514159250184,
+                "q3": 1.9403932909997366,
+                "iqr_outliers": 0,
+                "stddev_outliers": 2,
+                "outliers": "2;0",
+                "ld15iqr": 1.9078698040002564,
+                "hd15iqr": 1.946184076999998,
+                "ops": 0.5179659146040811,
+                "total": 9.65314484800001,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "grid 300x300",
+            "name": "test_sparse[grid 300x300-phlite (reps, reduce)]",
+            "fullname": "benchmarks/bench_sparse.py::test_sparse[grid 300x300-phlite (reps, reduce)]",
+            "params": {
+                "case": {
+                    "kind": "grid",
+                    "n": 300,
+                    "top_dim": 2,
+                    "density": 0.3,
+                    "seed": 0
+                },
+                "implementation": "phlite (reps, reduce)"
+            },
+            "param": "grid 300x300-phlite (reps, reduce)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 0.0,
+                "fingerprint": [
+                    [
+                        8910,
+                        1,
+                        940.103916
+                    ],
+                    [
+                        2861,
+                        0,
+                        517.770301
+                    ],
+                    [
+                        0,
+                        0,
+                        0
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.2641926890000832,
+                "max": 0.27498704899971926,
+                "mean": 0.2701074742002675,
+                "stddev": 0.004132031153464729,
+                "rounds": 5,
+                "median": 0.27057696800056874,
+                "iqr": 0.00590159924990985,
+                "q1": 0.2672394170003827,
+                "q3": 0.2731410162502925,
+                "iqr_outliers": 0,
+                "stddev_outliers": 2,
+                "outliers": "2;0",
+                "ld15iqr": 0.2641926890000832,
+                "hd15iqr": 0.27498704899971926,
+                "ops": 3.7022300214416273,
+                "total": 1.3505373710013373,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "cells n=3000",
+            "name": "test_sparse[cells n=3000-phat (twist)]",
+            "fullname": "benchmarks/bench_sparse.py::test_sparse[cells n=3000-phat (twist)]",
+            "params": {
+                "case": {
+                    "kind": "cells",
+                    "n": 3000,
+                    "top_dim": 2,
+                    "density": 0.3,
+                    "seed": 0
+                },
+                "implementation": "phat (twist)"
+            },
+            "param": "cells n=3000-phat (twist)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 0.0,
+                "fingerprint": [
+                    [
+                        1317,
+                        475,
+                        27938.0
+                    ],
+                    [
+                        304,
+                        0,
+                        1498.0
+                    ],
+                    [
+                        391,
+                        649,
+                        4825.0
+                    ],
+                    [
+                        0,
+                        1124,
+                        0
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.013598198000181583,
+                "max": 0.02373988300041674,
+                "mean": 0.01656217139989167,
+                "stddev": 0.004082186416273967,
+                "rounds": 5,
+                "median": 0.015087502999449498,
+                "iqr": 0.0032280274997447123,
+                "q1": 0.014447723749981378,
+                "q3": 0.01767575124972609,
+                "iqr_outliers": 1,
+                "stddev_outliers": 1,
+                "outliers": "1;1",
+                "ld15iqr": 0.013598198000181583,
+                "hd15iqr": 0.015654373999495874,
+                "ops": 60.37855640151997,
+                "total": 0.08281085699945834,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "cells n=3000",
+            "name": "test_sparse[cells n=3000-phat (twist, reduce)]",
+            "fullname": "benchmarks/bench_sparse.py::test_sparse[cells n=3000-phat (twist, reduce)]",
+            "params": {
+                "case": {
+                    "kind": "cells",
+                    "n": 3000,
+                    "top_dim": 2,
+                    "density": 0.3,
+                    "seed": 0
+                },
+                "implementation": "phat (twist, reduce)"
+            },
+            "param": "cells n=3000-phat (twist, reduce)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 0.0,
+                "fingerprint": [
+                    [
+                        1317,
+                        475,
+                        27938.0
+                    ],
+                    [
+                        304,
+                        0,
+                        1498.0
+                    ],
+                    [
+                        391,
+                        649,
+                        4825.0
+                    ],
+                    [
+                        0,
+                        1124,
+                        0
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.005027482000514283,
+                "max": 0.006179633000101603,
+                "mean": 0.0053227678001348975,
+                "stddev": 0.0004972028985282871,
+                "rounds": 5,
+                "median": 0.005034787000113283,
+                "iqr": 0.0005181549997814727,
+                "q1": 0.005031288250165744,
+                "q3": 0.005549443249947217,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.005027482000514283,
+                "hd15iqr": 0.006179633000101603,
+                "ops": 187.8721818326654,
+                "total": 0.02661383900067449,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "cells n=3000",
+            "name": "test_sparse[cells n=3000-phat (chunk)]",
+            "fullname": "benchmarks/bench_sparse.py::test_sparse[cells n=3000-phat (chunk)]",
+            "params": {
+                "case": {
+                    "kind": "cells",
+                    "n": 3000,
+                    "top_dim": 2,
+                    "density": 0.3,
+                    "seed": 0
+                },
+                "implementation": "phat (chunk)"
+            },
+            "param": "cells n=3000-phat (chunk)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 0.0,
+                "fingerprint": [
+                    [
+                        1317,
+                        475,
+                        27938.0
+                    ],
+                    [
+                        304,
+                        0,
+                        1498.0
+                    ],
+                    [
+                        391,
+                        649,
+                        4825.0
+                    ],
+                    [
+                        0,
+                        1124,
+                        0
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.015358009000010497,
+                "max": 0.016533013000298524,
+                "mean": 0.016176508600074156,
+                "stddev": 0.0004777576628049995,
+                "rounds": 5,
+                "median": 0.016355812999790942,
+                "iqr": 0.0005158965000191529,
+                "q1": 0.01596682000013061,
+                "q3": 0.016482716500149763,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.015358009000010497,
+                "hd15iqr": 0.016533013000298524,
+                "ops": 61.81803655675216,
+                "total": 0.08088254300037079,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "cells n=3000",
+            "name": "test_sparse[cells n=3000-phat (standard, vector_vector)]",
+            "fullname": "benchmarks/bench_sparse.py::test_sparse[cells n=3000-phat (standard, vector_vector)]",
+            "params": {
+                "case": {
+                    "kind": "cells",
+                    "n": 3000,
+                    "top_dim": 2,
+                    "density": 0.3,
+                    "seed": 0
+                },
+                "implementation": "phat (standard, vector_vector)"
+            },
+            "param": "cells n=3000-phat (standard, vector_vector)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 0.0,
+                "fingerprint": [
+                    [
+                        1317,
+                        475,
+                        27938.0
+                    ],
+                    [
+                        304,
+                        0,
+                        1498.0
+                    ],
+                    [
+                        391,
+                        649,
+                        4825.0
+                    ],
+                    [
+                        0,
+                        1124,
+                        0
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.029731331000220962,
+                "max": 0.031250572000317334,
+                "mean": 0.030239915600031964,
+                "stddev": 0.0006135274899778106,
+                "rounds": 5,
+                "median": 0.03021166100006667,
+                "iqr": 0.0007356132491622702,
+                "q1": 0.02975718650031922,
+                "q3": 0.030492799749481492,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.029731331000220962,
+                "hd15iqr": 0.031250572000317334,
+                "ops": 33.06887536415422,
+                "total": 0.15119957800015982,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "cells n=3000",
+            "name": "test_sparse[cells n=3000-lophat (1 thread)]",
+            "fullname": "benchmarks/bench_sparse.py::test_sparse[cells n=3000-lophat (1 thread)]",
+            "params": {
+                "case": {
+                    "kind": "cells",
+                    "n": 3000,
+                    "top_dim": 2,
+                    "density": 0.3,
+                    "seed": 0
+                },
+                "implementation": "lophat (1 thread)"
+            },
+            "param": "cells n=3000-lophat (1 thread)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 0.0,
+                "fingerprint": [
+                    [
+                        1317,
+                        475,
+                        27938.0
+                    ],
+                    [
+                        304,
+                        0,
+                        1498.0
+                    ],
+                    [
+                        391,
+                        649,
+                        4825.0
+                    ],
+                    [
+                        0,
+                        1124,
+                        0
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.019721451999430428,
+                "max": 0.02076074399974459,
+                "mean": 0.019989895400067327,
+                "stddev": 0.00043927635629998556,
+                "rounds": 5,
+                "median": 0.019768912000472483,
+                "iqr": 0.00039873574928606104,
+                "q1": 0.01974779500051227,
+                "q3": 0.02014653074979833,
+                "iqr_outliers": 1,
+                "stddev_outliers": 1,
+                "outliers": "1;1",
+                "ld15iqr": 0.019721451999430428,
+                "hd15iqr": 0.019941792999816244,
+                "ops": 50.02527426915061,
+                "total": 0.09994947700033663,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "cells n=3000",
+            "name": "test_sparse[cells n=3000-lophat (parallel)]",
+            "fullname": "benchmarks/bench_sparse.py::test_sparse[cells n=3000-lophat (parallel)]",
+            "params": {
+                "case": {
+                    "kind": "cells",
+                    "n": 3000,
+                    "top_dim": 2,
+                    "density": 0.3,
+                    "seed": 0
+                },
+                "implementation": "lophat (parallel)"
+            },
+            "param": "cells n=3000-lophat (parallel)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 0.0,
+                "fingerprint": [
+                    [
+                        1317,
+                        475,
+                        27938.0
+                    ],
+                    [
+                        304,
+                        0,
+                        1498.0
+                    ],
+                    [
+                        391,
+                        649,
+                        4825.0
+                    ],
+                    [
+                        0,
+                        1124,
+                        0
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.01700077199984662,
+                "max": 0.01882586400006403,
+                "mean": 0.017743564000011248,
+                "stddev": 0.000775262875397377,
+                "rounds": 5,
+                "median": 0.017466628999500244,
+                "iqr": 0.0012794752506124496,
+                "q1": 0.01712279999992461,
+                "q3": 0.01840227525053706,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.01700077199984662,
+                "hd15iqr": 0.01882586400006403,
+                "ops": 56.358463271491914,
+                "total": 0.08871782000005624,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "cells n=3000",
+            "name": "test_sparse[cells n=3000-phlite (serial)]",
+            "fullname": "benchmarks/bench_sparse.py::test_sparse[cells n=3000-phlite (serial)]",
+            "params": {
+                "case": {
+                    "kind": "cells",
+                    "n": 3000,
+                    "top_dim": 2,
+                    "density": 0.3,
+                    "seed": 0
+                },
+                "implementation": "phlite (serial)"
+            },
+            "param": "cells n=3000-phlite (serial)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 0.0,
+                "fingerprint": [
+                    [
+                        1317,
+                        475,
+                        27938.0
+                    ],
+                    [
+                        304,
+                        0,
+                        1498.0
+                    ],
+                    [
+                        391,
+                        649,
+                        4825.0
+                    ],
+                    [
+                        0,
+                        1124,
+                        0
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.02514294200045697,
+                "max": 0.026412548000735114,
+                "mean": 0.025702379400354403,
+                "stddev": 0.0005303893842888047,
+                "rounds": 5,
+                "median": 0.025837930000307097,
+                "iqr": 0.0008462332498311298,
+                "q1": 0.025190748500335758,
+                "q3": 0.026036981750166888,
+                "iqr_outliers": 0,
+                "stddev_outliers": 2,
+                "outliers": "2;0",
+                "ld15iqr": 0.02514294200045697,
+                "hd15iqr": 0.026412548000735114,
+                "ops": 38.906903692590085,
+                "total": 0.128511897001772,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "cells n=3000",
+            "name": "test_sparse[cells n=3000-phlite (serial, csc)]",
+            "fullname": "benchmarks/bench_sparse.py::test_sparse[cells n=3000-phlite (serial, csc)]",
+            "params": {
+                "case": {
+                    "kind": "cells",
+                    "n": 3000,
+                    "top_dim": 2,
+                    "density": 0.3,
+                    "seed": 0
+                },
+                "implementation": "phlite (serial, csc)"
+            },
+            "param": "cells n=3000-phlite (serial, csc)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 0.0,
+                "fingerprint": [
+                    [
+                        1317,
+                        475,
+                        27938.0
+                    ],
+                    [
+                        304,
+                        0,
+                        1498.0
+                    ],
+                    [
+                        391,
+                        649,
+                        4825.0
+                    ],
+                    [
+                        0,
+                        1124,
+                        0
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.024580770999818924,
+                "max": 0.02551707600014197,
+                "mean": 0.025239788399994724,
+                "stddev": 0.00038335274615685706,
+                "rounds": 5,
+                "median": 0.025352775999635924,
+                "iqr": 0.000410820500292175,
+                "q1": 0.025087440249990323,
+                "q3": 0.025498260750282498,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.024580770999818924,
+                "hd15iqr": 0.02551707600014197,
+                "ops": 39.61998350193019,
+                "total": 0.1261989419999736,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "cells n=3000",
+            "name": "test_sparse[cells n=3000-phlite (serial, reduce)]",
+            "fullname": "benchmarks/bench_sparse.py::test_sparse[cells n=3000-phlite (serial, reduce)]",
+            "params": {
+                "case": {
+                    "kind": "cells",
+                    "n": 3000,
+                    "top_dim": 2,
+                    "density": 0.3,
+                    "seed": 0
+                },
+                "implementation": "phlite (serial, reduce)"
+            },
+            "param": "cells n=3000-phlite (serial, reduce)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 0.0,
+                "fingerprint": [
+                    [
+                        1317,
+                        475,
+                        27938.0
+                    ],
+                    [
+                        304,
+                        0,
+                        1498.0
+                    ],
+                    [
+                        391,
+                        649,
+                        4825.0
+                    ],
+                    [
+                        0,
+                        1124,
+                        0
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.016014881000046444,
+                "max": 0.016157929999280896,
+                "mean": 0.016057006799746885,
+                "stddev": 5.809176990951924e-05,
+                "rounds": 5,
+                "median": 0.016034286999456526,
+                "iqr": 5.620724982691172e-05,
+                "q1": 0.016022723749983925,
+                "q3": 0.016078930999810837,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.016014881000046444,
+                "hd15iqr": 0.016157929999280896,
+                "ops": 62.278107773845086,
+                "total": 0.08028503399873443,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "cells n=3000",
+            "name": "test_sparse[cells n=3000-phlite (parallel)]",
+            "fullname": "benchmarks/bench_sparse.py::test_sparse[cells n=3000-phlite (parallel)]",
+            "params": {
+                "case": {
+                    "kind": "cells",
+                    "n": 3000,
+                    "top_dim": 2,
+                    "density": 0.3,
+                    "seed": 0
+                },
+                "implementation": "phlite (parallel)"
+            },
+            "param": "cells n=3000-phlite (parallel)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 0.0,
+                "fingerprint": [
+                    [
+                        1317,
+                        475,
+                        27938.0
+                    ],
+                    [
+                        304,
+                        0,
+                        1498.0
+                    ],
+                    [
+                        391,
+                        649,
+                        4825.0
+                    ],
+                    [
+                        0,
+                        1124,
+                        0
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.017813256999943405,
+                "max": 0.026146003000576457,
+                "mean": 0.020236638800270157,
+                "stddev": 0.0034035036586866785,
+                "rounds": 5,
+                "median": 0.018610549000186438,
+                "iqr": 0.003229590750152056,
+                "q1": 0.018360131500230636,
+                "q3": 0.021589722250382692,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.017813256999943405,
+                "hd15iqr": 0.026146003000576457,
+                "ops": 49.41532088751073,
+                "total": 0.10118319400135078,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "cells n=3000",
+            "name": "test_sparse[cells n=3000-phlite (parallel, reduce)]",
+            "fullname": "benchmarks/bench_sparse.py::test_sparse[cells n=3000-phlite (parallel, reduce)]",
+            "params": {
+                "case": {
+                    "kind": "cells",
+                    "n": 3000,
+                    "top_dim": 2,
+                    "density": 0.3,
+                    "seed": 0
+                },
+                "implementation": "phlite (parallel, reduce)"
+            },
+            "param": "cells n=3000-phlite (parallel, reduce)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 0.0,
+                "fingerprint": [
+                    [
+                        1317,
+                        475,
+                        27938.0
+                    ],
+                    [
+                        304,
+                        0,
+                        1498.0
+                    ],
+                    [
+                        391,
+                        649,
+                        4825.0
+                    ],
+                    [
+                        0,
+                        1124,
+                        0
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.008780971999840403,
+                "max": 0.013694477999706578,
+                "mean": 0.010326444400016043,
+                "stddev": 0.002004845887295619,
+                "rounds": 5,
+                "median": 0.009417821999704756,
+                "iqr": 0.0023419464996550232,
+                "q1": 0.009040564250426542,
+                "q3": 0.011382510750081565,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.008780971999840403,
+                "hd15iqr": 0.013694477999706578,
+                "ops": 96.83875313350318,
+                "total": 0.05163222200008022,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "cells n=3000",
+            "name": "test_sparse[cells n=3000-phlite (homology, reduce)]",
+            "fullname": "benchmarks/bench_sparse.py::test_sparse[cells n=3000-phlite (homology, reduce)]",
+            "params": {
+                "case": {
+                    "kind": "cells",
+                    "n": 3000,
+                    "top_dim": 2,
+                    "density": 0.3,
+                    "seed": 0
+                },
+                "implementation": "phlite (homology, reduce)"
+            },
+            "param": "cells n=3000-phlite (homology, reduce)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 0.0,
+                "fingerprint": [
+                    [
+                        1317,
+                        475,
+                        27938.0
+                    ],
+                    [
+                        304,
+                        0,
+                        1498.0
+                    ],
+                    [
+                        391,
+                        649,
+                        4825.0
+                    ],
+                    [
+                        0,
+                        1124,
+                        0
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.11538651400041999,
+                "max": 0.12355245100025058,
+                "mean": 0.11893737020018307,
+                "stddev": 0.003945171808259234,
+                "rounds": 5,
+                "median": 0.11713435300043784,
+                "iqr": 0.0073263179999685235,
+                "q1": 0.11568428650002716,
+                "q3": 0.12301060449999568,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.11538651400041999,
+                "hd15iqr": 0.12355245100025058,
+                "ops": 8.407786369556545,
+                "total": 0.5946868510009153,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "cells n=3000",
+            "name": "test_sparse[cells n=3000-phlite (homology, parallel, reduce)]",
+            "fullname": "benchmarks/bench_sparse.py::test_sparse[cells n=3000-phlite (homology, parallel, reduce)]",
+            "params": {
+                "case": {
+                    "kind": "cells",
+                    "n": 3000,
+                    "top_dim": 2,
+                    "density": 0.3,
+                    "seed": 0
+                },
+                "implementation": "phlite (homology, parallel, reduce)"
+            },
+            "param": "cells n=3000-phlite (homology, parallel, reduce)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 0.0,
+                "fingerprint": [
+                    [
+                        1317,
+                        475,
+                        27938.0
+                    ],
+                    [
+                        304,
+                        0,
+                        1498.0
+                    ],
+                    [
+                        391,
+                        649,
+                        4825.0
+                    ],
+                    [
+                        0,
+                        1124,
+                        0
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.046239384999353206,
+                "max": 0.0654744009998467,
+                "mean": 0.05144886599973688,
+                "stddev": 0.00798587455984897,
+                "rounds": 5,
+                "median": 0.0483139250000022,
+                "iqr": 0.007245288750254986,
+                "q1": 0.04679781099957836,
+                "q3": 0.054043099749833345,
+                "iqr_outliers": 1,
+                "stddev_outliers": 1,
+                "outliers": "1;1",
+                "ld15iqr": 0.046239384999353206,
+                "hd15iqr": 0.050232665999828896,
+                "ops": 19.43677436943147,
+                "total": 0.2572443299986844,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "cells n=3000",
+            "name": "test_sparse[cells n=3000-phlite (heap, reduce)]",
+            "fullname": "benchmarks/bench_sparse.py::test_sparse[cells n=3000-phlite (heap, reduce)]",
+            "params": {
+                "case": {
+                    "kind": "cells",
+                    "n": 3000,
+                    "top_dim": 2,
+                    "density": 0.3,
+                    "seed": 0
+                },
+                "implementation": "phlite (heap, reduce)"
+            },
+            "param": "cells n=3000-phlite (heap, reduce)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 0.0,
+                "fingerprint": [
+                    [
+                        1317,
+                        475,
+                        27938.0
+                    ],
+                    [
+                        304,
+                        0,
+                        1498.0
+                    ],
+                    [
+                        391,
+                        649,
+                        4825.0
+                    ],
+                    [
+                        0,
+                        1124,
+                        0
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.03723004899984517,
+                "max": 0.04027486599989061,
+                "mean": 0.038655480799752694,
+                "stddev": 0.0013642725460904705,
+                "rounds": 5,
+                "median": 0.038810360999377735,
+                "iqr": 0.002505938250124018,
+                "q1": 0.0372959432497737,
+                "q3": 0.03980188149989772,
+                "iqr_outliers": 0,
+                "stddev_outliers": 2,
+                "outliers": "2;0",
+                "ld15iqr": 0.03723004899984517,
+                "hd15iqr": 0.04027486599989061,
+                "ops": 25.869552759680012,
+                "total": 0.19327740399876348,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "cells n=3000",
+            "name": "test_sparse[cells n=3000-phlite (no skipping, reduce)]",
+            "fullname": "benchmarks/bench_sparse.py::test_sparse[cells n=3000-phlite (no skipping, reduce)]",
+            "params": {
+                "case": {
+                    "kind": "cells",
+                    "n": 3000,
+                    "top_dim": 2,
+                    "density": 0.3,
+                    "seed": 0
+                },
+                "implementation": "phlite (no skipping, reduce)"
+            },
+            "param": "cells n=3000-phlite (no skipping, reduce)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 0.0,
+                "fingerprint": [
+                    [
+                        1317,
+                        475,
+                        27938.0
+                    ],
+                    [
+                        304,
+                        0,
+                        1498.0
+                    ],
+                    [
+                        391,
+                        649,
+                        4825.0
+                    ],
+                    [
+                        0,
+                        1124,
+                        0
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.017685386999801267,
+                "max": 0.018614515999615833,
+                "mean": 0.0180406932000551,
+                "stddev": 0.0003813676416078583,
+                "rounds": 5,
+                "median": 0.018019709000327566,
+                "iqr": 0.0005780967503596912,
+                "q1": 0.01770488474994636,
+                "q3": 0.01828298150030605,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.017685386999801267,
+                "hd15iqr": 0.018614515999615833,
+                "ops": 55.43024255835944,
+                "total": 0.09020346600027551,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "cells n=3000",
+            "name": "test_sparse[cells n=3000-phlite (standard, reduce)]",
+            "fullname": "benchmarks/bench_sparse.py::test_sparse[cells n=3000-phlite (standard, reduce)]",
+            "params": {
+                "case": {
+                    "kind": "cells",
+                    "n": 3000,
+                    "top_dim": 2,
+                    "density": 0.3,
+                    "seed": 0
+                },
+                "implementation": "phlite (standard, reduce)"
+            },
+            "param": "cells n=3000-phlite (standard, reduce)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 0.0,
+                "fingerprint": [
+                    [
+                        1317,
+                        475,
+                        27938.0
+                    ],
+                    [
+                        304,
+                        0,
+                        1498.0
+                    ],
+                    [
+                        391,
+                        649,
+                        4825.0
+                    ],
+                    [
+                        0,
+                        1124,
+                        0
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.47042125499956455,
+                "max": 0.4949812060003751,
+                "mean": 0.4802853266000966,
+                "stddev": 0.009053482784548057,
+                "rounds": 5,
+                "median": 0.47888820099979057,
+                "iqr": 0.008894222499975513,
+                "q1": 0.475154185500287,
+                "q3": 0.4840484080002625,
+                "iqr_outliers": 0,
+                "stddev_outliers": 2,
+                "outliers": "2;0",
+                "ld15iqr": 0.47042125499956455,
+                "hd15iqr": 0.4949812060003751,
+                "ops": 2.0820956723348685,
+                "total": 2.401426633000483,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "cells n=3000",
+            "name": "test_sparse[cells n=3000-phlite (reps, reduce)]",
+            "fullname": "benchmarks/bench_sparse.py::test_sparse[cells n=3000-phlite (reps, reduce)]",
+            "params": {
+                "case": {
+                    "kind": "cells",
+                    "n": 3000,
+                    "top_dim": 2,
+                    "density": 0.3,
+                    "seed": 0
+                },
+                "implementation": "phlite (reps, reduce)"
+            },
+            "param": "cells n=3000-phlite (reps, reduce)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 0.0,
+                "fingerprint": [
+                    [
+                        1317,
+                        475,
+                        27938.0
+                    ],
+                    [
+                        304,
+                        0,
+                        1498.0
+                    ],
+                    [
+                        391,
+                        649,
+                        4825.0
+                    ],
+                    [
+                        0,
+                        1124,
+                        0
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.14590177799982484,
+                "max": 0.1640142830001423,
+                "mean": 0.1506426169999031,
+                "stddev": 0.007652027663607792,
+                "rounds": 5,
+                "median": 0.1468058230002498,
+                "iqr": 0.007278640999629715,
+                "q1": 0.146284387499918,
+                "q3": 0.15356302849954773,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.14590177799982484,
+                "hd15iqr": 0.1640142830001423,
+                "ops": 6.638227746671735,
+                "total": 0.7532130849995156,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "dense n=100 p=0.3",
+            "name": "test_sparse[dense n=100 p=0.3-phat (twist)]",
+            "fullname": "benchmarks/bench_sparse.py::test_sparse[dense n=100 p=0.3-phat (twist)]",
+            "params": {
+                "case": {
+                    "kind": "dense",
+                    "n": 100,
+                    "top_dim": 2,
+                    "density": 0.3,
+                    "seed": 0
+                },
+                "implementation": "phat (twist)"
+            },
+            "param": "dense n=100 p=0.3-phat (twist)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 0.0,
+                "fingerprint": [
+                    [
+                        40,
+                        20,
+                        818.0
+                    ],
+                    [
+                        10,
+                        0,
+                        87.0
+                    ],
+                    [
+                        1,
+                        0,
+                        1.0
+                    ],
+                    [
+                        0,
+                        20,
+                        0
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.00045517699982156046,
+                "max": 0.0005247480003163218,
+                "mean": 0.0004715052000392461,
+                "stddev": 2.9856658692951064e-05,
+                "rounds": 5,
+                "median": 0.0004595710006469744,
+                "iqr": 2.0719749727504677e-05,
+                "q1": 0.00045639199993274815,
+                "q3": 0.0004771117496602528,
+                "iqr_outliers": 1,
+                "stddev_outliers": 1,
+                "outliers": "1;1",
+                "ld15iqr": 0.00045517699982156046,
+                "hd15iqr": 0.00046123299944156315,
+                "ops": 2120.8673836826492,
+                "total": 0.0023575260001962306,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "dense n=100 p=0.3",
+            "name": "test_sparse[dense n=100 p=0.3-phat (twist, reduce)]",
+            "fullname": "benchmarks/bench_sparse.py::test_sparse[dense n=100 p=0.3-phat (twist, reduce)]",
+            "params": {
+                "case": {
+                    "kind": "dense",
+                    "n": 100,
+                    "top_dim": 2,
+                    "density": 0.3,
+                    "seed": 0
+                },
+                "implementation": "phat (twist, reduce)"
+            },
+            "param": "dense n=100 p=0.3-phat (twist, reduce)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 0.0,
+                "fingerprint": [
+                    [
+                        40,
+                        20,
+                        818.0
+                    ],
+                    [
+                        10,
+                        0,
+                        87.0
+                    ],
+                    [
+                        1,
+                        0,
+                        1.0
+                    ],
+                    [
+                        0,
+                        20,
+                        0
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.00017388699961884413,
+                "max": 0.0001841120001699892,
+                "mean": 0.00017704279998724813,
+                "stddev": 4.112430581202727e-06,
+                "rounds": 5,
+                "median": 0.0001757280006131623,
+                "iqr": 4.270000772521598e-06,
+                "q1": 0.00017442249941268528,
+                "q3": 0.00017869250018520688,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.00017388699961884413,
+                "hd15iqr": 0.0001841120001699892,
+                "ops": 5648.351698414321,
+                "total": 0.0008852139999362407,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "dense n=100 p=0.3",
+            "name": "test_sparse[dense n=100 p=0.3-phat (chunk)]",
+            "fullname": "benchmarks/bench_sparse.py::test_sparse[dense n=100 p=0.3-phat (chunk)]",
+            "params": {
+                "case": {
+                    "kind": "dense",
+                    "n": 100,
+                    "top_dim": 2,
+                    "density": 0.3,
+                    "seed": 0
+                },
+                "implementation": "phat (chunk)"
+            },
+            "param": "dense n=100 p=0.3-phat (chunk)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 0.0,
+                "fingerprint": [
+                    [
+                        40,
+                        20,
+                        818.0
+                    ],
+                    [
+                        10,
+                        0,
+                        87.0
+                    ],
+                    [
+                        1,
+                        0,
+                        1.0
+                    ],
+                    [
+                        0,
+                        20,
+                        0
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.00045184000009612646,
+                "max": 0.0004703579998022178,
+                "mean": 0.0004590520000419929,
+                "stddev": 6.988615214996593e-06,
+                "rounds": 5,
+                "median": 0.0004569729999275296,
+                "iqr": 7.841749720682856e-06,
+                "q1": 0.00045488725027098553,
+                "q3": 0.0004627289999916684,
+                "iqr_outliers": 0,
+                "stddev_outliers": 2,
+                "outliers": "2;0",
+                "ld15iqr": 0.00045184000009612646,
+                "hd15iqr": 0.0004703579998022178,
+                "ops": 2178.4024465823536,
+                "total": 0.0022952600002099643,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "dense n=100 p=0.3",
+            "name": "test_sparse[dense n=100 p=0.3-phat (standard, vector_vector)]",
+            "fullname": "benchmarks/bench_sparse.py::test_sparse[dense n=100 p=0.3-phat (standard, vector_vector)]",
+            "params": {
+                "case": {
+                    "kind": "dense",
+                    "n": 100,
+                    "top_dim": 2,
+                    "density": 0.3,
+                    "seed": 0
+                },
+                "implementation": "phat (standard, vector_vector)"
+            },
+            "param": "dense n=100 p=0.3-phat (standard, vector_vector)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 0.0,
+                "fingerprint": [
+                    [
+                        40,
+                        20,
+                        818.0
+                    ],
+                    [
+                        10,
+                        0,
+                        87.0
+                    ],
+                    [
+                        1,
+                        0,
+                        1.0
+                    ],
+                    [
+                        0,
+                        20,
+                        0
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.0009658409999246942,
+                "max": 0.0009935810003298684,
+                "mean": 0.0009747169999172911,
+                "stddev": 1.2005099102255586e-05,
+                "rounds": 5,
+                "median": 0.0009682379995865631,
+                "iqr": 1.720325030873937e-05,
+                "q1": 0.0009660479997819493,
+                "q3": 0.0009832512500906887,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.0009658409999246942,
+                "hd15iqr": 0.0009935810003298684,
+                "ops": 1025.9388110444922,
+                "total": 0.0048735849995864555,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "dense n=100 p=0.3",
+            "name": "test_sparse[dense n=100 p=0.3-lophat (1 thread)]",
+            "fullname": "benchmarks/bench_sparse.py::test_sparse[dense n=100 p=0.3-lophat (1 thread)]",
+            "params": {
+                "case": {
+                    "kind": "dense",
+                    "n": 100,
+                    "top_dim": 2,
+                    "density": 0.3,
+                    "seed": 0
+                },
+                "implementation": "lophat (1 thread)"
+            },
+            "param": "dense n=100 p=0.3-lophat (1 thread)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 0.0,
+                "fingerprint": [
+                    [
+                        40,
+                        20,
+                        818.0
+                    ],
+                    [
+                        10,
+                        0,
+                        87.0
+                    ],
+                    [
+                        1,
+                        0,
+                        1.0
+                    ],
+                    [
+                        0,
+                        20,
+                        0
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.0013017049996051355,
+                "max": 0.0020423510004548007,
+                "mean": 0.001631420799822081,
+                "stddev": 0.0003264575349127924,
+                "rounds": 5,
+                "median": 0.0015203929997369414,
+                "iqr": 0.0005762422497355146,
+                "q1": 0.0013646314998823073,
+                "q3": 0.0019408737496178219,
+                "iqr_outliers": 0,
+                "stddev_outliers": 2,
+                "outliers": "2;0",
+                "ld15iqr": 0.0013017049996051355,
+                "hd15iqr": 0.0020423510004548007,
+                "ops": 612.9626397487747,
+                "total": 0.008157103999110404,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "dense n=100 p=0.3",
+            "name": "test_sparse[dense n=100 p=0.3-lophat (parallel)]",
+            "fullname": "benchmarks/bench_sparse.py::test_sparse[dense n=100 p=0.3-lophat (parallel)]",
+            "params": {
+                "case": {
+                    "kind": "dense",
+                    "n": 100,
+                    "top_dim": 2,
+                    "density": 0.3,
+                    "seed": 0
+                },
+                "implementation": "lophat (parallel)"
+            },
+            "param": "dense n=100 p=0.3-lophat (parallel)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 0.0,
+                "fingerprint": [
+                    [
+                        40,
+                        20,
+                        818.0
+                    ],
+                    [
+                        10,
+                        0,
+                        87.0
+                    ],
+                    [
+                        1,
+                        0,
+                        1.0
+                    ],
+                    [
+                        0,
+                        20,
+                        0
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.0008155750001606066,
+                "max": 0.0008729880000828416,
+                "mean": 0.000851018199864484,
+                "stddev": 2.374327690590699e-05,
+                "rounds": 5,
+                "median": 0.000847006999720179,
+                "iqr": 3.4115000744350255e-05,
+                "q1": 0.000838833249417803,
+                "q3": 0.0008729482501621533,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.0008155750001606066,
+                "hd15iqr": 0.0008729880000828416,
+                "ops": 1175.0630011899157,
+                "total": 0.0042550909993224195,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "dense n=100 p=0.3",
+            "name": "test_sparse[dense n=100 p=0.3-phlite (serial)]",
+            "fullname": "benchmarks/bench_sparse.py::test_sparse[dense n=100 p=0.3-phlite (serial)]",
+            "params": {
+                "case": {
+                    "kind": "dense",
+                    "n": 100,
+                    "top_dim": 2,
+                    "density": 0.3,
+                    "seed": 0
+                },
+                "implementation": "phlite (serial)"
+            },
+            "param": "dense n=100 p=0.3-phlite (serial)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 0.0,
+                "fingerprint": [
+                    [
+                        40,
+                        20,
+                        818.0
+                    ],
+                    [
+                        10,
+                        0,
+                        87.0
+                    ],
+                    [
+                        1,
+                        0,
+                        1.0
+                    ],
+                    [
+                        0,
+                        20,
+                        0
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.020884793999357498,
+                "max": 0.021569518000433163,
+                "mean": 0.021196673399936118,
+                "stddev": 0.00029616067164648096,
+                "rounds": 5,
+                "median": 0.02129648700065445,
+                "iqr": 0.000492326500307172,
+                "q1": 0.020897838749533548,
+                "q3": 0.02139016524984072,
+                "iqr_outliers": 0,
+                "stddev_outliers": 2,
+                "outliers": "2;0",
+                "ld15iqr": 0.020884793999357498,
+                "hd15iqr": 0.021569518000433163,
+                "ops": 47.17721413790401,
+                "total": 0.10598336699968058,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "dense n=100 p=0.3",
+            "name": "test_sparse[dense n=100 p=0.3-phlite (serial, csc)]",
+            "fullname": "benchmarks/bench_sparse.py::test_sparse[dense n=100 p=0.3-phlite (serial, csc)]",
+            "params": {
+                "case": {
+                    "kind": "dense",
+                    "n": 100,
+                    "top_dim": 2,
+                    "density": 0.3,
+                    "seed": 0
+                },
+                "implementation": "phlite (serial, csc)"
+            },
+            "param": "dense n=100 p=0.3-phlite (serial, csc)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 0.0,
+                "fingerprint": [
+                    [
+                        40,
+                        20,
+                        818.0
+                    ],
+                    [
+                        10,
+                        0,
+                        87.0
+                    ],
+                    [
+                        1,
+                        0,
+                        1.0
+                    ],
+                    [
+                        0,
+                        20,
+                        0
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.020506746000137355,
+                "max": 0.02100554699973145,
+                "mean": 0.020854352800233754,
+                "stddev": 0.00020270298381971794,
+                "rounds": 5,
+                "median": 0.020947533000253316,
+                "iqr": 0.00021121274971847015,
+                "q1": 0.02076290700051686,
+                "q3": 0.02097411975023533,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.020506746000137355,
+                "hd15iqr": 0.02100554699973145,
+                "ops": 47.951619960548044,
+                "total": 0.10427176400116878,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "dense n=100 p=0.3",
+            "name": "test_sparse[dense n=100 p=0.3-phlite (serial, reduce)]",
+            "fullname": "benchmarks/bench_sparse.py::test_sparse[dense n=100 p=0.3-phlite (serial, reduce)]",
+            "params": {
+                "case": {
+                    "kind": "dense",
+                    "n": 100,
+                    "top_dim": 2,
+                    "density": 0.3,
+                    "seed": 0
+                },
+                "implementation": "phlite (serial, reduce)"
+            },
+            "param": "dense n=100 p=0.3-phlite (serial, reduce)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 0.0,
+                "fingerprint": [
+                    [
+                        40,
+                        20,
+                        818.0
+                    ],
+                    [
+                        10,
+                        0,
+                        87.0
+                    ],
+                    [
+                        1,
+                        0,
+                        1.0
+                    ],
+                    [
+                        0,
+                        20,
+                        0
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.020051408999279374,
+                "max": 0.02067935899958684,
+                "mean": 0.020358864399713638,
+                "stddev": 0.00022318088537972295,
+                "rounds": 5,
+                "median": 0.020344088999991072,
+                "iqr": 0.00020165374940006586,
+                "q1": 0.020260318500049834,
+                "q3": 0.0204619722494499,
+                "iqr_outliers": 0,
+                "stddev_outliers": 2,
+                "outliers": "2;0",
+                "ld15iqr": 0.020051408999279374,
+                "hd15iqr": 0.02067935899958684,
+                "ops": 49.11865320022789,
+                "total": 0.1017943219985682,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "dense n=100 p=0.3",
+            "name": "test_sparse[dense n=100 p=0.3-phlite (parallel)]",
+            "fullname": "benchmarks/bench_sparse.py::test_sparse[dense n=100 p=0.3-phlite (parallel)]",
+            "params": {
+                "case": {
+                    "kind": "dense",
+                    "n": 100,
+                    "top_dim": 2,
+                    "density": 0.3,
+                    "seed": 0
+                },
+                "implementation": "phlite (parallel)"
+            },
+            "param": "dense n=100 p=0.3-phlite (parallel)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 0.0,
+                "fingerprint": [
+                    [
+                        40,
+                        20,
+                        818.0
+                    ],
+                    [
+                        10,
+                        0,
+                        87.0
+                    ],
+                    [
+                        1,
+                        0,
+                        1.0
+                    ],
+                    [
+                        0,
+                        20,
+                        0
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.006889555999805452,
+                "max": 0.007695940999838058,
+                "mean": 0.0072600800000145686,
+                "stddev": 0.00039343004872012934,
+                "rounds": 5,
+                "median": 0.007147536999582371,
+                "iqr": 0.0007609432500430557,
+                "q1": 0.006905477750251521,
+                "q3": 0.0076664210002945765,
+                "iqr_outliers": 0,
+                "stddev_outliers": 2,
+                "outliers": "2;0",
+                "ld15iqr": 0.006889555999805452,
+                "hd15iqr": 0.007695940999838058,
+                "ops": 137.7395290407259,
+                "total": 0.03630040000007284,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "dense n=100 p=0.3",
+            "name": "test_sparse[dense n=100 p=0.3-phlite (parallel, reduce)]",
+            "fullname": "benchmarks/bench_sparse.py::test_sparse[dense n=100 p=0.3-phlite (parallel, reduce)]",
+            "params": {
+                "case": {
+                    "kind": "dense",
+                    "n": 100,
+                    "top_dim": 2,
+                    "density": 0.3,
+                    "seed": 0
+                },
+                "implementation": "phlite (parallel, reduce)"
+            },
+            "param": "dense n=100 p=0.3-phlite (parallel, reduce)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 0.0,
+                "fingerprint": [
+                    [
+                        40,
+                        20,
+                        818.0
+                    ],
+                    [
+                        10,
+                        0,
+                        87.0
+                    ],
+                    [
+                        1,
+                        0,
+                        1.0
+                    ],
+                    [
+                        0,
+                        20,
+                        0
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.006452888999774586,
+                "max": 0.006614057000660978,
+                "mean": 0.006543985600183077,
+                "stddev": 7.632192583887841e-05,
+                "rounds": 5,
+                "median": 0.006581037000614742,
+                "iqr": 0.00013859825048712082,
+                "q1": 0.006466048499760291,
+                "q3": 0.0066046467502474115,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.006452888999774586,
+                "hd15iqr": 0.006614057000660978,
+                "ops": 152.81207219832874,
+                "total": 0.03271992800091539,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "dense n=100 p=0.3",
+            "name": "test_sparse[dense n=100 p=0.3-phlite (homology, reduce)]",
+            "fullname": "benchmarks/bench_sparse.py::test_sparse[dense n=100 p=0.3-phlite (homology, reduce)]",
+            "params": {
+                "case": {
+                    "kind": "dense",
+                    "n": 100,
+                    "top_dim": 2,
+                    "density": 0.3,
+                    "seed": 0
+                },
+                "implementation": "phlite (homology, reduce)"
+            },
+            "param": "dense n=100 p=0.3-phlite (homology, reduce)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 0.0,
+                "fingerprint": [
+                    [
+                        40,
+                        20,
+                        818.0
+                    ],
+                    [
+                        10,
+                        0,
+                        87.0
+                    ],
+                    [
+                        1,
+                        0,
+                        1.0
+                    ],
+                    [
+                        0,
+                        20,
+                        0
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.049126377999527904,
+                "max": 0.06339681499957805,
+                "mean": 0.05284681719967921,
+                "stddev": 0.005957929115860127,
+                "rounds": 5,
+                "median": 0.05052407400035008,
+                "iqr": 0.004773560499870655,
+                "q1": 0.04962367599955542,
+                "q3": 0.05439723649942607,
+                "iqr_outliers": 1,
+                "stddev_outliers": 1,
+                "outliers": "1;1",
+                "ld15iqr": 0.049126377999527904,
+                "hd15iqr": 0.05139737699937541,
+                "ops": 18.922615457077523,
+                "total": 0.26423408599839604,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "dense n=100 p=0.3",
+            "name": "test_sparse[dense n=100 p=0.3-phlite (homology, parallel, reduce)]",
+            "fullname": "benchmarks/bench_sparse.py::test_sparse[dense n=100 p=0.3-phlite (homology, parallel, reduce)]",
+            "params": {
+                "case": {
+                    "kind": "dense",
+                    "n": 100,
+                    "top_dim": 2,
+                    "density": 0.3,
+                    "seed": 0
+                },
+                "implementation": "phlite (homology, parallel, reduce)"
+            },
+            "param": "dense n=100 p=0.3-phlite (homology, parallel, reduce)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 0.0,
+                "fingerprint": [
+                    [
+                        40,
+                        20,
+                        818.0
+                    ],
+                    [
+                        10,
+                        0,
+                        87.0
+                    ],
+                    [
+                        1,
+                        0,
+                        1.0
+                    ],
+                    [
+                        0,
+                        20,
+                        0
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.01227936800023599,
+                "max": 0.0174303220001093,
+                "mean": 0.01504139300013776,
+                "stddev": 0.0018497964859085995,
+                "rounds": 5,
+                "median": 0.015351454000665399,
+                "iqr": 0.0018213462496987631,
+                "q1": 0.01410772100007307,
+                "q3": 0.015929067249771833,
+                "iqr_outliers": 0,
+                "stddev_outliers": 2,
+                "outliers": "2;0",
+                "ld15iqr": 0.01227936800023599,
+                "hd15iqr": 0.0174303220001093,
+                "ops": 66.48320404837779,
+                "total": 0.0752069650006888,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "dense n=100 p=0.3",
+            "name": "test_sparse[dense n=100 p=0.3-phlite (heap, reduce)]",
+            "fullname": "benchmarks/bench_sparse.py::test_sparse[dense n=100 p=0.3-phlite (heap, reduce)]",
+            "params": {
+                "case": {
+                    "kind": "dense",
+                    "n": 100,
+                    "top_dim": 2,
+                    "density": 0.3,
+                    "seed": 0
+                },
+                "implementation": "phlite (heap, reduce)"
+            },
+            "param": "dense n=100 p=0.3-phlite (heap, reduce)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 0.0,
+                "fingerprint": [
+                    [
+                        40,
+                        20,
+                        818.0
+                    ],
+                    [
+                        10,
+                        0,
+                        87.0
+                    ],
+                    [
+                        1,
+                        0,
+                        1.0
+                    ],
+                    [
+                        0,
+                        20,
+                        0
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.03723519300001499,
+                "max": 0.04033856699970784,
+                "mean": 0.038646334599980035,
+                "stddev": 0.0012366005770407394,
+                "rounds": 5,
+                "median": 0.03865052099990862,
+                "iqr": 0.0019478819992855279,
+                "q1": 0.037600551000423366,
+                "q3": 0.039548432999708893,
+                "iqr_outliers": 0,
+                "stddev_outliers": 2,
+                "outliers": "2;0",
+                "ld15iqr": 0.03723519300001499,
+                "hd15iqr": 0.04033856699970784,
+                "ops": 25.87567515395151,
+                "total": 0.19323167299990018,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "dense n=100 p=0.3",
+            "name": "test_sparse[dense n=100 p=0.3-phlite (no skipping, reduce)]",
+            "fullname": "benchmarks/bench_sparse.py::test_sparse[dense n=100 p=0.3-phlite (no skipping, reduce)]",
+            "params": {
+                "case": {
+                    "kind": "dense",
+                    "n": 100,
+                    "top_dim": 2,
+                    "density": 0.3,
+                    "seed": 0
+                },
+                "implementation": "phlite (no skipping, reduce)"
+            },
+            "param": "dense n=100 p=0.3-phlite (no skipping, reduce)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 0.0,
+                "fingerprint": [
+                    [
+                        40,
+                        20,
+                        818.0
+                    ],
+                    [
+                        10,
+                        0,
+                        87.0
+                    ],
+                    [
+                        1,
+                        0,
+                        1.0
+                    ],
+                    [
+                        0,
+                        20,
+                        0
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.02068610100013757,
+                "max": 0.021043691000159015,
+                "mean": 0.020951490400148032,
+                "stddev": 0.0001498950288956911,
+                "rounds": 5,
+                "median": 0.0210072809995836,
+                "iqr": 0.0001218792499457777,
+                "q1": 0.020912926500386675,
+                "q3": 0.021034805750332453,
+                "iqr_outliers": 1,
+                "stddev_outliers": 1,
+                "outliers": "1;1",
+                "ld15iqr": 0.02098853500046971,
+                "hd15iqr": 0.021043691000159015,
+                "ops": 47.72930139580593,
+                "total": 0.10475745200074016,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "dense n=100 p=0.3",
+            "name": "test_sparse[dense n=100 p=0.3-phlite (standard, reduce)]",
+            "fullname": "benchmarks/bench_sparse.py::test_sparse[dense n=100 p=0.3-phlite (standard, reduce)]",
+            "params": {
+                "case": {
+                    "kind": "dense",
+                    "n": 100,
+                    "top_dim": 2,
+                    "density": 0.3,
+                    "seed": 0
+                },
+                "implementation": "phlite (standard, reduce)"
+            },
+            "param": "dense n=100 p=0.3-phlite (standard, reduce)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 0.0,
+                "fingerprint": [
+                    [
+                        40,
+                        20,
+                        818.0
+                    ],
+                    [
+                        10,
+                        0,
+                        87.0
+                    ],
+                    [
+                        1,
+                        0,
+                        1.0
+                    ],
+                    [
+                        0,
+                        20,
+                        0
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.05250820699984615,
+                "max": 0.05295604499951878,
+                "mean": 0.052670676599700525,
+                "stddev": 0.00017052497544091613,
+                "rounds": 5,
+                "median": 0.0526223189999655,
+                "iqr": 0.0001735044997985824,
+                "q1": 0.0525713337497109,
+                "q3": 0.052744838249509485,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.05250820699984615,
+                "hd15iqr": 0.05295604499951878,
+                "ops": 18.985896224573764,
+                "total": 0.26335338299850264,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "dense n=100 p=0.3",
+            "name": "test_sparse[dense n=100 p=0.3-phlite (reps, reduce)]",
+            "fullname": "benchmarks/bench_sparse.py::test_sparse[dense n=100 p=0.3-phlite (reps, reduce)]",
+            "params": {
+                "case": {
+                    "kind": "dense",
+                    "n": 100,
+                    "top_dim": 2,
+                    "density": 0.3,
+                    "seed": 0
+                },
+                "implementation": "phlite (reps, reduce)"
+            },
+            "param": "dense n=100 p=0.3-phlite (reps, reduce)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 0.0,
+                "fingerprint": [
+                    [
+                        40,
+                        20,
+                        818.0
+                    ],
+                    [
+                        10,
+                        0,
+                        87.0
+                    ],
+                    [
+                        1,
+                        0,
+                        1.0
+                    ],
+                    [
+                        0,
+                        20,
+                        0
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.06969830299931346,
+                "max": 0.078747956999905,
+                "mean": 0.07264002399970196,
+                "stddev": 0.0037891409446323145,
+                "rounds": 5,
+                "median": 0.07109876300000906,
+                "iqr": 0.005219748250738121,
+                "q1": 0.06981656974926409,
+                "q3": 0.07503631800000221,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.06969830299931346,
+                "hd15iqr": 0.078747956999905,
+                "ops": 13.7665152754369,
+                "total": 0.36320011999850976,
+                "iterations": 1
+            }
+        }
+    ],
+    "datetime": "2026-11-11T09:17:17.359933+00:00",
+    "version": "5.3.1"
+}
