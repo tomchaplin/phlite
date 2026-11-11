@@ -19,7 +19,7 @@ use phlite_pyutils::{add_algorithm_class, parse_method, AlgorithmConfig, Algorit
 use pyo3::{
     exceptions::{PyTypeError, PyValueError},
     prelude::*,
-    types::{PyList, PyTuple},
+    types::{PyInt, PyList, PyTuple},
 };
 use pyo3_stub_gen::derive::*;
 
@@ -219,6 +219,18 @@ fn integral(x: f64, name: &str) -> PyResult<i64> {
 /// Read a sequence of integers. Integer numpy arrays (and float arrays of whole numbers, as scipy uses for `data`)
 /// are read directly, without converting each entry through Python.
 pub(crate) fn read_ints(obj: &Bound<'_, PyAny>, name: &str) -> PyResult<Vec<i64>> {
+    // Lists and tuples first: they're how columns usually come, one per cell, so this is the hot path of
+    // `from_columns`, and the checks below cost more than reading a short column
+    let fast = if let Ok(list) = obj.cast::<PyList>() {
+        Some(collect_ints(list.iter(), list.len()))
+    } else if let Ok(tuple) = obj.cast::<PyTuple>() {
+        Some(collect_ints(tuple.iter(), tuple.len()))
+    } else {
+        None
+    };
+    if let Some(ints) = fast {
+        return ints.map_err(|e| not_ints(obj, name, e));
+    }
     if is_numpy(obj) {
         if let Some(v) = try_numpy::<i64>(obj) {
             return Ok(v);
@@ -247,11 +259,24 @@ pub(crate) fn read_ints(obj: &Bound<'_, PyAny>, name: &str) -> PyResult<Vec<i64>
         }
         check_1d(obj, name)?;
     }
-    obj.extract().map_err(|e| {
-        let err = PyTypeError::new_err(format!("{name} must be a sequence of integers"));
-        err.set_cause(obj.py(), Some(e));
-        err
-    })
+    obj.extract().map_err(|e| not_ints(obj, name, e))
+}
+
+fn collect_ints<'py>(
+    items: impl Iterator<Item = Bound<'py, PyAny>>,
+    len: usize,
+) -> PyResult<Vec<i64>> {
+    let mut ints = Vec::with_capacity(len);
+    for item in items {
+        ints.push(item.extract::<i64>()?);
+    }
+    Ok(ints)
+}
+
+fn not_ints(obj: &Bound<'_, PyAny>, name: &str, cause: PyErr) -> PyErr {
+    let err = PyTypeError::new_err(format!("{name} must be a sequence of integers"));
+    err.set_cause(obj.py(), Some(cause));
+    err
 }
 
 /// Read a sequence of floats, reading float numpy arrays directly.
@@ -274,6 +299,9 @@ pub(crate) fn read_floats(obj: &Bound<'_, PyAny>, name: &str) -> PyResult<Vec<f6
 
 /// If `item` is a `(dimension, column)` pair, split it.
 /// A column is never mistaken for a pair, since the entries of a column are integers.
+///
+/// This runs once per column, so the usual cases are decided by type checks: a failed extraction would build a Python
+/// exception, which costs more than reading the column.
 fn split_pair<'py>(item: &Bound<'py, PyAny>) -> Option<(i64, Bound<'py, PyAny>)> {
     let tuple = item.cast::<PyTuple>().ok()?;
     if tuple.len() != 2 {
@@ -281,6 +309,15 @@ fn split_pair<'py>(item: &Bound<'py, PyAny>) -> Option<(i64, Bound<'py, PyAny>)>
     }
     let first = tuple.get_item(0).ok()?;
     let second = tuple.get_item(1).ok()?;
+    if second.is_instance_of::<PyInt>() {
+        // A column of two cells
+        return None;
+    }
+    if second.is_instance_of::<PyList>() || second.is_instance_of::<PyTuple>() {
+        // A column given as a list or tuple, so a pair if the first entry is a dimension
+        return first.extract::<i64>().ok().map(|dim| (dim, second));
+    }
+    // Anything else (e.g. numpy integers or arrays): a pair if the first entry is an integer and the second isn't
     match (first.extract::<i64>(), second.extract::<i64>()) {
         (Ok(dim), Err(_)) => Some((dim, second)),
         _ => None,
