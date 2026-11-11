@@ -5,9 +5,116 @@ import builtins
 import networkx
 import typing
 __all__ = [
+    "Algorithm",
     "Barcode",
     "grpph",
 ]
+
+@typing.final
+class Algorithm:
+    r"""
+    A reduction algorithm and its options.
+    
+    Start from a preset, `Algorithm.serial()` or `Algorithm.parallel()`, which are the recommended configurations,
+    or from one of the algorithms themselves, `Algorithm.standard()`, `Algorithm.clearing()` or
+    `Algorithm.parallel_clearing()`, then adjust it with the `with_*` methods (each returns a new `Algorithm`):
+    
+    ```python
+    Algorithm.parallel(threads=8)
+    Algorithm.clearing().with_columns("heap").with_skip_zero_apparent_pairs(False)
+    ```
+    
+    Pass the result as the `algorithm` argument. Every algorithm gives the same barcode; only the time and memory differ.
+    """
+    @property
+    def name(self) -> builtins.str:
+        r"""
+        `'standard'`, `'clearing'` or `'parallel-clearing'`.
+        """
+    @property
+    def columns(self) -> builtins.str:
+        r"""
+        `'merged'` or `'heap'`.
+        """
+    @property
+    def skip_zero_apparent_pairs(self) -> builtins.bool:
+        r"""
+        Whether zero-length apparent pairs are skipped.
+        """
+    @property
+    def dimension_order(self) -> typing.Optional[builtins.list[builtins.int]]:
+        r"""
+        The order dimensions are reduced in, or `None` if detected.
+        """
+    @property
+    def storage(self) -> typing.Optional[builtins.str]:
+        r"""
+        `'locking'` or `'lock-free'` for the parallel algorithm, else `None`.
+        """
+    @property
+    def threads(self) -> typing.Optional[builtins.int]:
+        r"""
+        The number of threads for the parallel algorithm (`None`: all cores).
+        """
+    def __eq__(self, other: builtins.object, /) -> builtins.bool: ...
+    @staticmethod
+    def serial() -> Algorithm:
+        r"""
+        The recommended serial algorithm: clearing, skipping zero-length apparent pairs.
+        """
+    @staticmethod
+    def parallel(threads: typing.Optional[builtins.int] = None) -> Algorithm:
+        r"""
+        The recommended parallel algorithm: clearing with each dimension reduced in parallel, skipping zero-length
+        apparent pairs, on `threads` threads (default: all cores).
+        """
+    @staticmethod
+    def standard() -> Algorithm:
+        r"""
+        The standard algorithm, with no optimisations.
+        """
+    @staticmethod
+    def clearing() -> Algorithm:
+        r"""
+        The standard algorithm with the clearing optimisation. Skips zero-length apparent pairs by default.
+        """
+    @staticmethod
+    def parallel_clearing() -> Algorithm:
+        r"""
+        Clearing, with the columns of each dimension reduced in parallel.
+        Skips zero-length apparent pairs by default, and uses all cores and locking storage.
+        """
+    def with_columns(self, columns: typing.Literal['merged', 'heap']) -> Algorithm:
+        r"""
+        How the column being reduced is represented: `'merged'` (the default) or `'heap'`.
+        """
+    def with_skip_zero_apparent_pairs(self, skip: builtins.bool = True) -> Algorithm:
+        r"""
+        Whether to leave zero-length apparent pairs out of the diagram (clearing algorithms only).
+        
+        Such pairs give zero-length bars, which the barcode omits anyway, but in many filtrations nearly every pair is
+        one, so recording them dominates the time and memory of the reduction.
+        """
+    def with_dimension_order(self, dimension_order: typing.Optional[typing.Sequence[builtins.int]]) -> Algorithm:
+        r"""
+        The order in which to reduce dimensions (clearing algorithms only), or `None` to detect it from the matrix.
+        
+        Clearing saves work when dimensions are reduced in the direction the matrix maps them (ascending for
+        cohomology, descending for homology), which is what is detected. Only the dimensions listed are reduced, so
+        list every dimension the barcode needs.
+        """
+    def with_storage(self, storage: typing.Literal['locking', 'lock-free']) -> Algorithm:
+        r"""
+        The concurrent data structures for the parallel algorithm: `'locking'` (the default) or `'lock-free'`.
+        """
+    def with_threads(self, threads: typing.Optional[builtins.int]) -> Algorithm:
+        r"""
+        The number of threads for the parallel algorithm, or `None` for all cores.
+        """
+    def __repr__(self) -> builtins.str:
+        r"""
+        The Python expression that builds this algorithm.
+        """
 
 @typing.final
 class Barcode:
@@ -46,8 +153,8 @@ class Barcode:
     def __repr__(self) -> builtins.str: ...
 
 @typing.overload
-def grpph(graph: networkx.DiGraph, /, *, weight: builtins.str = 'weight', method: typing.Literal["cohomology", "homology"] = 'cohomology', algorithm: typing.Literal["standard", "clearing", "parallel", "parallel-lock-free"] = 'clearing', representatives: builtins.bool = False, threads: typing.Optional[builtins.int] = None) -> Barcode: ...
+def grpph(graph: networkx.DiGraph, /, *, weight: builtins.str = 'weight', method: typing.Literal["cohomology", "homology"] = 'cohomology', algorithm: typing.Optional[Algorithm] = None, representatives: builtins.bool = False) -> Barcode: ...
 
 @typing.overload
-def grpph(n_vertices: builtins.int, edges: typing.Sequence[tuple[builtins.int, builtins.int, builtins.float]], /, *, method: typing.Literal["cohomology", "homology"] = 'cohomology', algorithm: typing.Literal["standard", "clearing", "parallel", "parallel-lock-free"] = 'clearing', representatives: builtins.bool = False, threads: typing.Optional[builtins.int] = None) -> Barcode: ...
+def grpph(n_vertices: builtins.int, edges: typing.Sequence[tuple[builtins.int, builtins.int, builtins.float]], /, *, method: typing.Literal["cohomology", "homology"] = 'cohomology', algorithm: typing.Optional[Algorithm] = None, representatives: builtins.bool = False) -> Barcode: ...
 

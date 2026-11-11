@@ -71,8 +71,8 @@ using a fraction of Ripser's memory, on the following benchmark.
 
 **Test case:** $n$ points sampled uniformly from the unit cube $[0, 1]^3$ (seed 0), with Euclidean distances (rounded to `float32`, so every implementation sees identical input),
 computing persistent homology in dimensions 0, 1 and 2 over $\mathbb{Z}/2$ by cohomology.
-We compare `phlite_rips` (`algorithm="clearing"`, serial) with [ripser.py](https://github.com/scikit-tda/ripser.py) (serial),
-and `phlite_rips` (`algorithm="parallel"`, 4 threads) with giotto-ph (`n_threads=4`).
+We compare `phlite_rips` (`Algorithm.serial()`) with [ripser.py](https://github.com/scikit-tda/ripser.py) (serial),
+and `phlite_rips` (`Algorithm.parallel(threads=4)`) with giotto-ph (`n_threads=4`).
 Times are the best of 2 runs and peak memory is the extra resident memory used during the computation,
 each run in a fresh process on one 8-core Linux machine; all implementations produced the same barcodes.
 
@@ -94,6 +94,7 @@ If you need support implementing `phlite` traits for your specific application, 
 * `phlite` - Core library, matrix oracle traits, reduction algorithms, barcodes with representatives.
 * `phlite_rips` - Implementation of VR filtration, à la Ripser. Rust library + basic CLI + Python bindings via PyO3.
 * `phlite_grpph` - Implementation of GrPPH [[7]](#7). Rust library + Python bindings via PyO3.
+* `phlite_py` - Python bindings (the `phlite` Python package) for explicit sparse filtered chain complexes, à la PHAT/LoPHAT.
 * `phlite_pyutils` - Shared helpers for the Python bindings (the `Barcode` result type and argument handling).
 
 The `python-tests` folder holds fuzz tests and benchmarks of the Python bindings against ripser, giotto-ph and grpphati.

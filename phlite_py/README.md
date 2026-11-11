@@ -114,11 +114,12 @@ for t in times:
 barcode = filtered.persistence(
     max_dim=None,             # default: the top dimension of the complex
     method="cohomology",      # or "homology"
-    algorithm="clearing",     # or "standard", "parallel", "parallel-lock-free"
+    algorithm=None,           # an Algorithm, default Algorithm.serial(); see below
     representatives=False,
-    threads=None,             # for the parallel algorithms
 )
 ```
+
+For example `filtered.persistence(algorithm=phlite.Algorithm.parallel(threads=8))`.
 
 The `Barcode` is in terms of your cells (ints for `from_columns` / `from_csc`):
 
@@ -133,6 +134,34 @@ As with Ripser, `method="cohomology"` is usually much faster; it computes repres
 
 **Zero-length bars are omitted** (birth and death at the same filtration value), as everywhere in `phlite`. With the
 default index filtration no bar has length zero, so you get every pair, as with PHAT.
+
+### Choosing an algorithm
+
+The `algorithm` argument takes an `Algorithm`. Start from a preset:
+
+* `Algorithm.serial()` (the default): clearing, skipping zero-length apparent pairs;
+* `Algorithm.parallel(threads=None)`: the same, with each dimension reduced in parallel on `threads` threads (default: all cores).
+
+or from an algorithm itself, `Algorithm.standard()`, `Algorithm.clearing()` or `Algorithm.parallel_clearing()`,
+then adjust it with the `with_*` methods, each of which returns a new `Algorithm`:
+
+| Method | Values | Default |
+|---|---|---|
+| `with_columns` | How the column being reduced is stored: `'merged'` (sorted runs, merged lazily) or `'heap'`. | `'merged'` |
+| `with_skip_zero_apparent_pairs` | Whether to leave zero-length apparent pairs out of the reduction's diagram (clearing only). They would be dropped from the barcode anyway, and recording them can dominate the time and memory. | `True` |
+| `with_dimension_order` | The order to reduce dimensions in (clearing only), or `None` to detect the efficient order from the matrix. | `None` |
+| `with_storage` | Concurrent data structures (parallel only): `'locking'` or `'lock-free'`. | `'locking'` |
+| `with_threads` | Number of threads (parallel only), or `None` for all cores. | `None` |
+
+```python
+from phlite import Algorithm
+
+Algorithm.parallel(threads=8)
+Algorithm.clearing().with_columns("heap").with_skip_zero_apparent_pairs(False)
+```
+
+Every algorithm gives the same barcode; only the time and memory differ.
+Options that don't apply to an algorithm (such as `with_threads` on `Algorithm.serial()`) raise a `ValueError`.
 
 ## Example: GrPPH
 

@@ -48,12 +48,11 @@ def test_every_algorithm(seed, method):
             assert (barcode.pairings, barcode.essential) == expected, repr(algorithm)
 
 
-def test_presets_and_names():
+def test_presets():
     complex, _, expected = case(0)
-    for algorithm in ["standard", "clearing", "parallel", "parallel-lock-free", None, Algorithm.serial(), Algorithm.parallel(2)]:
+    for algorithm in [None, Algorithm.serial(), Algorithm.parallel(), Algorithm.parallel(2)]:
         barcode = complex.persistence(algorithm=algorithm)
         assert (barcode.pairings, barcode.essential) == expected
-    assert complex.persistence(algorithm="parallel", threads=2).pairings == expected[0]
     assert Algorithm.serial() == Algorithm.clearing() and Algorithm.serial().skip_zero_apparent_pairs
     assert Algorithm.parallel() == Algorithm.parallel_clearing() and Algorithm.parallel().storage == "locking"
     assert repr(Algorithm.parallel(4)) == "Algorithm.parallel_clearing().with_threads(4)"
@@ -71,7 +70,8 @@ def test_bad_options():
         Algorithm.serial().with_columns("vec")
     with pytest.raises(ValueError, match="threads must be positive"):
         Algorithm.parallel(0)
-    with pytest.raises(ValueError, match="threads can only be set for a parallel"):
-        complex.persistence(algorithm=Algorithm.serial(), threads=2)
-    with pytest.raises(TypeError, match="must be an Algorithm"):
-        complex.persistence(algorithm=3)
+    for not_an_algorithm in [3, "clearing"]:
+        with pytest.raises(TypeError, match="Algorithm"):
+            complex.persistence(algorithm=not_an_algorithm)
+    with pytest.raises(TypeError, match="threads"):
+        complex.persistence(threads=2)

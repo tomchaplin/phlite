@@ -108,19 +108,16 @@ fn read_distances(distance_matrix: &Bound<'_, PyAny>) -> PyResult<Vec<Vec<NotNan
 ///         and nothing changes, so a larger threshold gives the same result as none.
 ///     method: `'cohomology'` (the default) reduces the coboundary matrix, which is usually much faster.
 ///         `'homology'` reduces the boundary matrix instead, which needs simplices up to dimension `max_dim + 1`.
-///     algorithm: The reduction algorithm and its options, as an `Algorithm` (default: `Algorithm.serial()`),
-///         or one of the names `'standard'`, `'clearing'` (the same as `Algorithm.serial()`), `'parallel'`
-///         (the same as `Algorithm.parallel()`) or `'parallel-lock-free'`.
+///     algorithm: The reduction algorithm and its options, as an `Algorithm` (default: `Algorithm.serial()`).
+///         For example `Algorithm.parallel(threads=8)`.
 ///     representatives: Whether to also compute a representative cycle for every bar.
 ///         With `method='cohomology'` these are computed via involution.
-///     threads: The number of threads for a parallel algorithm (default: all cores);
-///         short for `algorithm.with_threads(threads)`.
 ///
 /// Returns:
 ///     The barcode, with dimensions `0, ..., max_dim`.
 #[gen_stub_pyfunction]
 #[pyfunction]
-#[pyo3(signature = (distance_matrix, max_dim = 1, *, threshold = None, method = "cohomology", algorithm = None, representatives = false, threads = None))]
+#[pyo3(signature = (distance_matrix, max_dim = 1, *, threshold = None, method = "cohomology", algorithm = None, representatives = false))]
 #[allow(clippy::too_many_arguments)]
 fn rips(
     py: Python<'_>,
@@ -130,10 +127,8 @@ fn rips(
     threshold: Option<f64>,
     #[gen_stub(override_type(type_repr = "typing.Literal['cohomology', 'homology']", imports = ("typing")))]
     method: &str,
-    #[gen_stub(override_type(type_repr = "typing.Union[Algorithm, typing.Literal['standard', 'clearing', 'parallel', 'parallel-lock-free'], None]", imports = ("typing")))]
-    algorithm: Option<&Bound<'_, PyAny>>,
+    algorithm: Option<Bound<'_, AlgorithmConfig>>,
     representatives: bool,
-    threads: Option<usize>,
 ) -> PyResult<Barcode> {
     let distances = read_distances(distance_matrix)?;
     let threshold = match threshold {
@@ -143,7 +138,7 @@ fn rips(
         }
     };
     let method = parse_method(method)?;
-    let algorithm = AlgorithmConfig::from_arg(algorithm, threads)?;
+    let algorithm = algorithm.map(|a| a.get().clone()).unwrap_or_default();
     let n_points = distances.len();
     // Both methods need simplices of dimension max_dim + 1 (as cofacets, or the top of the boundary matrix)
     let top_dim = max_dim + 1;

@@ -10,10 +10,16 @@ from hypothesis import strategies as st
 from ripser import ripser
 
 from mod2 import Span, boundary, chain_sum
+import phlite_rips
 from phlite_rips import rips
 
 METHODS = ["cohomology", "homology"]
-ALGORITHMS = ["standard", "clearing", "parallel", "parallel-lock-free"]
+ALGORITHMS = [
+    phlite_rips.Algorithm.standard(),
+    phlite_rips.Algorithm.serial(),
+    phlite_rips.Algorithm.parallel(),
+    phlite_rips.Algorithm.parallel().with_storage("lock-free"),
+]
 INF = math.inf
 
 
@@ -109,7 +115,7 @@ def test_rips_matches_references(distances, max_dim):
 @given(distances=distance_matrices(), max_dim=st.integers(0, 2), threads=st.integers(1, 4))
 def test_representatives_flag_and_threads_do_not_change_barcode(distances, max_dim, threads):
     plain = rips(distances, max_dim)
-    with_reps = rips(distances, max_dim, algorithm="parallel", threads=threads, representatives=True)
+    with_reps = rips(distances, max_dim, algorithm=phlite_rips.Algorithm.parallel(threads), representatives=True)
     assert plain.pairing_representatives is None and plain.essential_representatives is None
     assert (plain.essential, plain.pairings) == (with_reps.essential, with_reps.pairings)
 

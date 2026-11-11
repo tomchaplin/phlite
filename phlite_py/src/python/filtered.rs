@@ -27,28 +27,23 @@ impl FilteredComplex {
     ///         Lower is faster: with `method='cohomology'` cells above dimension `max_dim + 1` are never looked at.
     ///     method: `'cohomology'` (the default) reduces the coboundary matrix, which is usually much faster.
     ///         `'homology'` reduces the boundary matrix instead.
-    ///     algorithm: The reduction algorithm and its options, as an `Algorithm` (default: `Algorithm.serial()`),
-    ///         or one of the names `'standard'`, `'clearing'` (the same as `Algorithm.serial()`), `'parallel'`
-    ///         (the same as `Algorithm.parallel()`) or `'parallel-lock-free'`.
+    ///     algorithm: The reduction algorithm and its options, as an `Algorithm` (default: `Algorithm.serial()`).
+    ///         For example `Algorithm.parallel(threads=8)`.
     ///     representatives: Whether to also compute a representative cycle for every bar.
     ///         With `method='cohomology'` these are computed via involution.
-    ///     threads: The number of threads for a parallel algorithm (default: all cores);
-    ///         short for `algorithm.with_threads(threads)`.
     ///
     /// Returns:
     ///     The barcode. Bars of length zero (birth and death at the same filtration value) are omitted.
-    #[pyo3(signature = (max_dim = None, *, method = "cohomology", algorithm = None, representatives = false, threads = None))]
+    #[pyo3(signature = (max_dim = None, *, method = "cohomology", algorithm = None, representatives = false))]
     fn persistence(
         slf: &Bound<'_, Self>,
         max_dim: Option<usize>,
         #[gen_stub(override_type(type_repr = "typing.Literal['cohomology', 'homology']", imports = ("typing")))]
         method: &str,
-        #[gen_stub(override_type(type_repr = "typing.Union[Algorithm, typing.Literal['standard', 'clearing', 'parallel', 'parallel-lock-free'], None]", imports = ("typing")))]
-        algorithm: Option<&Bound<'_, PyAny>>,
+        algorithm: Option<Bound<'_, AlgorithmConfig>>,
         representatives: bool,
-        threads: Option<usize>,
     ) -> PyResult<Barcode> {
-        let algorithm = AlgorithmConfig::from_arg(algorithm, threads)?;
+        let algorithm = algorithm.map(|a| a.get().clone()).unwrap_or_default();
         let data = slf.get().complex.persistence(
             slf.py(),
             max_dim,

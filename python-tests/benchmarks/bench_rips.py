@@ -10,23 +10,23 @@ import numpy as np
 from harness import fingerprint, main
 
 # Import everything up front, so that import costs are not counted in the time or peak memory of a run
-from phlite_rips import rips
+from phlite_rips import Algorithm, rips
 from ripser import ripser
 from gph import ripser_parallel
 
 INF = float("inf")
 
 
-def phlite(method="cohomology", algorithm="clearing", representatives=False, parallel=False):
+def phlite(method="cohomology", algorithm=lambda threads: Algorithm.serial(), representatives=False):
+    """`algorithm` maps the thread count to an `Algorithm`."""
+
     def run(distances, case):
-        threads = case["threads"] if parallel else None
         barcode = rips(
             distances,
             case["max_dim"],
             method=method,
-            algorithm=algorithm,
+            algorithm=algorithm(case["threads"]),
             representatives=representatives,
-            threads=threads,
         )
         return fingerprint(
             [list(p) + [(b, INF) for b in e] for p, e in zip(barcode.pairings, barcode.essential)]
@@ -55,10 +55,10 @@ IMPLEMENTATIONS = {
     "giotto-ph (1 thread)": giotto(parallel=False),
     "giotto-ph (parallel)": giotto(parallel=True),
     "phlite (clearing)": phlite(),
-    "phlite (parallel)": phlite(algorithm="parallel", parallel=True),
+    "phlite (parallel)": phlite(algorithm=Algorithm.parallel),
     "phlite (clearing, reps)": phlite(representatives=True),
-    "*phlite (parallel-lock-free)": phlite(algorithm="parallel-lock-free", parallel=True),
-    "*phlite (standard)": phlite(algorithm="standard"),
+    "*phlite (parallel-lock-free)": phlite(algorithm=lambda threads: Algorithm.parallel(threads).with_storage("lock-free")),
+    "*phlite (standard)": phlite(algorithm=lambda threads: Algorithm.standard()),
     "*phlite (homology, clearing)": phlite(method="homology"),
 }
 

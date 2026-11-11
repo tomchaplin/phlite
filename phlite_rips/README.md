@@ -32,7 +32,8 @@ barcode.pairings[1]                 # (birth, death) of the finite H_1 bars
 barcode.pairing_representatives[1]  # a cycle (list of edges (a, b)) for each of them
 ```
 
-`rips` takes the same keyword arguments (`method`, `algorithm`, `representatives` and `threads`) and returns the same `Barcode` type as [`phlite_grpph`](../phlite_grpph/README.md#usage).
+`rips` takes the same keyword arguments (`method`, `algorithm` and `representatives`) and returns the same `Barcode` type as [`phlite_grpph`](../phlite_grpph/README.md#usage).
+`algorithm` is a `phlite_rips.Algorithm`, built as described [there](../phlite_grpph/README.md#choosing-an-algorithm), for example `rips(distances, algorithm=Algorithm.parallel(threads=4))`.
 Representatives are lists of simplices, each a tuple of point indices in increasing order.
 An infinite distance means that edge never appears. See `examples/circle.py` for a full example.
 

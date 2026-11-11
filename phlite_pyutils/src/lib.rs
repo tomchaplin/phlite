@@ -1,8 +1,9 @@
 //! Shared helpers for `phlite`'s Python bindings (`phlite_grpph`, `phlite_rips` and `phlite_py`).
 //!
 //! * [`AlgorithmConfig`] is the Python `Algorithm` class, a builder for every algorithm and option, with presets.
-//!   [`AlgorithmConfig::from_arg`] reads the `algorithm` and `threads` arguments, and [`AlgorithmConfig::run`] calls
-//!   an [`AlgorithmVisitor`] with the configured [`phlite::barcode::Algorithm`]. Add the class to your module with
+//!   Take the `algorithm` argument as `Option<Bound<'_, AlgorithmConfig>>`, defaulting to
+//!   [`AlgorithmConfig::default`] (`Algorithm.serial()`), and call [`AlgorithmConfig::run`] with an
+//!   [`AlgorithmVisitor`] to run the configured [`phlite::barcode::Algorithm`]. Add the class to your module with
 //!   [`add_algorithm_class`].
 //! * [`parse_method`] reads the `method` argument.
 //! * [`Barcode`] is the Python result type, built from a list of [`Bar`]s via [`SortedBars`].
@@ -15,16 +16,12 @@ use phlite::{
     reduction::{Clearing, Standard, Storage},
 };
 use pyo3::{
-    exceptions::{PyTypeError, PyValueError},
+    exceptions::PyValueError,
     prelude::*,
     types::{PyList, PyTuple},
 };
 use pyo3_stub_gen::derive::*;
 
-/// Python type of the `algorithm` argument, for `#[gen_stub(override_type(type_repr = ...))]`.
-/// Attribute arguments must be literals, so copy this rather than referencing it.
-pub const ALGORITHM_TYPE: &str =
-    "typing.Union[Algorithm, typing.Literal['standard', 'clearing', 'parallel', 'parallel-lock-free'], None]";
 /// Python type of the `method` argument, for `#[gen_stub(override_type(type_repr = ...))]`.
 /// Attribute arguments must be literals, so copy this rather than referencing it.
 pub const METHOD_TYPE: &str = "typing.Literal['cohomology', 'homology']";
@@ -169,54 +166,12 @@ impl AlgorithmConfig {
             }
         }
     }
+}
 
-    /// The `algorithm` argument as given from Python: an `Algorithm`, the name of a preset, or `None` for
-    /// `Algorithm.serial()`. `threads`, if given, is applied with [`with_threads`](Self::with_threads),
-    /// so is only allowed for the parallel algorithm.
-    ///
-    /// The names are `'standard'`, `'clearing'` (the same as `Algorithm.serial()`), `'parallel'` (the same as
-    /// `Algorithm.parallel()`) and `'parallel-lock-free'`.
-    /// In the stubs, type the argument as [`ALGORITHM_TYPE`].
-    pub fn from_arg(
-        algorithm: Option<&Bound<'_, PyAny>>,
-        threads: Option<usize>,
-    ) -> PyResult<Self> {
-        let config = match algorithm {
-            None => Self::serial(),
-            Some(obj) => {
-                if let Ok(config) = obj.cast::<Self>() {
-                    config.get().clone()
-                } else if let Ok(name) = obj.extract::<String>() {
-                    Self::from_name(&name)?
-                } else {
-                    return Err(PyTypeError::new_err(format!(
-                        "algorithm must be an Algorithm or the name of one, not {}",
-                        obj.get_type().name()?
-                    )));
-                }
-            }
-        };
-        match threads {
-            None => Ok(config),
-            Some(threads) => config.with_threads(Some(threads)).map_err(|_| {
-                PyValueError::new_err(format!(
-                    "threads can only be set for a parallel algorithm, not {}",
-                    config.name()
-                ))
-            }),
-        }
-    }
-
-    fn from_name(name: &str) -> PyResult<Self> {
-        match name {
-            "standard" => Ok(Self::standard()),
-            "clearing" | "serial" => Ok(Self::serial()),
-            "parallel" => Ok(Self::parallel(None)?),
-            "parallel-lock-free" => Self::parallel(None)?.with_storage("lock-free"),
-            other => Err(PyValueError::new_err(format!(
-                "Unknown algorithm {other:?}, expected an Algorithm, or one of 'standard', 'clearing', 'parallel' or 'parallel-lock-free'"
-            ))),
-        }
+/// `Algorithm.serial()`, the default for an omitted `algorithm` argument.
+impl Default for AlgorithmConfig {
+    fn default() -> Self {
+        Self::serial()
     }
 }
 

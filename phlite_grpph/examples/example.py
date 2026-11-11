@@ -1,4 +1,4 @@
-from phlite_grpph import grpph
+from phlite_grpph import Algorithm, grpph
 from pprint import pprint
 import time
 
@@ -15,13 +15,12 @@ def do_complete(N):
     print("Done complete")
 
 
-def do_cycle(N, with_reps=False, algorithm="clearing"):
+def do_cycle(N, with_reps=False, algorithm=Algorithm.serial()):
     barcode = grpph(
         N,
         [(i, (i + 1) % N, 1.0) for i in range(N)],
         representatives=with_reps,
         algorithm=algorithm,
-        threads=4 if algorithm.startswith("parallel") else None,
     )
     essential, pairings = barcode.essential, barcode.pairings
     if with_reps:
@@ -50,12 +49,12 @@ tic3 = time.time()
 print(f"With reps          : {tic3 - tic2}")
 
 tic4 = time.time()
-do_cycle(N, with_reps=False, algorithm="parallel")
+do_cycle(N, with_reps=False, algorithm=Algorithm.parallel(threads=4))
 tic5 = time.time()
 print(f"Parallel no reps   : {tic5 - tic4}")
 
 tic4 = time.time()
-do_cycle(N, with_reps=True, algorithm="parallel")
+do_cycle(N, with_reps=True, algorithm=Algorithm.parallel(threads=4))
 tic5 = time.time()
 print(f"Parallel with reps : {tic5 - tic4}")
 

@@ -13,24 +13,24 @@ import numpy as np
 from harness import fingerprint, main
 
 # Import everything up front, so that import costs are not counted in the time or peak memory of a run
-from phlite_grpph import grpph
+from phlite_grpph import Algorithm, grpph
 import networkx as nx
 from grpphati.pipelines import grounded
 
 INF = float("inf")
 
 
-def phlite(method="cohomology", algorithm="clearing", representatives=False, parallel=False):
+def phlite(method="cohomology", algorithm=lambda threads: Algorithm.serial(), representatives=False):
+    """`algorithm` maps the thread count to an `Algorithm`."""
+
     def run(graph, case):
         n, edges = graph
-        threads = case["threads"] if parallel else None
         barcode = grpph(
             n,
             edges,
             method=method,
-            algorithm=algorithm,
+            algorithm=algorithm(case["threads"]),
             representatives=representatives,
-            threads=threads,
         )
         return fingerprint([list(barcode.pairings[1]) + [(b, INF) for b in barcode.essential[1]]])
 
@@ -54,10 +54,10 @@ IMPLEMENTATIONS = {
     "grpphati (GrPPH)": grpphati("GrPPH"),
     "grpphati (GrPPH_par_wedge)": grpphati("GrPPH_par_wedge"),
     "phlite (clearing)": phlite(),
-    "phlite (parallel)": phlite(algorithm="parallel", parallel=True),
+    "phlite (parallel)": phlite(algorithm=Algorithm.parallel),
     "phlite (clearing, reps)": phlite(representatives=True),
-    "*phlite (parallel-lock-free)": phlite(algorithm="parallel-lock-free", parallel=True),
-    "*phlite (standard)": phlite(algorithm="standard"),
+    "*phlite (parallel-lock-free)": phlite(algorithm=lambda threads: Algorithm.parallel(threads).with_storage("lock-free")),
+    "*phlite (standard)": phlite(algorithm=lambda threads: Algorithm.standard()),
     "*phlite (homology, clearing)": phlite(method="homology"),
 }
 

@@ -9,10 +9,16 @@ from hypothesis import given, note
 from hypothesis import strategies as st
 
 from mod2 import Span
+import phlite_grpph
 from phlite_grpph import grpph
 
 METHODS = ["cohomology", "homology"]
-ALGORITHMS = ["standard", "clearing", "parallel", "parallel-lock-free"]
+ALGORITHMS = [
+    phlite_grpph.Algorithm.standard(),
+    phlite_grpph.Algorithm.serial(),
+    phlite_grpph.Algorithm.parallel(),
+    phlite_grpph.Algorithm.parallel().with_storage("lock-free"),
+]
 INF = math.inf
 
 

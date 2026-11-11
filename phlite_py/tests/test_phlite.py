@@ -4,12 +4,18 @@ import random
 
 import numpy as np
 import pytest
+import phlite
 from helpers import filtered, filtered_csc
 from reference import boundary_of_chain, in_span, random_simplicial_complex, reduce, rp2
 
 
 METHODS = ["cohomology", "homology"]
-ALGORITHMS = ["standard", "clearing", "parallel", "parallel-lock-free"]
+ALGORITHMS = [
+    phlite.Algorithm.standard(),
+    phlite.Algorithm.serial(),
+    phlite.Algorithm.parallel(),
+    phlite.Algorithm.parallel().with_storage("lock-free"),
+]
 MODULI = [2, 3, 5, 7, 11, 13]
 
 
@@ -43,7 +49,7 @@ def complex_for(seed, p=2, top_dim=3):
 
 @pytest.mark.parametrize("seed", range(60))
 @pytest.mark.parametrize("method", METHODS)
-@pytest.mark.parametrize("algorithm", ALGORITHMS)
+@pytest.mark.parametrize("algorithm", ALGORITHMS, ids=repr)
 def test_matches_reference_z2(seed, method, algorithm):
     complex, _, values, _, columns, coefficients = complex_for(seed)
     barcode = complex.persistence(method=method, algorithm=algorithm)
@@ -268,12 +274,8 @@ def test_errors(kwargs, match):
 
 def test_bad_arguments():
     complex, *_ = complex_for(0)
-    with pytest.raises(ValueError, match="Unknown algorithm"):
-        complex.persistence(algorithm="fast")
     with pytest.raises(ValueError, match="Unknown method"):
         complex.persistence(method="both")
-    with pytest.raises(ValueError, match="threads can only be set"):
-        complex.persistence(threads=2)
     with pytest.raises(TypeError, match="sequence of integers"):
         filtered([[], "ab"], [0, 1])
     with pytest.raises(ValueError, match="1-dimensional"):

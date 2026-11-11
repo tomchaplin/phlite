@@ -130,14 +130,11 @@ fn from_networkx(graph: &Bound<'_, PyAny>, weight: &str) -> PyResult<LabelledDig
 ///     weight: Only for a networkx graph: the edge attribute holding the weight (default `'weight'`).
 ///     method: `'cohomology'` (the default) reduces the coboundary matrix, which is usually much faster.
 ///         `'homology'` reduces the boundary matrix instead, which needs every 2-cell up front.
-///     algorithm: The reduction algorithm and its options, as an `Algorithm` (default: `Algorithm.serial()`),
-///         or one of the names `'standard'`, `'clearing'` (the same as `Algorithm.serial()`), `'parallel'`
-///         (the same as `Algorithm.parallel()`) or `'parallel-lock-free'`.
+///     algorithm: The reduction algorithm and its options, as an `Algorithm` (default: `Algorithm.serial()`).
+///         For example `Algorithm.parallel(threads=8)`.
 ///     representatives: Whether to also compute a representative cycle for every bar.
 ///         With `method='cohomology'` these are computed via involution.
 ///         For a networkx graph, cells are tuples of node labels, otherwise of node indices.
-///     threads: The number of threads for a parallel algorithm (default: all cores);
-///         short for `algorithm.with_threads(threads)`.
 ///
 /// Weights must be non-negative and may be infinite (the edge is then only used for grounding).
 /// Self-loops are not supported.
@@ -157,9 +154,8 @@ fn from_networkx(graph: &Bound<'_, PyAny>, weight: &str) -> PyResult<LabelledDig
         *,
         weight: builtins.str = "weight",
         method: typing.Literal['cohomology', 'homology'] = "cohomology",
-        algorithm: typing.Union[Algorithm, typing.Literal['standard', 'clearing', 'parallel', 'parallel-lock-free'], None] = None,
+        algorithm: typing.Optional[Algorithm] = None,
         representatives: builtins.bool = False,
-        threads: typing.Optional[builtins.int] = None,
     ) -> Barcode: ...
     @typing.overload
     def grpph(
@@ -168,15 +164,14 @@ fn from_networkx(graph: &Bound<'_, PyAny>, weight: &str) -> PyResult<LabelledDig
         /,
         *,
         method: typing.Literal['cohomology', 'homology'] = "cohomology",
-        algorithm: typing.Union[Algorithm, typing.Literal['standard', 'clearing', 'parallel', 'parallel-lock-free'], None] = None,
+        algorithm: typing.Optional[Algorithm] = None,
         representatives: builtins.bool = False,
-        threads: typing.Optional[builtins.int] = None,
     ) -> Barcode: ...
     "#,
     no_default_overload = true
 )]
 #[pyfunction]
-#[pyo3(signature = (graph, edges = None, /, *, weight = "weight", method = "cohomology", algorithm = None, representatives = false, threads = None))]
+#[pyo3(signature = (graph, edges = None, /, *, weight = "weight", method = "cohomology", algorithm = None, representatives = false))]
 #[allow(clippy::too_many_arguments)]
 fn grpph(
     py: Python<'_>,
@@ -184,9 +179,8 @@ fn grpph(
     edges: Option<Vec<(u32, u32, f64)>>,
     weight: &str,
     method: &str,
-    algorithm: Option<&Bound<'_, PyAny>>,
+    algorithm: Option<Bound<'_, AlgorithmConfig>>,
     representatives: bool,
-    threads: Option<usize>,
 ) -> PyResult<Barcode> {
     let (n_vertices, edges, labels) =
         match edges {
@@ -208,7 +202,7 @@ fn grpph(
         };
     validate(n_vertices, &edges)?;
     let method = parse_method(method)?;
-    let algorithm = AlgorithmConfig::from_arg(algorithm, threads)?;
+    let algorithm = algorithm.map(|a| a.get().clone()).unwrap_or_default();
 
     let bars = py.detach(|| {
         let filtration = build_filtration(n_vertices, &edges);
