@@ -504,6 +504,7 @@ impl<C: ColumnRepresentation> Clearing<C> {
     /// Reduce only the given dimensions, in the order given, instead of detecting them.
     ///
     /// For example to only reduce up to dimension `max_dim` of a coboundary matrix use `0..=max_dim`, and for a boundary matrix `(0..=max_dim).rev()`.
+    /// Dimensions the matrix doesn't have (at least its [`n_dimensions`](HasSplitColBasis::n_dimensions)) are empty, so are ignored.
     pub fn with_dimension_order(
         mut self,
         dimension_order: impl IntoIterator<Item = usize>,
@@ -532,10 +533,15 @@ impl<C: ColumnRepresentation> Clearing<C> {
         M: MatrixOracle + SquareMatrix + HasRowFiltration + HasSplitColBasis,
         M::CoefficientField: Invertible,
     {
-        if let Some(order) = &self.dimension_order {
-            return order.clone();
-        }
         let n_dimensions = boundary.n_dimensions();
+        if let Some(order) = &self.dimension_order {
+            // Dimensions beyond the matrix are empty, and would index past its sub-bases
+            return order
+                .iter()
+                .copied()
+                .filter(|&dim| dim < n_dimensions)
+                .collect();
+        }
         if maps_upwards(boundary) {
             (0..n_dimensions).collect()
         } else {

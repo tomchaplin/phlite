@@ -610,7 +610,15 @@ mod tests {
             assert!(skipped.pairings.is_subset(&full.pairings), "{context}");
         }
 
-        for order in [vec![0, 1, 2], vec![2, 1, 0], vec![1, 0, 2], vec![2, 0, 1]] {
+        // Dimensions beyond the matrix (3 and up) are ignored
+        for order in [
+            vec![0, 1, 2],
+            vec![2, 1, 0],
+            vec![1, 0, 2],
+            vec![2, 0, 1],
+            vec![0, 1, 2, 3, 7],
+            vec![5, 2, 1, 0],
+        ] {
             let clearing = Clearing::new().with_dimension_order(order.clone());
             let context = format!("order {order:?}");
             let full = clearing
