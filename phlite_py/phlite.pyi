@@ -224,9 +224,9 @@ class ChainComplex:
     r"""
     A chain complex: cells, their dimensions and boundaries, with no filtration yet.
     
-    Build one with `from_columns` (a list of columns of cell indices, as in PHAT and LoPHAT), `from_csc`
-    (CSC arrays, e.g. a scipy sparse matrix, read without going through Python objects), or `from_cells`
-    (your own Python objects as cells). Then attach a filtration with `filtration(values)`; one chain complex can be
+    Build one with `from_pairs` (`(dimension, boundary)` pairs, as in PHAT and LoPHAT), `from_columns` (boundaries
+    and dimensions as separate sequences), `from_csc` (CSC arrays, e.g. a scipy sparse matrix, read without going
+    through Python objects), or `from_cells` (your own Python objects as cells). Then attach a filtration with `filtration(values)`; one chain complex can be
     given any number of filtrations, and is validated and indexed only once.
     
     For a complex built from columns or arrays, cells are their indices (ints); for one built from cells, they are
@@ -253,16 +253,29 @@ class ChainComplex:
         The characteristic of the coefficient field.
         """
     @staticmethod
-    def from_columns(boundaries: typing.Iterable[typing.Union[typing.Sequence[builtins.int], tuple[builtins.int, typing.Sequence[builtins.int]]]], dimensions: typing.Optional[typing.Union[numpy.typing.NDArray[numpy.integer], typing.Sequence[builtins.int]]] = None, *, coefficients: typing.Optional[typing.Iterable[typing.Sequence[builtins.int]]] = None, modulus: builtins.int = 2) -> ChainComplex:
+    def from_columns(boundaries: typing.Iterable[typing.Sequence[builtins.int]], dimensions: typing.Union[numpy.typing.NDArray[numpy.integer], typing.Sequence[builtins.int]], *, coefficients: typing.Optional[typing.Iterable[typing.Sequence[builtins.int]]] = None, modulus: builtins.int = 2) -> ChainComplex:
         r"""
-        A chain complex from its boundary columns, as in PHAT and LoPHAT. Cells are the integers `0, ..., n - 1`.
+        A chain complex from its boundary columns and the dimension of every cell. Cells are the integers
+        `0, ..., n - 1`.
         
         Args:
-            boundaries: The boundary of every cell, as a sequence of columns (each a sequence of cell indices),
-                or as a sequence of `(dimension, column)` pairs. Repeated entries in a column are summed.
-            dimensions: The dimension of every cell. Required unless `boundaries` gives `(dimension, column)` pairs.
+            boundaries: The boundary of every cell, as a sequence of cell indices. Repeated entries are summed.
+            dimensions: The dimension of every cell.
             coefficients: The coefficient of every boundary entry, as a sequence of sequences matching `boundaries`
                 (default: all 1). Reduced modulo `modulus`, and entries that become 0 are dropped.
+            modulus: The characteristic of the coefficient field: 2, 3, 5, 7, 11 or 13.
+        """
+    @staticmethod
+    def from_pairs(pairs: typing.Iterable[tuple[builtins.int, typing.Sequence[builtins.int]]], *, coefficients: typing.Optional[typing.Iterable[typing.Sequence[builtins.int]]] = None, modulus: builtins.int = 2) -> ChainComplex:
+        r"""
+        A chain complex from `(dimension, boundary)` pairs, one per cell, as in PHAT and LoPHAT.
+        Cells are the integers `0, ..., n - 1`.
+        
+        Args:
+            pairs: The dimension and boundary of every cell, the boundary as a sequence of cell indices.
+                Repeated entries in a boundary are summed.
+            coefficients: The coefficient of every boundary entry, as a sequence of sequences matching the
+                boundaries (default: all 1). Reduced modulo `modulus`, and entries that become 0 are dropped.
             modulus: The characteristic of the coefficient field: 2, 3, 5, 7, 11 or 13.
         """
     @staticmethod

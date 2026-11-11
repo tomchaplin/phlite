@@ -194,7 +194,7 @@ def phlite_impl(algorithm=Algorithm.serial, method="cohomology", csc=False, repr
             dimensions = np.fromiter((d for d, _ in columns), dtype=np.int64, count=len(columns))
             filtered = phlite.ChainComplex.from_csc(indptr, indices, dimensions).filtration(data["values"])
         else:
-            filtered = phlite.ChainComplex.from_columns(data["columns"]).filtration(data["values"])
+            filtered = phlite.ChainComplex.from_pairs(data["columns"]).filtration(data["values"])
         barcode = filtered.persistence(method=method, algorithm=algorithm(), representatives=representatives)
         return lambda: fingerprint(barcode.diagrams())
 
@@ -260,7 +260,7 @@ def make_input(case, implementation):
         if implementation.startswith("phat"):
             data["matrix"] = phat.boundary_matrix(columns=columns)
         else:
-            data["filtered"] = phlite.ChainComplex.from_columns(columns).filtration(values)
+            data["filtered"] = phlite.ChainComplex.from_pairs(columns).filtration(values)
     return data
 
 

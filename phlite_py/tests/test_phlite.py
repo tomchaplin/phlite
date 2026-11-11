@@ -5,7 +5,7 @@ import random
 import numpy as np
 import pytest
 import phlite
-from helpers import filtered, filtered_csc
+from helpers import filtered, filtered_csc, filtered_pairs
 from reference import boundary_of_chain, in_span, random_simplicial_complex, reduce, rp2
 
 
@@ -86,7 +86,7 @@ def test_matches_lophat(seed):
     _, _, _, dimensions, columns, _ = complex_for(seed)
     # Index filtration, so that no bar has length zero and lophat's output is directly comparable
     pairs = list(zip(dimensions, columns))
-    barcode = filtered(pairs).persistence()
+    barcode = filtered_pairs(pairs).persistence()
     expected = lophat.compute_pairings(pairs)
     assert dict(barcode.pairings) == {
         b: d for b, d in expected.items() if d is not None
@@ -172,7 +172,8 @@ def test_input_formats_agree():
         )
 
     # (dimension, column) pairs, from a generator, numpy arrays everywhere
-    same(filtered(((d, c) for d, c in zip(dimensions, columns)), values=values))
+    same(filtered_pairs(((d, c) for d, c in zip(dimensions, columns)), values=values))
+    same(filtered_pairs([[d, np.array(c)] for d, c in zip(dimensions, columns)], values))
     same(
         filtered(
             [np.array(c, dtype=np.int32) for c in columns],
@@ -229,7 +230,8 @@ def test_diagram_values():
 
 
 def test_empty_complex():
-    complex = filtered([])
+    complex = filtered([], [])
+    assert len(filtered_pairs([])) == 0
     assert len(complex) == 0 and complex.chain.dimension is None
     barcode = complex.persistence()
     assert len(barcode) == 0 and barcode.diagrams() == []
@@ -241,7 +243,6 @@ def test_empty_complex():
 @pytest.mark.parametrize(
     "kwargs, match",
     [
-        (dict(boundaries=[[], [0]]), "dimension of every cell"),
         (dict(boundaries=[[], [0]], dimensions=[0, 0]), "dimension one lower"),
         (dict(boundaries=[[], [5]], dimensions=[0, 1]), "only 2 cells"),
         (dict(boundaries=[[1], []], dimensions=[1, 0]), "enter the filtration first"),
@@ -262,8 +263,6 @@ def test_empty_complex():
             dict(boundaries=[[], [0]], dimensions=[0, 1], coefficients=[[], [1, 1]]),
             "coefficients\\[1\\] has length",
         ),
-        (dict(boundaries=[(0, []), [0]]), "either every column"),
-        (dict(boundaries=[(0, [])], dimensions=[0]), "both"),
         (dict(boundaries=[[], [-1]], dimensions=[0, 1]), "out of range"),
     ],
 )
@@ -278,5 +277,17 @@ def test_bad_arguments():
         complex.persistence(method="both")
     with pytest.raises(TypeError, match="sequence of integers"):
         filtered([[], "ab"], [0, 1])
+    with pytest.raises(TypeError, match=r"pairs\[1\] must be a \(dimension, column\) pair"):
+        filtered_pairs([(0, []), [0]])
+    with pytest.raises(TypeError, match=r"pairs\[0\] must be a \(dimension, column\) pair"):
+        filtered_pairs([(0, [], 1)])
+    with pytest.raises(TypeError, match=r"pairs\[0\]\[0\] must be an integer"):
+        filtered_pairs([("a", [])])
+    with pytest.raises(TypeError, match=r"pairs\[1\]\[1\] must be a sequence of integers"):
+        filtered_pairs([(0, []), (1, "ab")])
+    with pytest.raises(ValueError, match="coefficients has fewer entries than pairs"):
+        filtered_pairs([(0, []), (0, [])], coefficients=[[]])
+    with pytest.raises(TypeError, match="dimensions"):
+        phlite.ChainComplex.from_columns([[], [0]])
     with pytest.raises(ValueError, match="1-dimensional"):
         filtered_csc(np.zeros((2, 2), dtype=np.int64), [], [0])

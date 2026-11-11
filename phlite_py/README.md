@@ -16,7 +16,7 @@ boundaries = [
     (1, [0, 1]), (1, [0, 2]), (1, [1, 2]), (1, [0, 3]), (1, [1, 3]), (1, [2, 3]),
     (2, [4, 7, 8]), (2, [5, 7, 9]), (2, [6, 8, 9]), (2, [4, 5, 6]),
 ]
-chain = phlite.ChainComplex.from_columns(boundaries)
+chain = phlite.ChainComplex.from_pairs(boundaries)
 
 barcode = chain.filtration().persistence()  # cells enter in index order, as in PHAT
 barcode.pairings   # [(1, 4), (2, 5), (3, 7), (6, 12), (8, 10), (9, 11)]
@@ -34,11 +34,14 @@ A `ChainComplex` is the cells, their dimensions and their boundaries — no filt
 **From integer columns** (cells are `0, ..., n - 1`):
 
 ```python
-phlite.ChainComplex.from_columns(boundaries, dimensions=None, *, coefficients=None, modulus=2)
+phlite.ChainComplex.from_pairs(pairs, *, coefficients=None, modulus=2)
+phlite.ChainComplex.from_columns(boundaries, dimensions, *, coefficients=None, modulus=2)
 ```
 
-`boundaries` is a list of columns, or of `(dimension, column)` pairs; repeated entries are summed. `dimensions` is
-required unless you gave pairs (we don't guess: a cell with zero boundary could have any dimension).
+`from_pairs` takes a list of `(dimension, boundary)` pairs, as PHAT and LoPHAT do; `from_columns` takes the
+boundaries and the dimensions as two separate lists. Each boundary is a list of cell indices, and repeated entries are
+summed. The two are about as fast as each other (around 0.1 µs per cell); for larger complexes, `from_csc` below
+avoids reading Python lists at all.
 
 **From CSC arrays** — the fast path when you already have an integer-indexed sparse matrix. numpy arrays are read
 straight into Rust, with no per-entry Python objects:
@@ -121,7 +124,7 @@ barcode = filtered.persistence(
 
 For example `filtered.persistence(algorithm=phlite.Algorithm.parallel(threads=8))`.
 
-The `Barcode` is in terms of your cells (ints for `from_columns` / `from_csc`):
+The `Barcode` is in terms of your cells (ints for `from_pairs`, `from_columns` and `from_csc`):
 
 * `bars`: every bar, with `dimension`, `birth`, `death` (cells, `None` if essential), `birth_value`, `death_value`,
   `persistence`, `is_essential` and `representative`;

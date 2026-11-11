@@ -19,7 +19,7 @@ boundaries = [
     (2, [6, 8, 9]),
     (2, [4, 5, 6]),
 ]
-chain = phlite.ChainComplex.from_columns(boundaries)
+chain = phlite.ChainComplex.from_pairs(boundaries)
 barcode = chain.filtration().persistence(representatives=True)
 print(chain)
 print(barcode)

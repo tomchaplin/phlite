@@ -19,7 +19,7 @@ use phlite_pyutils::{add_algorithm_class, parse_method, AlgorithmConfig, Algorit
 use pyo3::{
     exceptions::{PyTypeError, PyValueError},
     prelude::*,
-    types::{PyInt, PyList, PyTuple},
+    types::{PyList, PyTuple},
 };
 use pyo3_stub_gen::derive::*;
 
@@ -297,80 +297,80 @@ pub(crate) fn read_floats(obj: &Bound<'_, PyAny>, name: &str) -> PyResult<Vec<f6
     })
 }
 
-/// If `item` is a `(dimension, column)` pair, split it.
-/// A column is never mistaken for a pair, since the entries of a column are integers.
-///
-/// This runs once per column, so the usual cases are decided by type checks: a failed extraction would build a Python
-/// exception, which costs more than reading the column.
-fn split_pair<'py>(item: &Bound<'py, PyAny>) -> Option<(i64, Bound<'py, PyAny>)> {
-    let tuple = item.cast::<PyTuple>().ok()?;
-    if tuple.len() != 2 {
-        return None;
-    }
-    let first = tuple.get_item(0).ok()?;
-    let second = tuple.get_item(1).ok()?;
-    if second.is_instance_of::<PyInt>() {
-        // A column of two cells
-        return None;
-    }
-    if second.is_instance_of::<PyList>() || second.is_instance_of::<PyTuple>() {
-        // A column given as a list or tuple, so a pair if the first entry is a dimension
-        return first.extract::<i64>().ok().map(|dim| (dim, second));
-    }
-    // Anything else (e.g. numpy integers or arrays): a pair if the first entry is an integer and the second isn't
-    match (first.extract::<i64>(), second.extract::<i64>()) {
-        (Ok(dim), Err(_)) => Some((dim, second)),
-        _ => None,
-    }
+/// Split a `(dimension, column)` pair, given as a tuple or list.
+fn split_pair<'py>(item: Bound<'py, PyAny>, j: usize) -> PyResult<(i64, Bound<'py, PyAny>)> {
+    let pair = if let Ok(tuple) = item.cast::<PyTuple>() {
+        (tuple.len() == 2).then(|| (tuple.get_item(0), tuple.get_item(1)))
+    } else if let Ok(list) = item.cast::<PyList>() {
+        (list.len() == 2).then(|| (list.get_item(0), list.get_item(1)))
+    } else {
+        None
+    };
+    let Some((dim, column)) = pair else {
+        return Err(PyTypeError::new_err(format!(
+            "pairs[{j}] must be a (dimension, column) pair"
+        )));
+    };
+    let dim = dim?.extract::<i64>().map_err(|e| {
+        let err = PyTypeError::new_err(format!("pairs[{j}][0] must be an integer (a dimension)"));
+        err.set_cause(item.py(), Some(e));
+        err
+    })?;
+    Ok((dim, column?))
 }
 
-/// Parse the columns of the boundary matrix, given as a sequence of columns or of `(dimension, column)` pairs.
+/// Where `read_columns` finds the dimension of each cell.
+pub(crate) enum Dimensions<'a, 'py> {
+    /// A separate sequence of dimensions.
+    Given(&'a Bound<'py, PyAny>),
+    /// Each entry is a `(dimension, column)` pair.
+    Paired,
+}
+
+/// Parse the columns of the boundary matrix, given as a sequence of columns or of `(dimension, column)` pairs,
+/// according to `dimensions`.
 pub(crate) fn read_columns(
-    boundaries: &Bound<'_, PyAny>,
-    dimensions: Option<&Bound<'_, PyAny>>,
+    columns: &Bound<'_, PyAny>,
+    dimensions: Dimensions<'_, '_>,
     coefficients: Option<&Bound<'_, PyAny>>,
 ) -> PyResult<RawChain> {
+    let (paired, name) = match dimensions {
+        Dimensions::Given(_) => (false, "boundaries"),
+        Dimensions::Paired => (true, "pairs"),
+    };
     let mut raw = RawChain {
         indptr: vec![0],
         ..Default::default()
     };
-    let mut pair_dims: Vec<i64> = vec![];
     let mut coeffs: Option<Vec<i64>> = coefficients.map(|_| vec![]);
     let mut coeff_iter = coefficients.map(|c| c.try_iter()).transpose()?;
-    let mut saw_pair = None;
 
-    for (j, item) in boundaries.try_iter()?.enumerate() {
+    for (j, item) in columns.try_iter()?.enumerate() {
         let item = item?;
-        let (column, is_pair) = match split_pair(&item) {
-            Some((dim, column)) => {
-                pair_dims.push(dim);
-                (column, true)
-            }
-            None => (item, false),
+        let column = if paired {
+            let (dim, column) = split_pair(item, j)?;
+            raw.dimensions.push(dim);
+            column
+        } else {
+            item
         };
-        if *saw_pair.get_or_insert(is_pair) != is_pair {
-            return Err(PyValueError::new_err(format!(
-                "boundaries[{j}] is {} but earlier entries are not; \
-                 give either every column or every (dimension, column) pair",
-                if is_pair {
-                    "a (dimension, column) pair"
-                } else {
-                    "a column"
-                }
-            )));
-        }
-        let column = read_ints(&column, &format!("boundaries[{j}]"))?;
+        let label = if paired {
+            format!("pairs[{j}][1]")
+        } else {
+            format!("boundaries[{j}]")
+        };
+        let column = read_ints(&column, &label)?;
 
         if let (Some(iter), Some(coeffs)) = (coeff_iter.as_mut(), coeffs.as_mut()) {
             let Some(c) = iter.next() else {
                 return Err(PyValueError::new_err(format!(
-                    "coefficients has fewer entries than boundaries (no entry for column {j})"
+                    "coefficients has fewer entries than {name} (no entry for column {j})"
                 )));
             };
             let c = read_ints(&c?, &format!("coefficients[{j}]"))?;
             if c.len() != column.len() {
                 return Err(PyValueError::new_err(format!(
-                    "coefficients[{j}] has length {} but boundaries[{j}] has length {}",
+                    "coefficients[{j}] has length {} but {label} has length {}",
                     c.len(),
                     column.len()
                 )));
@@ -382,30 +382,15 @@ pub(crate) fn read_columns(
     }
     if let Some(iter) = coeff_iter.as_mut() {
         if iter.next().is_some() {
-            return Err(PyValueError::new_err(
-                "coefficients has more entries than boundaries",
-            ));
+            return Err(PyValueError::new_err(format!(
+                "coefficients has more entries than {name}"
+            )));
         }
     }
     raw.coefficients = coeffs;
-
-    raw.dimensions = match (saw_pair == Some(true), dimensions) {
-        (true, Some(_)) => {
-            return Err(PyValueError::new_err(
-                "Dimensions were given both as (dimension, column) pairs and as the dimensions argument",
-            ))
-        }
-        (true, None) => pair_dims,
-        (false, Some(dims)) => read_ints(dims, "dimensions")?,
-        // No columns at all: an empty complex
-        (false, None) if saw_pair.is_none() => vec![],
-        (false, None) => {
-            return Err(PyValueError::new_err(
-                "The dimension of every cell is needed: pass dimensions=..., \
-                 or give boundaries as (dimension, column) pairs",
-            ))
-        }
-    };
+    if let Dimensions::Given(dims) = dimensions {
+        raw.dimensions = read_ints(dims, "dimensions")?;
+    }
     Ok(raw)
 }
 

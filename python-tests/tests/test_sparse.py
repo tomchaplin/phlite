@@ -192,7 +192,7 @@ def test_index_filtration_matches_phat(complex):
     columns, _ = complex
     expected_pairs = phat_pairs(columns)
     expected = (expected_pairs, essential_of(columns, expected_pairs))
-    filtered = phlite.ChainComplex.from_columns(columns).filtration()
+    filtered = phlite.ChainComplex.from_pairs(columns).filtration()
     for method, algorithm in itertools.product(METHODS, algorithms(top_dim(columns))):
         note(f"method={method} algorithm={algorithm!r}")
         barcode = filtered.persistence(method=method, algorithm=algorithm)
@@ -206,10 +206,12 @@ def test_values_match_phat_and_lophat(complex, data):
     pairs = phat_pairs(columns)
     assert lophat_pairs(columns) == pairs
     expected = (nonzero(pairs, values), essential_of(columns, pairs))
-    # Both ways of building the complex
-    chain = data.draw(st.sampled_from(["columns", "csc"]))
-    if chain == "columns":
-        chain = phlite.ChainComplex.from_columns(columns)
+    # Every way of building the complex from integer columns
+    chain = data.draw(st.sampled_from(["pairs", "columns", "csc"]))
+    if chain == "pairs":
+        chain = phlite.ChainComplex.from_pairs(columns)
+    elif chain == "columns":
+        chain = phlite.ChainComplex.from_columns([c for _, c in columns], [d for d, _ in columns])
     else:
         indptr = np.cumsum([0] + [len(c) for _, c in columns], dtype=np.int64)
         indices = np.array([f for _, c in columns for f in c], dtype=np.int64)
@@ -237,7 +239,7 @@ def test_representatives(complex, data):
     pairs = nonzero(phat_pairs(columns), values)
     method = data.draw(st.sampled_from(METHODS))
     algorithm = data.draw(st.sampled_from(list(algorithms(top_dim(columns)))))
-    barcode = phlite.ChainComplex.from_columns(columns).filtration(values).persistence(
+    barcode = phlite.ChainComplex.from_pairs(columns).filtration(values).persistence(
         method=method, algorithm=algorithm, representatives=True
     )
     assert barcode.pairings == pairs
@@ -274,7 +276,7 @@ def test_larger_complexes(seed):
     pairs = phat_pairs(columns)
     assert lophat_pairs(columns, threads=4) == pairs
     expected = (nonzero(pairs, values), essential_of(columns, pairs))
-    filtered = phlite.ChainComplex.from_columns(columns).filtration(values)
+    filtered = phlite.ChainComplex.from_pairs(columns).filtration(values)
     for method in METHODS:
         for algorithm in [
             Algorithm.serial(),

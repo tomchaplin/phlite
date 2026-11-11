@@ -60,7 +60,7 @@ The tests use [Hypothesis](https://hypothesis.readthedocs.io/) to generate input
   * PHAT (with four reduction/representation pairs) and LoPHAT (with and without clearing and anti-transposition, on 1 and 2 threads) must agree.
   * With the index filtration, every `method` × `Algorithm` configuration (standard, clearing and parallel; merged and heap columns; skipping on and off;
     detected, ascending and descending dimension orders; locking and lock-free storage) must give exactly PHAT's pairs and essential cells.
-  * With filtration values (as a list or numpy array, via `from_columns` or `from_csc`, with and without `max_dim`), phlite must give PHAT's pairs of positive length.
+  * With filtration values (as a list or numpy array, via `from_pairs`, `from_columns` or `from_csc`, with and without `max_dim`), phlite must give PHAT's pairs of positive length.
   * Representatives must be cycles in decreasing filtration order starting at the birth, a boundary at the death and not before, and never a boundary if essential.
   * A few larger complexes (~1600 cells) give the parallel algorithms something to race on.
 
