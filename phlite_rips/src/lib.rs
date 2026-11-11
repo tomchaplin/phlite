@@ -623,7 +623,7 @@ mod tests {
         use ordered_float::NotNan;
         use phlite::{
             barcode::{self, Algorithm},
-            columns::{HeapColumns, MergedColumns},
+            columns::{HeapColumns, MergedColumns, SortedColumns},
             fields::Z2,
             reduction::{Clearing, Standard},
         };
@@ -665,11 +665,15 @@ mod tests {
         // Each representation gives a different type of algorithm, so loop over each separately
         macro_rules! check_algorithms {
             ($columns:expr) => {
-                for algorithm in [
-                    Algorithm::Standard(Standard::new().with_columns($columns)),
-                    Algorithm::Clearing(Clearing::new().with_columns($columns)),
-                    Algorithm::ParallelClearing(Clearing::new().with_columns($columns).parallel()),
-                ] {  let bars = rips_barcode(
+                for algorithm in [true, false].into_iter().flat_map(|cache| {
+                    let clearing = Clearing::new().with_columns($columns).cache_columns(cache);
+                    [
+                        Algorithm::Standard(Standard::new().with_columns($columns).cache_columns(cache)),
+                        Algorithm::ParallelClearing(clearing.clone().parallel()),
+                        Algorithm::Clearing(clearing.clone().store_r(true)),
+                        Algorithm::Clearing(clearing),
+                    ]
+                }) {  let bars = rips_barcode(
                 distances.clone(),
                 2,
                 NotNan::new(f64::INFINITY).unwrap(),
@@ -709,6 +713,7 @@ mod tests {
         }
         check_algorithms!(MergedColumns);
         check_algorithms!(HeapColumns);
+        check_algorithms!(SortedColumns);
     }
 
     /// Truncating at the enclosing radius must not change the barcode, but should shrink the complex

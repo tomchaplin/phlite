@@ -9,8 +9,8 @@ use phlite::{
     columns::ColumnRepresentation,
 };
 use phlite_pyutils::{
-    add_algorithm_class, add_barcode_class, parse_method, AlgorithmConfig, AlgorithmVisitor,
-    Barcode, SortedBars,
+    add_algorithm_class, add_barcode_class, parse_method, AlgorithmConfig, AlgorithmDefaults,
+    AlgorithmVisitor, Barcode, Columns, SortedBars,
 };
 use pyo3::{exceptions::PyValueError, prelude::*};
 use pyo3_stub_gen::derive::*;
@@ -199,6 +199,15 @@ fn phlite_rips(m: &Bound<'_, PyModule>) -> PyResult<()> {
 
     m.add_function(wrap_pyfunction!(rips, m)?)?;
     add_barcode_class(m, "phlite_rips")?;
-    add_algorithm_class(m, "phlite_rips")?;
+    add_algorithm_class(
+        m,
+        "phlite_rips",
+        AlgorithmDefaults {
+            // Rips columns are cheap to recompute, and caching them dominates the memory used
+            columns: Columns::Heap,
+            cache: false,
+            store_r: false,
+        },
+    )?;
     Ok(())
 }

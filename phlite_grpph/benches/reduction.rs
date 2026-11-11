@@ -10,7 +10,7 @@
 
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 use phlite::{
-    columns::HeapColumns,
+    columns::{HeapColumns, SortedColumns},
     fields::Z2,
     matrices::MatrixOracle,
     reduction::{Clearing, ReductionAlgorithm, Storage},
@@ -65,12 +65,37 @@ fn reduction(c: &mut Criterion) {
         let mut group = c.benchmark_group(format!("grpph n={n} p={p}"));
         group.sample_size(10);
 
-        group.bench_function("serial", |b| {
-            b.iter(|| black_box(Clearing::new().reduce(&matrix)))
+        // Storing the reduced columns of R (merged columns, cached)
+        group.bench_function("serial merged store-r", |b| {
+            b.iter(|| black_box(Clearing::new().store_r(true).reduce(&matrix)))
         });
-        group.bench_function("serial heap", |b| {
-            b.iter(|| black_box(Clearing::new().with_columns(HeapColumns).reduce(&matrix)))
-        });
+        // Every column representation, with and without caching columns of the matrix
+        for cache in [true, false] {
+            let suffix = if cache { "cached" } else { "uncached" };
+            group.bench_function(format!("serial merged {suffix}"), |b| {
+                b.iter(|| black_box(Clearing::new().cache_columns(cache).reduce(&matrix)))
+            });
+            group.bench_function(format!("serial heap {suffix}"), |b| {
+                b.iter(|| {
+                    black_box(
+                        Clearing::new()
+                            .with_columns(HeapColumns)
+                            .cache_columns(cache)
+                            .reduce(&matrix),
+                    )
+                })
+            });
+            group.bench_function(format!("serial sorted {suffix}"), |b| {
+                b.iter(|| {
+                    black_box(
+                        Clearing::new()
+                            .with_columns(SortedColumns)
+                            .cache_columns(cache)
+                            .reduce(&matrix),
+                    )
+                })
+            });
+        }
         for (name, storage) in storages() {
             for threads in THREADS {
                 let pool = rayon::ThreadPoolBuilder::new()

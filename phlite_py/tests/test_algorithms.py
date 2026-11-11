@@ -25,8 +25,8 @@ def case(seed):
 
 def algorithms(top):
     bases = [Algorithm.standard(), Algorithm.clearing(), Algorithm.parallel_clearing()]
-    for base, columns in itertools.product(bases, ["merged", "heap"]):
-        algorithm = base.with_columns(columns)
+    for base, columns, cache in itertools.product(bases, ["merged", "heap", "sorted"], [True, False]):
+        algorithm = base.with_columns(columns).with_cache(cache)
         if base.name == "standard":
             yield algorithm
             continue
@@ -34,6 +34,8 @@ def algorithms(top):
             for order in [None, list(range(top + 1)), list(range(top, -1, -1))]:
                 configured = algorithm.with_skip_zero_apparent_pairs(skip).with_dimension_order(order)
                 yield configured
+                if base.name == "clearing":
+                    yield configured.with_store_r()
                 if base.name == "parallel-clearing":
                     yield configured.with_storage("lock-free").with_threads(2)
 
@@ -56,6 +58,10 @@ def test_presets():
     assert Algorithm.serial() == Algorithm.clearing() and Algorithm.serial().skip_zero_apparent_pairs
     assert Algorithm.parallel() == Algorithm.parallel_clearing() and Algorithm.parallel().storage == "locking"
     assert repr(Algorithm.parallel(4)) == "Algorithm.parallel_clearing().with_threads(4)"
+    assert Algorithm.serial().cache and not Algorithm.serial().with_cache(False).cache
+    assert repr(Algorithm.serial().with_columns("sorted").with_cache(False)) == (
+        'Algorithm.clearing().with_columns("sorted").with_cache(False)'
+    )
 
 
 def test_bad_options():
@@ -66,6 +72,13 @@ def test_bad_options():
         Algorithm.serial().with_threads(2)
     with pytest.raises(ValueError, match="can't be set for the clearing"):
         Algorithm.serial().with_storage("lock-free")
+    with pytest.raises(ValueError, match="store_r can't be set for the parallel-clearing"):
+        Algorithm.parallel().with_store_r()
+    with pytest.raises(ValueError, match="store_r can't be set for the standard"):
+        Algorithm.standard().with_store_r()
+    # phlite's serial preset stores R; the other algorithms can't
+    assert Algorithm.serial().store_r and not Algorithm.parallel().store_r and not Algorithm.standard().store_r
+    assert repr(Algorithm.serial().with_store_r(False)) == "Algorithm.clearing().with_store_r(False)"
     with pytest.raises(ValueError, match="Unknown columns"):
         Algorithm.serial().with_columns("vec")
     with pytest.raises(ValueError, match="threads must be positive"):

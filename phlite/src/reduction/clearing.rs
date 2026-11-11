@@ -8,8 +8,8 @@ use std::hash::Hash;
 use std::iter;
 
 use crate::columns::{
-    BHCol, ColumnCoefficient, ColumnFiltration, ColumnRepresentation, ColumnRow, MergedColumns,
-    WorkingColumn,
+    BHCol, ColumnCache, ColumnCoefficient, ColumnEntry, ColumnFiltration, ColumnRepresentation,
+    ColumnRow, MergedColumns, SortedRun, WorkingColumn,
 };
 use crate::matrices::combinators::product;
 use crate::matrices::SquareMatrix;
@@ -19,9 +19,9 @@ use crate::{
     matrices::{ColBasis, HasColBasis, HasRowFiltration, HasSplitColBasis, MatrixOracle},
 };
 
-use crate::reduction::{Diagram, Reduction, ReductionAlgorithm};
+use crate::reduction::{DiagramBuilder, Reduction, ReductionAlgorithm};
 
-use rustc_hash::{FxHashMap, FxHashSet};
+use crate::bookkeeping::{ElementMap, ElementSet};
 
 #[derive(Clone)]
 #[allow(clippy::module_name_repetitions)]
@@ -36,7 +36,7 @@ pub(crate) enum ReductionColumn<CF, ColT> {
 }
 
 type ReductionCols<'a, ColT, CoefficientField> =
-    Cow<'a, FxHashMap<ColT, ReductionColumn<CoefficientField, ColT>>>;
+    Cow<'a, ElementMap<ColT, ReductionColumn<CoefficientField, ColT>>>;
 
 #[derive(Clone)]
 /// The reduction matrix produced by the clearing algorithm.
@@ -61,7 +61,7 @@ where
 {
     fn build_from_ref(
         boundary: M,
-        reduction_columns: &'a FxHashMap<M::ColT, ReductionColumn<M::CoefficientField, M::ColT>>,
+        reduction_columns: &'a ElementMap<M::ColT, ReductionColumn<M::CoefficientField, M::ColT>>,
     ) -> Self {
         Self {
             boundary,
@@ -93,7 +93,7 @@ where
 {
     pub(crate) fn build_from_owned(
         boundary: M,
-        reduction_columns: FxHashMap<M::ColT, ReductionColumn<M::CoefficientField, M::ColT>>,
+        reduction_columns: ElementMap<M::ColT, ReductionColumn<M::CoefficientField, M::ColT>>,
     ) -> Self {
         Self {
             boundary,
@@ -177,7 +177,7 @@ where
 
 /// The pivot table of a dimension: `pivot row -> (column, coefficient of the pivot)`.
 /// Apparent pairs are not stored here, see [`CRMBuilder::owner`].
-type LowInverse<RowT, CF> = FxHashMap<RowT, (RowT, CF)>;
+type LowInverse<RowT, CF> = ElementMap<RowT, (RowT, CF)>;
 
 struct CRMBuilder<M, DimIter, C, FilT, RowT, CF>
 where
@@ -189,17 +189,22 @@ where
 {
     boundary: M,
     dimension_order: std::iter::Peekable<DimIter>,
-    diagram: Diagram<RowT>,
-    reduction_columns: FxHashMap<RowT, ReductionColumn<CF, RowT>>,
+    diagram: DiagramBuilder<RowT>,
+    reduction_columns: ElementMap<RowT, ReductionColumn<CF, RowT>>,
     /// The pairs `pivot row -> column` found in the previous dimension, whose rows are the columns to clear in this one
-    previous_pairs: FxHashMap<RowT, RowT>,
+    previous_pairs: ElementMap<RowT, RowT>,
     skip_zero_apparent_pairs: bool,
     /// Births of skipped (zero-persistence apparent) pairs that weren't cleared, and so may be wrongly marked essential.
     /// Only ever non-empty when dimensions are reduced against the direction of the matrix.
-    skipped_births: FxHashSet<RowT>,
+    skipped_births: ElementSet<RowT>,
     columns: C,
+    cache_columns: bool,
     /// Shared by the columns reduced in the current dimension
-    cache: C::Cache<FilT, RowT, CF>,
+    cache: ColumnCache<FilT, RowT, CF>,
+    /// Whether to keep the reduced column `R_i` of every column reduced (see [`Clearing::store_r`])
+    store_r: bool,
+    /// The reduced columns `R_i` of the current dimension that have a pivot, if `store_r`
+    r_columns: ElementMap<RowT, SortedRun<FilT, RowT, CF>>,
 }
 
 impl<M, DimIter, C> CRMBuilder<M, DimIter, C, M::FiltrationT, M::RowT, M::CoefficientField>
@@ -216,20 +221,22 @@ where
         dimension_order: DimIter,
         skip_zero_apparent_pairs: bool,
         columns: C,
+        cache_columns: bool,
+        store_r: bool,
     ) -> Self {
         Self {
             skip_zero_apparent_pairs,
             columns,
-            cache: Default::default(),
+            cache_columns,
+            cache: ColumnCache::new(cache_columns),
+            store_r,
+            r_columns: ElementMap::new(),
             boundary,
             dimension_order: dimension_order.peekable(),
-            diagram: Diagram {
-                essential: FxHashSet::default(),
-                pairings: FxHashSet::default(),
-            },
-            reduction_columns: FxHashMap::default(),
-            previous_pairs: FxHashMap::default(),
-            skipped_births: FxHashSet::default(),
+            diagram: DiagramBuilder::default(),
+            reduction_columns: ElementMap::new(),
+            previous_pairs: ElementMap::new(),
+            skipped_births: ElementSet::default(),
         }
     }
 
@@ -256,13 +263,14 @@ where
         (pivot.row_index == *row).then_some((first, pivot.coeff))
     }
 
-    /// Reduce the column `r_i` (and keep track of `v_i`), returning the pivot of `R_i` if it is non-zero.
+    /// Reduce the column `r_i` (and keep track of `v_i`), returning the pivot of `R_i` if it is non-zero
+    /// (`r_i` then holds the rest of `R_i`).
     fn reduce_column(
         &self,
         low_inverse: &LowInverse<M::RowT, M::CoefficientField>,
         r_i: &mut C::Column<M::FiltrationT, M::RowT, M::CoefficientField>,
         v_i: &mut BHCol<(), M::RowT, M::CoefficientField>,
-    ) -> Option<(M::RowT, M::CoefficientField)> {
+    ) -> Option<ColumnEntry<M::FiltrationT, M::RowT, M::CoefficientField>> {
         loop {
             // Column reduced to 0 -> found cycle
             let pivot_entry = r_i.pop_pivot()?;
@@ -270,7 +278,7 @@ where
             // Check if there is a column with the same pivot, otherwise we found a boundary
             let Some((j_basis_element, j_coeff)) = self.owner(low_inverse, &pivot_entry.row_index)
             else {
-                return Some((pivot_entry.row_index, pivot_entry.coeff));
+                return Some(pivot_entry);
             };
 
             // TODO: Over "fields" such as f64 this might not cancel to 0
@@ -281,16 +289,35 @@ where
 
             let v_matrix =
                 ClearedReductionMatrix::build_from_ref(&self.boundary, &self.reduction_columns);
-            for (coeff, k) in v_matrix.column(j_basis_element) {
-                let multiple = coeff * col_multiple;
-                self.columns.add_matrix_column(
-                    &self.cache,
-                    &self.boundary,
-                    r_i,
-                    k.clone(),
-                    multiple,
-                );
-                v_i.add_tuple((multiple, k, ()));
+            if self.store_r {
+                // Add R_j itself: stored if column j was reduced, or else D_j (an apparent pair, so V_j = e_j)
+                match self.r_columns.get(&j_basis_element) {
+                    Some(run) => self.columns.add_run(r_i, run, col_multiple),
+                    None => self.columns.add_matrix_column(
+                        &self.cache,
+                        &self.boundary,
+                        r_i,
+                        j_basis_element.clone(),
+                        col_multiple,
+                    ),
+                }
+                // and V_j to V_i
+                for (coeff, k) in v_matrix.column(j_basis_element) {
+                    v_i.add_tuple((coeff * col_multiple, k, ()));
+                }
+            } else {
+                // Add R_j = D V_j by adding the column of D for every term of V_j
+                for (coeff, k) in v_matrix.column(j_basis_element) {
+                    let multiple = coeff * col_multiple;
+                    self.columns.add_matrix_column(
+                        &self.cache,
+                        &self.boundary,
+                        r_i,
+                        k.clone(),
+                        multiple,
+                    );
+                    v_i.add_tuple((multiple, k, ()));
+                }
             }
         }
     }
@@ -303,7 +330,7 @@ where
         pivot: Option<(M::RowT, M::CoefficientField)>,
         apparent: bool,
         low_inverse: &mut LowInverse<M::RowT, M::CoefficientField>,
-        new_pairs: &mut Option<FxHashMap<M::RowT, M::ColT>>,
+        new_pairs: &mut Option<ElementMap<M::RowT, M::ColT>>,
     ) {
         let Some((pivot_row, pivot_coeff)) = pivot else {
             self.diagram.essential.insert(basis_element);
@@ -327,7 +354,7 @@ where
             // matrix), and then marked essential since nothing had claimed it yet
             self.diagram.essential.remove(&pivot_row);
         } else {
-            self.diagram.pairings.insert((pivot_row, basis_element));
+            self.diagram.pairings.push((pivot_row, basis_element));
         }
     }
 
@@ -335,7 +362,7 @@ where
         &mut self,
         basis_element: M::ColT,
         low_inverse: &mut LowInverse<M::RowT, M::CoefficientField>,
-        new_pairs: &mut Option<FxHashMap<M::RowT, M::ColT>>,
+        new_pairs: &mut Option<ElementMap<M::RowT, M::ColT>>,
         pivot: Option<(M::RowT, M::CoefficientField)>,
         mut v_i: BHCol<(), M::RowT, M::CoefficientField>,
     ) {
@@ -357,9 +384,9 @@ where
     fn reduce_dimension(&mut self, dim: usize, is_last: bool) {
         // low_inverse[i]=(j, lambda) means R[j] has lowest non-zero in row i with coefficient lambda
         // We build a new one for each dimension
-        let mut low_inverse: LowInverse<M::RowT, M::CoefficientField> = FxHashMap::default();
+        let mut low_inverse: LowInverse<M::RowT, M::CoefficientField> = ElementMap::new();
         // The pairs found in this dimension, for clearing the next one (if there is one)
-        let mut new_pairs = (!is_last).then(FxHashMap::default);
+        let mut new_pairs = (!is_last).then(ElementMap::new);
 
         let basis_size = self.boundary.sub_basis(dim).size();
 
@@ -413,16 +440,27 @@ where
                 M::CoefficientField::one(),
             );
             let pivot = self.reduce_column(&low_inverse, &mut r_i, &mut v_i);
+            if self.store_r {
+                if let Some(pivot) = &pivot {
+                    // Keep R_i: its pivot, then the rest of the column
+                    let mut column = vec![pivot.clone()];
+                    r_i.drain_into(&mut column);
+                    self.r_columns.insert(basis_element.clone(), column.into());
+                }
+            }
+            let pivot = pivot.map(|entry| (entry.row_index, entry.coeff));
             self.save_column(basis_element, &mut low_inverse, &mut new_pairs, pivot, v_i);
         }
         // Columns of D are only ever added to columns of the same dimension
-        self.cache = Default::default();
+        self.cache = ColumnCache::new(self.cache_columns);
+        // Stored columns of R are only ever added to columns of the same dimension
+        self.r_columns = ElementMap::new();
         // Rows paired in the previous dimension that weren't columns of this one aren't needed for clearing.
         // But if their pair was skipped, the row's column may be reduced in a later dimension and marked essential.
         // (When dimensions are visited in the direction of the matrix there are no such rows.)
         let leftover = std::mem::replace(&mut self.previous_pairs, new_pairs.unwrap_or_default());
         if self.skip_zero_apparent_pairs {
-            for (row, col) in leftover {
+            for (row, col) in leftover.into_entries() {
                 if self.boundary.filtration_value(row.clone())
                     == self.boundary.filtration_value(col)
                 {
@@ -466,6 +504,8 @@ pub struct Clearing<C = MergedColumns> {
     dimension_order: Option<Vec<usize>>,
     pub(crate) skip_zero_apparent_pairs: bool,
     pub(crate) columns: C,
+    pub(crate) cache_columns: bool,
+    pub(crate) store_r: bool,
 }
 
 impl<C: Default> Default for Clearing<C> {
@@ -474,6 +514,8 @@ impl<C: Default> Default for Clearing<C> {
             dimension_order: None,
             skip_zero_apparent_pairs: true,
             columns: C::default(),
+            cache_columns: true,
+            store_r: false,
         }
     }
 }
@@ -498,7 +540,33 @@ impl<C: ColumnRepresentation> Clearing<C> {
             dimension_order: self.dimension_order,
             skip_zero_apparent_pairs: self.skip_zero_apparent_pairs,
             columns,
+            cache_columns: self.cache_columns,
+            store_r: self.store_r,
         }
+    }
+
+    /// Whether to keep each reduced column of `R = D V` and add it directly, rather than recompute it from `V`
+    /// (off by default). Serial only: the parallel algorithm ([`parallel`](Self::parallel)) ignores this.
+    ///
+    /// To cancel a pivot owned by an earlier column `j`, the reduction adds `R_j` to the column being reduced. By
+    /// default only `V` is stored, so `R_j = D V_j` is recomputed by adding one column of `D` for every term of `V_j`.
+    /// With this on, `R_j` is kept once reduced (for the rest of its dimension) and added as one column, as in PHAT.
+    /// That costs memory for the columns of `R` that have a pivot, and pays off when `V_j` gets long, as in dense or
+    /// cubical complexes. Apparent pairs are still never stored (`R_j = D_j` for them), so Vietoris–Rips cohomology,
+    /// where almost every pair is apparent, gains little. `V` is tracked as before.
+    pub fn store_r(mut self, store: bool) -> Self {
+        self.store_r = store;
+        self
+    }
+
+    /// Whether to cache the columns of `D` added during the reduction, see [`ColumnCache`]. On by default.
+    ///
+    /// Caching saves recomputing (and, for [`MergedColumns`], re-sorting) a column of `D` every time it is added,
+    /// which pays off when columns are expensive to compute, but holds every column needed in a dimension in memory
+    /// until that dimension is done. Without it, columns are recomputed from the matrix every time.
+    pub fn cache_columns(mut self, cache: bool) -> Self {
+        self.cache_columns = cache;
+        self
     }
 
     /// Reduce only the given dimensions, in the order given, instead of detecting them.
@@ -607,15 +675,13 @@ where
             dimension_order.into_iter(),
             self.skip_zero_apparent_pairs,
             self.columns,
+            self.cache_columns,
+            self.store_r,
         );
         builder.reduce_all_dimension();
         let v =
             ClearedReductionMatrix::build_from_owned(builder.boundary, builder.reduction_columns);
-        let mut diagram = builder.diagram;
-        diagram.remove_births_from_essential();
-        diagram
-            .essential
-            .retain(|elem| !builder.skipped_births.contains(elem));
+        let diagram = builder.diagram.finish(Some(&builder.skipped_births));
         Reduction { v, diagram }
     }
 }

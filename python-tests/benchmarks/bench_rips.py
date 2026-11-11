@@ -1,7 +1,8 @@
 """Benchmark phlite_rips against ripser and giotto-ph on random point clouds.
 
-Vietoris–Rips persistence of `n` points uniformly in the unit cube, in dimensions up to 2, from a distance matrix.
-giotto-ph is ripser with parallelism. Cases marked `quick` are the ones `just bench-check` uses.
+Vietoris–Rips persistence of `n` points uniformly in the unit cube, in dimensions up to `max_dim`, from a distance
+matrix. giotto-ph is ripser with parallelism. Cases marked `quick` are the ones `just bench-check` uses. The large
+cases (1000 points) run only the main implementations, timed once each.
 """
 
 import functools
@@ -17,27 +18,29 @@ from ripser import ripser
 
 INF = float("inf")
 REFERENCE = "ripser"
-MAX_DIM = 2
 
 
 def phlite(algorithm=Algorithm.serial, method="cohomology", representatives=False):
     """`algorithm` builds the `Algorithm`."""
 
-    def compute(distances):
-        barcode = rips(distances, MAX_DIM, method=method, algorithm=algorithm(), representatives=representatives)
+    def compute(case):
+        distances, max_dim = case
+        barcode = rips(distances, max_dim, method=method, algorithm=algorithm(), representatives=representatives)
         return lambda: fingerprint([list(p) + [(b, INF) for b in e] for p, e in zip(barcode.pairings, barcode.essential)])
 
     return compute
 
 
-def ripser_py(distances):
-    dgms = ripser(distances, distance_matrix=True, maxdim=MAX_DIM)["dgms"]
+def ripser_py(case):
+    distances, max_dim = case
+    dgms = ripser(distances, distance_matrix=True, maxdim=max_dim)["dgms"]
     return lambda: fingerprint([[(float(b), float(d)) for b, d in dgm] for dgm in dgms])
 
 
 def giotto(threads):
-    def compute(distances):
-        dgms = ripser_parallel(distances, maxdim=MAX_DIM, metric="precomputed", n_threads=threads)["dgms"]
+    def compute(case):
+        distances, max_dim = case
+        dgms = ripser_parallel(distances, maxdim=max_dim, metric="precomputed", n_threads=threads)["dgms"]
         return lambda: fingerprint([[(float(b), float(d)) for b, d in dgm] for dgm in dgms])
 
     return compute
@@ -50,11 +53,30 @@ IMPLEMENTATIONS = {
     "phlite (serial)": phlite(),
     "phlite (parallel)": phlite(lambda: Algorithm.parallel(THREADS)),
     "phlite (serial, reps)": phlite(representatives=True),
+    # Every column representation, cached or not, named explicitly (the presets' choice differs between packages)
+    **{
+        f"phlite (serial, {columns}{'' if cache else ', uncached'})": phlite(
+            lambda columns=columns, cache=cache: Algorithm.serial().with_columns(columns).with_cache(cache)
+        )
+        for columns in ["merged", "heap", "sorted"]
+        for cache in [True, False]
+    },
+    "phlite (serial, store R)": phlite(lambda: Algorithm.serial().with_store_r()),
     "phlite (parallel, lock-free)": phlite(lambda: Algorithm.parallel(THREADS).with_storage("lock-free")),
 }
 
-CASES = [100, 200, 300, 400]
-QUICK = [100]
+# (n, max_dim)
+CASES = [(100, 2), (200, 2), (300, 2), (400, 2)]
+QUICK = [(100, 2)]
+LARGE = [(1000, 1), (1000, 2)]
+# The implementations run on the large cases
+LARGE_IMPLEMENTATIONS = ["ripser", "giotto-ph (1 thread)", "giotto-ph (parallel)", "phlite (serial)", "phlite (parallel)"]
+# ripser runs out of memory (more than 7 GB) on these, so they are checked against giotto-ph instead
+NO_RIPSER = [(1000, 2)]
+
+
+def reference_name(n, max_dim):
+    return "giotto-ph (1 thread)" if (n, max_dim) in NO_RIPSER else REFERENCE
 
 
 @functools.cache
@@ -67,17 +89,29 @@ def distances(n):
 
 
 @functools.cache
-def reference(n):
-    return IMPLEMENTATIONS[REFERENCE](distances(n))()
+def reference(n, max_dim):
+    return IMPLEMENTATIONS[reference_name(n, max_dim)]((distances(n), max_dim))()
 
 
-@pytest.mark.parametrize("implementation", IMPLEMENTATIONS)
-@pytest.mark.parametrize("n", [pytest.param(n, marks=pytest.mark.quick) if n in QUICK else n for n in CASES])
-def test_rips(benchmark, n, implementation):
+def params():
+    for n, max_dim in CASES + LARGE:
+        large = (n, max_dim) in LARGE
+        marks = [pytest.mark.quick] if (n, max_dim) in QUICK else [pytest.mark.large] if large else []
+        for implementation in IMPLEMENTATIONS:
+            if large and implementation not in LARGE_IMPLEMENTATIONS:
+                continue
+            if (n, max_dim) in NO_RIPSER and implementation == "ripser":
+                continue
+            yield pytest.param(n, max_dim, implementation, marks=marks, id=f"{n}-{max_dim}-{implementation}")
+
+
+@pytest.mark.parametrize("n, max_dim, implementation", params())
+def test_rips(benchmark, n, max_dim, implementation):
     run(
         benchmark,
-        group=f"rips n={n} dim≤{MAX_DIM}",
+        group=f"rips n={n} dim≤{max_dim}",
         implementation=IMPLEMENTATIONS[implementation],
-        make_input=lambda: distances(n),
-        reference=None if implementation == REFERENCE else functools.partial(reference, n),
+        make_input=lambda: (distances(n), max_dim),
+        reference=None if implementation == reference_name(n, max_dim) else functools.partial(reference, n, max_dim),
+        rounds=1 if (n, max_dim) in LARGE else None,
     )

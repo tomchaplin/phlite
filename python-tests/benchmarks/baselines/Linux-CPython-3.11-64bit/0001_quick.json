@@ -203,26 +203,27 @@
         }
     },
     "commit_info": {
-        "id": "0c4bcf02c4ceb12978c893d8c986085545408aa9",
-        "time": "2026-11-11T09:13:59Z",
-        "author_time": "2026-11-11T09:13:59Z",
-        "dirty": false,
+        "id": "41b9e23b475f94212ded97a20f554cda3d9644fd",
+        "time": "2026-11-11T14:50:02Z",
+        "author_time": "2026-11-11T14:50:02Z",
+        "dirty": true,
         "project": "phlite",
         "branch": "phlite-py-complex"
     },
     "benchmarks": [
         {
             "group": "rips n=100 dim\u22642",
-            "name": "test_rips[100-ripser]",
-            "fullname": "benchmarks/bench_rips.py::test_rips[100-ripser]",
+            "name": "test_rips[100-2-ripser]",
+            "fullname": "benchmarks/bench_rips.py::test_rips[100-2-ripser]",
             "params": {
                 "n": 100,
+                "max_dim": 2,
                 "implementation": "ripser"
             },
-            "param": "100-ripser",
+            "param": "100-2-ripser",
             "extra_info": {
                 "threads": 4,
-                "peak_mb": 5.8,
+                "peak_mb": 8.4,
                 "fingerprint": [
                     [
                         99,
@@ -252,34 +253,35 @@
                 "warmup": false
             },
             "stats": {
-                "min": 0.04549476100055472,
-                "max": 0.04728810800042993,
-                "mean": 0.0463162022002507,
-                "stddev": 0.0007856227299769147,
+                "min": 0.04481291000411147,
+                "max": 0.0496761040049023,
+                "mean": 0.04635457360127475,
+                "stddev": 0.0019656071746639,
                 "rounds": 5,
-                "median": 0.045955929000228934,
-                "iqr": 0.0013342510003440111,
-                "q1": 0.045746562999966045,
-                "q3": 0.047080814000310056,
+                "median": 0.04584141899977112,
+                "iqr": 0.0022655562443105737,
+                "q1": 0.04496926175306726,
+                "q3": 0.04723481799737783,
                 "iqr_outliers": 0,
-                "stddev_outliers": 2,
-                "outliers": "2;0",
-                "ld15iqr": 0.04549476100055472,
-                "hd15iqr": 0.04728810800042993,
-                "ops": 21.590716692971583,
-                "total": 0.2315810110012535,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.04481291000411147,
+                "hd15iqr": 0.0496761040049023,
+                "ops": 21.572844323877028,
+                "total": 0.23177286800637376,
                 "iterations": 1
             }
         },
         {
             "group": "rips n=100 dim\u22642",
-            "name": "test_rips[100-giotto-ph (1 thread)]",
-            "fullname": "benchmarks/bench_rips.py::test_rips[100-giotto-ph (1 thread)]",
+            "name": "test_rips[100-2-giotto-ph (1 thread)]",
+            "fullname": "benchmarks/bench_rips.py::test_rips[100-2-giotto-ph (1 thread)]",
             "params": {
                 "n": 100,
+                "max_dim": 2,
                 "implementation": "giotto-ph (1 thread)"
             },
-            "param": "100-giotto-ph (1 thread)",
+            "param": "100-2-giotto-ph (1 thread)",
             "extra_info": {
                 "threads": 4,
                 "peak_mb": 0.3,
@@ -312,37 +314,38 @@
                 "warmup": false
             },
             "stats": {
-                "min": 0.014585320000151114,
-                "max": 0.01730438799950207,
-                "mean": 0.015499948999968182,
-                "stddev": 0.0012063761967921092,
+                "min": 0.014628945995355025,
+                "max": 0.015889564994722605,
+                "mean": 0.015077706196461805,
+                "stddev": 0.0004775962012756874,
                 "rounds": 5,
-                "median": 0.014721807000569243,
-                "iqr": 0.0018008039996857406,
-                "q1": 0.01466889774997071,
-                "q3": 0.01646970174965645,
-                "iqr_outliers": 0,
+                "median": 0.014943445996323135,
+                "iqr": 0.000408123245506431,
+                "q1": 0.014833217499472084,
+                "q3": 0.015241340744978515,
+                "iqr_outliers": 1,
                 "stddev_outliers": 1,
-                "outliers": "1;0",
-                "ld15iqr": 0.014585320000151114,
-                "hd15iqr": 0.01730438799950207,
-                "ops": 64.51634131196514,
-                "total": 0.07749974499984091,
+                "outliers": "1;1",
+                "ld15iqr": 0.014628945995355025,
+                "hd15iqr": 0.015025265995063819,
+                "ops": 66.32308568492097,
+                "total": 0.07538853098230902,
                 "iterations": 1
             }
         },
         {
             "group": "rips n=100 dim\u22642",
-            "name": "test_rips[100-giotto-ph (parallel)]",
-            "fullname": "benchmarks/bench_rips.py::test_rips[100-giotto-ph (parallel)]",
+            "name": "test_rips[100-2-giotto-ph (parallel)]",
+            "fullname": "benchmarks/bench_rips.py::test_rips[100-2-giotto-ph (parallel)]",
             "params": {
                 "n": 100,
+                "max_dim": 2,
                 "implementation": "giotto-ph (parallel)"
             },
-            "param": "100-giotto-ph (parallel)",
+            "param": "100-2-giotto-ph (parallel)",
             "extra_info": {
                 "threads": 4,
-                "peak_mb": 0.2,
+                "peak_mb": 0.3,
                 "fingerprint": [
                     [
                         99,
@@ -372,34 +375,35 @@
                 "warmup": false
             },
             "stats": {
-                "min": 0.00529980000010255,
-                "max": 0.006455338999330706,
-                "mean": 0.0060909825999260645,
-                "stddev": 0.00045550161376602084,
+                "min": 0.005603249999694526,
+                "max": 0.00662757199461339,
+                "mean": 0.0061989734007511284,
+                "stddev": 0.00037482778451507833,
                 "rounds": 5,
-                "median": 0.006227654000213079,
-                "iqr": 0.0003971937496771716,
-                "q1": 0.005947840500084567,
-                "q3": 0.0063450342497617385,
-                "iqr_outliers": 1,
-                "stddev_outliers": 1,
-                "outliers": "1;1",
-                "ld15iqr": 0.006163854000078572,
-                "hd15iqr": 0.006455338999330706,
-                "ops": 164.17712308226567,
-                "total": 0.030454912999630324,
+                "median": 0.006244534000870772,
+                "iqr": 0.0003812907489191275,
+                "q1": 0.006033024003045284,
+                "q3": 0.006414314751964412,
+                "iqr_outliers": 0,
+                "stddev_outliers": 2,
+                "outliers": "2;0",
+                "ld15iqr": 0.005603249999694526,
+                "hd15iqr": 0.00662757199461339,
+                "ops": 161.31703353959062,
+                "total": 0.030994867003755644,
                 "iterations": 1
             }
         },
         {
             "group": "rips n=100 dim\u22642",
-            "name": "test_rips[100-phlite (serial)]",
-            "fullname": "benchmarks/bench_rips.py::test_rips[100-phlite (serial)]",
+            "name": "test_rips[100-2-phlite (serial)]",
+            "fullname": "benchmarks/bench_rips.py::test_rips[100-2-phlite (serial)]",
             "params": {
                 "n": 100,
+                "max_dim": 2,
                 "implementation": "phlite (serial)"
             },
-            "param": "100-phlite (serial)",
+            "param": "100-2-phlite (serial)",
             "extra_info": {
                 "threads": 4,
                 "peak_mb": 0.4,
@@ -432,34 +436,35 @@
                 "warmup": false
             },
             "stats": {
-                "min": 0.012295032999645628,
-                "max": 0.01261424799940869,
-                "mean": 0.012507124599687813,
-                "stddev": 0.00013050068517450839,
+                "min": 0.01329964699834818,
+                "max": 0.013755792999290861,
+                "mean": 0.013439192401710898,
+                "stddev": 0.00020021598070453845,
                 "rounds": 5,
-                "median": 0.012565065999297076,
-                "iqr": 0.0001698067496818112,
-                "q1": 0.012426735250073762,
-                "q3": 0.012596541999755573,
+                "median": 0.013310496004123706,
+                "iqr": 0.00027456049974716734,
+                "q1": 0.0133059095023782,
+                "q3": 0.013580470002125367,
                 "iqr_outliers": 0,
                 "stddev_outliers": 1,
                 "outliers": "1;0",
-                "ld15iqr": 0.012295032999645628,
-                "hd15iqr": 0.01261424799940869,
-                "ops": 79.9544285362729,
-                "total": 0.06253562299843907,
+                "ld15iqr": 0.01329964699834818,
+                "hd15iqr": 0.013755792999290861,
+                "ops": 74.4092330929568,
+                "total": 0.06719596200855449,
                 "iterations": 1
             }
         },
         {
             "group": "rips n=100 dim\u22642",
-            "name": "test_rips[100-phlite (parallel)]",
-            "fullname": "benchmarks/bench_rips.py::test_rips[100-phlite (parallel)]",
+            "name": "test_rips[100-2-phlite (parallel)]",
+            "fullname": "benchmarks/bench_rips.py::test_rips[100-2-phlite (parallel)]",
             "params": {
                 "n": 100,
+                "max_dim": 2,
                 "implementation": "phlite (parallel)"
             },
-            "param": "100-phlite (parallel)",
+            "param": "100-2-phlite (parallel)",
             "extra_info": {
                 "threads": 4,
                 "peak_mb": 0.5,
@@ -492,37 +497,38 @@
                 "warmup": false
             },
             "stats": {
-                "min": 0.00499589199989714,
-                "max": 0.005101697000100103,
-                "mean": 0.005061136999938753,
-                "stddev": 4.927250927590151e-05,
+                "min": 0.005582812998909503,
+                "max": 0.006823643001553137,
+                "mean": 0.00603142040054081,
+                "stddev": 0.0005337172654486278,
                 "rounds": 5,
-                "median": 0.005085684999357909,
-                "iqr": 8.651200096210232e-05,
-                "q1": 0.005014846749645585,
-                "q3": 0.005101358750607687,
+                "median": 0.0057538490000297315,
+                "iqr": 0.0008203447468986269,
+                "q1": 0.005639433502437896,
+                "q3": 0.006459778249336523,
                 "iqr_outliers": 0,
                 "stddev_outliers": 1,
                 "outliers": "1;0",
-                "ld15iqr": 0.00499589199989714,
-                "hd15iqr": 0.005101697000100103,
-                "ops": 197.58406065911697,
-                "total": 0.025305684999693767,
+                "ld15iqr": 0.005582812998909503,
+                "hd15iqr": 0.006823643001553137,
+                "ops": 165.79842451544823,
+                "total": 0.03015710200270405,
                 "iterations": 1
             }
         },
         {
             "group": "rips n=100 dim\u22642",
-            "name": "test_rips[100-phlite (serial, reps)]",
-            "fullname": "benchmarks/bench_rips.py::test_rips[100-phlite (serial, reps)]",
+            "name": "test_rips[100-2-phlite (serial, reps)]",
+            "fullname": "benchmarks/bench_rips.py::test_rips[100-2-phlite (serial, reps)]",
             "params": {
                 "n": 100,
+                "max_dim": 2,
                 "implementation": "phlite (serial, reps)"
             },
-            "param": "100-phlite (serial, reps)",
+            "param": "100-2-phlite (serial, reps)",
             "extra_info": {
                 "threads": 4,
-                "peak_mb": 0.0,
+                "peak_mb": 0.5,
                 "fingerprint": [
                     [
                         99,
@@ -552,37 +558,38 @@
                 "warmup": false
             },
             "stats": {
-                "min": 0.021302608999576478,
-                "max": 0.022911830999873928,
-                "mean": 0.02183905080000841,
-                "stddev": 0.0006458382806111499,
+                "min": 0.021429775006254204,
+                "max": 0.022676847002003342,
+                "mean": 0.021960758999921382,
+                "stddev": 0.0004596592519164598,
                 "rounds": 5,
-                "median": 0.021681098000044585,
-                "iqr": 0.0007895034993907757,
-                "q1": 0.021369446750441057,
-                "q3": 0.022158950249831832,
+                "median": 0.021908301998337265,
+                "iqr": 0.0005208852471696446,
+                "q1": 0.021673711749826907,
+                "q3": 0.022194596996996552,
                 "iqr_outliers": 0,
-                "stddev_outliers": 1,
-                "outliers": "1;0",
-                "ld15iqr": 0.021302608999576478,
-                "hd15iqr": 0.022911830999873928,
-                "ops": 45.78953587120256,
-                "total": 0.10919525400004204,
+                "stddev_outliers": 2,
+                "outliers": "2;0",
+                "ld15iqr": 0.021429775006254204,
+                "hd15iqr": 0.022676847002003342,
+                "ops": 45.535766773979894,
+                "total": 0.10980379499960691,
                 "iterations": 1
             }
         },
         {
             "group": "rips n=100 dim\u22642",
-            "name": "test_rips[100-phlite (parallel, lock-free)]",
-            "fullname": "benchmarks/bench_rips.py::test_rips[100-phlite (parallel, lock-free)]",
+            "name": "test_rips[100-2-phlite (serial, merged)]",
+            "fullname": "benchmarks/bench_rips.py::test_rips[100-2-phlite (serial, merged)]",
             "params": {
                 "n": 100,
-                "implementation": "phlite (parallel, lock-free)"
+                "max_dim": 2,
+                "implementation": "phlite (serial, merged)"
             },
-            "param": "100-phlite (parallel, lock-free)",
+            "param": "100-2-phlite (serial, merged)",
             "extra_info": {
                 "threads": 4,
-                "peak_mb": 0.0,
+                "peak_mb": 0.6,
                 "fingerprint": [
                     [
                         99,
@@ -612,22 +619,449 @@
                 "warmup": false
             },
             "stats": {
-                "min": 0.0051485940002748976,
-                "max": 0.006891097000334412,
-                "mean": 0.005577607400118723,
-                "stddev": 0.0007374579482807976,
+                "min": 0.012514596994151361,
+                "max": 0.012917328996991273,
+                "mean": 0.012713884399272502,
+                "stddev": 0.00018289052935744726,
                 "rounds": 5,
-                "median": 0.005281310000100348,
-                "iqr": 0.0005128442505792918,
-                "q1": 0.005211177749743001,
-                "q3": 0.005724022000322293,
+                "median": 0.01275716500094859,
+                "iqr": 0.0003371227485331474,
+                "q1": 0.012528053501227987,
+                "q3": 0.012865176249761134,
+                "iqr_outliers": 0,
+                "stddev_outliers": 2,
+                "outliers": "2;0",
+                "ld15iqr": 0.012514596994151361,
+                "hd15iqr": 0.012917328996991273,
+                "ops": 78.65416804145401,
+                "total": 0.06356942199636251,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "rips n=100 dim\u22642",
+            "name": "test_rips[100-2-phlite (serial, merged, uncached)]",
+            "fullname": "benchmarks/bench_rips.py::test_rips[100-2-phlite (serial, merged, uncached)]",
+            "params": {
+                "n": 100,
+                "max_dim": 2,
+                "implementation": "phlite (serial, merged, uncached)"
+            },
+            "param": "100-2-phlite (serial, merged, uncached)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 0.4,
+                "fingerprint": [
+                    [
+                        99,
+                        1,
+                        15.560501
+                    ],
+                    [
+                        37,
+                        0,
+                        1.589421
+                    ],
+                    [
+                        4,
+                        0,
+                        0.110084
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.012714266005787067,
+                "max": 0.013113752000208478,
+                "mean": 0.012957489202381111,
+                "stddev": 0.00015070491849118525,
+                "rounds": 5,
+                "median": 0.012976329002412967,
+                "iqr": 0.000171786748978775,
+                "q1": 0.012886271002571448,
+                "q3": 0.013058057751550223,
+                "iqr_outliers": 0,
+                "stddev_outliers": 2,
+                "outliers": "2;0",
+                "ld15iqr": 0.012714266005787067,
+                "hd15iqr": 0.013113752000208478,
+                "ops": 77.1754453645415,
+                "total": 0.06478744601190556,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "rips n=100 dim\u22642",
+            "name": "test_rips[100-2-phlite (serial, heap)]",
+            "fullname": "benchmarks/bench_rips.py::test_rips[100-2-phlite (serial, heap)]",
+            "params": {
+                "n": 100,
+                "max_dim": 2,
+                "implementation": "phlite (serial, heap)"
+            },
+            "param": "100-2-phlite (serial, heap)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 0.7,
+                "fingerprint": [
+                    [
+                        99,
+                        1,
+                        15.560501
+                    ],
+                    [
+                        37,
+                        0,
+                        1.589421
+                    ],
+                    [
+                        4,
+                        0,
+                        0.110084
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.012767817002895754,
+                "max": 0.012856670000473969,
+                "mean": 0.012809027200273704,
+                "stddev": 4.173666415198226e-05,
+                "rounds": 5,
+                "median": 0.01279979199898662,
+                "iqr": 7.943449963931926e-05,
+                "q1": 0.012771165000231122,
+                "q3": 0.012850599499870441,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.012767817002895754,
+                "hd15iqr": 0.012856670000473969,
+                "ops": 78.06994117231885,
+                "total": 0.06404513600136852,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "rips n=100 dim\u22642",
+            "name": "test_rips[100-2-phlite (serial, heap, uncached)]",
+            "fullname": "benchmarks/bench_rips.py::test_rips[100-2-phlite (serial, heap, uncached)]",
+            "params": {
+                "n": 100,
+                "max_dim": 2,
+                "implementation": "phlite (serial, heap, uncached)"
+            },
+            "param": "100-2-phlite (serial, heap, uncached)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 0.4,
+                "fingerprint": [
+                    [
+                        99,
+                        1,
+                        15.560501
+                    ],
+                    [
+                        37,
+                        0,
+                        1.589421
+                    ],
+                    [
+                        4,
+                        0,
+                        0.110084
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.012411993004207034,
+                "max": 0.012799315998563543,
+                "mean": 0.012519716599490494,
+                "stddev": 0.00016321667245281478,
+                "rounds": 5,
+                "median": 0.012436958000762388,
+                "iqr": 0.00017870524970931,
+                "q1": 0.01241842949821148,
+                "q3": 0.01259713474792079,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.012411993004207034,
+                "hd15iqr": 0.012799315998563543,
+                "ops": 79.87401248688779,
+                "total": 0.06259858299745247,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "rips n=100 dim\u22642",
+            "name": "test_rips[100-2-phlite (serial, sorted)]",
+            "fullname": "benchmarks/bench_rips.py::test_rips[100-2-phlite (serial, sorted)]",
+            "params": {
+                "n": 100,
+                "max_dim": 2,
+                "implementation": "phlite (serial, sorted)"
+            },
+            "param": "100-2-phlite (serial, sorted)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 0.9,
+                "fingerprint": [
+                    [
+                        99,
+                        1,
+                        15.560501
+                    ],
+                    [
+                        37,
+                        0,
+                        1.589421
+                    ],
+                    [
+                        4,
+                        0,
+                        0.110084
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.014941385998099577,
+                "max": 0.024100332004309166,
+                "mean": 0.017367161199217662,
+                "stddev": 0.0038594766269838907,
+                "rounds": 5,
+                "median": 0.015352135997090954,
+                "iqr": 0.0036622395036829403,
+                "q1": 0.015214826997180353,
+                "q3": 0.018877066500863293,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.014941385998099577,
+                "hd15iqr": 0.024100332004309166,
+                "ops": 57.5799342522972,
+                "total": 0.08683580599608831,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "rips n=100 dim\u22642",
+            "name": "test_rips[100-2-phlite (serial, sorted, uncached)]",
+            "fullname": "benchmarks/bench_rips.py::test_rips[100-2-phlite (serial, sorted, uncached)]",
+            "params": {
+                "n": 100,
+                "max_dim": 2,
+                "implementation": "phlite (serial, sorted, uncached)"
+            },
+            "param": "100-2-phlite (serial, sorted, uncached)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 0.6,
+                "fingerprint": [
+                    [
+                        99,
+                        1,
+                        15.560501
+                    ],
+                    [
+                        37,
+                        0,
+                        1.589421
+                    ],
+                    [
+                        4,
+                        0,
+                        0.110084
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.014611092003178783,
+                "max": 0.014832027998636477,
+                "mean": 0.014670431600825396,
+                "stddev": 9.118441799911267e-05,
+                "rounds": 5,
+                "median": 0.014634311002737377,
+                "iqr": 6.742524783476256e-05,
+                "q1": 0.014624700001149904,
+                "q3": 0.014692125248984667,
                 "iqr_outliers": 1,
                 "stddev_outliers": 1,
                 "outliers": "1;1",
-                "ld15iqr": 0.0051485940002748976,
-                "hd15iqr": 0.005334997000318253,
-                "ops": 179.28834503100998,
-                "total": 0.027888037000593613,
+                "ld15iqr": 0.014611092003178783,
+                "hd15iqr": 0.01464549099910073,
+                "ops": 68.1643203969362,
+                "total": 0.07335215800412698,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "rips n=100 dim\u22642",
+            "name": "test_rips[100-2-phlite (serial, store R)]",
+            "fullname": "benchmarks/bench_rips.py::test_rips[100-2-phlite (serial, store R)]",
+            "params": {
+                "n": 100,
+                "max_dim": 2,
+                "implementation": "phlite (serial, store R)"
+            },
+            "param": "100-2-phlite (serial, store R)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 0.8,
+                "fingerprint": [
+                    [
+                        99,
+                        1,
+                        15.560501
+                    ],
+                    [
+                        37,
+                        0,
+                        1.589421
+                    ],
+                    [
+                        4,
+                        0,
+                        0.110084
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.014152239004033618,
+                "max": 0.014558679999026936,
+                "mean": 0.014308971402351744,
+                "stddev": 0.00018449344526092656,
+                "rounds": 5,
+                "median": 0.014192082999215927,
+                "iqr": 0.0003008424992003711,
+                "q1": 0.014179139254338224,
+                "q3": 0.014479981753538596,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.014152239004033618,
+                "hd15iqr": 0.014558679999026936,
+                "ops": 69.8862253533923,
+                "total": 0.07154485701175872,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "rips n=100 dim\u22642",
+            "name": "test_rips[100-2-phlite (parallel, lock-free)]",
+            "fullname": "benchmarks/bench_rips.py::test_rips[100-2-phlite (parallel, lock-free)]",
+            "params": {
+                "n": 100,
+                "max_dim": 2,
+                "implementation": "phlite (parallel, lock-free)"
+            },
+            "param": "100-2-phlite (parallel, lock-free)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 0.5,
+                "fingerprint": [
+                    [
+                        99,
+                        1,
+                        15.560501
+                    ],
+                    [
+                        37,
+                        0,
+                        1.589421
+                    ],
+                    [
+                        4,
+                        0,
+                        0.110084
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.005679382004018407,
+                "max": 0.0070478630004799925,
+                "mean": 0.006453784002223984,
+                "stddev": 0.0006124084103466852,
+                "rounds": 5,
+                "median": 0.00671740200050408,
+                "iqr": 0.0010728100005508168,
+                "q1": 0.0058636030025809305,
+                "q3": 0.006936413003131747,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.005679382004018407,
+                "hd15iqr": 0.0070478630004799925,
+                "ops": 154.9478568937849,
+                "total": 0.03226892001111992,
                 "iterations": 1
             }
         },
@@ -642,7 +1076,7 @@
             "param": "50-grpphati (GrPPH)",
             "extra_info": {
                 "threads": 4,
-                "peak_mb": 439.2,
+                "peak_mb": 359.3,
                 "fingerprint": [
                     [
                         220,
@@ -662,22 +1096,22 @@
                 "warmup": false
             },
             "stats": {
-                "min": 1.34126993999962,
-                "max": 1.4087110840000605,
-                "mean": 1.3692124974000763,
-                "stddev": 0.02766825293999043,
+                "min": 1.2983539199994993,
+                "max": 1.4413231369981077,
+                "mean": 1.3776469865988474,
+                "stddev": 0.05168493080566255,
                 "rounds": 5,
-                "median": 1.358921152000221,
-                "iqr": 0.04315294825005367,
-                "q1": 1.3486062705001132,
-                "q3": 1.3917592187501668,
+                "median": 1.3771290329968906,
+                "iqr": 0.051216695001130574,
+                "q1": 1.356137100749038,
+                "q3": 1.4073537957501685,
                 "iqr_outliers": 0,
                 "stddev_outliers": 2,
                 "outliers": "2;0",
-                "ld15iqr": 1.34126993999962,
-                "hd15iqr": 1.4087110840000605,
-                "ops": 0.730346824834601,
-                "total": 6.846062487000381,
+                "ld15iqr": 1.2983539199994993,
+                "hd15iqr": 1.4413231369981077,
+                "ops": 0.7258753582939362,
+                "total": 6.888234932994237,
                 "iterations": 1
             }
         },
@@ -692,7 +1126,7 @@
             "param": "50-grpphati (GrPPH_par_wedge)",
             "extra_info": {
                 "threads": 4,
-                "peak_mb": 230.4,
+                "peak_mb": 335.5,
                 "fingerprint": [
                     [
                         220,
@@ -712,22 +1146,22 @@
                 "warmup": false
             },
             "stats": {
-                "min": 1.418356410999877,
-                "max": 1.4544743679998646,
-                "mean": 1.4371992824000699,
-                "stddev": 0.016900373068568297,
+                "min": 1.380397840999649,
+                "max": 1.5840090950005106,
+                "mean": 1.4848733003993402,
+                "stddev": 0.08028953632724459,
                 "rounds": 5,
-                "median": 1.4410467080006129,
-                "iqr": 0.032063330999790196,
-                "q1": 1.4201167787500708,
-                "q3": 1.452180109749861,
+                "median": 1.4694768650006154,
+                "iqr": 0.12276649725390598,
+                "q1": 1.4305986312465393,
+                "q3": 1.5533651285004453,
                 "iqr_outliers": 0,
                 "stddev_outliers": 2,
                 "outliers": "2;0",
-                "ld15iqr": 1.418356410999877,
-                "hd15iqr": 1.4544743679998646,
-                "ops": 0.6957977312165344,
-                "total": 7.18599641200035,
+                "ld15iqr": 1.380397840999649,
+                "hd15iqr": 1.5840090950005106,
+                "ops": 0.6734581325767398,
+                "total": 7.424366501996701,
                 "iterations": 1
             }
         },
@@ -742,7 +1176,7 @@
             "param": "50-phlite (serial)",
             "extra_info": {
                 "threads": 4,
-                "peak_mb": 0.4,
+                "peak_mb": 4.1,
                 "fingerprint": [
                     [
                         220,
@@ -762,22 +1196,22 @@
                 "warmup": false
             },
             "stats": {
-                "min": 0.03693574999942939,
-                "max": 0.038193682999917655,
-                "mean": 0.03770287999996071,
-                "stddev": 0.0005351091345814558,
+                "min": 0.0358083719984279,
+                "max": 0.039526425003714394,
+                "mean": 0.03681730460084509,
+                "stddev": 0.001550218552165094,
                 "rounds": 5,
-                "median": 0.03779217200008134,
-                "iqr": 0.0008861850001267157,
-                "q1": 0.03729538474999572,
-                "q3": 0.038181569750122435,
-                "iqr_outliers": 0,
+                "median": 0.03637198499927763,
+                "iqr": 0.0014804189995629713,
+                "q1": 0.035819043001538375,
+                "q3": 0.03729946200110135,
+                "iqr_outliers": 1,
                 "stddev_outliers": 1,
-                "outliers": "1;0",
-                "ld15iqr": 0.03693574999942939,
-                "hd15iqr": 0.038193682999917655,
-                "ops": 26.52317276560947,
-                "total": 0.18851439999980357,
+                "outliers": "1;1",
+                "ld15iqr": 0.0358083719984279,
+                "hd15iqr": 0.03655714100023033,
+                "ops": 27.161140959163163,
+                "total": 0.18408652300422546,
                 "iterations": 1
             }
         },
@@ -792,7 +1226,7 @@
             "param": "50-phlite (parallel)",
             "extra_info": {
                 "threads": 4,
-                "peak_mb": 0.2,
+                "peak_mb": 4.1,
                 "fingerprint": [
                     [
                         220,
@@ -812,22 +1246,22 @@
                 "warmup": false
             },
             "stats": {
-                "min": 0.017776726000192866,
-                "max": 0.030279042999609374,
-                "mean": 0.021593633399788814,
-                "stddev": 0.004963364186405747,
+                "min": 0.01776901600533165,
+                "max": 0.022335175999614876,
+                "mean": 0.01898307080118684,
+                "stddev": 0.0018957605364206878,
                 "rounds": 5,
-                "median": 0.020115505999456218,
-                "iqr": 0.00394896375019016,
-                "q1": 0.018956323749762305,
-                "q3": 0.022905287499952465,
+                "median": 0.018219103003502823,
+                "iqr": 0.0015346937452704879,
+                "q1": 0.017967699252039893,
+                "q3": 0.01950239299731038,
                 "iqr_outliers": 1,
                 "stddev_outliers": 1,
                 "outliers": "1;1",
-                "ld15iqr": 0.017776726000192866,
-                "hd15iqr": 0.02044736900006683,
-                "ops": 46.30994615337778,
-                "total": 0.10796816699894407,
+                "ld15iqr": 0.01776901600533165,
+                "hd15iqr": 0.018558131996542215,
+                "ops": 52.678516056394784,
+                "total": 0.0949153540059342,
                 "iterations": 1
             }
         },
@@ -842,7 +1276,7 @@
             "param": "50-phlite (serial, reps)",
             "extra_info": {
                 "threads": 4,
-                "peak_mb": 0.0,
+                "peak_mb": 4.1,
                 "fingerprint": [
                     [
                         220,
@@ -862,22 +1296,372 @@
                 "warmup": false
             },
             "stats": {
-                "min": 0.04857426899980055,
-                "max": 0.05259275200023694,
-                "mean": 0.05045258219979587,
-                "stddev": 0.0015814424032513368,
+                "min": 0.04731943100341596,
+                "max": 0.05018470800132491,
+                "mean": 0.04849053320067469,
+                "stddev": 0.0012434664479480386,
                 "rounds": 5,
-                "median": 0.05024664299980941,
-                "iqr": 0.002447851000169976,
-                "q1": 0.049240419749594366,
-                "q3": 0.05168827074976434,
+                "median": 0.048340597000787966,
+                "iqr": 0.0021593747442238964,
+                "q1": 0.04733630375267239,
+                "q3": 0.04949567849689629,
                 "iqr_outliers": 0,
-                "stddev_outliers": 2,
-                "outliers": "2;0",
-                "ld15iqr": 0.04857426899980055,
-                "hd15iqr": 0.05259275200023694,
-                "ops": 19.820591065882965,
-                "total": 0.25226291099897935,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.04731943100341596,
+                "hd15iqr": 0.05018470800132491,
+                "ops": 20.62258205867875,
+                "total": 0.24245266600337345,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "grpph n=50 p=0.1",
+            "name": "test_grpph[50-phlite (serial, merged)]",
+            "fullname": "benchmarks/bench_grpph.py::test_grpph[50-phlite (serial, merged)]",
+            "params": {
+                "n": 50,
+                "implementation": "phlite (serial, merged)"
+            },
+            "param": "50-phlite (serial, merged)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 4.1,
+                "fingerprint": [
+                    [
+                        220,
+                        0,
+                        742.0
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.03556022600241704,
+                "max": 0.03594849200453609,
+                "mean": 0.03567937440093374,
+                "stddev": 0.00016033384237871826,
+                "rounds": 5,
+                "median": 0.035594714994658716,
+                "iqr": 0.000185217753823963,
+                "q1": 0.03558102050010348,
+                "q3": 0.03576623825392744,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.03556022600241704,
+                "hd15iqr": 0.03594849200453609,
+                "ops": 28.0273972509403,
+                "total": 0.1783968720046687,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "grpph n=50 p=0.1",
+            "name": "test_grpph[50-phlite (serial, merged, uncached)]",
+            "fullname": "benchmarks/bench_grpph.py::test_grpph[50-phlite (serial, merged, uncached)]",
+            "params": {
+                "n": 50,
+                "implementation": "phlite (serial, merged, uncached)"
+            },
+            "param": "50-phlite (serial, merged, uncached)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 6.5,
+                "fingerprint": [
+                    [
+                        220,
+                        0,
+                        742.0
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.08765562700136798,
+                "max": 0.0922584670042852,
+                "mean": 0.08925534799927845,
+                "stddev": 0.0018771935560985044,
+                "rounds": 5,
+                "median": 0.08897324299323373,
+                "iqr": 0.002577429750090232,
+                "q1": 0.08772157299972605,
+                "q3": 0.09029900274981628,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.08765562700136798,
+                "hd15iqr": 0.0922584670042852,
+                "ops": 11.20381044291132,
+                "total": 0.4462767399963923,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "grpph n=50 p=0.1",
+            "name": "test_grpph[50-phlite (serial, heap)]",
+            "fullname": "benchmarks/bench_grpph.py::test_grpph[50-phlite (serial, heap)]",
+            "params": {
+                "n": 50,
+                "implementation": "phlite (serial, heap)"
+            },
+            "param": "50-phlite (serial, heap)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 8.3,
+                "fingerprint": [
+                    [
+                        220,
+                        0,
+                        742.0
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.056496065997635014,
+                "max": 0.056817748001776636,
+                "mean": 0.05669400740007404,
+                "stddev": 0.0001323591775854091,
+                "rounds": 5,
+                "median": 0.056696781000937335,
+                "iqr": 0.00020146899987594225,
+                "q1": 0.056610782999996445,
+                "q3": 0.05681225199987239,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.056496065997635014,
+                "hd15iqr": 0.056817748001776636,
+                "ops": 17.638548514365453,
+                "total": 0.2834700370003702,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "grpph n=50 p=0.1",
+            "name": "test_grpph[50-phlite (serial, heap, uncached)]",
+            "fullname": "benchmarks/bench_grpph.py::test_grpph[50-phlite (serial, heap, uncached)]",
+            "params": {
+                "n": 50,
+                "implementation": "phlite (serial, heap, uncached)"
+            },
+            "param": "50-phlite (serial, heap, uncached)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 6.5,
+                "fingerprint": [
+                    [
+                        220,
+                        0,
+                        742.0
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.058700895999209024,
+                "max": 0.07227237200277159,
+                "mean": 0.0631790830026148,
+                "stddev": 0.0055669760350269964,
+                "rounds": 5,
+                "median": 0.060177274004672654,
+                "iqr": 0.0068963582525611855,
+                "q1": 0.05970280675137474,
+                "q3": 0.06659916500393592,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.058700895999209024,
+                "hd15iqr": 0.07227237200277159,
+                "ops": 15.828023334219857,
+                "total": 0.31589541501307394,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "grpph n=50 p=0.1",
+            "name": "test_grpph[50-phlite (serial, sorted)]",
+            "fullname": "benchmarks/bench_grpph.py::test_grpph[50-phlite (serial, sorted)]",
+            "params": {
+                "n": 50,
+                "implementation": "phlite (serial, sorted)"
+            },
+            "param": "50-phlite (serial, sorted)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 7.0,
+                "fingerprint": [
+                    [
+                        220,
+                        0,
+                        742.0
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.21840646200143965,
+                "max": 0.23744266800349578,
+                "mean": 0.22336251200322293,
+                "stddev": 0.007967520319301428,
+                "rounds": 5,
+                "median": 0.22029390100215096,
+                "iqr": 0.006703682252918952,
+                "q1": 0.21888037350254308,
+                "q3": 0.22558405575546203,
+                "iqr_outliers": 1,
+                "stddev_outliers": 1,
+                "outliers": "1;1",
+                "ld15iqr": 0.21840646200143965,
+                "hd15iqr": 0.22163118500611745,
+                "ops": 4.477027013313545,
+                "total": 1.1168125600161147,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "grpph n=50 p=0.1",
+            "name": "test_grpph[50-phlite (serial, sorted, uncached)]",
+            "fullname": "benchmarks/bench_grpph.py::test_grpph[50-phlite (serial, sorted, uncached)]",
+            "params": {
+                "n": 50,
+                "implementation": "phlite (serial, sorted, uncached)"
+            },
+            "param": "50-phlite (serial, sorted, uncached)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 3.8,
+                "fingerprint": [
+                    [
+                        220,
+                        0,
+                        742.0
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.22968846699950518,
+                "max": 0.2581078150033136,
+                "mean": 0.2361978472021292,
+                "stddev": 0.012295347239921397,
+                "rounds": 5,
+                "median": 0.2305137170042144,
+                "iqr": 0.008869944756952464,
+                "q1": 0.2300442767482309,
+                "q3": 0.23891422150518338,
+                "iqr_outliers": 1,
+                "stddev_outliers": 1,
+                "outliers": "1;1",
+                "ld15iqr": 0.22968846699950518,
+                "hd15iqr": 0.23251635700580664,
+                "ops": 4.233738841591718,
+                "total": 1.180989236010646,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "grpph n=50 p=0.1",
+            "name": "test_grpph[50-phlite (serial, store R)]",
+            "fullname": "benchmarks/bench_grpph.py::test_grpph[50-phlite (serial, store R)]",
+            "params": {
+                "n": 50,
+                "implementation": "phlite (serial, store R)"
+            },
+            "param": "50-phlite (serial, store R)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 12.1,
+                "fingerprint": [
+                    [
+                        220,
+                        0,
+                        742.0
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.06884082999749808,
+                "max": 0.07764576299814507,
+                "mean": 0.071389609198377,
+                "stddev": 0.003659670739328817,
+                "rounds": 5,
+                "median": 0.06975481999688782,
+                "iqr": 0.004073736503414693,
+                "q1": 0.06903894324750581,
+                "q3": 0.0731126797509205,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.06884082999749808,
+                "hd15iqr": 0.07764576299814507,
+                "ops": 14.0076407649355,
+                "total": 0.356948045991885,
                 "iterations": 1
             }
         },
@@ -892,7 +1676,7 @@
             "param": "50-phlite (parallel, lock-free)",
             "extra_info": {
                 "threads": 4,
-                "peak_mb": 0.0,
+                "peak_mb": 4.1,
                 "fingerprint": [
                     [
                         220,
@@ -912,26 +1696,26 @@
                 "warmup": false
             },
             "stats": {
-                "min": 0.016985247000775416,
-                "max": 0.02255465100006404,
-                "mean": 0.019652716600103304,
-                "stddev": 0.001996749860113104,
+                "min": 0.01733995600079652,
+                "max": 0.02104049199988367,
+                "mean": 0.019135484400612766,
+                "stddev": 0.0013144396089858927,
                 "rounds": 5,
-                "median": 0.019460649999928137,
-                "iqr": 0.002040686249756618,
-                "q1": 0.01864578225013247,
-                "q3": 0.020686468499889088,
+                "median": 0.019134729998768307,
+                "iqr": 0.0011672775017359527,
+                "q1": 0.0185247587505728,
+                "q3": 0.019692036252308753,
                 "iqr_outliers": 0,
                 "stddev_outliers": 2,
                 "outliers": "2;0",
-                "ld15iqr": 0.016985247000775416,
-                "hd15iqr": 0.02255465100006404,
-                "ops": 50.88355062295782,
-                "total": 0.09826358300051652,
+                "ld15iqr": 0.01733995600079652,
+                "hd15iqr": 0.02104049199988367,
+                "ops": 52.25893314558462,
+                "total": 0.09567742200306384,
                 "iterations": 1
             }
         }
     ],
-    "datetime": "2026-11-11T09:15:42.109123+00:00",
+    "datetime": "2026-11-11T21:29:44.811004+00:00",
     "version": "5.3.1"
 }

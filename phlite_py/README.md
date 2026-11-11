@@ -135,9 +135,10 @@ The `Barcode` is in terms of your cells (ints for `from_pairs`, `from_columns` a
 Representatives are lists of `(cell, coefficient)` pairs in decreasing filtration order, so the birth cell comes first.
 As with Ripser, `method="cohomology"` is usually much faster; it computes representatives by involution.
 
-Like Ripser, `phlite` stores only the reduction matrix V and recomputes columns of R = DV as it needs them. This saves a
-lot of memory on the sparse matrices typical of persistent homology, but is slow when the boundary matrix is dense
-(cells with hundreds of faces); there PHAT, which stores R, can be orders of magnitude faster.
+By default the serial algorithm stores the reduced columns of R = DV, as PHAT does, and adds them directly when
+cancelling pivots. (`phlite_rips` and `phlite_grpph` store only V and recompute columns of R, like Ripser, which is
+better when almost every column is an apparent pair.) PHAT is still faster on dense boundary matrices (cells with
+hundreds of faces) and on cubical complexes, though phlite is faster on Rips complexes.
 See [`python-tests/BENCHMARKS.md`](../python-tests/BENCHMARKS.md) for comparisons with PHAT and LoPHAT.
 
 **Zero-length bars are omitted** (birth and death at the same filtration value), as everywhere in `phlite`. With the
@@ -155,7 +156,9 @@ then adjust it with the `with_*` methods, each of which returns a new `Algorithm
 
 | Method | Values | Default |
 |---|---|---|
-| `with_columns` | How the column being reduced is stored: `'merged'` (sorted runs, merged lazily) or `'heap'`. | `'merged'` |
+| `with_columns` | How the column being reduced is stored: `'merged'` (sorted columns, merged lazily, so never looking below the pivot), `'heap'` (every entry pushed onto one heap) or `'sorted'` (one sorted vector: fast when the columns added stay near the pivot, slow when they reach far below it). | `'merged'` |
+| `with_cache` | Whether to cache the columns of the boundary matrix that get added, rather than recomputing them each time. Pays off when columns are expensive to compute, but holds them in memory until their dimension is done. | `True` |
+| `with_store_r` | Keep each reduced column of R = D V and add it directly when cancelling a pivot (as PHAT does), rather than recompute it from V (serial clearing only). Pays off when columns need many additions, as in dense or cubical complexes, at the cost of memory. | `True` for serial clearing |
 | `with_skip_zero_apparent_pairs` | Whether to leave zero-length apparent pairs out of the reduction's diagram (clearing only). They would be dropped from the barcode anyway, and recording them can dominate the time and memory. | `True` |
 | `with_dimension_order` | The order to reduce dimensions in (clearing only), or `None` to detect the efficient order from the matrix. | `None` |
 | `with_storage` | Concurrent data structures (parallel only): `'locking'` or `'lock-free'`. | `'locking'` |

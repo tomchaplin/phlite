@@ -16,8 +16,9 @@ REPO = Path(__file__).resolve().parent.parent.parent
 SUITES = {
     "rips": {
         "title": "Rips: `phlite_rips` vs ripser and giotto-ph",
-        "description": "Vietoris–Rips persistence in dimensions up to 2 of `n` points uniformly in the unit cube, "
-        "from a distance matrix. giotto-ph is ripser with parallelism.",
+        "description": "Vietoris–Rips persistence in dimensions up to `dim` of `n` points uniformly in the unit cube, "
+        "from a distance matrix. giotto-ph is ripser with parallelism. The 1000-point cases are timed once each, "
+        "and at 1000 points in dimension 2 ripser runs out of memory (over 7 GB), so isn't run.",
         "summary": ["ripser", "giotto-ph (1 thread)", "giotto-ph (parallel)", "phlite (serial)", "phlite (parallel)", "phlite (serial, reps)"],
     },
     "grpph": {
@@ -31,16 +32,18 @@ SUITES = {
         "title": "Sparse matrices: `phlite` vs PHAT and LoPHAT",
         "description": "Persistence of explicit boundary matrices over Z/2, given to every implementation as the same "
         "list of columns in filtration order. Times include loading the columns from Python, except for `(reduce)`, "
-        "where the matrix is built before the clock starts. `rips`: Rips complexes of `n` random points in the plane, "
+        "where the matrix is built before the clock starts. phlite's default stores the reduced columns of R; "
+        "`V only` recomputes them from V instead (the previous default). `rips`: Rips complexes of `n` random points in the plane, "
         "up to triangles. `grid`: cubical complexes of `n`×`n` grids, filtered by smoothed noise on the vertices. "
         "`cells`: sparse random cellular complexes with `n` cells in each dimension up to 3. `dense`: the same, with "
-        "dense boundaries (phlite stores only V, so is slow here).",
+        "dense boundaries.",
         "summary": [
             "phat (twist)",
             "phat (twist, reduce)",
             "lophat (1 thread)",
             "phlite (serial)",
             "phlite (serial, reduce)",
+            "phlite (V only, reduce)",
             "phlite (parallel, reduce)",
             "phlite (homology, reduce)",
         ],
@@ -124,7 +127,17 @@ def natural_key(text):
 def criterion_order(name):
     """Serial first, then parallel locking and lock-free storage, each by number of threads."""
     function, _, threads = name.partition("/")
-    kinds = ["serial", "serial heap", "parallel locking", "parallel lock-free"]
+    kinds = [
+        "serial merged cached",
+        "serial merged uncached",
+        "serial heap cached",
+        "serial heap uncached",
+        "serial sorted cached",
+        "serial sorted uncached",
+        "serial merged store-r",
+        "parallel locking",
+        "parallel lock-free",
+    ]
     return (kinds.index(function) if function in kinds else len(kinds), function, int(threads) if threads.isdigit() else 0)
 
 

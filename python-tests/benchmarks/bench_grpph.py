@@ -50,6 +50,15 @@ IMPLEMENTATIONS = {
     "phlite (serial)": phlite(),
     "phlite (parallel)": phlite(lambda: Algorithm.parallel(THREADS)),
     "phlite (serial, reps)": phlite(representatives=True),
+    # Every column representation, cached or not, named explicitly (the presets' choice differs between packages)
+    **{
+        f"phlite (serial, {columns}{'' if cache else ', uncached'})": phlite(
+            lambda columns=columns, cache=cache: Algorithm.serial().with_columns(columns).with_cache(cache)
+        )
+        for columns in ["merged", "heap", "sorted"]
+        for cache in [True, False]
+    },
+    "phlite (serial, store R)": phlite(lambda: Algorithm.serial().with_store_r()),
     "phlite (parallel, lock-free)": phlite(lambda: Algorithm.parallel(THREADS).with_storage("lock-free")),
 }
 

@@ -58,7 +58,9 @@ fn random_digraph(n: u16, p: f64, seed: u64) -> (VecDigraphFiltration, FxHashSet
     (filtration, edge_set)
 }
 
-fn assert_same_diagram<T: Eq + std::hash::Hash + std::fmt::Debug>(a: &Diagram<T>, b: &Diagram<T>) {
+/// Diagrams list their bars in no particular order, so compare them sorted
+fn assert_same_diagram<T: Ord + Clone + std::fmt::Debug>(a: &Diagram<T>, b: &Diagram<T>) {
+    let (a, b) = (a.clone().sorted(), b.clone().sorted());
     assert_eq!(a.essential, b.essential, "essential classes differ");
     assert_eq!(a.pairings, b.pairings, "pairings differ");
 }
@@ -134,12 +136,14 @@ where
         essential.remove(row);
     }
     let pairings: FxHashSet<_> = pivot_of_row.into_iter().collect();
+    let parallel_pairings: FxHashSet<_> = parallel.pairings.iter().copied().collect();
+    let parallel_essential: FxHashSet<_> = parallel.essential.iter().copied().collect();
     assert_eq!(
-        pairings, parallel.pairings,
+        pairings, parallel_pairings,
         "pairings read from R = D V differ"
     );
     assert_eq!(
-        essential, parallel.essential,
+        essential, parallel_essential,
         "essential classes read from R = D V differ"
     );
 }

@@ -242,15 +242,16 @@ mod tests {
                 (0..=max_dim).rev().collect::<Vec<_>>()
             );
 
-            let standard = Standard::new().reduce(&boundary).diagram;
+            let standard = Standard::new().reduce(&boundary).diagram.sorted();
             // Keep every pair, to compare with the standard algorithm
             let full = Clearing::new().skip_zero_apparent_pairs(false);
-            let detected = full.clone().reduce(&boundary).diagram;
+            let detected = full.clone().reduce(&boundary).diagram.sorted();
             // Ascending is the wrong way round for a boundary matrix: no clearing happens, but the diagram is still right
             let wrong_order = full
                 .with_dimension_order(0..=max_dim)
                 .reduce(&boundary)
-                .diagram;
+                .diagram
+                .sorted();
             for diagram in [&detected, &wrong_order] {
                 assert_eq!(standard.essential, diagram.essential);
                 assert_eq!(standard.pairings, diagram.pairings);
@@ -264,9 +265,13 @@ mod tests {
                 let skipped = Clearing::new()
                     .with_dimension_order(order)
                     .reduce(&boundary)
-                    .diagram;
+                    .diagram
+                    .sorted();
                 assert_eq!(standard.essential, skipped.essential);
-                assert!(skipped.pairings.is_subset(&standard.pairings));
+                assert!(skipped
+                    .pairings
+                    .iter()
+                    .all(|pair| standard.pairings.contains(pair)));
             }
         }
     }

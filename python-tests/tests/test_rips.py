@@ -19,6 +19,9 @@ ALGORITHMS = [
     phlite_rips.Algorithm.serial(),
     phlite_rips.Algorithm.parallel(),
     phlite_rips.Algorithm.parallel().with_storage("lock-free"),
+    phlite_rips.Algorithm.clearing().with_store_r(),
+    # The other representation and caching from this package's default
+    phlite_rips.Algorithm.serial().with_columns("merged").with_cache(True),
 ]
 INF = math.inf
 
@@ -157,3 +160,10 @@ def test_input_validation():
             rips(bad, 1)
     # Integer arrays go through the general path
     assert rips(np.array([[0, 1], [1, 0]]), 0).pairings == [[(0.0, 1.0)]]
+
+
+def test_default_columns():
+    """Each package's presets use its own column representation and caching."""
+    for algorithm in [phlite_rips.Algorithm.serial(), phlite_rips.Algorithm.parallel(), phlite_rips.Algorithm.standard()]:
+        assert not algorithm.store_r
+        assert (algorithm.columns, algorithm.cache) == ('heap', False)

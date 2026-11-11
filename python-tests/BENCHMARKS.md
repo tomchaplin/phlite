@@ -6,22 +6,24 @@ phlite's Python bindings against reference implementations (with [pytest-benchma
 In the Python tables each time is the fastest of several runs, with the peak heap memory allocated during a separate run in MB (measured with [memray](https://bloomberg.github.io/memray/), which includes native allocations, such as Rust's). Parallel implementations use 4 threads. Every barcode agrees with the reference implementation's (each benchmark checks this).
 
 * Machine: 11th Gen Intel(R) Core(TM) i7-1185G7 @ 3.00GHz (8 cores), Linux x86_64
-* Measured 2026-11-11 at commit `6e3763c (with uncommitted changes)`
+* Measured 2026-11-11 at commit `41b9e23 (with uncommitted changes)`
 
 Full results are in `python-tests/benchmarks/results/` (pytest-benchmark JSON; compare runs with `pytest-benchmark compare`). See [python-tests/README.md](README.md#benchmarks) for how to run them and check for regressions.
 
 ## Rips: `phlite_rips` vs ripser and giotto-ph
 
-Vietoris–Rips persistence in dimensions up to 2 of `n` points uniformly in the unit cube, from a distance matrix. giotto-ph is ripser with parallelism.
+Vietoris–Rips persistence in dimensions up to `dim` of `n` points uniformly in the unit cube, from a distance matrix. giotto-ph is ripser with parallelism. The 1000-point cases are timed once each, and at 1000 points in dimension 2 ripser runs out of memory (over 7 GB), so isn't run.
 
 Python 3.11.13.
 
 | case | ripser | giotto-ph (1 thread) | giotto-ph (parallel) | phlite (serial) | phlite (parallel) | phlite (serial, reps) |
 |---|---:|---:|---:|---:|---:|---:|
-| rips n=100 dim≤2 | 45.9 ms · 8 MB | 13.9 ms · 0 MB | 5.9 ms · 0 MB | 12.8 ms · 1 MB | 5.1 ms · 1 MB | 21.3 ms · 1 MB |
-| rips n=200 dim≤2 | 381.1 ms · 66 MB | 103.6 ms · 1 MB | 35.3 ms · 1 MB | 91.7 ms · 3 MB | 31.5 ms · 4 MB | 152.4 ms · 3 MB |
-| rips n=300 dim≤2 | 1.62 s · 260 MB | 390.3 ms · 5 MB | 139.2 ms · 5 MB | 309.1 ms · 11 MB | 119.9 ms · 12 MB | 536.2 ms · 11 MB |
-| rips n=400 dim≤2 | 3.51 s · 518 MB | 1.03 s · 5 MB | 355.6 ms · 6 MB | 620.7 ms · 23 MB | 262.9 ms · 24 MB | 1.13 s · 23 MB |
+| rips n=100 dim≤2 | 46.5 ms · 8 MB | 14.4 ms · 0 MB | 5.9 ms · 0 MB | 13.4 ms · 0 MB | 5.4 ms · 0 MB | 21.8 ms · 0 MB |
+| rips n=200 dim≤2 | 369.8 ms · 66 MB | 103.5 ms · 1 MB | 37.6 ms · 1 MB | 89.9 ms · 1 MB | 33.5 ms · 1 MB | 147.2 ms · 2 MB |
+| rips n=300 dim≤2 | 1.61 s · 260 MB | 391.9 ms · 5 MB | 130.9 ms · 5 MB | 325.4 ms · 4 MB | 131.4 ms · 4 MB | 539.7 ms · 4 MB |
+| rips n=400 dim≤2 | 3.53 s · 518 MB | 1.04 s · 5 MB | 361.5 ms · 6 MB | 616.0 ms · 5 MB | 279.5 ms · 6 MB | 1.12 s · 7 MB |
+| rips n=1000 dim≤1 | 546.6 ms · 79 MB | 242.8 ms · 31 MB | 188.3 ms · 28 MB | 402.5 ms · 33 MB | 302.3 ms · 33 MB |  |
+| rips n=1000 dim≤2 |  | 18.61 s · 31 MB | 7.69 s · 31 MB | 10.33 s · 34 MB | 4.69 s · 34 MB |  |
 
 ## GrPPH: `phlite_grpph` vs grpphati
 
@@ -31,34 +33,34 @@ Python 3.11.13.
 
 | case | grpphati (GrPPH) | grpphati (GrPPH_par_wedge) | phlite (serial) | phlite (parallel) | phlite (serial, reps) |
 |---|---:|---:|---:|---:|---:|
-| grpph n=25 p=0.1 | 44.2 ms · 8 MB | 51.4 ms · 4 MB | 1.3 ms · 0 MB | 1.2 ms · 0 MB | 1.9 ms · 0 MB |
-| grpph n=50 p=0.1 | 1.30 s · 355 MB | 1.34 s · 345 MB | 37.9 ms · 4 MB | 17.7 ms · 4 MB | 48.5 ms · 4 MB |
-| grpph n=100 p=0.1 | 15.18 s · 6516 MB | 16.09 s · 5320 MB | 409.8 ms · 45 MB | 185.4 ms · 46 MB | 534.6 ms · 45 MB |
+| grpph n=25 p=0.1 | 44.0 ms · 6 MB | 51.4 ms · 4 MB | 1.3 ms · 0 MB | 1.2 ms · 0 MB | 1.8 ms · 0 MB |
+| grpph n=50 p=0.1 | 1.27 s · 353 MB | 1.42 s · 344 MB | 35.3 ms · 4 MB | 17.9 ms · 4 MB | 47.3 ms · 4 MB |
+| grpph n=100 p=0.1 | 16.71 s · 5224 MB | 16.38 s · 6230 MB | 396.1 ms · 45 MB | 138.3 ms · 46 MB | 524.8 ms · 45 MB |
 
 ## Sparse matrices: `phlite` vs PHAT and LoPHAT
 
-Persistence of explicit boundary matrices over Z/2, given to every implementation as the same list of columns in filtration order. Times include loading the columns from Python, except for `(reduce)`, where the matrix is built before the clock starts. `rips`: Rips complexes of `n` random points in the plane, up to triangles. `grid`: cubical complexes of `n`×`n` grids, filtered by smoothed noise on the vertices. `cells`: sparse random cellular complexes with `n` cells in each dimension up to 3. `dense`: the same, with dense boundaries (phlite stores only V, so is slow here).
+Persistence of explicit boundary matrices over Z/2, given to every implementation as the same list of columns in filtration order. Times include loading the columns from Python, except for `(reduce)`, where the matrix is built before the clock starts. phlite's default stores the reduced columns of R; `V only` recomputes them from V instead (the previous default). `rips`: Rips complexes of `n` random points in the plane, up to triangles. `grid`: cubical complexes of `n`×`n` grids, filtered by smoothed noise on the vertices. `cells`: sparse random cellular complexes with `n` cells in each dimension up to 3. `dense`: the same, with dense boundaries.
 
 Python 3.13.13.
 
-| case | phat (twist) | phat (twist, reduce) | lophat (1 thread) | phlite (serial) | phlite (serial, reduce) | phlite (parallel, reduce) | phlite (homology, reduce) |
-|---|---:|---:|---:|---:|---:|---:|---:|
-| rips n=100 dim≤2 | 185.7 ms · 10 MB | 85.5 ms · 5 MB | 88.9 ms · 38 MB | 42.4 ms · 37 MB | 15.9 ms · 22 MB | 16.6 ms · 22 MB | 764.7 ms · 46 MB |
-| rips n=150 dim≤2 | 734.7 ms · 32 MB | 403.8 ms · 18 MB | 335.2 ms · 141 MB | 155.2 ms · 128 MB | 69.0 ms · 77 MB | 69.3 ms · 77 MB | 3.59 s · 180 MB |
-| grid 300x300 | 222.8 ms · 21 MB | 21.0 ms · 12 MB | 857.4 ms · 68 MB | 186.7 ms · 46 MB | 134.4 ms · 18 MB | 108.2 ms · 19 MB | 89.4 ms · 18 MB |
-| grid 500x500 | 653.0 ms · 53 MB | 76.4 ms · 28 MB | 5.53 s · 182 MB | 655.5 ms · 143 MB | 509.4 ms · 67 MB | 366.6 ms · 69 MB | 339.2 ms · 66 MB |
-| cells n=1000 | 3.0 ms · 0 MB | 598 µs · 0 MB | 3.9 ms · 1 MB | 4.0 ms · 1 MB | 2.9 ms · 0 MB | 2.2 ms · 0 MB | 8.3 ms · 0 MB |
-| cells n=3000 | 12.1 ms · 2 MB | 4.1 ms · 1 MB | 18.6 ms · 4 MB | 19.7 ms · 3 MB | 15.6 ms · 1 MB | 10.5 ms · 1 MB | 110.9 ms · 1 MB |
-| dense n=100 p=0.3 | 445 µs · 0 MB | 171 µs · 0 MB | 1.3 ms · 0 MB | 20.7 ms · 0 MB | 20.6 ms · 0 MB | 6.9 ms · 0 MB | 48.5 ms · 0 MB |
-| dense n=200 p=0.3 | 1.7 ms · 0 MB | 1.0 ms · 0 MB | 7.7 ms · 1 MB | 391.3 ms · 1 MB | 389.4 ms · 0 MB | 113.3 ms · 0 MB | 927.6 ms · 0 MB |
+| case | phat (twist) | phat (twist, reduce) | lophat (1 thread) | phlite (serial) | phlite (serial, reduce) | phlite (V only, reduce) | phlite (parallel, reduce) | phlite (homology, reduce) |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| rips n=100 dim≤2 | 180.3 ms · 10 MB | 83.8 ms · 5 MB | 84.6 ms · 38 MB | 39.5 ms · 37 MB | 14.0 ms · 22 MB | 12.1 ms · 22 MB | 13.3 ms · 22 MB | 698.6 ms · 46 MB |
+| rips n=150 dim≤2 | 745.0 ms · 32 MB | 387.4 ms · 18 MB | 337.4 ms · 141 MB | 142.6 ms · 127 MB | 56.6 ms · 76 MB | 54.2 ms · 76 MB | 54.2 ms · 76 MB | 3.18 s · 182 MB |
+| grid 300x300 | 213.1 ms · 21 MB | 20.1 ms · 12 MB | 858.2 ms · 68 MB | 139.3 ms · 54 MB | 90.9 ms · 26 MB | 130.6 ms · 23 MB | 96.3 ms · 20 MB | 67.9 ms · 24 MB |
+| grid 500x500 | 614.4 ms · 53 MB | 76.1 ms · 28 MB | 5.48 s · 182 MB | 481.0 ms · 152 MB | 335.3 ms · 76 MB | 461.8 ms · 65 MB | 344.5 ms · 59 MB | 241.5 ms · 66 MB |
+| cells n=1000 | 2.9 ms · 0 MB | 604 µs · 0 MB | 3.7 ms · 1 MB | 3.2 ms · 1 MB | 2.0 ms · 0 MB | 2.8 ms · 0 MB | 2.4 ms · 0 MB | 4.7 ms · 0 MB |
+| cells n=3000 | 12.5 ms · 2 MB | 4.2 ms · 1 MB | 18.4 ms · 4 MB | 15.3 ms · 4 MB | 10.8 ms · 2 MB | 14.7 ms · 1 MB | 8.5 ms · 1 MB | 33.7 ms · 2 MB |
+| dense n=100 p=0.3 | 455 µs · 0 MB | 167 µs · 0 MB | 1.2 ms · 0 MB | 2.6 ms · 0 MB | 2.4 ms · 0 MB | 21.7 ms · 0 MB | 7.4 ms · 0 MB | 3.6 ms · 0 MB |
+| dense n=200 p=0.3 | 1.8 ms · 0 MB | 1.1 ms · 0 MB | 7.6 ms · 1 MB | 19.9 ms · 1 MB | 19.4 ms · 0 MB | 415.0 ms · 0 MB | 101.6 ms · 1 MB | 35.5 ms · 0 MB |
 
 ## Rust: the clearing reduction
 
 The core reduction alone, from criterion (`cargo bench`), on the Rips coboundary matrix of random points in the unit cube (`phlite_rips/benches/reduction.rs`) and the GrPPH coboundary matrix of random digraphs (`phlite_grpph/benches/reduction.rs`). Median time per reduction; `parallel …/N` uses N threads.
 
-| case | serial | serial heap | parallel locking/1 | parallel locking/2 | parallel locking/4 | parallel lock-free/1 | parallel lock-free/2 | parallel lock-free/4 |
-|---|---:|---:|---:|---:|---:|---:|---:|---:|
-| grpph n=50 p=0.1 | 40.7 ms | 67.1 ms | 47.4 ms | 33.2 ms | 27.5 ms | 47.7 ms | 33.8 ms | 27.9 ms |
-| grpph n=100 p=0.1 | 908.8 ms | 2.45 s | 969.5 ms | 633.3 ms | 432.5 ms | 976.9 ms | 634.6 ms | 423.6 ms |
-| rips n=100 dim≤2 | 22.9 ms | 22.8 ms | 24.4 ms | 16.9 ms | 11.8 ms | 24.8 ms | 16.8 ms | 11.6 ms |
-| rips n=160 dim≤2 | 98.7 ms | 97.6 ms | 105.0 ms | 71.0 ms | 45.4 ms | 106.5 ms | 70.5 ms | 45.9 ms |
+| case | serial merged cached | serial merged uncached | serial heap cached | serial heap uncached | serial sorted cached | serial sorted uncached | serial merged store-r | parallel locking/1 | parallel locking/2 | parallel locking/4 | parallel lock-free/1 | parallel lock-free/2 | parallel lock-free/4 |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| grpph n=50 p=0.1 | 42.7 ms | 87.1 ms | 68.1 ms | 67.0 ms | 263.9 ms | 272.0 ms | 66.3 ms | 49.3 ms | 34.6 ms | 28.8 ms | 49.5 ms | 34.6 ms | 29.0 ms |
+| grpph n=100 p=0.1 | 938.6 ms | 2.51 s | 1.98 s | 2.33 s | 13.00 s | 13.65 s | 1.13 s | 986.3 ms | 640.1 ms | 462.6 ms | 1.00 s | 644.8 ms | 494.9 ms |
+| rips n=100 dim≤2 | 23.0 ms | 23.5 ms | 23.3 ms | 23.1 ms | 25.1 ms | 24.4 ms | 23.9 ms | 24.5 ms | 16.8 ms | 11.7 ms | 24.5 ms | 17.0 ms | 11.9 ms |
+| rips n=160 dim≤2 | 99.5 ms | 100.5 ms | 101.3 ms | 98.4 ms | 106.5 ms | 105.4 ms | 103.7 ms | 106.9 ms | 71.2 ms | 45.6 ms | 106.2 ms | 71.9 ms | 46.4 ms |

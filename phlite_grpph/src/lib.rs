@@ -170,7 +170,7 @@ pyo3_stub_gen::define_stub_info_gatherer!(stub_info);
 mod tests {
     use super::*;
     use phlite::{
-        columns::{HeapColumns, MergedColumns},
+        columns::{HeapColumns, MergedColumns, SortedColumns},
         reduction::{Clearing, Standard},
     };
 
@@ -191,13 +191,26 @@ mod tests {
         out
     }
 
-    /// Every algorithm, representing columns with `R`
+    /// Every algorithm, representing columns with `R`, with and without caching columns
     fn algorithms<R: ColumnRepresentation>() -> Vec<Algorithm<'static, R>> {
-        vec![
-            Algorithm::Standard(Standard::new().with_columns(R::default())),
-            Algorithm::Clearing(Clearing::new().with_columns(R::default())),
-            Algorithm::ParallelClearing(Clearing::new().with_columns(R::default()).parallel()),
-        ]
+        [true, false]
+            .into_iter()
+            .flat_map(|cache| {
+                let clearing = Clearing::new()
+                    .with_columns(R::default())
+                    .cache_columns(cache);
+                [
+                    Algorithm::Standard(
+                        Standard::new()
+                            .with_columns(R::default())
+                            .cache_columns(cache),
+                    ),
+                    Algorithm::ParallelClearing(clearing.clone().parallel()),
+                    Algorithm::Clearing(clearing.clone().store_r(true)),
+                    Algorithm::Clearing(clearing),
+                ]
+            })
+            .collect()
     }
 
     /// The example from `examples/reps.py`
@@ -221,6 +234,7 @@ mod tests {
     fn every_method_and_algorithm_agree() {
         every_method_and_algorithm_agree_with::<MergedColumns>();
         every_method_and_algorithm_agree_with::<HeapColumns>();
+        every_method_and_algorithm_agree_with::<SortedColumns>();
     }
 
     fn every_method_and_algorithm_agree_with<R: ColumnRepresentation>() {

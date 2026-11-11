@@ -11,7 +11,7 @@
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 use ordered_float::NotNan;
 use phlite::{
-    columns::HeapColumns,
+    columns::{HeapColumns, SortedColumns},
     fields::Z2,
     matrices::MatrixOracle,
     reduction::{Clearing, ReductionAlgorithm, Storage},
@@ -68,18 +68,37 @@ fn reduction(c: &mut Criterion) {
         let mut group = c.benchmark_group(format!("rips n={n} dim≤{max_dim}"));
         group.sample_size(10);
 
-        group.bench_function("serial", |b| {
-            b.iter(|| black_box(Clearing::new().reduce(&coboundary)))
+        // Storing the reduced columns of R (merged columns, cached)
+        group.bench_function("serial merged store-r", |b| {
+            b.iter(|| black_box(Clearing::new().store_r(true).reduce(&coboundary)))
         });
-        group.bench_function("serial heap", |b| {
-            b.iter(|| {
-                black_box(
-                    Clearing::new()
-                        .with_columns(HeapColumns)
-                        .reduce(&coboundary),
-                )
-            })
-        });
+        // Every column representation, with and without caching columns of the matrix
+        for cache in [true, false] {
+            let suffix = if cache { "cached" } else { "uncached" };
+            group.bench_function(format!("serial merged {suffix}"), |b| {
+                b.iter(|| black_box(Clearing::new().cache_columns(cache).reduce(&coboundary)))
+            });
+            group.bench_function(format!("serial heap {suffix}"), |b| {
+                b.iter(|| {
+                    black_box(
+                        Clearing::new()
+                            .with_columns(HeapColumns)
+                            .cache_columns(cache)
+                            .reduce(&coboundary),
+                    )
+                })
+            });
+            group.bench_function(format!("serial sorted {suffix}"), |b| {
+                b.iter(|| {
+                    black_box(
+                        Clearing::new()
+                            .with_columns(SortedColumns)
+                            .cache_columns(cache)
+                            .reduce(&coboundary),
+                    )
+                })
+            });
+        }
         for (name, storage) in storages() {
             for threads in THREADS {
                 let pool = rayon::ThreadPoolBuilder::new()

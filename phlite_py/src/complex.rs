@@ -37,7 +37,20 @@ pub const MAX_DIMENSION: u32 = u16::MAX as u32;
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Cell(pub u32);
 
-impl BasisElement for Cell {}
+// Cells are numbered 0, ..., n - 1, so the reductions can keep their state in vectors rather than hash maps
+impl BasisElement for Cell {
+    const DENSE_INDEX: bool = true;
+
+    #[inline]
+    fn dense_index(&self) -> usize {
+        self.idx()
+    }
+
+    #[inline]
+    fn from_dense_index(index: usize) -> Self {
+        Cell(index as u32)
+    }
+}
 
 impl Cell {
     #[inline]
@@ -152,6 +165,32 @@ impl<'a, CF: IntField> HasRowFiltration for View<'a, CF> {
     fn column_min(&self, col: Cell) -> Option<ColumnEntry<NotNan<f64>, Cell, CF>> {
         let range = self.matrix.range(col);
         (!range.is_empty()).then(|| self.entry(self.matrix, range.end - 1))
+    }
+
+    // Columns are stored sorted, so the reductions can add them without sorting
+    fn sorted_column(
+        &self,
+        col: Cell,
+    ) -> Option<impl Iterator<Item = ColumnEntry<NotNan<f64>, Cell, CF>>> {
+        let view = *self;
+        Some(
+            self.matrix
+                .range(col)
+                .map(move |i| view.entry(view.matrix, i)),
+        )
+    }
+
+    fn sorted_column_ascending(
+        &self,
+        col: Cell,
+    ) -> Option<impl Iterator<Item = ColumnEntry<NotNan<f64>, Cell, CF>>> {
+        let view = *self;
+        Some(
+            self.matrix
+                .range(col)
+                .rev()
+                .map(move |i| view.entry(view.matrix, i)),
+        )
     }
 
     // Column `row` of the transpose lists the columns with an entry in `row`, also in decreasing filtration order
@@ -739,6 +778,38 @@ mod tests {
         let complex = build::<Z2>(triangle(), values).unwrap();
         let bars = complex.barcode(None, Method::Cohomology, Algorithm::default(), false);
         assert_eq!(summary(bars), vec![(0, None), (3, None), (6, Some(7))]);
+    }
+
+    /// `sorted_column` (and its ascending version) give each column in exactly the order the reductions rely on,
+    /// including through `reverse()`, which is how cohomology is computed
+    #[test]
+    fn sorted_columns_are_sorted() {
+        fn check<M: HasRowFiltration>(matrix: M, cols: impl Iterator<Item = M::ColT>)
+        where
+            M::ColT: Clone,
+            M::RowT: std::fmt::Debug,
+        {
+            for col in cols {
+                let mut expected: Vec<_> = matrix.column_with_filtration(col.clone()).collect();
+                expected.sort_by(|a, b| b.cmp(a));
+                let rows = |entries: Vec<ColumnEntry<_, M::RowT, _>>| {
+                    entries.into_iter().map(|e| e.row_index).collect::<Vec<_>>()
+                };
+                let descending: Vec<_> = matrix.sorted_column(col.clone()).unwrap().collect();
+                let mut ascending: Vec<_> = matrix.sorted_column_ascending(col).unwrap().collect();
+                ascending.reverse();
+                assert_eq!(rows(descending), rows(expected.clone()));
+                assert_eq!(rows(ascending), rows(expected));
+            }
+        }
+        // Values out of index order, so that filtration order and index order differ
+        let values = vec![0.0, 2.0, 1.0, 5.0, 2.0, 3.0, 2.5, 4.0];
+        let complex = build::<Z2>(triangle(), Some(values)).unwrap();
+        let cells = || (0..8).map(Cell);
+        check(complex.boundary(), cells());
+        check(complex.coboundary(), cells());
+        check(complex.boundary().reverse(), cells().map(Reverse));
+        check(complex.coboundary().reverse(), cells().map(Reverse));
     }
 
     #[test]

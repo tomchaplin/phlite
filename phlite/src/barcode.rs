@@ -402,7 +402,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::columns::HeapColumns;
+    use crate::columns::{HeapColumns, SortedColumns};
     use crate::{
         fields::Z2,
         matrices::{implementors::SimpleZ2Matrix, SplitBasis},
@@ -450,13 +450,27 @@ mod tests {
     }
 
     /// Every algorithm, representing columns with `R`
+    /// Every algorithm representing columns with `R`, with and without caching columns
     fn algorithms<R: ColumnRepresentation>() -> Vec<Algorithm<'static, R>> {
-        vec![
-            Algorithm::Standard(Standard::new().with_columns(R::default())),
-            Algorithm::Clearing(Clearing::new().with_columns(R::default())),
-            #[cfg(feature = "parallel")]
-            Algorithm::ParallelClearing(Clearing::new().with_columns(R::default()).parallel()),
-        ]
+        [true, false]
+            .into_iter()
+            .flat_map(|cache| {
+                let clearing = Clearing::new()
+                    .with_columns(R::default())
+                    .cache_columns(cache);
+                vec![
+                    Algorithm::Standard(
+                        Standard::new()
+                            .with_columns(R::default())
+                            .cache_columns(cache),
+                    ),
+                    #[cfg(feature = "parallel")]
+                    Algorithm::ParallelClearing(clearing.clone().parallel()),
+                    Algorithm::Clearing(clearing.clone().store_r(true)),
+                    Algorithm::Clearing(clearing),
+                ]
+            })
+            .collect()
     }
 
     fn rep_cells(bar: &Bar<usize, usize, Z2>) -> Vec<usize> {
@@ -475,6 +489,7 @@ mod tests {
     fn homology_and_cohomology_agree() {
         homology_and_cohomology_agree_with::<MergedColumns>();
         homology_and_cohomology_agree_with::<HeapColumns>();
+        homology_and_cohomology_agree_with::<SortedColumns>();
     }
 
     fn homology_and_cohomology_agree_with<R: ColumnRepresentation>() {
@@ -601,13 +616,15 @@ mod tests {
         let delta = (&delta).with_transpose(&b);
         let anti = (&delta).reverse();
 
-        fn check<T: std::hash::Hash + Eq + Clone + std::fmt::Debug>(
-            full: &Diagram<T>,
-            skipped: &Diagram<T>,
-            context: &str,
-        ) {
+        fn check<T: Eq + std::fmt::Debug>(full: &Diagram<T>, skipped: &Diagram<T>, context: &str) {
             assert_eq!(skipped.essential, full.essential, "{context}");
-            assert!(skipped.pairings.is_subset(&full.pairings), "{context}");
+            assert!(
+                skipped
+                    .pairings
+                    .iter()
+                    .all(|pair| full.pairings.contains(pair)),
+                "{context}"
+            );
         }
 
         // Dimensions beyond the matrix (3 and up) are ignored
@@ -625,13 +642,18 @@ mod tests {
                 .clone()
                 .skip_zero_apparent_pairs(false)
                 .reduce(d)
-                .diagram;
+                .diagram
+                .sorted();
             assert_eq!(full.essential, Standard::new().reduce(d).diagram.essential);
-            check(&full, &clearing.clone().reduce(d).diagram, &context);
+            check(
+                &full,
+                &clearing.clone().reduce(d).diagram.sorted(),
+                &context,
+            );
             #[cfg(feature = "parallel")]
             check(
                 &full,
-                &clearing.clone().parallel().reduce(d).diagram,
+                &clearing.clone().parallel().reduce(d).diagram.sorted(),
                 &context,
             );
             // And the anti-transposed coboundary, as used for cohomology
@@ -639,12 +661,17 @@ mod tests {
                 .clone()
                 .skip_zero_apparent_pairs(false)
                 .reduce(anti)
-                .diagram;
-            check(&full, &clearing.clone().reduce(anti).diagram, &context);
+                .diagram
+                .sorted();
+            check(
+                &full,
+                &clearing.clone().reduce(anti).diagram.sorted(),
+                &context,
+            );
             #[cfg(feature = "parallel")]
             check(
                 &full,
-                &clearing.clone().parallel().reduce(anti).diagram,
+                &clearing.clone().parallel().reduce(anti).diagram.sorted(),
                 &context,
             );
         }

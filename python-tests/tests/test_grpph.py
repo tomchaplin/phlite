@@ -18,6 +18,9 @@ ALGORITHMS = [
     phlite_grpph.Algorithm.serial(),
     phlite_grpph.Algorithm.parallel(),
     phlite_grpph.Algorithm.parallel().with_storage("lock-free"),
+    phlite_grpph.Algorithm.clearing().with_store_r(),
+    # The other representation and caching from this package's default
+    phlite_grpph.Algorithm.serial().with_columns("heap").with_cache(False),
 ]
 INF = math.inf
 
@@ -131,3 +134,10 @@ def test_networkx_input_matches_integer_input(graph, data):
     ]:
         relabelled = [[[tuple(nodes[v] for v in cell) for cell in rep] for rep in dim] for dim in reps_ints]
         assert reps_graph == relabelled
+
+
+def test_default_columns():
+    """Each package's presets use its own column representation and caching."""
+    for algorithm in [phlite_grpph.Algorithm.serial(), phlite_grpph.Algorithm.parallel(), phlite_grpph.Algorithm.standard()]:
+        assert not algorithm.store_r
+        assert (algorithm.columns, algorithm.cache) == ('merged', True)

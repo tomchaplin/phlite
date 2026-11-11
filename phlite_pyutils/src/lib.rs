@@ -4,7 +4,8 @@
 //!   Take the `algorithm` argument as `Option<Bound<'_, AlgorithmConfig>>`, defaulting to
 //!   [`AlgorithmConfig::default`] (`Algorithm.serial()`), and call [`AlgorithmConfig::run`] with an
 //!   [`AlgorithmVisitor`] to run the configured [`phlite::barcode::Algorithm`]. Add the class to your module with
-//!   [`add_algorithm_class`].
+//!   [`add_algorithm_class`], which also sets the module's default column representation and caching
+//!   ([`AlgorithmDefaults`]).
 //! * [`parse_method`] reads the `method` argument.
 //! * [`Barcode`] is the Python result type, built from a list of [`Bar`]s via [`SortedBars`].
 //!   Add it to your module with [`add_barcode_class`].
@@ -12,7 +13,7 @@
 use ordered_float::NotNan;
 use phlite::{
     barcode::{Algorithm, Bar, Method},
-    columns::{ColumnRepresentation, HeapColumns, MergedColumns},
+    columns::{ColumnRepresentation, HeapColumns, MergedColumns, SortedColumns},
     reduction::{Clearing, Standard, Storage},
 };
 use pyo3::{
@@ -35,10 +36,47 @@ enum Kind {
     ParallelClearing,
 }
 
+/// The column representations, see [`phlite::columns::ColumnRepresentation`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum Columns {
+pub enum Columns {
+    /// [`MergedColumns`]
     Merged,
+    /// [`HeapColumns`]
     Heap,
+    /// [`SortedColumns`]
+    Sorted,
+}
+
+/// The column representation, caching and storage of R that a module's presets use, given to
+/// [`add_algorithm_class`].
+///
+/// The best choice depends on the matrix (see the benchmarks): columns that are expensive to compute favour caching,
+/// cheap ones favour recomputing them and saving the memory, and storing R pays off when columns need many additions.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct AlgorithmDefaults {
+    pub columns: Columns,
+    pub cache: bool,
+    /// Only applies to serial clearing (the other algorithms don't support it).
+    pub store_r: bool,
+}
+
+impl Default for AlgorithmDefaults {
+    /// Merged columns, cached, not storing R: phlite's own default.
+    fn default() -> Self {
+        Self {
+            columns: Columns::Merged,
+            cache: true,
+            store_r: false,
+        }
+    }
+}
+
+/// Set once per extension module by [`add_algorithm_class`]. Each extension module links its own copy of this crate,
+/// so each has its own defaults.
+static DEFAULTS: std::sync::OnceLock<AlgorithmDefaults> = std::sync::OnceLock::new();
+
+fn defaults() -> AlgorithmDefaults {
+    DEFAULTS.get().copied().unwrap_or_default()
 }
 
 impl Columns {
@@ -46,6 +84,7 @@ impl Columns {
         match self {
             Self::Merged => "merged",
             Self::Heap => "heap",
+            Self::Sorted => "sorted",
         }
     }
 }
@@ -77,6 +116,8 @@ fn storage_name(storage: Storage) -> &'static str {
 pub struct AlgorithmConfig {
     kind: Kind,
     columns: Columns,
+    cache: bool,
+    store_r: bool,
     skip_zero_apparent_pairs: bool,
     dimension_order: Option<Vec<usize>>,
     storage: Storage,
@@ -94,9 +135,16 @@ pub trait AlgorithmVisitor: Send {
 
 impl AlgorithmConfig {
     fn base(kind: Kind) -> Self {
+        let AlgorithmDefaults {
+            columns,
+            cache,
+            store_r,
+        } = defaults();
         Self {
             kind,
-            columns: Columns::Merged,
+            columns,
+            cache,
+            store_r: store_r && kind == Kind::Clearing,
             // The barcode omits zero-length bars anyway, so there's no point recording them
             skip_zero_apparent_pairs: kind != Kind::Standard,
             dimension_order: None,
@@ -123,11 +171,15 @@ impl AlgorithmConfig {
         match self.columns {
             Columns::Merged => self.run_with(MergedColumns, visitor),
             Columns::Heap => self.run_with(HeapColumns, visitor),
+            Columns::Sorted => self.run_with(SortedColumns, visitor),
         }
     }
 
     fn build_clearing<R: ColumnRepresentation>(&self, columns: R) -> Clearing<R> {
-        let mut clearing = Clearing::new().with_columns(columns);
+        let mut clearing = Clearing::new()
+            .with_columns(columns)
+            .cache_columns(self.cache)
+            .store_r(self.store_r);
         // (`mut` for the dimension order)
         if let Some(order) = &self.dimension_order {
             clearing = clearing.with_dimension_order(order.iter().copied());
@@ -141,9 +193,11 @@ impl AlgorithmConfig {
         visitor: V,
     ) -> PyResult<V::Output> {
         match self.kind {
-            Kind::Standard => {
-                Ok(visitor.visit(Algorithm::Standard(Standard::new().with_columns(columns))))
-            }
+            Kind::Standard => Ok(visitor.visit(Algorithm::Standard(
+                Standard::new()
+                    .with_columns(columns)
+                    .cache_columns(self.cache),
+            ))),
             Kind::Clearing => Ok(visitor.visit(Algorithm::Clearing(self.build_clearing(columns)))),
             Kind::ParallelClearing => {
                 let algorithm = self
@@ -211,23 +265,71 @@ impl AlgorithmConfig {
         Self::base(Kind::ParallelClearing)
     }
 
-    /// How the column being reduced is represented: `'merged'` (the default) or `'heap'`.
+    /// How the column being reduced is represented: `'merged'`, `'heap'` or `'sorted'`. The presets use `'merged'`,
+    /// except in `phlite_rips`, which uses `'heap'`. Every choice gives the same barcode; only time and memory differ.
+    ///
+    /// Reducing a column means repeatedly finding its pivot (largest entry) and adding other columns to cancel it.
+    ///
+    /// * `'merged'` never builds the column: it merges the columns added lazily, with one heap slot per column added,
+    ///   so it never reads anything below the pivot. The safe choice, fast on every kind of matrix tried.
+    /// * `'heap'` pushes every entry of every column added onto one heap. No sorting, so it is good when the columns
+    ///   added are short and few (e.g. Vietoris–Rips cohomology), but slows down when many entries are added.
+    /// * `'sorted'` keeps the column as one sorted vector and merges each batch of added columns into it. The fastest
+    ///   when the columns added stay near the pivot (typically homology of simplicial or cell complexes, about 1.5×
+    ///   faster than `'merged'`), but very slow when they reach far below it (15–35× slower on GrPPH or the cohomology
+    ///   of cubical complexes). Measure before using it.
     fn with_columns(
         &self,
-        #[gen_stub(override_type(type_repr = "typing.Literal['merged', 'heap']", imports = ("typing")))]
+        #[gen_stub(override_type(type_repr = "typing.Literal['merged', 'heap', 'sorted']", imports = ("typing")))]
         columns: &str,
     ) -> PyResult<Self> {
         let columns = match columns {
             "merged" => Columns::Merged,
             "heap" => Columns::Heap,
+            "sorted" => Columns::Sorted,
             other => {
                 return Err(PyValueError::new_err(format!(
-                    "Unknown columns {other:?}, expected 'merged' or 'heap'"
+                    "Unknown columns {other:?}, expected 'merged', 'heap' or 'sorted'"
                 )))
             }
         };
         Ok(Self {
             columns,
+            ..self.clone()
+        })
+    }
+
+    /// Whether to cache the columns of the boundary matrix as they are added during the reduction. The presets
+    /// cache, except in `phlite_rips`, whose columns are cheap to recompute.
+    ///
+    /// Caching saves recomputing (and re-sorting) a column every time it is added, which pays off when columns are
+    /// expensive to compute (about 3× faster for GrPPH), but keeps every column needed in a dimension in memory
+    /// until that dimension is done (most of the memory for Vietoris–Rips). For `phlite.ChainComplex`, whose columns
+    /// are stored sorted, it only saves copying them: about 10% faster on cell complexes, but about 20% slower on
+    /// cubical complexes, whose columns are short.
+    #[pyo3(signature = (cache = true))]
+    fn with_cache(&self, cache: bool) -> Self {
+        Self {
+            cache,
+            ..self.clone()
+        }
+    }
+
+    /// Whether to keep each reduced column of R = D V and add it directly when cancelling a pivot, rather than
+    /// recompute it from V (serial clearing only). The presets store R in `phlite`, but not in `phlite_rips` or
+    /// `phlite_grpph`, where almost every column is an apparent pair and needs no reduction.
+    ///
+    /// Only V is stored by default, so cancelling a pivot with an earlier column j adds one column of the boundary
+    /// matrix for every term of V_j. Storing R (as PHAT does) adds R_j as one column instead, which pays off when V_j
+    /// gets long, as in dense or cubical complexes, at the cost of memory for the stored columns. Vietoris–Rips
+    /// cohomology, where almost every pair needs no reduction, gains little.
+    #[pyo3(signature = (store = true))]
+    fn with_store_r(&self, store: bool) -> PyResult<Self> {
+        if store {
+            self.require(&[Kind::Clearing], "store_r")?;
+        }
+        Ok(Self {
+            store_r: store,
             ..self.clone()
         })
     }
@@ -318,10 +420,22 @@ impl AlgorithmConfig {
         }
     }
 
-    /// `'merged'` or `'heap'`.
+    /// `'merged'`, `'heap'` or `'sorted'`.
     #[getter]
     fn columns(&self) -> &'static str {
         self.columns.name()
+    }
+
+    /// Whether columns of the boundary matrix are cached.
+    #[getter]
+    fn cache(&self) -> bool {
+        self.cache
+    }
+
+    /// Whether reduced columns of R are stored (serial clearing only).
+    #[getter]
+    fn store_r(&self) -> bool {
+        self.store_r
     }
 
     /// Whether zero-length apparent pairs are skipped.
@@ -362,6 +476,15 @@ impl AlgorithmConfig {
         if self.columns != default.columns {
             out += &format!(".with_columns({:?})", self.columns.name());
         }
+        if self.cache != default.cache {
+            out += &format!(".with_cache({})", if self.cache { "True" } else { "False" });
+        }
+        if self.store_r != default.store_r {
+            out += &format!(
+                ".with_store_r({})",
+                if self.store_r { "True" } else { "False" }
+            );
+        }
         if self.skip_zero_apparent_pairs != default.skip_zero_apparent_pairs {
             out += &format!(
                 ".with_skip_zero_apparent_pairs({})",
@@ -385,8 +508,14 @@ impl AlgorithmConfig {
     }
 }
 
-/// Add the `Algorithm` class to your module, as `public_module.Algorithm`.
-pub fn add_algorithm_class(m: &Bound<'_, PyModule>, public_module: &str) -> PyResult<()> {
+/// Add the `Algorithm` class to your module, as `public_module.Algorithm`, whose presets use `defaults`.
+pub fn add_algorithm_class(
+    m: &Bound<'_, PyModule>,
+    public_module: &str,
+    defaults: AlgorithmDefaults,
+) -> PyResult<()> {
+    // Only the first call counts (a module is initialised once per process)
+    let _ = DEFAULTS.set(defaults);
     m.add_class::<AlgorithmConfig>()?;
     m.getattr("Algorithm")?
         .setattr("__module__", public_module)?;

@@ -1,10 +1,72 @@
 //! Representations of matrix columns as linear combinations with ordered terms, whose leading term (the pivot) can be extracted.
 //!
-//! * [`BHCol`] stores every term in a heap.
-//! * [`MergeCol`] lazily merges sorted runs of terms ([`SortedRun`]s), keeping one heap slot per run.
+//! The reduction algorithms reduce one column `R_i = D V_i` at a time: they repeatedly find its pivot (its largest
+//! term, by filtration value and then row), look for an earlier column with the same pivot, and if there is one, add a
+//! multiple of that column `R_j = D V_j` to cancel it. Since only `V` is stored, adding `R_j` means adding each column of
+//! `D` that makes it up. So a working column needs two operations: *add a column of `D`*, and *pop the pivot*. How it
+//! does them is its [`ColumnRepresentation`], chosen with `with_columns` on the algorithm
+//! (e.g. [`Clearing::with_columns`](crate::reduction::Clearing::with_columns)). Every representation gives the same
+//! result; only the time and memory differ.
 //!
-//! The reduction algorithms are generic over how they represent the column `R_i = D V_i` that they are reducing,
-//! via the [`ColumnRepresentation`] trait. The default, [`MergedColumns`], uses [`MergeCol`]s and [`HeapColumns`] uses [`BHCol`]s.
+//! # The representations
+//!
+//! **[`MergedColumns`] (the default)** never builds the working column. It keeps a list of the columns of `D` added so
+//! far, each sorted largest first, and a small heap with one cursor into each. Popping the pivot takes the largest
+//! cursor, sums in any other cursors on the same row, and moves them along. Adding a column pushes one cursor.
+//! Nothing below the pivot is ever read, and the heap has one slot per column added rather than one per term, so it
+//! stays small and in cache.
+//! * Good when reduced columns get long, or the columns added have many terms far below the pivot: it is the only
+//!   representation that does well on every matrix we have tried, which is why it is the default.
+//! * Each column of `D` must be sorted before it is added (see [caching](#caching-columns-of-d) and
+//!   [`sorted_column`](crate::matrices::HasRowFiltration::sorted_column)), and each step of the pivot search is a heap
+//!   operation.
+//!
+//! **[`HeapColumns`]** pushes every term of every column added onto one heap ([`BHCol`]), and pops terms off the top,
+//! summing those with the same row. This is the classic approach.
+//! * Good when the columns of `D` are short and few are added per column: there is no sorting at all, and a push or
+//!   pop on a small heap is cheap. On Vietoris–Rips cohomology it matches [`MergedColumns`], with less memory.
+//! * Bad when many terms are added: the heap holds every term, cancelled or not, including all those below the
+//!   eventual pivot, and once it outgrows the cache every operation slows down.
+//!
+//! **[`SortedColumns`]** builds the working column as one vector, sorted ascending so the pivot is the last entry.
+//! Columns added are collected unsorted, then at the next pivot query sorted together (they are usually few and
+//! short) and merged into the vector, starting from their smallest entry: entries of the vector below that stay put,
+//! and the rest are rewritten. Popping the pivot is then just taking the last entry.
+//! * Good when the columns added stay close to the pivot, so each merge only rewrites the top of the vector. This is
+//!   typical of homology (boundary matrices) of simplicial and cell complexes, where it is the fastest representation
+//!   (about 1.5× faster than [`MergedColumns`] on Rips homology), and of small dense matrices.
+//! * Bad, sometimes very bad, when the columns added reach far below the pivot: each addition then rewrites nearly the
+//!   whole working column, so the cost grows with its length. On GrPPH and on the cohomology of cubical complexes
+//!   it is 15–35× slower than [`MergedColumns`]. Only use it when you have measured it on your matrices.
+//!
+//! # Caching columns of `D`
+//!
+//! Separately from the representation, the algorithms can keep each column of `D` the first time it is added, sorted,
+//! in a [`ColumnCache`] shared by every column of that dimension (`cache_columns` on the algorithm, e.g.
+//! [`Clearing::cache_columns`](crate::reduction::Clearing::cache_columns); on by default). Later additions of the same
+//! column then neither recompute nor re-sort it.
+//! * Worth it when columns are expensive to compute: on GrPPH, whose coboundary enumerates path cofaces of a digraph,
+//!   caching makes [`MergedColumns`] about 3× faster.
+//! * Not worth it when columns are cheap: the cache holds every column needed in a dimension until the dimension is
+//!   done, which for Vietoris–Rips is most of the memory the reduction uses (23 MB rather than 5 MB for 400 points),
+//!   and looking a column up costs about as much as recomputing it.
+//! * Less useful when the matrix stores its columns sorted and says so, via
+//!   [`sorted_column`](crate::matrices::HasRowFiltration::sorted_column) (as for explicit matrices in `phlite_py`):
+//!   columns are then never sorted, only copied into the working column, and the cache saves just that copy. That
+//!   helps when columns are long (about 10% on cell complexes) and costs a little when they are short (about 20% on
+//!   cubical complexes, where looking a column up costs more than copying it).
+//!
+//! # Choosing
+//!
+//! Start with the default. If memory matters and your columns are cheap to compute, try turning caching off, and
+//! [`HeapColumns`] if columns of `D` are short. Try [`SortedColumns`] for homology of explicit complexes. The
+//! benchmarks in the repository (`python-tests/BENCHMARKS.md`) compare every combination on several kinds of matrix.
+//!
+//! # The column types
+//!
+//! * [`BHCol`] stores every term in a heap.
+//! * [`MergeCol`] lazily merges sorted runs of terms, keeping one heap slot per run.
+//! * [`SortedCol`] keeps its terms in a sorted vector.
 //!
 //! Most of the content of this module is an implementation detail of the reduction algorithms and is likely to change in the future.
 //! Unless you wish to access pivots of matrices yourself, or to plug a different column representation into the
@@ -286,12 +348,22 @@ pub fn sorted_run<FilT: FiltrationValue, RowT: BasisElement, CF: NonZeroCoeffici
 }
 
 /// A position in a [`SortedRun`] being merged into a [`MergeCol`], ordered by its current `head` entry.
+/// Where the entries after a [`Cursor`]'s head are.
+enum Run<FilT: FiltrationValue, RowT: BasisElement, CF> {
+    /// Nowhere: the cursor is a single entry
+    Single,
+    /// A run shared with other columns (from a [`ColumnCache`])
+    Shared(SortedRun<FilT, RowT, CF>),
+    /// The column's own arena, up to (but not including) index `end`
+    Arena { end: usize },
+}
+
 struct Cursor<FilT: FiltrationValue, RowT: BasisElement, CF> {
     /// The current entry of the run, already multiplied by `multiple`
     head: ColumnEntry<FilT, RowT, CF>,
-    /// The rest of the run, or `None` for a single entry
-    run: Option<SortedRun<FilT, RowT, CF>>,
-    /// Index into `run` of the entry after `head`
+    /// Where the rest of the run is
+    run: Run<FilT, RowT, CF>,
+    /// Index (into the shared run, or into the column's arena) of the entry after `head`
     next: usize,
     multiple: CF,
 }
@@ -313,19 +385,25 @@ impl<FilT: FiltrationValue, RowT: BasisElement, CF> Ord for Cursor<FilT, RowT, C
     }
 }
 
-/// A linear combination of [`SortedRun`]s, whose terms are produced in descending order by lazily merging the runs.
+/// A linear combination of sorted runs of terms, whose terms are produced in descending order by lazily merging the runs.
 ///
 /// This plays the same role as [`BHCol`], but the heap holds one cursor per summand rather than one slot per entry.
 /// When columns are long, the heap of a [`BHCol`] can grow to millions of entries, while this heap stays small enough to
 /// remain in cache. Moreover entries below the eventual pivot are never touched.
+///
+/// A run is either a [`SortedRun`] shared with other columns (see [`add_run`](Self::add_run)), or copied into this
+/// column's own arena (see [`add_sorted`](Self::add_sorted) and [`add_unsorted`](Self::add_unsorted)), which grows as
+/// needed and is freed with the column, so adding a run allocates nothing on average.
 pub struct MergeCol<FilT: FiltrationValue, RowT: BasisElement, CF> {
     heap: Heap<Cursor<FilT, RowT, CF>>,
+    arena: Vec<ColumnEntry<FilT, RowT, CF>>,
 }
 
 impl<FilT: FiltrationValue, RowT: BasisElement, CF> Default for MergeCol<FilT, RowT, CF> {
     fn default() -> Self {
         Self {
             heap: Heap::default(),
+            arena: Vec::new(),
         }
     }
 }
@@ -338,8 +416,65 @@ impl<FilT: FiltrationValue, RowT: BasisElement, CF: NonZeroCoefficient> MergeCol
         };
         self.heap.push(Cursor {
             head: head * multiple,
-            run: Some(run),
+            run: Run::Shared(run),
             next: skip + 1,
+            multiple,
+        });
+    }
+
+    /// Add `multiple` times `entries`, which must be largest first with each row at most once.
+    pub fn add_sorted(
+        &mut self,
+        entries: impl IntoIterator<Item = ColumnEntry<FilT, RowT, CF>>,
+        multiple: CF,
+    ) {
+        let start = self.arena.len();
+        self.arena.extend(entries);
+        self.push_arena_run(start, multiple);
+    }
+
+    /// Add `multiple` times `entries`, in any order: they are sorted (and repeated rows summed) in the arena.
+    pub fn add_unsorted(
+        &mut self,
+        entries: impl IntoIterator<Item = ColumnEntry<FilT, RowT, CF>>,
+        multiple: CF,
+    ) {
+        let start = self.arena.len();
+        self.arena.extend(entries);
+        let run = &mut self.arena[start..];
+        run.sort_unstable_by(|a, b| b.cmp(a));
+        // Sum repeated rows in place (they are now adjacent), dropping those that cancel
+        let mut write = start;
+        let mut read = start;
+        while read < self.arena.len() {
+            let mut sum = Some(self.arena[read].coeff);
+            let mut next = read + 1;
+            while next < self.arena.len() && self.arena[next] == self.arena[read] {
+                sum = self.arena[next].coeff + sum;
+                next += 1;
+            }
+            if let Some(coeff) = sum {
+                self.arena.swap(write, read);
+                self.arena[write].coeff = coeff;
+                write += 1;
+            }
+            read = next;
+        }
+        self.arena.truncate(write);
+        self.push_arena_run(start, multiple);
+    }
+
+    /// Push a cursor for the run of the arena from `start` to its end.
+    fn push_arena_run(&mut self, start: usize, multiple: CF) {
+        let Some(head) = self.arena.get(start).cloned() else {
+            return;
+        };
+        self.heap.push(Cursor {
+            head: head * multiple,
+            run: Run::Arena {
+                end: self.arena.len(),
+            },
+            next: start + 1,
             multiple,
         });
     }
@@ -348,7 +483,7 @@ impl<FilT: FiltrationValue, RowT: BasisElement, CF: NonZeroCoefficient> MergeCol
     pub fn add_entry(&mut self, entry: ColumnEntry<FilT, RowT, CF>) {
         self.heap.push(Cursor {
             head: entry,
-            run: None,
+            run: Run::Single,
             next: 0,
             multiple: CF::one(),
         });
@@ -361,13 +496,13 @@ impl<FilT: FiltrationValue, RowT: BasisElement, CF: NonZeroCoefficient> MergeCol
             let top = self.heap.peek_mut()?;
             let pivot = top.head.clone();
             let mut sum = Some(pivot.coeff);
-            Self::advance(top);
+            Self::advance(top, &self.arena);
             while let Some(top) = self.heap.peek_mut() {
                 if top.head.row_index != pivot.row_index {
                     break;
                 }
                 sum = top.head.coeff + sum;
-                Self::advance(top);
+                Self::advance(top, &self.arena);
             }
             if let Some(coeff) = sum {
                 return Some(ColumnEntry { coeff, ..pivot });
@@ -376,8 +511,16 @@ impl<FilT: FiltrationValue, RowT: BasisElement, CF: NonZeroCoefficient> MergeCol
     }
 
     /// Move the top cursor onto the next entry of its run, removing it if the run is exhausted.
-    fn advance(mut top: dary_heap::PeekMut<'_, Cursor<FilT, RowT, CF>, 4>) {
-        if let Some(entry) = top.run.as_ref().and_then(|run| run.get(top.next)).cloned() {
+    fn advance(
+        mut top: dary_heap::PeekMut<'_, Cursor<FilT, RowT, CF>, 4>,
+        arena: &[ColumnEntry<FilT, RowT, CF>],
+    ) {
+        let next = match &top.run {
+            Run::Single => None,
+            Run::Shared(run) => run.get(top.next),
+            Run::Arena { end } => (top.next < *end).then(|| &arena[top.next]),
+        };
+        if let Some(entry) = next.cloned() {
             let multiple = top.multiple;
             top.head = entry * multiple;
             top.next += 1;
@@ -418,6 +561,13 @@ pub trait WorkingColumn<FilT: FiltrationValue, RowT: BasisElement, CF> {
         let pivot = self.pop_pivot()?;
         self.add_entry(pivot.clone());
         Some(pivot)
+    }
+
+    /// Remove every remaining non-zero term, largest first (summing terms with the same row), onto the end of `out`.
+    fn drain_into(&mut self, out: &mut Vec<ColumnEntry<FilT, RowT, CF>>) {
+        while let Some(entry) = self.pop_pivot() {
+            out.push(entry);
+        }
     }
 }
 
@@ -465,23 +615,48 @@ impl<T: NonZeroCoefficient + Send + Sync> ColumnCoefficient for T {}
 ///
 /// A representation is a cheap value holding only its configuration.
 /// Each column is a [`Column`](Self::Column), which only ever changes by having a term or a multiple of a column of `D` added to it,
-/// see [`add_matrix_column`](Self::add_matrix_column). That method can use a [`Cache`](Self::Cache), which the algorithms create
-/// once per dimension and share between all of the columns reduced in that dimension (across threads, for the parallel algorithm).
+/// see [`add_matrix_column`](Self::add_matrix_column). Columns of `D` come either straight from the matrix, in whatever
+/// order it gives them ([`add_entries`](Self::add_entries)), or sorted from a [`ColumnCache`] ([`add_run`](Self::add_run)).
+/// Whether to cache is a separate choice, made on the algorithm (e.g. [`Clearing::cache_columns`](crate::reduction::Clearing::cache_columns)).
 pub trait ColumnRepresentation: Debug + Clone + Default + Send + Sync {
     /// The working column.
     type Column<FilT: ColumnFiltration, RowT: ColumnRow, CF: ColumnCoefficient>: WorkingColumn<FilT, RowT, CF>
         + Default
         + Send;
 
-    /// State shared by all columns reduced in one dimension, such as a cache of columns of `D`.
-    type Cache<FilT: ColumnFiltration, RowT: ColumnRow, CF: ColumnCoefficient>: Default
-        + Send
-        + Sync;
+    /// Add `multiple` times a column of `D`, given as its entries in any order (with no repeated rows).
+    fn add_entries<FilT: ColumnFiltration, RowT: ColumnRow, CF: ColumnCoefficient>(
+        &self,
+        column: &mut Self::Column<FilT, RowT, CF>,
+        entries: impl Iterator<Item = ColumnEntry<FilT, RowT, CF>>,
+        multiple: CF,
+    );
 
-    /// Add `multiple` times column `k` of `matrix` to `column`.
+    /// Add `multiple` times a column of `D`, given largest first with each row at most once (from
+    /// [`sorted_column`](HasRowFiltration::sorted_column)). By default the same as [`add_entries`](Self::add_entries).
+    fn add_sorted_entries<FilT: ColumnFiltration, RowT: ColumnRow, CF: ColumnCoefficient>(
+        &self,
+        column: &mut Self::Column<FilT, RowT, CF>,
+        entries: impl Iterator<Item = ColumnEntry<FilT, RowT, CF>>,
+        multiple: CF,
+    ) {
+        self.add_entries(column, entries, multiple);
+    }
+
+    /// Add `multiple` times a column of `D`, given sorted (largest first) and consolidated.
+    fn add_run<FilT: ColumnFiltration, RowT: ColumnRow, CF: ColumnCoefficient>(
+        &self,
+        column: &mut Self::Column<FilT, RowT, CF>,
+        run: &SortedRun<FilT, RowT, CF>,
+        multiple: CF,
+    );
+
+    /// Add `multiple` times column `k` of `matrix` to `column`: from `cache` if it is enabled (computing and sorting
+    /// the column the first time it is needed), or else straight from the matrix. Either way, if the matrix gives the
+    /// column already sorted ([`sorted_column`](HasRowFiltration::sorted_column)) it isn't sorted again.
     fn add_matrix_column<M>(
         &self,
-        cache: &Self::Cache<M::FiltrationT, M::RowT, M::CoefficientField>,
+        cache: &ColumnCache<M::FiltrationT, M::RowT, M::CoefficientField>,
         matrix: &M,
         column: &mut Self::Column<M::FiltrationT, M::RowT, M::CoefficientField>,
         k: M::ColT,
@@ -490,92 +665,316 @@ pub trait ColumnRepresentation: Debug + Clone + Default + Send + Sync {
         M: HasRowFiltration + SquareMatrix,
         M::FiltrationT: ColumnFiltration,
         M::RowT: ColumnRow,
-        M::CoefficientField: ColumnCoefficient;
+        M::CoefficientField: ColumnCoefficient,
+    {
+        match &cache.0 {
+            Some(map) => {
+                let run = match map.get(&k) {
+                    Some(run) => run.clone(),
+                    None => {
+                        // Sort outside of the map's lock (so two threads may sort the same column, which is harmless)
+                        let run = match matrix.sorted_column(k.clone()) {
+                            Some(sorted) => sorted.collect(),
+                            None => sorted_run(matrix.column_with_filtration(k.clone())),
+                        };
+                        map.entry(k).or_insert(run).clone()
+                    }
+                };
+                self.add_run(column, &run, multiple);
+            }
+            None => match matrix.sorted_column(k.clone()) {
+                Some(sorted) => self.add_sorted_entries(column, sorted, multiple),
+                None => self.add_entries(column, matrix.column_with_filtration(k), multiple),
+            },
+        }
+    }
 }
 
-/// Represent columns as [`BHCol`]s: every term of every column added is pushed into a heap.
+/// The sorted columns of `D` needed so far in a dimension, keyed by column, or nothing if caching is off.
 ///
-/// This is simple and needs no extra memory, but when the columns being added are long the heap can grow to millions of
-/// terms, so that it no longer fits in cache.
+/// The algorithms create one per dimension (or one for the whole reduction, for [`Standard`](crate::reduction::Standard)),
+/// shared between all of the columns reduced in it, across threads for the parallel algorithm.
+/// Caching saves recomputing and re-sorting columns of `D` that are added many times, which pays off when computing a
+/// column is expensive, at the cost of memory for every column needed.
+pub struct ColumnCache<FilT: FiltrationValue, RowT: BasisElement + Hash, CF>(
+    Option<DashMap<RowT, SortedRun<FilT, RowT, CF>, FxBuild>>,
+);
+
+impl<FilT: FiltrationValue, RowT: BasisElement + Hash, CF> ColumnCache<FilT, RowT, CF> {
+    /// An empty cache, or a disabled one (which caches nothing) if `enabled` is false.
+    pub fn new(enabled: bool) -> Self {
+        Self(enabled.then(DashMap::default))
+    }
+}
+
+/// Represent columns as [`BHCol`]s: every term of every column added is pushed into one heap.
+///
+/// Needs no sorting, so is good when the columns of `D` are short and few are added per column (as for Vietoris–Rips
+/// cohomology). But the heap holds every term added, including those below the eventual pivot, so when many are added
+/// it can outgrow the cache. See the [module docs](self) for how the representations compare.
 #[derive(Debug, Clone, Copy, Default)]
 pub struct HeapColumns;
 
 impl ColumnRepresentation for HeapColumns {
     type Column<FilT: ColumnFiltration, RowT: ColumnRow, CF: ColumnCoefficient> =
         BHCol<FilT, RowT, CF>;
-    type Cache<FilT: ColumnFiltration, RowT: ColumnRow, CF: ColumnCoefficient> = ();
 
-    fn add_matrix_column<M>(
+    fn add_entries<FilT: ColumnFiltration, RowT: ColumnRow, CF: ColumnCoefficient>(
         &self,
-        _cache: &(),
-        matrix: &M,
-        column: &mut BHCol<M::FiltrationT, M::RowT, M::CoefficientField>,
-        k: M::ColT,
-        multiple: M::CoefficientField,
-    ) where
-        M: HasRowFiltration + SquareMatrix,
-        M::FiltrationT: ColumnFiltration,
-        M::RowT: ColumnRow,
-        M::CoefficientField: ColumnCoefficient,
-    {
-        column.add_entries(
-            matrix
-                .column_with_filtration(k)
-                .map(|entry| entry * multiple),
-        );
+        column: &mut BHCol<FilT, RowT, CF>,
+        entries: impl Iterator<Item = ColumnEntry<FilT, RowT, CF>>,
+        multiple: CF,
+    ) {
+        column.add_entries(entries.map(|entry| entry * multiple));
+    }
+
+    fn add_run<FilT: ColumnFiltration, RowT: ColumnRow, CF: ColumnCoefficient>(
+        &self,
+        column: &mut BHCol<FilT, RowT, CF>,
+        run: &SortedRun<FilT, RowT, CF>,
+        multiple: CF,
+    ) {
+        column.add_entries(run.iter().map(|entry| entry.clone() * multiple));
     }
 }
 
 /// Represent columns as [`MergeCol`]s (the default): each column of `D` added is a sorted run, merged lazily.
 ///
-/// Each column of `D` is sorted the first time it is needed in a dimension and then kept (in the [`Cache`](ColumnRepresentation::Cache))
-/// until the end of that dimension, so is never recomputed.
 /// The heap holds one slot per column added rather than one per term, so it stays small enough to remain in cache,
-/// and terms below the eventual pivot are never touched.
-/// This is much faster when reduced columns are long, at the cost of keeping the sorted columns of `D` in memory.
+/// and terms below the eventual pivot are never touched. This is much faster when reduced columns are long, and is the
+/// only representation that does well on every matrix we have tried.
+/// Each column of `D` added must be sorted: with a [`ColumnCache`] that happens once per column and dimension, and
+/// without one, every time the column is added, unless the matrix gives it sorted
+/// ([`sorted_column`](crate::matrices::HasRowFiltration::sorted_column)). See the [module docs](self) for how the
+/// representations compare.
 #[derive(Debug, Clone, Copy, Default)]
 pub struct MergedColumns;
-
-/// The sorted columns of `D` needed so far in a dimension, keyed by column.
-pub struct SortedColumnCache<FilT: FiltrationValue, RowT: BasisElement + Hash, CF>(
-    DashMap<RowT, SortedRun<FilT, RowT, CF>, FxBuild>,
-);
-
-impl<FilT: FiltrationValue, RowT: BasisElement + Hash, CF> Default
-    for SortedColumnCache<FilT, RowT, CF>
-{
-    fn default() -> Self {
-        Self(DashMap::default())
-    }
-}
 
 impl ColumnRepresentation for MergedColumns {
     type Column<FilT: ColumnFiltration, RowT: ColumnRow, CF: ColumnCoefficient> =
         MergeCol<FilT, RowT, CF>;
-    type Cache<FilT: ColumnFiltration, RowT: ColumnRow, CF: ColumnCoefficient> =
-        SortedColumnCache<FilT, RowT, CF>;
 
-    fn add_matrix_column<M>(
+    fn add_entries<FilT: ColumnFiltration, RowT: ColumnRow, CF: ColumnCoefficient>(
         &self,
-        cache: &SortedColumnCache<M::FiltrationT, M::RowT, M::CoefficientField>,
-        matrix: &M,
-        column: &mut MergeCol<M::FiltrationT, M::RowT, M::CoefficientField>,
-        k: M::ColT,
-        multiple: M::CoefficientField,
-    ) where
-        M: HasRowFiltration + SquareMatrix,
-        M::FiltrationT: ColumnFiltration,
-        M::RowT: ColumnRow,
-        M::CoefficientField: ColumnCoefficient,
-    {
-        let run = match cache.0.get(&k) {
-            Some(run) => run.clone(),
-            None => {
-                // Sort outside of the map's lock (so two threads may sort the same column, which is harmless)
-                let run = sorted_run(matrix.column_with_filtration(k.clone()));
-                cache.0.entry(k).or_insert(run).clone()
+        column: &mut MergeCol<FilT, RowT, CF>,
+        entries: impl Iterator<Item = ColumnEntry<FilT, RowT, CF>>,
+        multiple: CF,
+    ) {
+        column.add_unsorted(entries, multiple);
+    }
+
+    fn add_sorted_entries<FilT: ColumnFiltration, RowT: ColumnRow, CF: ColumnCoefficient>(
+        &self,
+        column: &mut MergeCol<FilT, RowT, CF>,
+        entries: impl Iterator<Item = ColumnEntry<FilT, RowT, CF>>,
+        multiple: CF,
+    ) {
+        column.add_sorted(entries, multiple);
+    }
+
+    fn add_run<FilT: ColumnFiltration, RowT: ColumnRow, CF: ColumnCoefficient>(
+        &self,
+        column: &mut MergeCol<FilT, RowT, CF>,
+        run: &SortedRun<FilT, RowT, CF>,
+        multiple: CF,
+    ) {
+        column.add_run(run.clone(), multiple, 0);
+    }
+}
+
+/// A working column stored as a sorted vector, with the terms added since the last pivot query kept unsorted until
+/// they are needed.
+///
+/// `sorted` holds consolidated terms (each row at most once, none zero) in ascending order, so the pivot is the last
+/// entry. Adding a term or a column of `D` only appends to `pending`; [`pop_pivot`](Self::pop_pivot) then sorts
+/// `pending` (typically a handful of entries) and merges it into `sorted`. The merge starts at the smallest pending
+/// entry, so terms of `sorted` below everything added are never moved.
+pub struct SortedCol<FilT: FiltrationValue, RowT: BasisElement, CF> {
+    sorted: Vec<ColumnEntry<FilT, RowT, CF>>,
+    pending: Vec<ColumnEntry<FilT, RowT, CF>>,
+    scratch: Vec<ColumnEntry<FilT, RowT, CF>>,
+}
+
+impl<FilT: FiltrationValue, RowT: BasisElement, CF> Default for SortedCol<FilT, RowT, CF> {
+    fn default() -> Self {
+        Self {
+            sorted: Vec::new(),
+            pending: Vec::new(),
+            scratch: Vec::new(),
+        }
+    }
+}
+
+impl<FilT: FiltrationValue, RowT: BasisElement, CF: NonZeroCoefficient> SortedCol<FilT, RowT, CF> {
+    /// Push `entry` onto `out` (sorted ascending), summing it into the last entry if they share a row.
+    #[inline]
+    fn push_consolidated(
+        out: &mut Vec<ColumnEntry<FilT, RowT, CF>>,
+        entry: ColumnEntry<FilT, RowT, CF>,
+    ) {
+        if let Some(last) = out.last_mut() {
+            if last.row_index == entry.row_index {
+                match entry.coeff + Some(last.coeff) {
+                    Some(coeff) => last.coeff = coeff,
+                    None => {
+                        out.pop();
+                    }
+                }
+                return;
             }
+        }
+        out.push(entry);
+    }
+
+    /// Sort the pending terms and merge them into `sorted`.
+    fn flush(&mut self) {
+        if self.pending.is_empty() {
+            return;
+        }
+        self.pending.sort_unstable();
+        // Terms of `sorted` strictly below every pending term stay where they are
+        let start = self
+            .sorted
+            .partition_point(|entry| *entry < self.pending[0]);
+        self.scratch.clear();
+        {
+            let mut old = self.sorted.drain(start..).peekable();
+            let mut new = self.pending.drain(..).peekable();
+            loop {
+                let take_old = match (old.peek(), new.peek()) {
+                    (Some(a), Some(b)) => a <= b,
+                    (Some(_), None) => true,
+                    (None, Some(_)) => false,
+                    (None, None) => break,
+                };
+                let entry = if take_old { old.next() } else { new.next() }.expect("peeked");
+                Self::push_consolidated(&mut self.scratch, entry);
+            }
+        }
+        self.sorted.append(&mut self.scratch);
+    }
+
+    /// Add a single term. This __need not__ coalesce terms with the same row index.
+    pub fn add_entry(&mut self, entry: ColumnEntry<FilT, RowT, CF>) {
+        self.pending.push(entry);
+    }
+
+    /// Add every term of `entries`.
+    pub fn add_entries(&mut self, entries: impl IntoIterator<Item = ColumnEntry<FilT, RowT, CF>>) {
+        self.pending.extend(entries);
+    }
+
+    /// Remove and return the leading non-zero term of the column (i.e. the column pivot).
+    pub fn pop_pivot(&mut self) -> Option<ColumnEntry<FilT, RowT, CF>> {
+        self.flush();
+        self.sorted.pop()
+    }
+}
+
+impl<FilT: FiltrationValue, RowT: BasisElement, CF: NonZeroCoefficient>
+    WorkingColumn<FilT, RowT, CF> for SortedCol<FilT, RowT, CF>
+{
+    fn add_entry(&mut self, entry: ColumnEntry<FilT, RowT, CF>) {
+        SortedCol::add_entry(self, entry);
+    }
+    fn pop_pivot(&mut self) -> Option<ColumnEntry<FilT, RowT, CF>> {
+        SortedCol::pop_pivot(self)
+    }
+}
+
+/// Represent columns as [`SortedCol`]s: the column being reduced is a sorted vector, and the columns of `D` added
+/// since the last pivot query are sorted together, on the fly, then merged in.
+///
+/// Each merge rewrites the vector from the smallest entry added upwards. So this is the fastest representation when
+/// the columns added stay near the pivot (as for homology of simplicial and cell complexes), but very slow when they
+/// reach far below it (15–35× slower than [`MergedColumns`] on GrPPH, or the cohomology of cubical complexes).
+/// Only use it when you have measured it on your matrices; see the [module docs](self) for how the representations
+/// compare.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct SortedColumns;
+
+impl ColumnRepresentation for SortedColumns {
+    type Column<FilT: ColumnFiltration, RowT: ColumnRow, CF: ColumnCoefficient> =
+        SortedCol<FilT, RowT, CF>;
+
+    fn add_entries<FilT: ColumnFiltration, RowT: ColumnRow, CF: ColumnCoefficient>(
+        &self,
+        column: &mut SortedCol<FilT, RowT, CF>,
+        entries: impl Iterator<Item = ColumnEntry<FilT, RowT, CF>>,
+        multiple: CF,
+    ) {
+        column.add_entries(entries.map(|entry| entry * multiple));
+    }
+
+    fn add_run<FilT: ColumnFiltration, RowT: ColumnRow, CF: ColumnCoefficient>(
+        &self,
+        column: &mut SortedCol<FilT, RowT, CF>,
+        run: &SortedRun<FilT, RowT, CF>,
+        multiple: CF,
+    ) {
+        column.add_entries(run.iter().map(|entry| entry.clone() * multiple));
+    }
+}
+
+#[cfg(test)]
+mod sorted_col_tests {
+    use super::*;
+    use crate::fields::{NonZeroCoefficient, Z3};
+
+    fn entry(row: usize, coeff: Z3) -> ColumnEntry<usize, usize, Z3> {
+        ColumnEntry {
+            filtration_value: row,
+            row_index: row,
+            coeff,
+        }
+    }
+
+    /// SortedCol and MergeCol (with unsorted batches, pre-sorted batches and shared runs) agree with BHCol, given the
+    /// same terms in batches, popping pivots in between
+    #[test]
+    fn matches_bhcol() {
+        let mut state = 12345u64;
+        let mut next = move |m: u64| {
+            state = state
+                .wrapping_mul(6364136223846793005)
+                .wrapping_add(1442695040888963407);
+            (state >> 33) % m
         };
-        column.add_run(run, multiple, 0);
+        let summary = |e: Option<ColumnEntry<usize, usize, Z3>>| e.map(|e| (e.row_index, e.coeff));
+        for _ in 0..500 {
+            let mut sorted = SortedCol::default();
+            let mut merged = MergeCol::default();
+            let mut heap = BHCol::default();
+            for _ in 0..next(6) {
+                let one = Z3::one();
+                let coeff = |c: u64| if c == 0 { one } else { one.additive_inverse() };
+                // A batch, possibly with repeated rows
+                let batch: Vec<_> = (0..next(10))
+                    .map(|_| entry(next(20) as usize, coeff(next(2))))
+                    .collect();
+                let multiple = coeff(next(2));
+                sorted.add_entries(batch.iter().map(|&e| e * multiple));
+                heap.add_entries(batch.iter().map(|&e| e * multiple));
+                // MergeCol gets the batch one of three ways
+                match next(3) {
+                    0 => merged.add_unsorted(batch, multiple),
+                    1 => merged.add_sorted(sorted_run(batch).iter().copied(), multiple),
+                    _ => merged.add_run(sorted_run(batch), multiple, 0),
+                }
+                if next(2) == 0 {
+                    let expected = summary(heap.pop_pivot());
+                    assert_eq!(summary(sorted.pop_pivot()), expected);
+                    assert_eq!(summary(merged.pop_pivot()), expected);
+                }
+            }
+            loop {
+                let expected = summary(heap.pop_pivot());
+                assert_eq!(summary(sorted.pop_pivot()), expected);
+                assert_eq!(summary(merged.pop_pivot()), expected);
+                if expected.is_none() {
+                    break;
+                }
+            }
+        }
     }
 }

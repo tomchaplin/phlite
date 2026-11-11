@@ -15,7 +15,9 @@ use phlite::{
     barcode::Bar as PhliteBar,
     fields::{Z11, Z13, Z2, Z3, Z5, Z7},
 };
-use phlite_pyutils::{add_algorithm_class, parse_method, AlgorithmConfig, AlgorithmVisitor};
+use phlite_pyutils::{
+    add_algorithm_class, parse_method, AlgorithmConfig, AlgorithmDefaults, AlgorithmVisitor,
+};
 use pyo3::{
     exceptions::{PyTypeError, PyValueError},
     prelude::*,
@@ -651,6 +653,15 @@ fn phlite_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<FilteredComplex>()?;
     m.add_class::<Barcode>()?;
     m.add_class::<Bar>()?;
-    add_algorithm_class(m, "phlite")?;
+    add_algorithm_class(
+        m,
+        "phlite",
+        AlgorithmDefaults {
+            // Explicit complexes often need many additions per column (dense or cubical complexes, homology), where
+            // adding stored columns of R is much faster than recomputing them from V
+            store_r: true,
+            ..AlgorithmDefaults::default()
+        },
+    )?;
     Ok(())
 }

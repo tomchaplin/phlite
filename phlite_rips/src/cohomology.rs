@@ -370,18 +370,27 @@ mod tests {
             let full = Clearing::new()
                 .skip_zero_apparent_pairs(false)
                 .reduce(&anti)
-                .diagram;
+                .diagram
+                .sorted();
             for skipped in [
-                Clearing::new().reduce(&anti).diagram,
-                Clearing::new().parallel().reduce(&anti).diagram,
+                Clearing::new().reduce(&anti).diagram.sorted(),
+                Clearing::new().parallel().reduce(&anti).diagram.sorted(),
                 Clearing::new()
                     .skip_zero_apparent_pairs(true)
                     .reduce(&anti)
-                    .diagram,
+                    .diagram
+                    .sorted(),
             ] {
                 assert_eq!(skipped.essential, full.essential);
-                assert!(skipped.pairings.is_subset(&full.pairings));
-                let dropped: Vec<_> = full.pairings.difference(&skipped.pairings).collect();
+                assert!(skipped
+                    .pairings
+                    .iter()
+                    .all(|pair| full.pairings.contains(pair)));
+                let dropped: Vec<_> = full
+                    .pairings
+                    .iter()
+                    .filter(|pair| !skipped.pairings.contains(pair))
+                    .collect();
                 assert!(!dropped.is_empty(), "nothing was skipped");
                 for (row, col) in &full.pairings {
                     let zero = anti.filtration_value(*row) == anti.filtration_value(*col);
@@ -666,13 +675,14 @@ mod tests {
             );
             // Keep every pair, to compare with the standard algorithm
             let full = Clearing::new().skip_zero_apparent_pairs(false);
-            let detected = full.clone().reduce(&coboundary).diagram;
-            let standard = Standard::new().reduce(&coboundary).diagram;
+            let detected = full.clone().reduce(&coboundary).diagram.sorted();
+            let standard = Standard::new().reduce(&coboundary).diagram.sorted();
             // Descending is the wrong way round for a coboundary matrix: no clearing happens, but the diagram is still right
             let wrong_order = full
                 .with_dimension_order((0..=max_dim).rev())
                 .reduce(&coboundary)
-                .diagram;
+                .diagram
+                .sorted();
             for diagram in [&standard, &wrong_order] {
                 assert_eq!(detected.essential, diagram.essential);
                 assert_eq!(detected.pairings, diagram.pairings);
@@ -686,9 +696,13 @@ mod tests {
                 let skipped = Clearing::new()
                     .with_dimension_order(order)
                     .reduce(&coboundary)
-                    .diagram;
+                    .diagram
+                    .sorted();
                 assert_eq!(detected.essential, skipped.essential);
-                assert!(skipped.pairings.is_subset(&detected.pairings));
+                assert!(skipped
+                    .pairings
+                    .iter()
+                    .all(|pair| detected.pairings.contains(pair)));
             }
         }
     }
@@ -700,17 +714,22 @@ mod tests {
         for max_dim in 1..=2 {
             let coboundary = build_rips_coboundary_matrix::<Z2>(distance_matrix(), max_dim);
             let coboundary = coboundary.reverse();
-            let serial = Clearing::new().reduce(&coboundary).diagram;
+            let serial = Clearing::new().reduce(&coboundary).diagram.sorted();
             // Descending is the wrong way round for a coboundary matrix, the diagram should still be right
             let wrong_order = Clearing::new()
                 .with_dimension_order((0..=max_dim).rev())
                 .parallel()
                 .reduce(&coboundary)
-                .diagram;
+                .diagram
+                .sorted();
             assert_eq!(serial.essential, wrong_order.essential);
             assert_eq!(serial.pairings, wrong_order.pairings);
             for _ in 0..20 {
-                let parallel = Clearing::new().parallel().reduce(&coboundary).diagram;
+                let parallel = Clearing::new()
+                    .parallel()
+                    .reduce(&coboundary)
+                    .diagram
+                    .sorted();
                 assert_eq!(serial.essential, parallel.essential);
                 assert_eq!(serial.pairings, parallel.pairings);
                 #[cfg(feature = "lock-free")]
@@ -719,7 +738,8 @@ mod tests {
                         .parallel()
                         .storage(phlite::reduction::Storage::LockFree)
                         .reduce(&coboundary)
-                        .diagram;
+                        .diagram
+                        .sorted();
                     assert_eq!(serial.essential, lock_free.essential);
                     assert_eq!(serial.pairings, lock_free.pairings);
                 }

@@ -34,7 +34,17 @@ class Algorithm:
     @property
     def columns(self) -> builtins.str:
         r"""
-        `'merged'` or `'heap'`.
+        `'merged'`, `'heap'` or `'sorted'`.
+        """
+    @property
+    def cache(self) -> builtins.bool:
+        r"""
+        Whether columns of the boundary matrix are cached.
+        """
+    @property
+    def store_r(self) -> builtins.bool:
+        r"""
+        Whether reduced columns of R are stored (serial clearing only).
         """
     @property
     def skip_zero_apparent_pairs(self) -> builtins.bool:
@@ -84,9 +94,43 @@ class Algorithm:
         Clearing, with the columns of each dimension reduced in parallel.
         Skips zero-length apparent pairs by default, and uses all cores and locking storage.
         """
-    def with_columns(self, columns: typing.Literal['merged', 'heap']) -> Algorithm:
+    def with_columns(self, columns: typing.Literal['merged', 'heap', 'sorted']) -> Algorithm:
         r"""
-        How the column being reduced is represented: `'merged'` (the default) or `'heap'`.
+        How the column being reduced is represented: `'merged'`, `'heap'` or `'sorted'`. The presets use `'merged'`,
+        except in `phlite_rips`, which uses `'heap'`. Every choice gives the same barcode; only time and memory differ.
+        
+        Reducing a column means repeatedly finding its pivot (largest entry) and adding other columns to cancel it.
+        
+        * `'merged'` never builds the column: it merges the columns added lazily, with one heap slot per column added,
+          so it never reads anything below the pivot. The safe choice, fast on every kind of matrix tried.
+        * `'heap'` pushes every entry of every column added onto one heap. No sorting, so it is good when the columns
+          added are short and few (e.g. Vietoris–Rips cohomology), but slows down when many entries are added.
+        * `'sorted'` keeps the column as one sorted vector and merges each batch of added columns into it. The fastest
+          when the columns added stay near the pivot (typically homology of simplicial or cell complexes, about 1.5×
+          faster than `'merged'`), but very slow when they reach far below it (15–35× slower on GrPPH or the cohomology
+          of cubical complexes). Measure before using it.
+        """
+    def with_cache(self, cache: builtins.bool = True) -> Algorithm:
+        r"""
+        Whether to cache the columns of the boundary matrix as they are added during the reduction. The presets
+        cache, except in `phlite_rips`, whose columns are cheap to recompute.
+        
+        Caching saves recomputing (and re-sorting) a column every time it is added, which pays off when columns are
+        expensive to compute (about 3× faster for GrPPH), but keeps every column needed in a dimension in memory
+        until that dimension is done (most of the memory for Vietoris–Rips). For `phlite.ChainComplex`, whose columns
+        are stored sorted, it only saves copying them: about 10% faster on cell complexes, but about 20% slower on
+        cubical complexes, whose columns are short.
+        """
+    def with_store_r(self, store: builtins.bool = True) -> Algorithm:
+        r"""
+        Whether to keep each reduced column of R = D V and add it directly when cancelling a pivot, rather than
+        recompute it from V (serial clearing only). The presets store R in `phlite`, but not in `phlite_rips` or
+        `phlite_grpph`, where almost every column is an apparent pair and needs no reduction.
+        
+        Only V is stored by default, so cancelling a pivot with an earlier column j adds one column of the boundary
+        matrix for every term of V_j. Storing R (as PHAT does) adds R_j as one column instead, which pays off when V_j
+        gets long, as in dense or cubical complexes, at the cost of memory for the stored columns. Vietoris–Rips
+        cohomology, where almost every pair needs no reduction, gains little.
         """
     def with_skip_zero_apparent_pairs(self, skip: builtins.bool = True) -> Algorithm:
         r"""

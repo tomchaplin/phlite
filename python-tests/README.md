@@ -58,7 +58,7 @@ The tests use [Hypothesis](https://hypothesis.readthedocs.io/) to generate input
 * `tests/test_sparse.py` generates random filtered cellular chain complexes over Z/2, up to dimension 3: each k-cell's boundary is a random (k-1)-cycle,
   so there are multi-edges, loops, zero boundaries and long boundaries. Cells are in a random valid filtration order, with few distinct values (so many ties and zero-length pairs).
   * PHAT (with four reduction/representation pairs) and LoPHAT (with and without clearing and anti-transposition, on 1 and 2 threads) must agree.
-  * With the index filtration, every `method` × `Algorithm` configuration (standard, clearing and parallel; merged and heap columns; skipping on and off;
+  * With the index filtration, every `method` × `Algorithm` configuration (standard, clearing and parallel; merged, heap and sorted columns, cached or not; skipping on and off;
     detected, ascending and descending dimension orders; locking and lock-free storage) must give exactly PHAT's pairs and essential cells.
   * With filtration values (as a list or numpy array, via `from_pairs`, `from_columns` or `from_csc`, with and without `max_dim`), phlite must give PHAT's pairs of positive length.
   * Representatives must be cycles in decreasing filtration order starting at the birth, a boundary at the death and not before, and never a boundary if essential.
@@ -70,12 +70,13 @@ The tests use [Hypothesis](https://hypothesis.readthedocs.io/) to generate input
 
 `benchmarks/bench_*.py` are pytest-benchmark suites, each comparing a binding with its references:
 
-* `bench_rips.py`: `phlite_rips` vs ripser and giotto-ph, on random point clouds.
+* `bench_rips.py`: `phlite_rips` vs ripser and giotto-ph, on random point clouds, up to 1000 points (marked `large`,
+  timed once each; deselect them with `-m "not large"`).
 * `bench_grpph.py`: `phlite_grpph` vs grpphati, on random weighted digraphs.
 * `bench_sparse.py`: `phlite` vs PHAT and LoPHAT, on explicit boundary matrices given to every implementation as the
   same list of columns in filtration order: Rips complexes, cubical grids with a lower-star filtration, and sparse and
   dense random cellular complexes. Plain times include loading the columns from Python; `(reduce)` variants build the
-  matrix before the clock starts.
+  matrix before the clock starts. Variants cover every column representation, cached or not, with and without storing R.
 
 Each benchmark is one implementation on one case, so the usual pytest options select them, e.g.
 `just bench-py -k "grid and phlite"` or `just bench-py -m quick`. Each one (see `benchmarks/common.py`):
@@ -95,8 +96,8 @@ Parallel implementations use `PHLITE_BENCH_THREADS` threads (default 4, or fewer
 ### Rust (criterion)
 
 `phlite_rips/benches/reduction.rs` and `phlite_grpph/benches/reduction.rs` time the clearing reduction alone on a Rips
-and a GrPPH coboundary matrix: serial with merged and heap columns, and parallel with locking and lock-free storage on
-1, 2 and 4 threads. Run them with `just bench-rust` (any arguments go to criterion, e.g. a name filter); the reports
+and a GrPPH coboundary matrix: serial with merged, heap and sorted columns, each cached or not, and storing R, and
+parallel with locking and lock-free storage on 1, 2 and 4 threads. Run them with `just bench-rust` (any arguments go to criterion, e.g. a name filter); the reports
 are in `target/criterion`.
 
 ### Regressions and BENCHMARKS.md

@@ -795,14 +795,25 @@ mod tests {
                 let (filtration, edge_set) = random_digraph(n, p, seed);
                 let d = GrPPHCoboundary::<CF, _>::build(&filtration, &edge_set, n);
                 let d = (&d).reverse();
-                let heap = Clearing::new().with_columns(HeapColumns).reduce(&d).diagram;
+                let heap = Clearing::new()
+                    .with_columns(HeapColumns)
+                    .reduce(&d)
+                    .diagram
+                    .sorted();
                 for (name, merge) in [
-                    ("serial", Clearing::new().reduce(&d).diagram),
-                    ("parallel", Clearing::new().parallel().reduce(&d).diagram),
-                    ("standard", Standard::new().reduce(&d).diagram),
+                    ("serial", Clearing::new().reduce(&d).diagram.sorted()),
+                    (
+                        "parallel",
+                        Clearing::new().parallel().reduce(&d).diagram.sorted(),
+                    ),
+                    ("standard", Standard::new().reduce(&d).diagram.sorted()),
                     (
                         "standard heap",
-                        Standard::new().with_columns(HeapColumns).reduce(&d).diagram,
+                        Standard::new()
+                            .with_columns(HeapColumns)
+                            .reduce(&d)
+                            .diagram
+                            .sorted(),
                     ),
                     (
                         "parallel heap",
@@ -810,7 +821,8 @@ mod tests {
                             .with_columns(HeapColumns)
                             .parallel()
                             .reduce(&d)
-                            .diagram,
+                            .diagram
+                            .sorted(),
                     ),
                 ] {
                     assert_eq!(
@@ -852,7 +864,7 @@ mod tests {
         let d = GrPPHCoboundary::<Z2, _>::build(&filtration, &edge_set, n);
         let d = (&d).reverse();
 
-        let diagram = Clearing::new().reduce(&d).diagram;
+        let diagram = Clearing::new().reduce(&d).diagram.sorted();
 
         let mut count = 0;
 
@@ -899,7 +911,7 @@ mod tests {
         let d = GrPPHCoboundary::<Z2, _>::build(&filtration, &edge_set, n);
         let d = d.reverse();
 
-        let diagram = Clearing::new().reduce(&d).diagram;
+        let diagram = Clearing::new().reduce(&d).diagram.sorted();
 
         let mut count = 0;
 

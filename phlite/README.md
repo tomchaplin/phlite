@@ -66,22 +66,26 @@ Most of `phlite`'s performance comes from optimisations we have adapted from Rip
 
 `phlite`'s contribution is making these available for any filtration, behind generic traits, rather than just Vietoris-Rips.
 
-With these, `phlite_rips` is several times faster than Ripser serially and on par with giotto-ph [[9]](#9) in parallel,
-using a fraction of Ripser's memory, on the following benchmark.
+With these, on the following benchmark, `phlite_rips` is several times faster than Ripser and uses a fraction of its
+memory, and up to 1.8× as fast as giotto-ph [[9]](#9) in dimension 2 with about the same memory. In dimension 1
+alone giotto-ph is faster.
 
 **Test case:** $n$ points sampled uniformly from the unit cube $[0, 1]^3$ (seed 0), with Euclidean distances (rounded to `float32`, so every implementation sees identical input),
-computing persistent homology in dimensions 0, 1 and 2 over $\mathbb{Z}/2$ by cohomology.
-We compare `phlite_rips` (`Algorithm.serial()`) with [ripser.py](https://github.com/scikit-tda/ripser.py) (serial),
-and `phlite_rips` (`Algorithm.parallel(threads=4)`) with giotto-ph (`n_threads=4`).
-Times are the best of 3 runs, and peak memory is the most heap memory allocated at once during the computation
-(measured with [memray](https://bloomberg.github.io/memray/), including native allocations), on one 8-core Linux machine;
-all implementations produced the same barcodes.
+computing persistent homology in dimensions up to $d$ over $\mathbb{Z}/2$ by cohomology.
+We compare `phlite_rips` (`Algorithm.serial()`) with [ripser.py](https://github.com/scikit-tda/ripser.py) and giotto-ph
+on one thread, and `phlite_rips` (`Algorithm.parallel(threads=4)`) with giotto-ph (`n_threads=4`).
+Times are the best of 3 runs (one run for 1000 points), and peak memory is the most heap memory allocated at once during
+the computation (measured with [memray](https://bloomberg.github.io/memray/), including native allocations), on one
+8-core Linux machine; all implementations produced the same barcodes. Ripser ran out of memory (over 7 GB) on 1000
+points in dimension 2.
 
-| $n$ | Ripser (serial) | `phlite_rips` (serial) | giotto-ph (4 threads) | `phlite_rips` (4 threads) |
-|---|---|---|---|---|
-| 200 | 0.38s / 66 MB | 0.092s / 3.3 MB | 0.035s / 1.3 MB | 0.032s / 3.6 MB |
-| 300 | 1.59s / 260 MB | 0.31s / 11 MB | 0.13s / 4.8 MB | 0.12s / 12 MB |
-| 400 | 3.52s / 518 MB | 0.63s / 23 MB | 0.36s / 5.5 MB | 0.26s / 24 MB |
+| $n$ | $d$ | Ripser | giotto-ph (1 thread) | `phlite_rips` (serial) | giotto-ph (4 threads) | `phlite_rips` (4 threads) |
+|---|---|---|---|---|---|---|
+| 200 | 2 | 0.37s / 66 MB | 0.10s / 1.3 MB | 0.090s / 1.3 MB | 0.038s / 1.3 MB | 0.034s / 1.4 MB |
+| 300 | 2 | 1.61s / 260 MB | 0.39s / 4.8 MB | 0.33s / 4.2 MB | 0.13s / 4.8 MB | 0.13s / 4.5 MB |
+| 400 | 2 | 3.53s / 518 MB | 1.04s / 5.4 MB | 0.62s / 5.2 MB | 0.36s / 5.5 MB | 0.28s / 5.5 MB |
+| 1000 | 1 | 0.55s / 79 MB | 0.24s / 31 MB | 0.40s / 33 MB | 0.19s / 28 MB | 0.30s / 33 MB |
+| 1000 | 2 | out of memory | 18.6s / 31 MB | 10.3s / 34 MB | 7.69s / 31 MB | 4.69s / 34 MB |
 
 These are a single family of inputs on a single machine, so treat them as indicative.
 To reproduce, run `just bench-py -k test_rips` (the Rips benchmarks, which include these cases).

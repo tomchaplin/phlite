@@ -201,6 +201,28 @@ def phlite_impl(algorithm=Algorithm.serial, method="cohomology", csc=False, repr
     return compute
 
 
+def representation_variants():
+    """Variations on the default (which stores R, with merged, cached columns), in both directions, named like
+    `phlite (homology, heap, uncached, reduce)`. Storing R: every column representation, uncached, and merged cached
+    (the default, so left out). `V only` doesn't store R (recomputing each R_j = D V_j instead): every
+    representation, cached or not."""
+    for method in ["cohomology", "homology"]:
+        for store_r in [True, False]:
+            for columns in ["merged", "heap", "sorted"]:
+                for cache in [True, False]:
+                    if store_r and (cache and columns == "merged" or cache and columns != "merged"):
+                        # The default, or cached non-default representations (caching barely matters when storing R)
+                        continue
+                    parts = ["homology"] if method == "homology" else []
+                    parts += [] if store_r else ["V only"]
+                    parts += [columns] if columns != "merged" else []
+                    parts += [] if cache else ["uncached"]
+                    algorithm = lambda columns=columns, cache=cache, store_r=store_r: (
+                        Algorithm.serial().with_columns(columns).with_cache(cache).with_store_r(store_r)
+                    )
+                    yield f"phlite ({', '.join(parts + ['reduce'])})", phlite_impl(algorithm, method=method)
+
+
 IMPLEMENTATIONS = {
     "phat (twist)": phat_impl(),
     "phat (twist, reduce)": phat_impl(),
@@ -215,7 +237,7 @@ IMPLEMENTATIONS = {
     "phlite (parallel, reduce)": phlite_impl(lambda: Algorithm.parallel(THREADS)),
     "phlite (homology, reduce)": phlite_impl(method="homology"),
     "phlite (homology, parallel, reduce)": phlite_impl(lambda: Algorithm.parallel(THREADS), method="homology"),
-    "phlite (heap, reduce)": phlite_impl(lambda: Algorithm.serial().with_columns("heap")),
+    **{name: impl for name, impl in representation_variants()},
     "phlite (no skipping, reduce)": phlite_impl(lambda: Algorithm.serial().with_skip_zero_apparent_pairs(False)),
     "phlite (standard, reduce)": phlite_impl(Algorithm.standard),
     "phlite (reps, reduce)": phlite_impl(representatives=True),

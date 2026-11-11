@@ -147,8 +147,8 @@ def nonzero(pairs, values):
 def algorithms(top, threads=2):
     """Every algorithm and option, for a complex whose top dimension is `top`."""
     bases = [Algorithm.standard(), Algorithm.clearing(), Algorithm.parallel_clearing()]
-    for base, columns in itertools.product(bases, ["merged", "heap"]):
-        algorithm = base.with_columns(columns)
+    for base, columns, cache in itertools.product(bases, ["merged", "heap", "sorted"], [True, False]):
+        algorithm = base.with_columns(columns).with_cache(cache)
         if base.name == "standard":
             yield algorithm
             continue
@@ -156,6 +156,8 @@ def algorithms(top, threads=2):
             for order in [None, list(range(top + 1)), list(range(top, -1, -1))]:
                 configured = algorithm.with_skip_zero_apparent_pairs(skip).with_dimension_order(order)
                 yield configured
+                if base.name == "clearing":
+                    yield configured.with_store_r()
                 if base.name == "parallel-clearing":
                     yield configured.with_threads(threads)
                     yield configured.with_storage("lock-free").with_threads(threads)

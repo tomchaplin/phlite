@@ -37,13 +37,12 @@
 // Bases are handed out as by-value views, so nothing in this module (including its adaptors) needs `unsafe`.
 #![forbid(unsafe_code)]
 
-use std::cell::RefCell;
 use std::hash::Hash;
 use std::rc::Rc;
 use std::sync::Arc;
 use std::{cmp::Reverse, collections::HashMap};
 
-use adaptors::{Consolidator, WithCachedCols};
+use adaptors::Consolidator;
 use itertools::equal;
 use ordered_float::NotNan;
 
@@ -70,7 +69,31 @@ mod tests;
 /// Row and column indices must explicity implement this (see [`MatrixOracle`](MatrixOracle::ColT)).
 ///
 /// Ideally [`clone`](Clone::clone) should be *very* cheap as it is called regularly, [`Copy`] would be ideal.
-pub trait BasisElement: Ord + Clone {}
+///
+/// # Dense indices
+///
+/// If basis elements are numbered by small integers (as when the cells of a complex are `0, ..., n - 1`), set
+/// [`DENSE_INDEX`](Self::DENSE_INDEX) and implement [`dense_index`](Self::dense_index) and
+/// [`from_dense_index`](Self::from_dense_index). The reduction algorithms then keep their per-column state (pivot
+/// tables, pairs, reduction columns) in vectors indexed by these numbers instead of hash maps, see
+/// [`ElementMap`](crate::bookkeeping::ElementMap). Vectors are as long as the largest number used, so only do this
+/// when the numbers are dense.
+pub trait BasisElement: Ord + Clone {
+    /// Whether basis elements are densely numbered, see the [trait docs](Self). Off by default.
+    const DENSE_INDEX: bool = false;
+
+    /// The number of this basis element: injective, and small. Only called if [`DENSE_INDEX`](Self::DENSE_INDEX).
+    fn dense_index(&self) -> usize {
+        unimplemented!("dense_index is only called on types with DENSE_INDEX set")
+    }
+
+    /// The basis element numbered `index`, inverting [`dense_index`](Self::dense_index).
+    /// Only called if [`DENSE_INDEX`](Self::DENSE_INDEX).
+    fn from_dense_index(index: usize) -> Self {
+        let _ = index;
+        unimplemented!("from_dense_index is only called on types with DENSE_INDEX set")
+    }
+}
 /// Filtration types must explicity implement this (see [`HasRowFiltration`](HasRowFiltration::FiltrationT)).
 ///
 /// Ideally [`clone`](Clone::clone) should be *very* cheap as it is called regularly, [`Copy`] would be ideal.
@@ -89,7 +112,23 @@ impl FiltrationValue for usize {}
 impl FiltrationValue for isize {}
 impl FiltrationValue for () {}
 
-impl<T> BasisElement for Reverse<T> where T: BasisElement {}
+// Reversing the order doesn't change the numbering
+impl<T> BasisElement for Reverse<T>
+where
+    T: BasisElement,
+{
+    const DENSE_INDEX: bool = T::DENSE_INDEX;
+
+    #[inline]
+    fn dense_index(&self) -> usize {
+        self.0.dense_index()
+    }
+
+    #[inline]
+    fn from_dense_index(index: usize) -> Self {
+        Reverse(T::from_dense_index(index))
+    }
+}
 impl<T> FiltrationValue for Reverse<T> where T: FiltrationValue {}
 
 // ======== Abstract matrix oracle trait =======================
@@ -255,21 +294,6 @@ pub trait MatrixOracle {
         Self: Sized,
     {
         Consolidator { oracle: self }
-    }
-
-    /// Returns a wrapper around `self` which caches any calls to [`column`](MatrixOracle::column) in an internal [`HashMap`].
-    ///
-    /// This may be useful if your matrix is relatively small but expensive to re-compute on the fly.
-    /// This way your matrix can still be lazily evaluated, but each column is only computed once.
-    /// Implementations of [`HasColBasis`] and [`HasRowFiltration`] are passed through transparently.
-    fn cache_cols(self) -> WithCachedCols<Self>
-    where
-        Self: Sized,
-    {
-        WithCachedCols {
-            oracle: self,
-            cache: RefCell::new(Default::default()),
-        }
     }
 }
 
@@ -468,6 +492,36 @@ pub trait HasRowFiltration: MatrixOracle {
         }
     }
 
+    /// The entries of column `col` largest first (by filtration value, then [`RowT`](MatrixOracle::RowT)), with each row
+    /// at most once and no zero coefficients, if the matrix can give them in this order without sorting; otherwise
+    /// `None` (the default).
+    ///
+    /// The reduction algorithms repeatedly add columns of the matrix to the column being reduced, and with
+    /// [`MergedColumns`](crate::columns::MergedColumns) each must be sorted first. If your matrix stores its columns
+    /// sorted, implement this (and [`sorted_column_ascending`](HasRowFiltration::sorted_column_ascending)) to skip that.
+    /// If you implement it, the order must be right: entries out of order give wrong results.
+    fn sorted_column(
+        &self,
+        col: Self::ColT,
+    ) -> Option<
+        impl Iterator<Item = ColumnEntry<Self::FiltrationT, Self::RowT, Self::CoefficientField>>,
+    > {
+        let _ = col;
+        None::<std::iter::Empty<_>>
+    }
+
+    /// As [`sorted_column`](HasRowFiltration::sorted_column), but smallest first. Used for [`reverse`](MatrixOracle::reverse)d
+    /// matrices (and so for cohomology).
+    fn sorted_column_ascending(
+        &self,
+        col: Self::ColT,
+    ) -> Option<
+        impl Iterator<Item = ColumnEntry<Self::FiltrationT, Self::RowT, Self::CoefficientField>>,
+    > {
+        let _ = col;
+        None::<std::iter::Empty<_>>
+    }
+
     /// Of the columns with a non-zero entry in `row`, the first in the order on filtration value and then [`ColT`](MatrixOracle::ColT),
     /// or `None` if this is not known (the default).
     ///
@@ -536,6 +590,24 @@ where
 
     fn last_column_in_row(&self, row: Self::RowT) -> Option<Self::ColT> {
         (*self).last_column_in_row(row)
+    }
+
+    fn sorted_column(
+        &self,
+        col: Self::ColT,
+    ) -> Option<
+        impl Iterator<Item = ColumnEntry<Self::FiltrationT, Self::RowT, Self::CoefficientField>>,
+    > {
+        (*self).sorted_column(col)
+    }
+
+    fn sorted_column_ascending(
+        &self,
+        col: Self::ColT,
+    ) -> Option<
+        impl Iterator<Item = ColumnEntry<Self::FiltrationT, Self::RowT, Self::CoefficientField>>,
+    > {
+        (*self).sorted_column_ascending(col)
     }
     fn column_with_filtration(
         &self,

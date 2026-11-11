@@ -7,8 +7,8 @@ use phlite::{
     columns::ColumnRepresentation,
 };
 use phlite_pyutils::{
-    add_algorithm_class, add_barcode_class, parse_method, AlgorithmConfig, AlgorithmVisitor,
-    Barcode, SortedBars,
+    add_algorithm_class, add_barcode_class, parse_method, AlgorithmConfig, AlgorithmDefaults,
+    AlgorithmVisitor, Barcode, SortedBars,
 };
 use pyo3::{
     exceptions::{PyTypeError, PyValueError},
@@ -256,6 +256,6 @@ fn phlite_grpph(m: &Bound<'_, PyModule>) -> PyResult<()> {
 
     m.add_function(wrap_pyfunction!(grpph, m)?)?;
     add_barcode_class(m, "phlite_grpph")?;
-    add_algorithm_class(m, "phlite_grpph")?;
+    add_algorithm_class(m, "phlite_grpph", AlgorithmDefaults::default())?;
     Ok(())
 }

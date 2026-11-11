@@ -11,7 +11,6 @@ use crate::columns::{BHCol, ColumnEntry};
 
 use super::{ColBasis, HasColBasis, HasSplitColBasis, SplitBasis, SplitByDimension};
 
-// TODO: Test column cacher
 
 #[test]
 fn test_matrix_product() {

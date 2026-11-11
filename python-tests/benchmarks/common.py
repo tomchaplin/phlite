@@ -60,11 +60,11 @@ def _resolve(result):
 # ====== Running a benchmark ==============================================
 
 
-def run(benchmark, *, group, implementation, make_input, reference=None):
+def run(benchmark, *, group, implementation, make_input, reference=None, rounds=None):
     """Benchmark `implementation(input)` on inputs from `make_input()`, checking it agrees with `reference()`.
 
     `reference` returns the reference fingerprint (and should be cached, since every benchmark of a case asks for it);
-    leave it out for the reference implementation itself.
+    leave it out for the reference implementation itself. `rounds` overrides `ROUNDS`, for cases too slow to repeat.
     """
     benchmark.group = group
     benchmark.extra_info["threads"] = THREADS
@@ -78,5 +78,6 @@ def run(benchmark, *, group, implementation, make_input, reference=None):
         assert result == reference(), "barcode differs from the reference implementation's"
     benchmark.extra_info["fingerprint"] = result
 
-    benchmark.pedantic(implementation, setup=lambda: ((make_input(),), {}), rounds=ROUNDS, iterations=1)
+    rounds = ROUNDS if rounds is None else min(rounds, ROUNDS)
+    benchmark.pedantic(implementation, setup=lambda: ((make_input(),), {}), rounds=rounds, iterations=1)
 
