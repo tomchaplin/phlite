@@ -1,23 +1,34 @@
-# Fuzz tests and benchmarks for phlite_grpph, phlite_rips and phlite_py against reference implementations
-# (ripser, giotto-ph, grpphati, PHAT and LoPHAT). Requires `just` and `uv`; uses its own Python 3.11 environment.
+# Fuzz tests and benchmarks for phlite's Python bindings against reference implementations.
+# Requires `just` and `uv`. There are two uv environments, since the references need different Pythons:
+#   .        Python 3.11: phlite_rips and phlite_grpph, against ripser, giotto-ph and grpphati
+#   latest/  Python 3.13: phlite_py, against PHAT and LoPHAT (and phlite_py's own tests)
 
 set shell := ["bash", "-euo", "pipefail", "-c"]
+# Pass recipe arguments on as "$@", keeping their quoting
+set positional-arguments
 
-# List available recipes
-default:
-    @just --list
+# The test files for each environment; tests/conftest.py and tests/mod2.py are shared.
+# phlite_py's test against grpphati's own columns needs grpphati, so runs in the main environment (and skips in latest).
+main_tests := "tests/test_rips.py tests/test_grpph.py ../phlite_py/tests/test_cells.py::test_real_grpphati"
+latest_tests := "tests/test_sparse.py ../phlite_py/tests"
+latest := "uv run --no-sync --project latest"
 
 # PHAT's only PyPI release is an sdist whose metadata doesn't match its version, which uv and pip refuse to install,
 # so we unpack it and build it from the directory. It needs pybind11 < 3 to build.
 phat_url := "https://files.pythonhosted.org/packages/43/82/c14de81dc2953a71a060f72f2bc34c41996307956b162751f2a47e2c78f7/phat-1.5.0a.tar.gz"
 phat_sha256 := "51e7fe5e05adf5c7e0895765572fff05b979731234251f13011610d71d4980ab"
 
-# Create .venv with the reference implementations
+# List available recipes
+default:
+    @just --list
+
+# Create both environments with the reference implementations
 venv:
     uv sync --inexact
-    uv run --no-sync python -c "import phat" 2>/dev/null || just install-phat
+    uv sync --inexact --project latest --python 3.13
+    {{latest}} python -c "import phat" 2>/dev/null || just install-phat
 
-# Build PHAT's Python bindings into .venv
+# Build PHAT's Python bindings into the latest environment
 install-phat:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -26,35 +37,65 @@ install-phat:
     curl -sSfL -o "$dir/phat.tar.gz" "{{phat_url}}"
     echo "{{phat_sha256}}  $dir/phat.tar.gz" | sha256sum -c --quiet
     tar -xzf "$dir/phat.tar.gz" -C "$dir"
+    cd latest
     uv pip install "pybind11<3" setuptools
     uv pip install --no-build-isolation "$dir"/phat-*/
 
-# Build phlite_grpph, phlite_rips and phlite_py (release mode) into .venv
+# Build the extension modules (release mode): phlite_grpph, phlite_rips and phlite_py into ., phlite_py into latest/
 build: venv
     uv run --no-sync maturin develop --uv --release -m ../phlite_grpph/Cargo.toml
     uv run --no-sync maturin develop --uv --release -m ../phlite_rips/Cargo.toml
     uv run --no-sync maturin develop --uv --release -m ../phlite_py/Cargo.toml
+    {{latest}} maturin develop --uv --release -m ../phlite_py/Cargo.toml
 
-# Run the fuzz tests briefly (100 examples per test)
+# Run every Python test, fuzzing briefly (100 examples per test)
 test *pytest_args: build
-    uv run --no-sync pytest {{pytest_args}}
+    just _pytest "$@"
 
-# Fuzz for longer, e.g. `just fuzz 20000`
+# Fuzz for longer, e.g. `just fuzz 20000` (examples per test)
 fuzz examples="5000" *pytest_args: build
-    HYPOTHESIS_PROFILE=fuzz FUZZ_EXAMPLES={{examples}} uv run --no-sync pytest {{pytest_args}}
+    HYPOTHESIS_PROFILE=fuzz FUZZ_EXAMPLES="$1" just _pytest "${@:2}"
 
-# Benchmark phlite_rips against ripser and giotto-ph, see `just bench-rips --help`
-bench-rips *args: build
-    uv run --no-sync python benchmarks/bench_rips.py {{args}}
+_pytest *pytest_args:
+    uv run --no-sync pytest {{main_tests}} "$@"
+    {{latest}} pytest {{latest_tests}} "$@"
 
-# Benchmark phlite_grpph against grpphati, see `just bench-grpph --help`
-bench-grpph *args: build
-    uv run --no-sync python benchmarks/bench_grpph.py {{args}}
+# The pytest-benchmark suites for each environment, and where the quick baselines are saved
+main_benches := "benchmarks/bench_rips.py benchmarks/bench_grpph.py"
+latest_benches := "benchmarks/bench_sparse.py"
+storage := "--benchmark-storage=file://benchmarks/baselines"
 
-# Benchmark phlite_py against PHAT and LoPHAT, see `just bench-sparse --help`
-bench-sparse *args: build
-    uv run --no-sync python benchmarks/bench_sparse.py {{args}}
+# Run the Python benchmarks in both environments, with pytest options, e.g. `just bench -m quick` or `just bench -k grid`
+bench *args: build
+    just _bench allow-empty "$@"
 
-# Remove .venv and hypothesis' example database
+# Compare the quick benchmarks with the saved baseline, failing if any is more than 50% slower
+bench-check *args: build
+    PHLITE_BENCH_ROUNDS=5 just _bench require-all -m quick {{storage}} --benchmark-compare --benchmark-compare-fail=min:50% "$@"
+
+# Save the quick benchmarks as the new baseline (after an intended change in performance, or on a new machine)
+bench-baseline: build
+    rm -rf benchmarks/baselines
+    PHLITE_BENCH_ROUNDS=5 just _bench require-all -m quick {{storage}} --benchmark-save=quick
+
+# Run every Python benchmark into benchmarks/results/ and regenerate BENCHMARKS.md (`just bench-docs` at the root adds Rust)
+bench-docs: build
+    uv run --no-sync pytest {{main_benches}} --benchmark-json=benchmarks/results/main.json
+    {{latest}} pytest {{latest_benches}} --benchmark-json=benchmarks/results/latest.json
+    uv run --no-sync python benchmarks/report.py benchmarks/results/main.json benchmarks/results/latest.json --out BENCHMARKS.md
+
+# Run pytest on each environment's benchmarks. With `allow-empty`, a filter may leave no benchmarks in one of them
+# (pytest's exit code 5); with `require-all` that's an error.
+_bench mode *args:
+    #!/usr/bin/env bash
+    set -uo pipefail
+    mode=$1; shift
+    status=0
+    check() { s=$1; if [ "$s" != 0 ] && { [ "$s" != 5 ] || [ "$mode" != allow-empty ]; }; then status=$s; fi; }
+    uv run --no-sync pytest {{main_benches}} "$@"; check $?
+    uv run --no-sync --project latest pytest {{latest_benches}} "$@"; check $?
+    exit "$status"
+
+# Remove both environments and hypothesis' example database
 clean:
-    rm -rf .venv .hypothesis
+    rm -rf .venv latest/.venv .hypothesis

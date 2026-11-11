@@ -83,8 +83,10 @@ each run in a fresh process on one 8-core Linux machine; all implementations pro
 | 400 | 5.10s / 389 MB | 1.10s / 4.4 MB | 0.56s / 7.3 MB | 0.50s / 8.4 MB |
 
 These are a single family of inputs on a single machine, so treat them as indicative.
-To reproduce, run `just bench-rips --sizes 200 300 400 --max-dim 2 --threads 4 --repeats 2` in the `python-tests` folder
-(see its README for the other implementations and options).
+To reproduce, run `just bench-py -k test_rips` (the Rips benchmarks, which include these cases).
+[`python-tests/BENCHMARKS.md`](../python-tests/BENCHMARKS.md) has benchmarks of all three Python bindings against their
+references (ripser and giotto-ph, grpphati, and PHAT and LoPHAT), and of the Rust reduction alone, regenerated with
+`just bench-docs`; `just bench-check` checks for performance regressions (see [`python-tests`](../python-tests/README.md)).
 
 For more details, please refer to the documentation on `docs.rs`.
 If you need support implementing `phlite` traits for your specific application, please get in touch!

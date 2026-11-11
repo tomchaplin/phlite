@@ -1,102 +1,85 @@
 """Benchmark phlite_grpph against grpphati on random weighted digraphs.
 
-Only dimension 1 is compared, since that is all grpphati computes.
-
-Examples:
-    just bench-grpph                                    # default sizes
-    just bench-grpph --sizes 50 100 --p 0.2
-    just bench-grpph --graph cycle --sizes 100 200
-    just bench-grpph --all --only phlite                # every phlite method/algorithm
+Grounded persistent path homology (dimension 1, all grpphati computes) of random digraphs on `n` nodes, each edge
+present with probability 0.1, with integer weights 1–5. `GrPPH_par_wedge` is grpphati's parallel pipeline over wedge
+components. Cases marked `quick` are the ones `just bench-check` uses.
 """
 
-import numpy as np
-from harness import fingerprint, main
+import functools
 
-# Import everything up front, so that import costs are not counted in the time or peak memory of a run
-from phlite_grpph import Algorithm, grpph
+import numpy as np
+import pytest
+from common import THREADS, fingerprint, run
+
+# Import everything up front, so that import costs are not counted
 import networkx as nx
 from grpphati.pipelines import grounded
+from phlite_grpph import Algorithm, grpph
 
 INF = float("inf")
+REFERENCE = "grpphati (GrPPH)"
+P = 0.1
 
 
-def phlite(method="cohomology", algorithm=lambda threads: Algorithm.serial(), representatives=False):
-    """`algorithm` maps the thread count to an `Algorithm`."""
+def phlite(algorithm=Algorithm.serial, method="cohomology", representatives=False):
+    """`algorithm` builds the `Algorithm`."""
 
-    def run(graph, case):
+    def compute(graph):
         n, edges = graph
-        barcode = grpph(
-            n,
-            edges,
-            method=method,
-            algorithm=algorithm(case["threads"]),
-            representatives=representatives,
-        )
-        return fingerprint([list(barcode.pairings[1]) + [(b, INF) for b in barcode.essential[1]]])
+        barcode = grpph(n, edges, method=method, algorithm=algorithm(), representatives=representatives)
+        return lambda: fingerprint([list(barcode.pairings[1]) + [(b, INF) for b in barcode.essential[1]]])
 
-    return run
+    return compute
 
 
 def grpphati(pipeline_name):
-    def run(graph, case):
+    def compute(graph):
         n, edges = graph
         g = nx.DiGraph()
         g.add_nodes_from(range(n))
         g.add_weighted_edges_from(edges)
         result = getattr(grounded, pipeline_name)(g)
-        return fingerprint([[(float(b), float(d)) for b, d in result.barcode]])
+        return lambda: fingerprint([[(float(b), float(d)) for b, d in result.barcode]])
 
-    return run
+    return compute
 
 
-# Names starting with '*' only run with --all
 IMPLEMENTATIONS = {
     "grpphati (GrPPH)": grpphati("GrPPH"),
     "grpphati (GrPPH_par_wedge)": grpphati("GrPPH_par_wedge"),
-    "phlite (clearing)": phlite(),
-    "phlite (parallel)": phlite(algorithm=Algorithm.parallel),
-    "phlite (clearing, reps)": phlite(representatives=True),
-    "*phlite (parallel-lock-free)": phlite(algorithm=lambda threads: Algorithm.parallel(threads).with_storage("lock-free")),
-    "*phlite (standard)": phlite(algorithm=lambda threads: Algorithm.standard()),
-    "*phlite (homology, clearing)": phlite(method="homology"),
+    "phlite (serial)": phlite(),
+    "phlite (parallel)": phlite(lambda: Algorithm.parallel(THREADS)),
+    "phlite (serial, reps)": phlite(representatives=True),
+    "phlite (parallel, lock-free)": phlite(lambda: Algorithm.parallel(THREADS).with_storage("lock-free")),
 }
 
+CASES = [25, 50, 100]
+QUICK = [50]
 
-def make_input(case):
-    """A weighted digraph with integer weights in 1..5."""
-    rng = np.random.default_rng(case["seed"])
-    n = case["n"]
-    if case["graph"] == "random":
-        mask = rng.uniform(size=(n, n)) < case["p"]
-        np.fill_diagonal(mask, False)
-        pairs = list(zip(*np.nonzero(mask)))
-    elif case["graph"] == "cycle":
-        pairs = [(i, (i + 1) % n) for i in range(n)]
-    elif case["graph"] == "complete":
-        pairs = [(i, j) for i in range(n) for j in range(n) if i != j]
-    else:
-        raise ValueError(case["graph"])
+
+@functools.cache
+def graph(n):
+    """A random digraph with integer weights in 1..5."""
+    rng = np.random.default_rng(0)
+    mask = rng.uniform(size=(n, n)) < P
+    np.fill_diagonal(mask, False)
+    pairs = list(zip(*np.nonzero(mask)))
     weights = rng.integers(1, 6, size=len(pairs))
     return n, [(int(i), int(j), float(w)) for (i, j), w in zip(pairs, weights)]
 
 
-def case_label(case):
-    p = f" p={case['p']}" if case["graph"] == "random" else ""
-    return f"{case['graph']} n={case['n']}{p}"
+@functools.cache
+def reference(n):
+    return IMPLEMENTATIONS[REFERENCE](graph(n))()
 
 
-def add_arguments(parser):
-    parser.add_argument("--graph", choices=["random", "cycle", "complete"], default="random")
-    parser.add_argument("--sizes", type=int, nargs="+", default=[25, 50, 100], help="numbers of nodes")
-    parser.add_argument("--p", type=float, default=0.1, help="edge probability for random graphs (default 0.1)")
-    parser.add_argument("--seed", type=int, default=0)
-    parser.add_argument("--all", action="store_true", help="also run the slower phlite variants")
-
-
-def cases_from_args(args):
-    for n in args.sizes:
-        yield {"graph": args.graph, "n": n, "p": args.p, "seed": args.seed}
-
-
-if __name__ == "__main__":
-    main(__doc__, IMPLEMENTATIONS, make_input, case_label, add_arguments, cases_from_args, reference="grpphati (GrPPH)")
+@pytest.mark.parametrize("implementation", IMPLEMENTATIONS)
+@pytest.mark.parametrize("n", [pytest.param(n, marks=pytest.mark.quick) if n in QUICK else n for n in CASES])
+def test_grpph(benchmark, n, implementation):
+    run(
+        benchmark,
+        group=f"grpph n={n} p={P}",
+        implementation=IMPLEMENTATIONS[implementation],
+        make_input=lambda: graph(n),
+        reference=None if implementation == REFERENCE else functools.partial(reference, n),
+    )

@@ -1,24 +1,19 @@
 """Benchmark phlite_py (the `phlite` package) against PHAT and LoPHAT on explicit boundary matrices over Z/2.
 
 Every implementation gets the same columns, as a list of `(dimension, boundary)` pairs in filtration order (and phlite
-also gets the filtration values, so that it can leave out zero-length bars). By default the time includes loading the
-columns from Python; the `(reduce)` variants load them before the clock starts.
+also gets the filtration values, so that it can leave out zero-length bars). Times include loading the columns from
+Python, except for `(reduce)` variants, whose matrix is built before the clock starts.
 
-Kinds of complex (`--kind`):
-    rips    Rips complex of n random points in the unit square, up to triangles (or `--top-dim`)
+Kinds of complex:
+    rips    Rips complex of n random points in the unit square, up to triangles
     grid    Cubical complex of an n x n grid with a lower-star filtration of smoothed noise
     cells   A random cellular complex (see tests/test_sparse.py): n vertices, and n cells in each dimension 1 to 3
-    dense   The same, but with dense boundaries (each basis cycle is in a cell's boundary with probability `--density`)
+    dense   The same, but with dense boundaries (each basis cycle is in a cell's boundary with probability 0.3)
 
-Inputs are generated once and cached in a temporary directory.
-
-Examples:
-    just bench-sparse                                   # Rips complexes, default sizes
-    just bench-sparse --kind grid --sizes 200 400 800
-    just bench-sparse --kind dense --sizes 100 200 400
-    just bench-sparse --all --only phlite               # every phlite variant
+Inputs are generated once and cached in a temporary directory. Cases marked `quick` are the ones `just bench-check` uses.
 """
 
+import functools
 import itertools
 import math
 import os
@@ -28,9 +23,10 @@ import sys
 import tempfile
 
 import numpy as np
-from harness import main
+import pytest
+from common import THREADS, fingerprint, run
 
-# Import everything up front, so that import costs are not counted in the time or peak memory of a run
+# Import everything up front, so that import costs are not counted
 import lophat
 import phat
 import phlite
@@ -40,6 +36,8 @@ from test_sparse import random_complex  # noqa: E402
 
 Algorithm = phlite.Algorithm
 INF = math.inf
+REFERENCE = "phat (twist)"
+CACHE = os.path.join(tempfile.gettempdir(), "phlite-bench-sparse")
 
 
 # ====== Inputs ===========================================================
@@ -106,38 +104,25 @@ def _sorted_columns(cells, values, faces):
     return columns, np.array([v for v, _, _ in keys])
 
 
-CACHE = os.path.join(tempfile.gettempdir(), "phlite-bench-sparse")
-
-
-def make_input(case):
-    columns, values = cached_complex(case)
-    data = {"columns": columns, "values": values}
-    # The `(reduce)` variants get their matrices built up front
-    name = case["implementation"]
-    if "reduce)" in name:
-        if name.startswith("phat"):
-            data["matrix"] = phat.boundary_matrix(columns=columns)
-        else:
-            data["filtered"] = phlite.ChainComplex.from_columns(columns).filtration(values)
-    return data
-
-
-def cached_complex(case):
-    """The complex for `case`, generated once and then cached in a temporary directory (generating is slow)."""
+@functools.cache
+def cached_complex(case_key):
+    """The complex for a case (given as a sorted tuple of items), generated once and then cached in memory and in a
+    temporary directory, since generating is slow. Stored as plain lists, so the cache doesn't depend on numpy."""
+    case = dict(case_key)
     key = "-".join(str(case[k]) for k in ["kind", "n", "top_dim", "density", "seed"])
-    path = os.path.join(CACHE, f"{key}.pickle")
+    path = os.path.join(CACHE, f"{key}.lists.pickle")
     try:
         with open(path, "rb") as f:
-            return pickle.load(f)
+            columns, values = pickle.load(f)
     except FileNotFoundError:
-        pass
-    complex = generate_complex(case)
-    os.makedirs(CACHE, exist_ok=True)
-    temporary = f"{path}.{os.getpid()}"
-    with open(temporary, "wb") as f:
-        pickle.dump(complex, f, protocol=pickle.HIGHEST_PROTOCOL)
-    os.replace(temporary, path)
-    return complex
+        columns, values = generate_complex(case)
+        values = np.asarray(values, dtype=np.float64).tolist()
+        os.makedirs(CACHE, exist_ok=True)
+        temporary = f"{path}.{os.getpid()}"
+        with open(temporary, "wb") as f:
+            pickle.dump((columns, values), f, protocol=pickle.HIGHEST_PROTOCOL)
+        os.replace(temporary, path)
+    return columns, np.array(values, dtype=np.float64)
 
 
 def generate_complex(case):
@@ -174,19 +159,10 @@ def pairs_fingerprint(columns, values, pairs):
     return compute
 
 
-def fingerprint(dims):
-    """Number of finite and infinite bars, and total finite persistence, per dimension (ignoring zero-length bars)."""
-    out = []
-    for bars in dims:
-        bars = [(float(b), float(d)) for b, d in bars if b < d]
-        finite = [d - b for b, d in bars if d != INF]
-        out.append([len(finite), len(bars) - len(finite), round(sum(finite), 6)])
-    return out
-
-
-def phat_impl(reduction=phat.reductions.twist_reduction, representation=None, prebuilt=False):
-    def run(data, case):
-        if prebuilt:
+def phat_impl(reduction=phat.reductions.twist_reduction, representation=None):
+    def compute(data):
+        # The `(reduce)` variants get a prebuilt matrix, see `make_input`
+        if "matrix" in data:
             matrix = data["matrix"]
         else:
             kwargs = {} if representation is None else {"representation": representation}
@@ -194,26 +170,24 @@ def phat_impl(reduction=phat.reductions.twist_reduction, representation=None, pr
         pairs = matrix.compute_persistence_pairs(reduction=reduction)
         return pairs_fingerprint(data["columns"], data["values"], pairs)
 
-    return run
+    return compute
 
 
-def lophat_impl(parallel):
-    def run(data, case):
-        options = lophat.LoPhatOptions()
-        options.num_threads = case["threads"] if parallel else 1
-        diagram = lophat.compute_pairings(data["columns"], True, options)
-        return pairs_fingerprint(data["columns"], data["values"], diagram.paired)
+def lophat_impl(threads):
+    def compute(data):
+        diagram = lophat.compute_pairings(data["columns"], True, lophat.LoPhatOptions(num_threads=threads))
+        return pairs_fingerprint(data["columns"], data["values"], ((b, d) for b, d in diagram.items() if d is not None))
 
-    return run
+    return compute
 
 
-def phlite_impl(algorithm=lambda threads: Algorithm.serial(), method="cohomology", build="columns", representatives=False):
-    """`algorithm` maps the thread count to an `Algorithm`; `build` is 'columns', 'csc' or 'prebuilt'."""
+def phlite_impl(algorithm=Algorithm.serial, method="cohomology", csc=False, representatives=False):
+    """`algorithm` builds the `Algorithm`. The `(reduce)` variants get a prebuilt complex, see `make_input`."""
 
-    def run(data, case):
-        if build == "prebuilt":
+    def compute(data):
+        if "filtered" in data:
             filtered = data["filtered"]
-        elif build == "csc":
+        elif csc:
             columns = data["columns"]
             indptr = np.cumsum([0] + [len(c) for _, c in columns], dtype=np.int64)
             indices = np.fromiter((f for _, c in columns for f in c), dtype=np.int64, count=int(indptr[-1]))
@@ -221,67 +195,91 @@ def phlite_impl(algorithm=lambda threads: Algorithm.serial(), method="cohomology
             filtered = phlite.ChainComplex.from_csc(indptr, indices, dimensions).filtration(data["values"])
         else:
             filtered = phlite.ChainComplex.from_columns(data["columns"]).filtration(data["values"])
-        barcode = filtered.persistence(
-            method=method, algorithm=algorithm(case["threads"]), representatives=representatives
-        )
+        barcode = filtered.persistence(method=method, algorithm=algorithm(), representatives=representatives)
         return lambda: fingerprint(barcode.diagrams())
 
-    return run
+    return compute
 
 
-# Names starting with '*' only run with --all
 IMPLEMENTATIONS = {
     "phat (twist)": phat_impl(),
-    "phat (twist, reduce)": phat_impl(prebuilt=True),
-    "*phat (chunk)": phat_impl(phat.reductions.chunk_reduction),
-    "*phat (standard, vector_vector)": phat_impl(
-        phat.reductions.standard_reduction, phat.representations.vector_vector
-    ),
-    "lophat (1 thread)": lophat_impl(parallel=False),
-    "lophat (parallel)": lophat_impl(parallel=True),
+    "phat (twist, reduce)": phat_impl(),
+    "phat (chunk)": phat_impl(phat.reductions.chunk_reduction),
+    "phat (standard, vector_vector)": phat_impl(phat.reductions.standard_reduction, phat.representations.vector_vector),
+    "lophat (1 thread)": lophat_impl(1),
+    "lophat (parallel)": lophat_impl(THREADS),
     "phlite (serial)": phlite_impl(),
-    "phlite (serial, reduce)": phlite_impl(build="prebuilt"),
-    "phlite (parallel)": phlite_impl(Algorithm.parallel),
-    "phlite (parallel, reduce)": phlite_impl(Algorithm.parallel, build="prebuilt"),
-    "phlite (homology, reduce)": phlite_impl(method="homology", build="prebuilt"),
-    "*phlite (serial, csc)": phlite_impl(build="csc"),
-    "*phlite (heap, reduce)": phlite_impl(lambda threads: Algorithm.serial().with_columns("heap"), build="prebuilt"),
-    "*phlite (no skipping, reduce)": phlite_impl(
-        lambda threads: Algorithm.serial().with_skip_zero_apparent_pairs(False), build="prebuilt"
-    ),
-    "*phlite (standard, reduce)": phlite_impl(lambda threads: Algorithm.standard(), build="prebuilt"),
-    "*phlite (homology, parallel, reduce)": phlite_impl(Algorithm.parallel, method="homology", build="prebuilt"),
-    "*phlite (reps, reduce)": phlite_impl(build="prebuilt", representatives=True),
+    "phlite (serial, csc)": phlite_impl(csc=True),
+    "phlite (serial, reduce)": phlite_impl(),
+    "phlite (parallel)": phlite_impl(lambda: Algorithm.parallel(THREADS)),
+    "phlite (parallel, reduce)": phlite_impl(lambda: Algorithm.parallel(THREADS)),
+    "phlite (homology, reduce)": phlite_impl(method="homology"),
+    "phlite (homology, parallel, reduce)": phlite_impl(lambda: Algorithm.parallel(THREADS), method="homology"),
+    "phlite (heap, reduce)": phlite_impl(lambda: Algorithm.serial().with_columns("heap")),
+    "phlite (no skipping, reduce)": phlite_impl(lambda: Algorithm.serial().with_skip_zero_apparent_pairs(False)),
+    "phlite (standard, reduce)": phlite_impl(Algorithm.standard),
+    "phlite (reps, reduce)": phlite_impl(representatives=True),
 }
 
 
-def case_label(case):
-    kind = case["kind"]
+# ====== Cases ============================================================
+
+
+def case(kind, n, quick=False):
+    values = {"kind": kind, "n": n, "top_dim": 2, "density": 0.3, "seed": 0}
+    return pytest.param(values, id=label(values), marks=[pytest.mark.quick] if quick else [])
+
+
+def label(case):
+    kind, n = case["kind"], case["n"]
     if kind == "rips":
-        return f"rips n={case['n']} dim≤{case['top_dim']}"
+        return f"rips n={n} dim≤{case['top_dim']}"
     if kind == "grid":
-        return f"grid {case['n']}x{case['n']}"
+        return f"grid {n}x{n}"
     if kind == "dense":
-        return f"dense n={case['n']} p={case['density']}"
-    return f"cells n={case['n']}"
+        return f"dense n={n} p={case['density']}"
+    return f"cells n={n}"
 
 
-def add_arguments(parser):
-    parser.add_argument("--kind", choices=["rips", "grid", "cells", "dense"], default="rips")
-    parser.add_argument("--sizes", type=int, nargs="+", default=None, help="sizes (default depends on --kind)")
-    parser.add_argument("--top-dim", type=int, default=2, help="for rips: the top simplex dimension (default 2)")
-    parser.add_argument("--density", type=float, default=0.3, help="for dense: probability of each basis cycle")
-    parser.add_argument("--seed", type=int, default=0)
-    parser.add_argument("--all", action="store_true", help="also run the other PHAT and phlite variants")
+CASES = [
+    case("rips", 100, quick=True),
+    case("rips", 150),
+    case("grid", 300, quick=True),
+    case("grid", 500),
+    case("cells", 1000),
+    case("cells", 3000, quick=True),
+    case("dense", 100, quick=True),
+    case("dense", 200),
+]
 
 
-DEFAULT_SIZES = {"rips": [50, 100, 150], "grid": [100, 300, 500], "cells": [500, 1000, 3000], "dense": [100, 200, 400]}
+def make_input(case, implementation):
+    columns, values = cached_complex(case_key(case))
+    data = {"columns": columns, "values": values}
+    if "reduce)" in implementation:
+        if implementation.startswith("phat"):
+            data["matrix"] = phat.boundary_matrix(columns=columns)
+        else:
+            data["filtered"] = phlite.ChainComplex.from_columns(columns).filtration(values)
+    return data
 
 
-def cases_from_args(args):
-    for n in args.sizes or DEFAULT_SIZES[args.kind]:
-        yield {"kind": args.kind, "n": n, "top_dim": args.top_dim, "density": args.density, "seed": args.seed}
+def case_key(case):
+    return tuple(sorted(case.items()))
 
 
-if __name__ == "__main__":
-    main(__doc__, IMPLEMENTATIONS, make_input, case_label, add_arguments, cases_from_args, reference="phat (twist)")
+@functools.cache
+def reference(key):
+    return IMPLEMENTATIONS[REFERENCE](make_input(dict(key), REFERENCE))()
+
+
+@pytest.mark.parametrize("implementation", IMPLEMENTATIONS)
+@pytest.mark.parametrize("case", CASES)
+def test_sparse(benchmark, case, implementation):
+    run(
+        benchmark,
+        group=label(case),
+        implementation=IMPLEMENTATIONS[implementation],
+        make_input=lambda: make_input(case, implementation),
+        reference=None if implementation == REFERENCE else functools.partial(reference, case_key(case)),
+    )

@@ -123,13 +123,13 @@ def phat_pairs(columns, reduction=phat.reductions.twist_reduction, representatio
     return sorted((int(b), int(d)) for b, d in pairs)
 
 
-def lophat_pairs(columns, anti_transpose=True, threads=None, clearing=True):
-    options = lophat.LoPhatOptions()
-    options.clearing = clearing
-    if threads is not None:
-        options.num_threads = threads
+def lophat_pairs(columns, anti_transpose=True, threads=0, clearing=True):
+    options = lophat.LoPhatOptions(num_threads=threads, clearing=clearing)
     diagram = lophat.compute_pairings(columns, anti_transpose, options)
-    return sorted(diagram.paired)
+    pairs = sorted((b, d) for b, d in diagram.items() if d is not None)
+    # Every cell is either paired or listed as essential
+    assert len(diagram) + len(pairs) == len(columns)
+    return pairs
 
 
 def essential_of(columns, pairs):

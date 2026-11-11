@@ -2,3 +2,7 @@
 .hypothesis/
 __pycache__/
 *.json
+
+# Benchmark baselines and results are committed
+!benchmarks/baselines/**/*.json
+!benchmarks/results/*.json

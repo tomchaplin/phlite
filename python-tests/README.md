@@ -1,23 +1,45 @@
 # python-tests
 
-Fuzz tests and benchmarks for the Python bindings (`phlite_grpph`, `phlite_rips` and `phlite_py`) against reference implementations:
+Fuzz tests ([Hypothesis](https://hypothesis.readthedocs.io/)), benchmarks
+([pytest-benchmark](https://pytest-benchmark.readthedocs.io/)) and performance regression checks for the Python bindings
+(`phlite_grpph`, `phlite_rips` and `phlite_py`) against reference implementations:
 [ripser.py](https://github.com/scikit-tda/ripser.py) and [giotto-ph](https://github.com/giotto-ai/giotto-ph) for Rips,
 [grpphati](https://github.com/tomchaplin/grpphati) for GrPPH,
 and [PHAT](https://github.com/blazs/phat) and [LoPHAT](https://github.com/tomchaplin/lophat) for explicit boundary matrices.
+The Rust reduction itself is benchmarked with [criterion](https://bheisler.github.io/criterion.rs/book/), in
+`phlite_rips/benches` and `phlite_grpph/benches`. The latest results of both are in [BENCHMARKS.md](BENCHMARKS.md).
 
-This is a separate uv project with its own Python 3.11 environment, because giotto-ph has no wheels after 3.12 and grpphati pins `numpy<1.25` (no wheels after 3.11).
-Every recipe first builds the three extension modules into that environment in release mode.
-PHAT's only PyPI release is an sdist whose metadata disagrees with its version, which uv and pip refuse,
-so `just venv` builds it from the unpacked sdist instead (`just install-phat`; needs a C++ compiler).
-You need [`just`](https://github.com/casey/just) and [`uv`](https://github.com/astral-sh/uv).
+You need [`just`](https://github.com/casey/just), [`uv`](https://github.com/astral-sh/uv) and a C++ compiler (for PHAT).
+The `justfile` at the root of the repository runs everything, Rust and Python:
 
 ```sh
-just test                 # quick fuzz run (100 examples per test)
-just fuzz 20000           # longer fuzz run (20000 examples per test)
-just bench-rips           # phlite_rips vs ripser and giotto-ph
-just bench-grpph          # phlite_grpph vs grpphati
-just bench-sparse         # phlite_py vs PHAT and LoPHAT
+just test                 # all tests: Rust, then Python (fuzzing briefly, 100 examples per test)
+just fuzz 20000           # fuzz for longer (20000 examples per test)
+just bench                # every benchmark: Rust (criterion), then Python (pytest-benchmark)
+just bench-py -k grid     # Python benchmarks, with pytest options
+just bench-rust 'rips'    # Rust benchmarks, with criterion options (a filter, --baseline, ...)
+just bench-check          # check for performance regressions against the saved baselines (a few minutes)
+just check                # `test` then `bench-check`
+just bench-baseline       # save new baselines for bench-check
+just bench-docs           # rerun every benchmark and regenerate BENCHMARKS.md
 ```
+
+This folder's `justfile` has the Python side of these (`test`, `fuzz`, `bench`, `bench-check`, `bench-baseline`,
+`bench-docs`).
+
+### Two environments
+
+The references need different Pythons, so there are two uv projects here, and every recipe first builds the extension
+modules (in release mode) into the environment that uses them:
+
+| Environment | Python | References | Tests | Benchmark suite |
+|---|---|---|---|---|
+| `.` | 3.11 | ripser, giotto-ph, grpphati | `test_rips.py`, `test_grpph.py`, phlite_py's `test_real_grpphati` | `rips`, `grpph` |
+| `latest/` | 3.13 | PHAT, LoPHAT | `test_sparse.py`, phlite_py's own tests | `sparse` |
+
+giotto-ph has no wheels after 3.12 and grpphati pins `numpy<1.25` (no wheels after 3.11), while LoPHAT 0.14 needs 3.12 or later.
+PHAT's only PyPI release is an sdist whose metadata disagrees with its version, which uv and pip refuse,
+so `just venv` builds it from the unpacked sdist instead (`just install-phat`, checking its SHA-256).
 
 ## Fuzz tests
 
@@ -44,23 +66,48 @@ The tests use [Hypothesis](https://hypothesis.readthedocs.io/) to generate input
 
 ## Benchmarks
 
-Each case runs in a fresh subprocess, so the time and peak memory of one implementation cannot affect another.
-Libraries are imported, and the input built, before measuring.
-"Peak MB" is the peak resident memory during the computation, minus what was in use when it started.
-On Linux this is exact (we reset the kernel's high-water mark `VmHWM` first); elsewhere it falls back to `getrusage`, which under-reports runs that stay below the memory used during setup.
-"agrees" checks a fingerprint of the barcode (number of bars and total persistence per dimension) against the reference implementation.
+### Python (pytest-benchmark)
 
-Run any script with `--help` for options, for example:
+`benchmarks/bench_*.py` are pytest-benchmark suites, each comparing a binding with its references:
 
-```sh
-just bench-rips --sizes 100 200 300 --max-dim 1 --repeats 5
-just bench-rips --all --only phlite      # include the slower phlite variants (standard, homology, lock-free)
-just bench-grpph --graph cycle --sizes 100 200 400
-just bench-grpph --sizes 50 100 --p 0.3 --json results.json
-just bench-sparse --kind grid --sizes 200 400   # also: rips, cells (sparse random cellular), dense
-```
+* `bench_rips.py`: `phlite_rips` vs ripser and giotto-ph, on random point clouds.
+* `bench_grpph.py`: `phlite_grpph` vs grpphati, on random weighted digraphs.
+* `bench_sparse.py`: `phlite` vs PHAT and LoPHAT, on explicit boundary matrices given to every implementation as the
+  same list of columns in filtration order: Rips complexes, cubical grids with a lower-star filtration, and sparse and
+  dense random cellular complexes. Plain times include loading the columns from Python; `(reduce)` variants build the
+  matrix before the clock starts.
 
-`bench-sparse` gives every implementation the same columns, in filtration order. Its plain times include loading the columns from Python lists;
-the `(reduce)` variants build the matrix before the clock starts.
+Each benchmark is one implementation on one case, so the usual pytest options select them, e.g.
+`just bench-py -k "grid and phlite"` or `just bench-py -m quick`. Each one (see `benchmarks/common.py`):
 
-The Rust-level comparison of serial and parallel reduction lives in `scripts/bench_parallel.sh`.
+1. builds its input, untimed, and runs once to check its barcode against the reference implementation's (a
+   fingerprint: the number of bars and total persistence in each dimension) and to measure peak memory: the peak
+   resident memory during the run minus what was in use before it, stored in the results as `extra_info["peak_mb"]`.
+   On Linux this is exact for that run (we reset the kernel's high-water mark `VmHWM` first); elsewhere it falls back
+   to `getrusage`, which under-reports runs that stay below an earlier peak;
+2. is timed over `PHLITE_BENCH_ROUNDS` runs (default 3) with `benchmark.pedantic`, building a fresh input before each,
+   untimed, since some implementations reduce their input in place.
+
+Parallel implementations use `PHLITE_BENCH_THREADS` threads (default 4, or fewer cores).
+`benchmarks/conftest.py` leaves the hostname and the CPU's current clock speed out of the saved machine info.
+
+### Rust (criterion)
+
+`phlite_rips/benches/reduction.rs` and `phlite_grpph/benches/reduction.rs` time the clearing reduction alone on a Rips
+and a GrPPH coboundary matrix: serial with merged and heap columns, and parallel with locking and lock-free storage on
+1, 2 and 4 threads. Run them with `just bench-rust` (any arguments go to criterion, e.g. a name filter); the reports
+are in `target/criterion`.
+
+### Regressions and BENCHMARKS.md
+
+* `just bench-check` runs the Python benchmarks marked `quick` with pytest-benchmark's
+  `--benchmark-compare --benchmark-compare-fail=min:50%`, against the saved runs in `benchmarks/baselines/` (one per
+  environment, since pytest-benchmark keys saved runs by platform and Python version), failing if any is more than 50%
+  slower. It then runs the criterion benchmarks with `--baseline-lenient quick`, which reports how each changed against
+  the saved criterion baseline (criterion doesn't fail on a regression). Peak memory is recorded but not checked.
+* `just bench-baseline` saves new baselines for both, after an intended change in performance or on a new machine.
+  Baselines are only meaningful on the machine they were recorded on; the committed Python ones are from the machine in
+  BENCHMARKS.md, and criterion's are local (in `target/criterion`).
+* `just bench-docs` runs every benchmark, saves the Python results in `benchmarks/results/` (pytest-benchmark JSON,
+  which `pytest-benchmark compare` can compare), and writes BENCHMARKS.md from them and criterion's results with
+  `benchmarks/report.py`.

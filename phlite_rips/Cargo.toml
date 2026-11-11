@@ -37,4 +37,9 @@ lock-free = ["phlite/lock-free", "phlite_pyutils?/lock-free"]
 python = ["dep:pyo3", "dep:pyo3-log", "dep:pyo3-stub-gen", "dep:phlite_pyutils", "dep:numpy", "lock-free"]
 
 [dev-dependencies]
+criterion = "0.8.2"
 rustc-hash = "2.1.3"
+
+[[bench]]
+name = "reduction"
+harness = false

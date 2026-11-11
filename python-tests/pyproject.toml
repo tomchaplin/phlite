@@ -13,13 +13,19 @@ dependencies = [
     "ripser",
     "giotto-ph",
     "grpphati",
-    # PHAT is installed separately by `just install-phat`, since its PyPI metadata is broken
-    "lophat",
 ]
 
 [tool.uv]
-# phlite_grpph, phlite_rips and phlite_py are built into this environment by `maturin develop` (see justfile)
+# phlite_grpph and phlite_rips are built into this environment by `maturin develop` (see justfile)
 package = false
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+# The benchmarks in benchmarks/ are collected only when asked for (see the justfile)
+python_files = ["test_*.py", "bench_*.py"]
+markers = ["quick: the benchmark cases that `just bench-check` compares with the saved baseline"]
+
+[dependency-groups]
+dev = [
+    "pytest-benchmark>=5.3.1",
+]
