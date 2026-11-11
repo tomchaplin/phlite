@@ -74,11 +74,78 @@ The `Barcode` has:
 * `representatives`: `{birth: cycle}` (if requested). Over Z/2 a cycle is a list of cells; over Z/p it is a list of
   `(cell, coefficient)` pairs. Cells are in decreasing filtration order, so the first is the birth cell;
 * `diagram(dim)`, `diagrams()`: `(k, 2)` numpy arrays of `(birth, death)` filtration values, `inf` for essential bars;
+* `bars`: every bar as a `Bar`, with `dimension`, `birth`, `death`, `birth_value`, `death_value` and
+  `representative` (`(cell, coefficient)` pairs);
 * `dimension_of(birth)`.
 
 **Zero-length bars are omitted** (birth and death with the same filtration value), as everywhere in `phlite`:
 there are usually far more of them than anything else, and skipping them lets the reduction skip apparent pairs.
 With the default index filtration no bar has length zero, so you get every pair, as with PHAT.
+
+## Using your own cell objects
+
+`CellComplex` lets you describe the complex with your own Python objects, and gives the results back in terms of
+them. A cell needs to be hashable, with a dimension and a boundary; this is the same protocol as grpphati's
+`Column`, so grpphati columns work as they are:
+
+```python
+@dataclasses.dataclass(frozen=True)
+class Simplex:
+    vertices: tuple
+    entrance_time: float = dataclasses.field(default=None, compare=False)  # optional
+
+    @property
+    def dimension(self):  # an attribute, property or method
+        return len(self.vertices) - 1
+
+    def boundary(self):   # faces, or a mapping {face: coefficient}
+        vs = self.vertices
+        return [Simplex(vs[:i] + vs[i + 1 :]) for i in range(len(vs))] if len(vs) > 1 else []
+
+barcode = phlite.CellComplex(cells).persistence(representatives=True)
+for bar in barcode.bars:
+    bar.dimension, bar.birth, bar.death, bar.birth_value, bar.death_value
+    bar.representative  # [(Simplex(...), 1), ...], birth cell first
+barcode.pairings        # [(Simplex(...), Simplex(...)), ...]
+barcode.bar(some_simplex), barcode.representative(some_simplex)
+```
+
+* Faces only need to compare equal to the cell they mean, so `boundary()` can build fresh objects
+  (without entrance times).
+* Cells can be given in any order: they enter by filtration value, and their order only breaks ties.
+  Values come from `values=` (a mapping, a function or a sequence), else `cell.entrance_time` if the cells have one,
+  else the order given.
+* Plain types work too, by saying how to get the pieces:
+  `phlite.CellComplex(simplices, dimension=lambda s: len(s) - 1, boundary=faces, values=times)`,
+  or pass a mapping `{cell: boundary}`.
+* Internally each cell is given its position in `cells` as its index, and the complex is reduced exactly like a
+  `FilteredComplex`; error messages name your cells by `repr`.
+
+### Choosing the identifiers yourself
+
+By default cells are matched up through a Python dict, using your `__hash__` and `__eq__`. You can instead give
+`key=`, an injective map from cells to integers (e.g. a combinatorial encoding of a simplex); keys are matched in
+a Rust hash map.
+
+* `key=` lets cells be unhashable, and avoids your `__hash__`/`__eq__`, which helps when those are expensive.
+* `from_key=` (the inverse of `key`) means the complex stores only the keys, not the cells, and rebuilds cells
+  when you ask for results.
+* `face_keys=True` means `boundary` returns the keys of the faces rather than face objects. This is the real
+  speed-up, since building face objects is usually the slowest part.
+
+`examples/cell_cost.py` builds the Vietoris-Rips complex of 300 random points (193k cells) from frozen dataclass
+simplices, then computes H_0 and H_1:
+
+| | build | memory kept by the complex |
+|---|---|---|
+| `FilteredComplex` from integer columns (indexing done by hand, in Python) | 175 ms | – |
+| `CellComplex`, hashing | 448 ms | 17.4 MB |
+| `CellComplex`, `key=` | 455 ms | 1.5 MB |
+| `CellComplex`, `key=`, `from_key=` | 483 ms | 0 MB |
+| `CellComplex`, `key=`, `face_keys=True` | 276 ms | 1.5 MB |
+
+The reduction itself takes about 4 ms in every case. For simplices this cheap to hash, `key=` alone saves memory
+but not time: most of the build is spent calling `boundary()`, which `face_keys=True` makes cheaper.
 
 ## How it works
 

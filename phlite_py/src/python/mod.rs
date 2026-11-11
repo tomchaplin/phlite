@@ -6,7 +6,7 @@ use numpy::{
 };
 use ordered_float::NotNan;
 use phlite::{
-    barcode::Bar,
+    barcode::Bar as PhliteBar,
     fields::{Z11, Z13, Z2, Z3, Z5, Z7},
 };
 use phlite_pyutils::{parse_method, AlgorithmArg};
@@ -18,9 +18,12 @@ use pyo3::{
 use pyo3_stub_gen::derive::*;
 
 use crate::{
-    complex::{Cell, Complex, RawComplex},
+    complex::{Cell, Complex, ComplexError, RawComplex},
     field::IntField,
 };
+
+mod cells;
+pub use cells::{CellBarcode, CellComplex};
 
 // ====== Coefficient fields ===============================================
 
@@ -29,7 +32,7 @@ const MODULI: &str = "2, 3, 5, 7, 11 or 13";
 
 /// A complex over one of the supported fields.
 /// Each field is a separate monomorphisation of the whole reduction, so we keep the list short.
-enum AnyComplex {
+pub(crate) enum AnyComplex {
     Z2(Complex<Z2>),
     Z3(Complex<Z3>),
     Z5(Complex<Z5>),
@@ -53,8 +56,10 @@ macro_rules! dispatch {
 }
 
 impl AnyComplex {
-    fn build(raw: RawComplex, modulus: u64) -> PyResult<Self> {
-        let complex = match modulus {
+    /// Build a complex over Z/`modulus`.
+    /// The outer error is for an unsupported modulus, the inner for an invalid complex.
+    fn build(raw: RawComplex, modulus: u64) -> PyResult<Result<Self, ComplexError>> {
+        Ok(match modulus {
             2 => Complex::from_raw(raw).map(Self::Z2),
             3 => Complex::from_raw(raw).map(Self::Z3),
             5 => Complex::from_raw(raw).map(Self::Z5),
@@ -66,8 +71,40 @@ impl AnyComplex {
                     "Unsupported modulus {other}, expected one of {MODULI}"
                 )))
             }
-        };
-        complex.map_err(PyValueError::new_err)
+        })
+    }
+
+    /// Compute the barcode (without the GIL).
+    #[allow(clippy::too_many_arguments)]
+    fn persistence(
+        &self,
+        py: Python<'_>,
+        max_dim: Option<usize>,
+        method: &str,
+        algorithm: &str,
+        representatives: bool,
+        threads: Option<usize>,
+    ) -> PyResult<Barcode> {
+        let method = parse_method(method)?;
+        let algorithm = AlgorithmArg::parse(algorithm)?;
+        dispatch!(self, c => py.detach(|| {
+            algorithm.run(threads, |algorithm| {
+                let bars = c.barcode(max_dim, method, algorithm, representatives);
+                Barcode::new(c, bars, max_dim, representatives)
+            })
+        }))
+    }
+
+    fn n_cells(&self) -> usize {
+        dispatch!(self, c => c.n_cells())
+    }
+
+    fn n_entries(&self) -> usize {
+        dispatch!(self, c => c.n_entries())
+    }
+
+    fn top_dimension(&self) -> Option<usize> {
+        dispatch!(self, c => c.top_dimension())
     }
 
     fn modulus(&self) -> u64 {
@@ -117,7 +154,7 @@ fn integral(x: f64, name: &str) -> PyResult<i64> {
 
 /// Read a sequence of integers. Integer numpy arrays (and float arrays of whole numbers, as scipy uses for `data`)
 /// are read directly, without converting each entry through Python.
-fn read_ints(obj: &Bound<'_, PyAny>, name: &str) -> PyResult<Vec<i64>> {
+pub(crate) fn read_ints(obj: &Bound<'_, PyAny>, name: &str) -> PyResult<Vec<i64>> {
     if is_numpy(obj) {
         if let Some(v) = try_numpy::<i64>(obj) {
             return Ok(v);
@@ -154,7 +191,7 @@ fn read_ints(obj: &Bound<'_, PyAny>, name: &str) -> PyResult<Vec<i64>> {
 }
 
 /// Read a sequence of floats, reading float numpy arrays directly.
-fn read_floats(obj: &Bound<'_, PyAny>, name: &str) -> PyResult<Vec<f64>> {
+pub(crate) fn read_floats(obj: &Bound<'_, PyAny>, name: &str) -> PyResult<Vec<f64>> {
     if is_numpy(obj) {
         if let Some(v) = try_numpy::<f64>(obj) {
             return Ok(v);
@@ -319,7 +356,9 @@ impl FilteredComplex {
     ) -> PyResult<Self> {
         let mut raw = read_columns(boundaries, dimensions, coefficients)?;
         raw.values = values.map(|v| read_floats(v, "values")).transpose()?;
-        let complex = py.detach(|| AnyComplex::build(raw, modulus))?;
+        let complex = py
+            .detach(|| AnyComplex::build(raw, modulus))?
+            .map_err(|e| PyValueError::new_err(e.to_string()))?;
         Ok(Self { complex })
     }
 
@@ -361,7 +400,9 @@ impl FilteredComplex {
             indices: read_ints(indices, "indices")?,
             coefficients: data.map(|d| read_ints(d, "data")).transpose()?,
         };
-        let complex = py.detach(|| AnyComplex::build(raw, modulus))?;
+        let complex = py
+            .detach(|| AnyComplex::build(raw, modulus))?
+            .map_err(|e| PyValueError::new_err(e.to_string()))?;
         Ok(Self { complex })
     }
 
@@ -393,32 +434,26 @@ impl FilteredComplex {
         representatives: bool,
         threads: Option<usize>,
     ) -> PyResult<Barcode> {
-        let method = parse_method(method)?;
-        let algorithm = AlgorithmArg::parse(algorithm)?;
-        dispatch!(&self.complex, c => py.detach(|| {
-            algorithm.run(threads, |algorithm| {
-                let bars = c.barcode(max_dim, method, algorithm, representatives);
-                Barcode::new(c, bars, max_dim, representatives)
-            })
-        }))
+        self.complex
+            .persistence(py, max_dim, method, algorithm, representatives, threads)
     }
 
     /// The number of cells.
     #[getter]
     fn n_cells(&self) -> usize {
-        dispatch!(&self.complex, c => c.n_cells())
+        self.complex.n_cells()
     }
 
     /// The number of non-zero entries in the boundary matrix (after summing repeated entries).
     #[getter]
     fn n_entries(&self) -> usize {
-        dispatch!(&self.complex, c => c.n_entries())
+        self.complex.n_entries()
     }
 
     /// The largest dimension of a cell, or `None` for an empty complex.
     #[getter]
     fn dimension(&self) -> Option<usize> {
-        dispatch!(&self.complex, c => c.top_dimension())
+        self.complex.top_dimension()
     }
 
     /// The characteristic of the coefficient field.
@@ -446,7 +481,7 @@ impl FilteredComplex {
 // ====== Barcode ==========================================================
 
 /// A bar, with the complex's data copied in so that the barcode is self-contained.
-struct Record {
+pub(crate) struct Record {
     birth: u32,
     death: Option<u32>,
     dimension: usize,
@@ -466,16 +501,16 @@ struct Record {
 #[pyclass(frozen, module = "phlite")]
 pub struct Barcode {
     /// Sorted by birth cell.
-    bars: Vec<Record>,
-    n_dims: usize,
-    modulus: u64,
-    representatives: bool,
+    pub(crate) bars: Vec<Record>,
+    pub(crate) n_dims: usize,
+    pub(crate) modulus: u64,
+    pub(crate) representatives: bool,
 }
 
 impl Barcode {
     fn new<CF: IntField>(
         complex: &Complex<CF>,
-        bars: Vec<Bar<Cell, NotNan<f64>, CF>>,
+        bars: Vec<PhliteBar<Cell, NotNan<f64>, CF>>,
         max_dim: Option<usize>,
         representatives: bool,
     ) -> Self {
@@ -491,9 +526,16 @@ impl Barcode {
                     .death
                     .map_or(f64::INFINITY, |(_, value)| value.into_inner()),
                 representative: bar.representative.map(|rep| {
-                    rep.into_iter()
+                    let mut rep: Vec<(u32, u64)> = rep
+                        .into_iter()
                         .map(|(coeff, cell)| (cell.0, coeff.to_int()))
-                        .collect()
+                        .collect();
+                    // phlite gives no particular order; list in decreasing filtration order, so the birth cell is first
+                    rep.sort_by(|(a, _), (b, _)| {
+                        let value = |c: u32| complex.value(Cell(c));
+                        value(*b).total_cmp(&value(*a)).then(b.cmp(a))
+                    });
+                    rep
                 }),
             })
             .collect();
@@ -506,7 +548,11 @@ impl Barcode {
         }
     }
 
-    fn diagram_array<'py>(&self, py: Python<'py>, dim: usize) -> Bound<'py, PyArray2<f64>> {
+    pub(crate) fn diagram_array<'py>(
+        &self,
+        py: Python<'py>,
+        dim: usize,
+    ) -> Bound<'py, PyArray2<f64>> {
         let mut points: Vec<(f64, f64)> = self
             .bars
             .iter()
@@ -519,6 +565,171 @@ impl Barcode {
         Array2::from_shape_vec((points.len(), 2), flat)
             .expect("two values per point")
             .into_pyarray(py)
+    }
+
+    /// The bar born at cell `birth`, if any.
+    pub(crate) fn find(&self, birth: u32) -> Option<&Record> {
+        self.bars
+            .binary_search_by_key(&birth, |bar| bar.birth)
+            .ok()
+            .map(|i| &self.bars[i])
+    }
+
+    /// Every bar as a [`Bar`], with cells converted to Python by `cell`.
+    pub(crate) fn make_bars<'py>(
+        &self,
+        py: Python<'py>,
+        cell: impl Fn(u32) -> PyResult<Bound<'py, PyAny>>,
+    ) -> PyResult<Vec<Bar>> {
+        self.bars
+            .iter()
+            .map(|bar| Bar::from_record(py, bar, &cell))
+            .collect()
+    }
+
+    pub(crate) fn repr(&self, name: &str) -> String {
+        let mut finite = vec![0; self.n_dims];
+        let mut essential = vec![0; self.n_dims];
+        for bar in &self.bars {
+            let counts = if bar.death.is_some() {
+                &mut finite
+            } else {
+                &mut essential
+            };
+            if let Some(count) = counts.get_mut(bar.dimension) {
+                *count += 1;
+            }
+        }
+        format!(
+            "{name}(pairings={finite:?}, essential={essential:?}, representatives={})",
+            if self.representatives {
+                "True"
+            } else {
+                "False"
+            }
+        )
+    }
+}
+
+/// A chain as a list of `(cell, coefficient)` pairs.
+pub(crate) fn chain<'py>(
+    py: Python<'py>,
+    rep: &[(u32, u64)],
+    cell: impl Fn(u32) -> PyResult<Bound<'py, PyAny>>,
+) -> PyResult<Bound<'py, PyList>> {
+    let list = PyList::empty(py);
+    for &(c, coeff) in rep {
+        list.append((cell(c)?, coeff))?;
+    }
+    Ok(list)
+}
+
+// ====== Bar ==============================================================
+
+/// A bar of a barcode: a homology class with its birth and death.
+///
+/// Cells are cell indices for a `FilteredComplex`, or your own cell objects for a `CellComplex`.
+#[gen_stub_pyclass]
+#[pyclass(frozen, module = "phlite")]
+pub struct Bar {
+    dimension: usize,
+    birth: Py<PyAny>,
+    death: Option<Py<PyAny>>,
+    birth_value: f64,
+    death_value: f64,
+    representative: Option<Py<PyList>>,
+}
+
+impl Bar {
+    /// Convert a [`Record`], with cells converted to Python by `cell`.
+    pub(crate) fn from_record<'py>(
+        py: Python<'py>,
+        bar: &Record,
+        cell: impl Fn(u32) -> PyResult<Bound<'py, PyAny>>,
+    ) -> PyResult<Self> {
+        Ok(Bar {
+            dimension: bar.dimension,
+            birth: cell(bar.birth)?.unbind(),
+            death: bar.death.map(&cell).transpose()?.map(Bound::unbind),
+            birth_value: bar.birth_value,
+            death_value: bar.death_value,
+            representative: bar
+                .representative
+                .as_ref()
+                .map(|rep| chain(py, rep, &cell))
+                .transpose()?
+                .map(Bound::unbind),
+        })
+    }
+}
+
+#[gen_stub_pymethods]
+#[pymethods]
+impl Bar {
+    /// The homology dimension (the dimension of the birth cell).
+    #[getter]
+    fn dimension(&self) -> usize {
+        self.dimension
+    }
+
+    /// The cell whose entry creates the class.
+    #[getter]
+    #[gen_stub(override_return_type(type_repr = "typing.Any", imports = ("typing")))]
+    fn birth(&self, py: Python<'_>) -> Py<PyAny> {
+        self.birth.clone_ref(py)
+    }
+
+    /// The cell whose entry kills the class, or `None` for an essential bar.
+    #[getter]
+    #[gen_stub(override_return_type(type_repr = "typing.Optional[typing.Any]", imports = ("typing")))]
+    fn death(&self, py: Python<'_>) -> Option<Py<PyAny>> {
+        self.death.as_ref().map(|d| d.clone_ref(py))
+    }
+
+    /// The filtration value of the birth cell.
+    #[getter]
+    fn birth_value(&self) -> f64 {
+        self.birth_value
+    }
+
+    /// The filtration value of the death cell, or `inf` for an essential bar.
+    #[getter]
+    fn death_value(&self) -> f64 {
+        self.death_value
+    }
+
+    /// `death_value - birth_value`.
+    #[getter]
+    fn persistence(&self) -> f64 {
+        self.death_value - self.birth_value
+    }
+
+    /// Whether the bar is infinite.
+    #[getter]
+    fn is_essential(&self) -> bool {
+        self.death.is_none()
+    }
+
+    /// A representative cycle as a list of `(cell, coefficient)` pairs in decreasing filtration order
+    /// (so the first cell is the birth cell), or `None` if representatives were not requested.
+    #[getter]
+    #[gen_stub(override_return_type(type_repr = "typing.Optional[builtins.list[tuple[typing.Any, builtins.int]]]", imports = ("builtins", "typing")))]
+    fn representative<'py>(&self, py: Python<'py>) -> Option<Bound<'py, PyList>> {
+        self.representative.as_ref().map(|r| r.bind(py).clone())
+    }
+
+    fn __repr__(&self, py: Python<'_>) -> PyResult<String> {
+        let death = match &self.death {
+            Some(d) => d.bind(py).repr()?.to_string(),
+            None => "None".to_string(),
+        };
+        Ok(format!(
+            "Bar(dimension={}, birth={}, death={death}, birth_value={}, death_value={})",
+            self.dimension,
+            self.birth.bind(py).repr()?,
+            self.birth_value,
+            self.death_value
+        ))
     }
 }
 
@@ -594,10 +805,15 @@ impl Barcode {
 
     /// The dimension of the bar born at `birth` (the dimension of the cell `birth`).
     fn dimension_of(&self, birth: u32) -> PyResult<usize> {
-        self.bars
-            .binary_search_by_key(&birth, |bar| bar.birth)
-            .map(|i| self.bars[i].dimension)
-            .map_err(|_| PyValueError::new_err(format!("No bar is born at cell {birth}")))
+        self.find(birth)
+            .map(|bar| bar.dimension)
+            .ok_or_else(|| PyValueError::new_err(format!("No bar is born at cell {birth}")))
+    }
+
+    /// Every bar, sorted by birth cell.
+    #[getter]
+    fn bars(&self, py: Python<'_>) -> PyResult<Vec<Bar>> {
+        self.make_bars(py, |cell| Ok(cell.into_pyobject(py)?.into_any()))
     }
 
     fn __len__(&self) -> usize {
@@ -605,26 +821,7 @@ impl Barcode {
     }
 
     fn __repr__(&self) -> String {
-        let mut finite = vec![0; self.n_dims];
-        let mut essential = vec![0; self.n_dims];
-        for bar in &self.bars {
-            let counts = if bar.death.is_some() {
-                &mut finite
-            } else {
-                &mut essential
-            };
-            if let Some(count) = counts.get_mut(bar.dimension) {
-                *count += 1;
-            }
-        }
-        format!(
-            "Barcode(pairings={finite:?}, essential={essential:?}, representatives={})",
-            if self.representatives {
-                "True"
-            } else {
-                "False"
-            }
-        )
+        self.repr("Barcode")
     }
 }
 
@@ -636,5 +833,8 @@ fn phlite_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
     pyo3_log::init();
     m.add_class::<FilteredComplex>()?;
     m.add_class::<Barcode>()?;
+    m.add_class::<Bar>()?;
+    m.add_class::<CellComplex>()?;
+    m.add_class::<CellBarcode>()?;
     Ok(())
 }

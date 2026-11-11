@@ -163,13 +163,97 @@ impl<'a, CF: IntField> HasRowFiltration for View<'a, CF> {
     }
 }
 
-fn int_to<T: TryFrom<i64>>(value: i64, what: impl FnOnce() -> String) -> Result<T, String> {
-    T::try_from(value).map_err(|_| format!("{} is {value}, which is out of range", what()))
+/// Why a [`RawComplex`] is not a valid filtered complex.
+///
+/// Errors about particular cells record their indices, so that callers can name the cells however they like
+/// (see [`describe`](Self::describe)).
+#[derive(Debug, Clone, PartialEq)]
+pub enum ComplexError {
+    /// A problem with the shape of the input, not tied to particular cells.
+    Input(String),
+    /// A dimension is negative or too large.
+    BadDimension { cell: u32, dimension: i64 },
+    /// A filtration value is NaN.
+    NanValue { cell: u32 },
+    /// A boundary entry is not a cell.
+    FaceOutOfRange {
+        cell: u32,
+        face: i64,
+        n_cells: usize,
+    },
+    /// A face does not have dimension one lower than its coface.
+    WrongDimension {
+        cell: u32,
+        cell_dimension: u32,
+        face: u32,
+        face_dimension: u32,
+    },
+    /// A face does not enter the filtration before its coface.
+    FaceAfterCell {
+        cell: u32,
+        cell_value: f64,
+        face: u32,
+        face_value: f64,
+    },
 }
+
+impl ComplexError {
+    /// A message describing the error, where `name(i)` describes cell `i` (e.g. `"cell 3"`).
+    pub fn describe(&self, name: impl Fn(u32) -> String) -> String {
+        match self {
+            Self::Input(message) => message.clone(),
+            Self::BadDimension { cell, dimension } => format!(
+                "{} has dimension {dimension}, but dimensions must be between 0 and {MAX_DIMENSION}",
+                name(*cell)
+            ),
+            Self::NanValue { cell } => format!("{} has filtration value NaN", name(*cell)),
+            Self::FaceOutOfRange {
+                cell,
+                face,
+                n_cells,
+            } => format!(
+                "The boundary of {} contains cell {face}, which is out of range (there are only {n_cells} cells)",
+                name(*cell)
+            ),
+            Self::WrongDimension {
+                cell,
+                cell_dimension,
+                face,
+                face_dimension,
+            } => format!(
+                "The boundary of {} (dimension {cell_dimension}) contains {} of dimension {face_dimension}, \
+                 but faces must have dimension one lower",
+                name(*cell),
+                name(*face)
+            ),
+            Self::FaceAfterCell {
+                cell,
+                cell_value,
+                face,
+                face_value,
+            } => format!(
+                "The boundary of {} (value {cell_value}) contains {} (value {face_value}), \
+                 but faces must enter the filtration first \
+                 (with a smaller value, or an equal value and coming earlier)",
+                name(*cell),
+                name(*face)
+            ),
+        }
+    }
+}
+
+impl std::fmt::Display for ComplexError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.describe(|i| format!("cell {i}")))
+    }
+}
+
+impl std::error::Error for ComplexError {}
 
 impl<CF: IntField> Complex<CF> {
     /// Validate `raw` and build the boundary and coboundary matrices.
-    pub fn from_raw(raw: RawComplex) -> Result<Self, String> {
+    pub fn from_raw(raw: RawComplex) -> Result<Self, ComplexError> {
+        use ComplexError::Input;
         let RawComplex {
             dimensions,
             values,
@@ -179,70 +263,73 @@ impl<CF: IntField> Complex<CF> {
         } = raw;
         let n = dimensions.len();
         if n > u32::MAX as usize {
-            return Err(format!("At most {} cells are supported, got {n}", u32::MAX));
+            return Err(Input(format!(
+                "At most {} cells are supported, got {n}",
+                u32::MAX
+            )));
         }
 
         // ---- Per-cell data ----
         let dimensions: Vec<u32> = dimensions
             .into_iter()
             .enumerate()
-            .map(|(i, d)| {
-                let d: u32 = int_to(d, || format!("dimensions[{i}]"))?;
-                if d > MAX_DIMENSION {
-                    return Err(format!(
-                        "dimensions[{i}] is {d}, but at most {MAX_DIMENSION} is supported"
-                    ));
-                }
-                Ok(d)
+            .map(|(i, d)| match u32::try_from(d) {
+                Ok(d) if d <= MAX_DIMENSION => Ok(d),
+                _ => Err(ComplexError::BadDimension {
+                    cell: i as u32,
+                    dimension: d,
+                }),
             })
-            .collect::<Result<_, String>>()?;
+            .collect::<Result<_, _>>()?;
         let values: Vec<NotNan<f64>> = match values {
             None => (0..n).map(|i| NotNan::new(i as f64).unwrap()).collect(),
             Some(values) => {
                 if values.len() != n {
-                    return Err(format!(
+                    return Err(Input(format!(
                         "values has length {} but there are {n} cells",
                         values.len()
-                    ));
+                    )));
                 }
                 values
                     .into_iter()
                     .enumerate()
-                    .map(|(i, v)| NotNan::new(v).map_err(|_| format!("values[{i}] is NaN")))
-                    .collect::<Result<_, String>>()?
+                    .map(|(i, v)| {
+                        NotNan::new(v).map_err(|_| ComplexError::NanValue { cell: i as u32 })
+                    })
+                    .collect::<Result<_, _>>()?
             }
         };
         let key = |cell: usize| (values[cell], cell);
 
         // ---- The shape of the CSC arrays ----
         if indptr.len() != n + 1 {
-            return Err(format!(
+            return Err(Input(format!(
                 "indptr has length {} but there are {n} cells, so it should have length {}",
                 indptr.len(),
                 n + 1
-            ));
+            )));
         }
         if indptr[0] != 0 || indptr[n] != indices.len() as i64 {
-            return Err(format!(
+            return Err(Input(format!(
                 "indptr should start at 0 and end at the number of entries ({}), but runs from {} to {}",
                 indices.len(),
                 indptr[0],
                 indptr[n]
-            ));
+            )));
         }
         if let Some(j) = (0..n).find(|&j| indptr[j] > indptr[j + 1]) {
-            return Err(format!(
+            return Err(Input(format!(
                 "indptr must be non-decreasing, but indptr[{j}] > indptr[{}]",
                 j + 1
-            ));
+            )));
         }
         if let Some(coefficients) = &coefficients {
             if coefficients.len() != indices.len() {
-                return Err(format!(
+                return Err(Input(format!(
                     "There are {} coefficients but {} boundary entries",
                     coefficients.len(),
                     indices.len()
-                ));
+                )));
             }
         }
 
@@ -256,26 +343,31 @@ impl<CF: IntField> Complex<CF> {
         for col in 0..n {
             scratch.clear();
             for i in indptr[col] as usize..indptr[col + 1] as usize {
-                let row: usize = int_to(indices[i], || format!("Boundary entry {i}"))?;
-                if row >= n {
-                    return Err(format!(
-                        "The boundary of cell {col} contains cell {row}, but there are only {n} cells"
-                    ));
-                }
+                let row = match usize::try_from(indices[i]) {
+                    Ok(row) if row < n => row,
+                    _ => {
+                        return Err(ComplexError::FaceOutOfRange {
+                            cell: col as u32,
+                            face: indices[i],
+                            n_cells: n,
+                        })
+                    }
+                };
                 if dimensions[row] + 1 != dimensions[col] {
-                    return Err(format!(
-                        "The boundary of cell {col} (dimension {}) contains cell {row} of dimension {}, \
-                         but faces must have dimension one lower",
-                        dimensions[col], dimensions[row]
-                    ));
+                    return Err(ComplexError::WrongDimension {
+                        cell: col as u32,
+                        cell_dimension: dimensions[col],
+                        face: row as u32,
+                        face_dimension: dimensions[row],
+                    });
                 }
                 if key(row) >= key(col) {
-                    return Err(format!(
-                        "The boundary of cell {col} (value {}) contains cell {row} (value {}), \
-                         but faces must enter the filtration first \
-                         (with a smaller value, or an equal value and a smaller index)",
-                        values[col], values[row]
-                    ));
+                    return Err(ComplexError::FaceAfterCell {
+                        cell: col as u32,
+                        cell_value: values[col].into_inner(),
+                        face: row as u32,
+                        face_value: values[row].into_inner(),
+                    });
                 }
                 let coeff = coefficients.as_ref().map_or(1, |c| c[i]);
                 scratch.push((Reverse(key(row)), coeff));
@@ -615,22 +707,28 @@ mod tests {
         raw.dimensions[4] = 2;
         assert!(Complex::<Z2>::from_raw(raw)
             .unwrap_err()
+            .to_string()
             .contains("dimension one lower"));
 
         let raw = triangle(Some(vec![0.0, 0.0, 5.0, 0.0, 1.0, 1.0, 1.0, 2.0]));
         assert!(Complex::<Z2>::from_raw(raw)
             .unwrap_err()
+            .to_string()
             .contains("enter the filtration first"));
 
         let mut raw = triangle(None);
         raw.indices[0] = 99;
         assert!(Complex::<Z2>::from_raw(raw)
             .unwrap_err()
+            .to_string()
             .contains("only 8 cells"));
 
         let mut raw = triangle(Some(vec![0.0; 8]));
         raw.values.as_mut().unwrap()[3] = f64::NAN;
-        assert!(Complex::<Z2>::from_raw(raw).unwrap_err().contains("NaN"));
+        assert!(Complex::<Z2>::from_raw(raw)
+            .unwrap_err()
+            .to_string()
+            .contains("NaN"));
     }
 
     #[test]

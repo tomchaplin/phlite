@@ -6,9 +6,62 @@ import numpy
 import numpy.typing
 import typing
 __all__ = [
+    "Bar",
     "Barcode",
+    "CellBarcode",
+    "CellComplex",
     "FilteredComplex",
 ]
+
+@typing.final
+class Bar:
+    r"""
+    A bar of a barcode: a homology class with its birth and death.
+    
+    Cells are cell indices for a `FilteredComplex`, or your own cell objects for a `CellComplex`.
+    """
+    @property
+    def dimension(self) -> builtins.int:
+        r"""
+        The homology dimension (the dimension of the birth cell).
+        """
+    @property
+    def birth(self) -> typing.Any:
+        r"""
+        The cell whose entry creates the class.
+        """
+    @property
+    def death(self) -> typing.Optional[typing.Any]:
+        r"""
+        The cell whose entry kills the class, or `None` for an essential bar.
+        """
+    @property
+    def birth_value(self) -> builtins.float:
+        r"""
+        The filtration value of the birth cell.
+        """
+    @property
+    def death_value(self) -> builtins.float:
+        r"""
+        The filtration value of the death cell, or `inf` for an essential bar.
+        """
+    @property
+    def persistence(self) -> builtins.float:
+        r"""
+        `death_value - birth_value`.
+        """
+    @property
+    def is_essential(self) -> builtins.bool:
+        r"""
+        Whether the bar is infinite.
+        """
+    @property
+    def representative(self) -> typing.Optional[builtins.list[tuple[typing.Any, builtins.int]]]:
+        r"""
+        A representative cycle as a list of `(cell, coefficient)` pairs in decreasing filtration order
+        (so the first cell is the birth cell), or `None` if representatives were not requested.
+        """
+    def __repr__(self) -> builtins.str: ...
 
 @typing.final
 class Barcode:
@@ -38,6 +91,11 @@ class Barcode:
         with coefficients in `1, ..., p - 1`. Cells are listed in decreasing filtration order.
         A finite bar's representative is a cycle that becomes a boundary at its death.
         """
+    @property
+    def bars(self) -> builtins.list[Bar]:
+        r"""
+        Every bar, sorted by birth cell.
+        """
     def diagram(self, dim: builtins.int) -> numpy.typing.NDArray[numpy.float64]:
         r"""
         The persistence diagram in dimension `dim`, as an array of shape `(k, 2)` of `(birth, death)`
@@ -51,6 +109,138 @@ class Barcode:
         r"""
         The dimension of the bar born at `birth` (the dimension of the cell `birth`).
         """
+    def __len__(self) -> builtins.int: ...
+    def __repr__(self) -> builtins.str: ...
+
+@typing.final
+class CellBarcode:
+    r"""
+    A persistence barcode of a `CellComplex`, in terms of its cells.
+    
+    Bars are identified by their birth cell (no cell gives birth to two bars).
+    Bars of length zero are omitted. Bars are sorted by the position of their birth cell in the complex.
+    """
+    @property
+    def bars(self) -> builtins.list[Bar]:
+        r"""
+        Every bar, sorted by birth.
+        """
+    @property
+    def pairings(self) -> builtins.list[tuple[typing.Any, typing.Any]]:
+        r"""
+        The finite bars, as `(birth, death)` pairs of cells, sorted by birth.
+        """
+    @property
+    def essential(self) -> builtins.list[typing.Any]:
+        r"""
+        The birth cells of the essential (infinite) bars, sorted.
+        """
+    @property
+    def complex(self) -> CellComplex:
+        r"""
+        The complex this barcode was computed from.
+        """
+    def bar(self, birth: typing.Any) -> Bar:
+        r"""
+        The bar born at the cell `birth`.
+        """
+    def representative(self, birth: typing.Any) -> typing.Optional[builtins.list[tuple[typing.Any, builtins.int]]]:
+        r"""
+        A representative cycle for the bar born at `birth`, as a list of `(cell, coefficient)` pairs in decreasing
+        filtration order, or `None` if representatives were not requested.
+        """
+    def diagram(self, dim: builtins.int) -> numpy.typing.NDArray[numpy.float64]:
+        r"""
+        The persistence diagram in dimension `dim`; see `Barcode.diagram`.
+        """
+    def diagrams(self) -> builtins.list[numpy.typing.NDArray[numpy.float64]]:
+        r"""
+        The persistence diagrams in dimensions `0, ..., max_dim`; see `Barcode.diagram`.
+        """
+    def __len__(self) -> builtins.int: ...
+    def __repr__(self) -> builtins.str: ...
+
+@typing.final
+class CellComplex:
+    r"""
+    A filtered chain complex whose cells are your own Python objects.
+    
+    Every cell needs a dimension and a boundary, and must be hashable (unless you pass `key`).
+    By default these come from the cells themselves, so a cell type only needs to implement
+    
+    ```python
+    class MyCell(Protocol):
+        def __hash__(self) -> int: ...
+        def __eq__(self, other) -> bool: ...
+        def dimension(self) -> int: ...      # or an attribute or property
+        def boundary(self) -> Iterable[MyCell] | Mapping[MyCell, int]: ...  # or an attribute or property
+        entrance_time: float                 # optional: the filtration value (or a method)
+    ```
+    
+    This is the same protocol as grpphati's `Column`, so its columns work as cells.
+    Faces in a boundary only need to compare equal to (and hash the same as) the cell they refer to;
+    they needn't be the same object, nor carry an entrance time.
+    
+    A boundary is an iterable of faces (each with coefficient 1) or a mapping from faces to coefficients.
+    Every face must itself be a cell of the complex. Cells enter the filtration in order of their filtration value,
+    breaking ties by the order in which they are given (by default, they enter in the order given).
+    
+    Internally each cell is assigned an index, its position in `cells`, and the complex is reduced exactly as for a
+    `FilteredComplex`; the results are translated back to your cells.
+    
+    Args:
+        cells: The cells, or a mapping from each cell to its boundary.
+        boundary: A function giving the boundary of a cell (default: the mapping's values, else `cell.boundary()`).
+        dimension: A function giving the dimension of a cell (default: `cell.dimension`).
+            Handy for plain types, e.g. `dimension=lambda simplex: len(simplex) - 1` for tuples of vertices.
+        values: Filtration values: a mapping from cells, a function of a cell, or a sequence in the same order as
+            `cells`. By default, `cell.entrance_time` if the first cell has one, and otherwise the order of `cells`.
+            Infinite values mean the cell never appears.
+        key: An injective function from cells to integers (fitting in 64 bits). When given, cells are matched up by
+            key instead of by hashing, so need not be hashable. This is faster when hashing your cells is expensive.
+        from_key: The inverse of `key`. When given, the complex stores the keys rather than the cells and
+            reconstructs cells for the results, saving memory when cells are large.
+        face_keys: If true, boundaries list the *keys* of faces rather than faces (needs `key`). This is the fastest
+            way to describe a large complex, since no face objects need to be built.
+        modulus: The characteristic of the coefficient field: 2, 3, 5, 7, 11 or 13.
+    """
+    @property
+    def n_cells(self) -> builtins.int:
+        r"""
+        The number of cells.
+        """
+    @property
+    def n_entries(self) -> builtins.int:
+        r"""
+        The number of non-zero entries in the boundary matrix (after summing repeated entries).
+        """
+    @property
+    def dimension(self) -> typing.Optional[builtins.int]:
+        r"""
+        The largest dimension of a cell, or `None` for an empty complex.
+        """
+    @property
+    def modulus(self) -> builtins.int:
+        r"""
+        The characteristic of the coefficient field.
+        """
+    def __new__(cls, cells: typing.Union[typing.Iterable[typing.Any], typing.Mapping[typing.Any, typing.Union[typing.Iterable[typing.Any], typing.Mapping[typing.Any, builtins.int]]]], *, boundary: typing.Optional[typing.Callable[[typing.Any], typing.Union[typing.Iterable[typing.Any], typing.Mapping[typing.Any, builtins.int]]]] = None, dimension: typing.Optional[typing.Callable[[typing.Any], builtins.int]] = None, values: typing.Union[typing.Mapping[typing.Any, builtins.float], typing.Callable[[typing.Any], builtins.float], typing.Sequence[builtins.float], numpy.typing.NDArray[numpy.floating], None] = None, key: typing.Optional[typing.Callable[[typing.Any], builtins.int]] = None, from_key: typing.Optional[typing.Callable[[builtins.int], typing.Any]] = None, face_keys: builtins.bool = False, modulus: builtins.int = 2) -> CellComplex: ...
+    def persistence(self, max_dim: typing.Optional[builtins.int] = None, *, method: typing.Literal['cohomology', 'homology'] = "cohomology", algorithm: typing.Literal['standard', 'clearing', 'parallel', 'parallel-lock-free'] = "clearing", representatives: builtins.bool = False, threads: typing.Optional[builtins.int] = None) -> CellBarcode:
+        r"""
+        Compute persistent homology in dimensions `0, ..., max_dim`; see `FilteredComplex.persistence`.
+        
+        Returns:
+            The barcode, in terms of your cells. Bars of length zero are omitted.
+        """
+    def cell_at(self, index: builtins.int) -> typing.Any:
+        r"""
+        The cell at position `index` (its position in `cells`).
+        """
+    def index_of(self, cell: typing.Any) -> builtins.int:
+        r"""
+        The position of `cell` in `cells`, which is how `phlite` identifies it.
+        """
+    def __contains__(self, cell: typing.Any) -> builtins.bool: ...
     def __len__(self) -> builtins.int: ...
     def __repr__(self) -> builtins.str: ...
 
