@@ -235,11 +235,14 @@ most of the build is spent calling `boundary()`, which `face_keys=True` makes ch
 
 * A `ChainComplex` stores the boundary matrix in CSC format with `u32` cell indices (and zero-sized Z/2 coefficients),
   validated and with repeated entries summed.
-* `filtration` sorts every column in decreasing filtration order, so a column's pivot is its first entry and its
+* `filtration` renumbers the cells by their position in the filtration, so that the reduction, which visits cells in
+  that order, reads the matrices in order rather than all over memory, and compares positions rather than looking up
+  filtration values (cells are numbered back in the results).
+  It sorts every column in decreasing filtration order, so a column's pivot is its first entry and its
   smallest entry its last: `column_pivot` and `column_min` are O(1), and most columns need nothing more.
   It also builds the transpose (the coboundary), sorted the same way, so `first_column_in_row` is O(1) and the clearing
   algorithms recognise apparent pairs for free; the transpose also gives cohomology representatives by involution.
-  That is about 8 bytes per non-zero entry for each filtered complex.
+  That is about 8 bytes per non-zero entry and 44 bytes per cell for each filtered complex.
 
 So the same `phlite` reduction runs as for `phlite_rips` and `phlite_grpph`, on the matrix you supplied.
 

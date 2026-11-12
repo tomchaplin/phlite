@@ -22,7 +22,8 @@
 //! the size). Bars are translated back to the input's cells and values, dropping those of length zero.
 //!
 //! Cells are indexed by `u32`, so each matrix costs 4 bytes per non-zero entry
-//! (coefficients in [`Z2`](phlite::fields::Z2) are zero-sized), plus a few bytes per cell.
+//! (coefficients in [`Z2`](phlite::fields::Z2) are zero-sized), plus 8 bytes per cell; a [`Complex`] also keeps about
+//! 28 bytes per cell to number cells back and look up their values and dimensions.
 
 use std::cmp::Reverse;
 use std::ops::Range;
