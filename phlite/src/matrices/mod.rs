@@ -131,6 +131,57 @@ where
 }
 impl<T> FiltrationValue for Reverse<T> where T: FiltrationValue {}
 
+/// The position of every row in the order the reductions use (filtration value, then row index), as a dense
+/// number `0 <= rank < bound`, for rows whose [`dense_index`](BasisElement::dense_index) is known.
+///
+/// A matrix that can give this (see [`row_ranks`](HasRowFiltration::row_ranks)) lets
+/// [`PivotColumns`](crate::columns::PivotColumns) keep the column being reduced as a bitset over ranks, as PHAT does,
+/// rather than as a heap. The ranks are a shared table, cheap to clone, from the dense index of each row to its rank.
+#[derive(Clone, Debug)]
+pub struct RowRanks {
+    /// `table[row.dense_index()]` is the rank of `row` in increasing order
+    table: std::sync::Arc<[u32]>,
+    /// Whether the order is reversed, so that the rank is `bound - 1 - table[..]`
+    descending: bool,
+}
+
+impl RowRanks {
+    /// Ranks from a table: `table[i]` is the rank of the row with dense index `i`, where ranks must be distinct, less
+    /// than `table.len()`, and increase with the order on [`ColumnEntry`] (filtration value, then row index).
+    pub fn new(table: std::sync::Arc<[u32]>) -> Self {
+        Self {
+            table,
+            descending: false,
+        }
+    }
+
+    /// The ranks for the same rows in the reverse order (as for a [`reverse`](MatrixOracle::reverse)d matrix).
+    #[must_use]
+    pub fn reversed(self) -> Self {
+        Self {
+            descending: !self.descending,
+            ..self
+        }
+    }
+
+    /// One more than the largest rank.
+    #[inline]
+    pub fn bound(&self) -> usize {
+        self.table.len()
+    }
+
+    /// The rank of `row`.
+    #[inline]
+    pub fn rank<R: BasisElement>(&self, row: &R) -> usize {
+        let rank = self.table[row.dense_index()] as usize;
+        if self.descending {
+            self.table.len() - 1 - rank
+        } else {
+            rank
+        }
+    }
+}
+
 // ======== Abstract matrix oracle trait =======================
 
 /// A type implementing [`MatrixOracle`] represents a linear transformation, together with a *choice* of basis for both the target and domain.
@@ -540,6 +591,15 @@ pub trait HasRowFiltration: MatrixOracle {
         None
     }
 
+    /// The rank of every row in the order on filtration value and then row index, if known (by default it is not).
+    /// Only meaningful when [`RowT`](MatrixOracle::RowT) has a [`dense_index`](BasisElement::dense_index).
+    ///
+    /// [`PivotColumns`](crate::columns::PivotColumns) uses it to keep the column being reduced as a bitset over ranks.
+    /// If you implement it, it must agree with the order: wrong ranks give wrong results.
+    fn row_ranks(&self) -> Option<RowRanks> {
+        None
+    }
+
     /// Initialise an empty binary heap that can accept entries from this matrix.
     /// Mostly an implementation detail of [`build_bhcol`](HasRowFiltration::build_bhcol).
     fn empty_bhcol(&self) -> BHCol<Self::FiltrationT, Self::RowT, Self::CoefficientField> {
@@ -608,6 +668,10 @@ where
         impl Iterator<Item = ColumnEntry<Self::FiltrationT, Self::RowT, Self::CoefficientField>>,
     > {
         (*self).sorted_column_ascending(col)
+    }
+
+    fn row_ranks(&self) -> Option<RowRanks> {
+        (*self).row_ranks()
     }
     fn column_with_filtration(
         &self,

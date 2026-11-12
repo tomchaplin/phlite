@@ -170,7 +170,7 @@ pyo3_stub_gen::define_stub_info_gatherer!(stub_info);
 mod tests {
     use super::*;
     use phlite::{
-        columns::{HeapColumns, MergedColumns, SortedColumns},
+        columns::{HeapColumns, MergedColumns, PivotColumns, SortedColumns},
         reduction::{Clearing, Standard},
     };
 
@@ -235,6 +235,7 @@ mod tests {
         every_method_and_algorithm_agree_with::<MergedColumns>();
         every_method_and_algorithm_agree_with::<HeapColumns>();
         every_method_and_algorithm_agree_with::<SortedColumns>();
+        every_method_and_algorithm_agree_with::<PivotColumns>();
     }
 
     fn every_method_and_algorithm_agree_with<R: ColumnRepresentation>() {

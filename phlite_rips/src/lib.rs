@@ -623,7 +623,7 @@ mod tests {
         use ordered_float::NotNan;
         use phlite::{
             barcode::{self, Algorithm},
-            columns::{HeapColumns, MergedColumns, SortedColumns},
+            columns::{HeapColumns, MergedColumns, PivotColumns, SortedColumns},
             fields::Z2,
             reduction::{Clearing, Standard},
         };
@@ -714,6 +714,7 @@ mod tests {
         check_algorithms!(MergedColumns);
         check_algorithms!(HeapColumns);
         check_algorithms!(SortedColumns);
+        check_algorithms!(PivotColumns);
     }
 
     /// Truncating at the enclosing radius must not change the barcode, but should shrink the complex

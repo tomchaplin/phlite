@@ -13,7 +13,7 @@
 use ordered_float::NotNan;
 use phlite::{
     barcode::{Algorithm, Bar, Method},
-    columns::{ColumnRepresentation, HeapColumns, MergedColumns, SortedColumns},
+    columns::{ColumnRepresentation, HeapColumns, MergedColumns, PivotColumns, SortedColumns},
     reduction::{Clearing, Standard, Storage},
 };
 use pyo3::{
@@ -45,6 +45,8 @@ pub enum Columns {
     Heap,
     /// [`SortedColumns`]
     Sorted,
+    /// [`PivotColumns`]
+    Pivot,
 }
 
 /// The column representation, caching and storage of R that a module's presets use, given to
@@ -85,6 +87,7 @@ impl Columns {
             Self::Merged => "merged",
             Self::Heap => "heap",
             Self::Sorted => "sorted",
+            Self::Pivot => "pivot",
         }
     }
 }
@@ -172,6 +175,7 @@ impl AlgorithmConfig {
             Columns::Merged => self.run_with(MergedColumns, visitor),
             Columns::Heap => self.run_with(HeapColumns, visitor),
             Columns::Sorted => self.run_with(SortedColumns, visitor),
+            Columns::Pivot => self.run_with(PivotColumns, visitor),
         }
     }
 
@@ -278,18 +282,24 @@ impl AlgorithmConfig {
     ///   when the columns added stay near the pivot (typically homology of simplicial or cell complexes, about 1.5×
     ///   faster than `'merged'`), but very slow when they reach far below it (15–35× slower on GrPPH or the cohomology
     ///   of cubical complexes). Measure before using it.
+    /// * `'pivot'` keeps the column as a dense array over all rows, with a tree of bitsets marking which are present
+    ///   (as PHAT does): adding an entry flips a bit, and the pivot is found with a few bit-scans. The fastest when
+    ///   many columns are added to each, as for dense or cubical complexes, especially with `with_store_r()`. Needs a
+    ///   matrix that knows the rank of every row in filtration order (`phlite`'s explicit complexes do); otherwise, and
+    ///   in the parallel and standard algorithms, it behaves as `'merged'`.
     fn with_columns(
         &self,
-        #[gen_stub(override_type(type_repr = "typing.Literal['merged', 'heap', 'sorted']", imports = ("typing")))]
+        #[gen_stub(override_type(type_repr = "typing.Literal['merged', 'heap', 'sorted', 'pivot']", imports = ("typing")))]
         columns: &str,
     ) -> PyResult<Self> {
         let columns = match columns {
             "merged" => Columns::Merged,
             "heap" => Columns::Heap,
             "sorted" => Columns::Sorted,
+            "pivot" => Columns::Pivot,
             other => {
                 return Err(PyValueError::new_err(format!(
-                    "Unknown columns {other:?}, expected 'merged', 'heap' or 'sorted'"
+                    "Unknown columns {other:?}, expected 'merged', 'heap', 'sorted' or 'pivot'"
                 )))
             }
         };

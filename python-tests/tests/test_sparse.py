@@ -147,7 +147,7 @@ def nonzero(pairs, values):
 def algorithms(top, threads=2):
     """Every algorithm and option, for a complex whose top dimension is `top`."""
     bases = [Algorithm.standard(), Algorithm.clearing(), Algorithm.parallel_clearing()]
-    for base, columns, cache in itertools.product(bases, ["merged", "heap", "sorted"], [True, False]):
+    for base, columns, cache in itertools.product(bases, ["merged", "heap", "sorted", "pivot"], [True, False]):
         algorithm = base.with_columns(columns).with_cache(cache)
         if base.name == "standard":
             yield algorithm

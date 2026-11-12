@@ -74,7 +74,7 @@
 use crate::{
     fields::NonZeroCoefficient,
     hash::FxBuild,
-    matrices::{BasisElement, FiltrationValue, HasRowFiltration, SquareMatrix},
+    matrices::{BasisElement, FiltrationValue, HasRowFiltration, RowRanks, SquareMatrix},
 };
 use dashmap::DashMap;
 use std::{fmt::Debug, hash::Hash, iter::repeat, ops::Mul};
@@ -563,6 +563,9 @@ pub trait WorkingColumn<FilT: FiltrationValue, RowT: BasisElement, CF> {
         Some(pivot)
     }
 
+    /// Remove every term, keeping any allocated capacity, so that the column can be reused for the next one.
+    fn clear(&mut self);
+
     /// Remove every remaining non-zero term, largest first (summing terms with the same row), onto the end of `out`.
     fn drain_into(&mut self, out: &mut Vec<ColumnEntry<FilT, RowT, CF>>) {
         while let Some(entry) = self.pop_pivot() {
@@ -580,6 +583,9 @@ impl<FilT: FiltrationValue, RowT: BasisElement, CF: NonZeroCoefficient>
     fn pop_pivot(&mut self) -> Option<ColumnEntry<FilT, RowT, CF>> {
         BHCol::pop_pivot(self)
     }
+    fn clear(&mut self) {
+        self.heap.clear();
+    }
 }
 
 impl<FilT: FiltrationValue, RowT: BasisElement, CF: NonZeroCoefficient>
@@ -590,6 +596,10 @@ impl<FilT: FiltrationValue, RowT: BasisElement, CF: NonZeroCoefficient>
     }
     fn pop_pivot(&mut self) -> Option<ColumnEntry<FilT, RowT, CF>> {
         MergeCol::pop_pivot(self)
+    }
+    fn clear(&mut self) {
+        self.heap.clear();
+        self.arena.clear();
     }
 }
 
@@ -623,6 +633,25 @@ pub trait ColumnRepresentation: Debug + Clone + Default + Send + Sync {
     type Column<FilT: ColumnFiltration, RowT: ColumnRow, CF: ColumnCoefficient>: WorkingColumn<FilT, RowT, CF>
         + Default
         + Send;
+
+    /// A new, empty working column for reducing columns of `matrix`. By default [`Default::default`], which needs
+    /// nothing from the matrix; [`PivotColumns`] uses the matrix's [`row_ranks`](HasRowFiltration::row_ranks).
+    ///
+    /// Algorithms that reuse one working column for many columns (clearing, on one thread) create it this way; others
+    /// create a [`Default`] column per column.
+    fn new_column<M>(
+        &self,
+        matrix: &M,
+    ) -> Self::Column<M::FiltrationT, M::RowT, M::CoefficientField>
+    where
+        M: HasRowFiltration,
+        M::FiltrationT: ColumnFiltration,
+        M::RowT: ColumnRow,
+        M::CoefficientField: ColumnCoefficient,
+    {
+        let _ = matrix;
+        Default::default()
+    }
 
     /// Add `multiple` times a column of `D`, given as its entries in any order (with no repeated rows).
     fn add_entries<FilT: ColumnFiltration, RowT: ColumnRow, CF: ColumnCoefficient>(
@@ -880,6 +909,10 @@ impl<FilT: FiltrationValue, RowT: BasisElement, CF: NonZeroCoefficient>
     fn pop_pivot(&mut self) -> Option<ColumnEntry<FilT, RowT, CF>> {
         SortedCol::pop_pivot(self)
     }
+    fn clear(&mut self) {
+        self.sorted.clear();
+        self.pending.clear();
+    }
 }
 
 /// Represent columns as [`SortedCol`]s: the column being reduced is a sorted vector, and the columns of `D` added
@@ -913,6 +946,242 @@ impl ColumnRepresentation for SortedColumns {
         multiple: CF,
     ) {
         column.add_entries(run.iter().map(|entry| entry.clone() * multiple));
+    }
+}
+
+/// A set of numbers `0 <= i < bound` as a 64-ary tree of bitsets, as in PHAT's `bit_tree_pivot_column`: the bottom
+/// level has a bit per number, and each bit of a level above says whether a word of the level below is non-zero.
+/// Inserting, removing and finding the largest element each touch one word per level (at most 4 for 16 million).
+#[derive(Clone, Debug)]
+struct BitTree {
+    /// `levels[0]` is the bottom level, and the last level is a single word
+    levels: Vec<Vec<u64>>,
+}
+
+impl BitTree {
+    fn new(bound: usize) -> Self {
+        let mut levels = Vec::new();
+        let mut n = bound.max(1);
+        loop {
+            let words = n.div_ceil(64);
+            levels.push(vec![0; words]);
+            if words == 1 {
+                break;
+            }
+            n = words;
+        }
+        Self { levels }
+    }
+
+    #[inline]
+    fn contains(&self, i: usize) -> bool {
+        (self.levels[0][i >> 6] >> (i & 63)) & 1 == 1
+    }
+
+    /// Insert `i`, which must not be in the set.
+    #[inline]
+    fn insert(&mut self, mut i: usize) {
+        for level in &mut self.levels {
+            let word = &mut level[i >> 6];
+            let was_empty = *word == 0;
+            *word |= 1 << (i & 63);
+            if !was_empty {
+                return;
+            }
+            i >>= 6;
+        }
+    }
+
+    /// Remove `i`, which must be in the set.
+    #[inline]
+    fn remove(&mut self, mut i: usize) {
+        for level in &mut self.levels {
+            let word = &mut level[i >> 6];
+            *word &= !(1 << (i & 63));
+            if *word != 0 {
+                return;
+            }
+            i >>= 6;
+        }
+    }
+
+    #[inline]
+    fn max(&self) -> Option<usize> {
+        let (top, below) = self.levels.split_last()?;
+        let word = top[0];
+        if word == 0 {
+            return None;
+        }
+        let mut i = 63 - word.leading_zeros() as usize;
+        for level in below.iter().rev() {
+            let word = level[i];
+            i = (i << 6) | (63 - word.leading_zeros() as usize);
+        }
+        Some(i)
+    }
+}
+
+/// The working column of [`PivotColumns`], for a matrix with [`row_ranks`](HasRowFiltration::row_ranks): a dense
+/// column indexed by rank, with a [`BitTree`] of the ranks present.
+pub struct BitCol<FilT: FiltrationValue, RowT: BasisElement, CF> {
+    ranks: RowRanks,
+    present: BitTree,
+    /// `slots[rank]` is the entry with that rank, if `rank` is in `present` (and otherwise stale).
+    /// Filled when the first entry arrives, so a column that is never used allocates nothing.
+    slots: Vec<ColumnEntry<FilT, RowT, CF>>,
+}
+
+impl<FilT: FiltrationValue, RowT: BasisElement, CF: NonZeroCoefficient> BitCol<FilT, RowT, CF> {
+    fn new(ranks: RowRanks) -> Self {
+        Self {
+            present: BitTree::new(ranks.bound()),
+            ranks,
+            slots: Vec::new(),
+        }
+    }
+
+    #[inline]
+    fn add_entry(&mut self, entry: ColumnEntry<FilT, RowT, CF>) {
+        let rank = self.ranks.rank(&entry.row_index);
+        if self.slots.is_empty() {
+            self.slots = vec![entry.clone(); self.ranks.bound()];
+        }
+        if self.present.contains(rank) {
+            let slot = &mut self.slots[rank];
+            match entry.coeff + Some(slot.coeff) {
+                Some(coeff) => slot.coeff = coeff,
+                None => self.present.remove(rank),
+            }
+        } else {
+            self.slots[rank] = entry;
+            self.present.insert(rank);
+        }
+    }
+
+    #[inline]
+    fn pop_pivot(&mut self) -> Option<ColumnEntry<FilT, RowT, CF>> {
+        let rank = self.present.max()?;
+        self.present.remove(rank);
+        Some(self.slots[rank].clone())
+    }
+
+    fn clear(&mut self) {
+        while let Some(rank) = self.present.max() {
+            self.present.remove(rank);
+        }
+    }
+}
+
+/// The working column of [`PivotColumns`]: a [`BitCol`] if the matrix gives row ranks, or else a [`MergeCol`].
+pub enum PivotCol<FilT: FiltrationValue, RowT: BasisElement, CF> {
+    /// A dense column over the ranks of rows
+    Bits(BitCol<FilT, RowT, CF>),
+    /// The matrix has no row ranks, so fall back to merging
+    Merged(MergeCol<FilT, RowT, CF>),
+}
+
+impl<FilT: FiltrationValue, RowT: BasisElement, CF> Default for PivotCol<FilT, RowT, CF> {
+    fn default() -> Self {
+        Self::Merged(MergeCol::default())
+    }
+}
+
+impl<FilT: FiltrationValue, RowT: BasisElement, CF: NonZeroCoefficient>
+    WorkingColumn<FilT, RowT, CF> for PivotCol<FilT, RowT, CF>
+{
+    #[inline]
+    fn add_entry(&mut self, entry: ColumnEntry<FilT, RowT, CF>) {
+        match self {
+            Self::Bits(column) => column.add_entry(entry),
+            Self::Merged(column) => column.add_entry(entry),
+        }
+    }
+    #[inline]
+    fn pop_pivot(&mut self) -> Option<ColumnEntry<FilT, RowT, CF>> {
+        match self {
+            Self::Bits(column) => column.pop_pivot(),
+            Self::Merged(column) => column.pop_pivot(),
+        }
+    }
+    fn clear(&mut self) {
+        match self {
+            Self::Bits(column) => column.clear(),
+            Self::Merged(column) => WorkingColumn::clear(column),
+        }
+    }
+}
+
+/// Represent the column being reduced as a dense column over the rows, with a 64-ary tree of bitsets saying which rows
+/// are present, as PHAT's default `bit_tree_pivot_column` does. Needs the matrix to give the rank of every row in
+/// filtration order ([`row_ranks`](HasRowFiltration::row_ranks), as explicit matrices in `phlite_py` do); for other
+/// matrices it falls back to [`MergedColumns`].
+///
+/// Adding a term is a lookup of its rank and a bit flip, cancelling terms vanish at once, and finding the pivot is a
+/// few bit-scans, whatever the number of columns added. So this is the fastest representation when many columns are
+/// added to each, as for dense matrices and the cubical complexes of images (with
+/// [`store_r`](crate::reduction::Clearing::store_r)). It costs a slot per row of the matrix, allocated once per
+/// reduction, and every entry added is visited (none are skipped lazily, unlike [`MergedColumns`]).
+/// Only the serial clearing algorithm creates bit columns (see [`new_column`](ColumnRepresentation::new_column));
+/// the parallel and standard algorithms fall back to merging. See the [module docs](self) for how the representations
+/// compare.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct PivotColumns;
+
+impl ColumnRepresentation for PivotColumns {
+    type Column<FilT: ColumnFiltration, RowT: ColumnRow, CF: ColumnCoefficient> =
+        PivotCol<FilT, RowT, CF>;
+
+    fn new_column<M>(&self, matrix: &M) -> PivotCol<M::FiltrationT, M::RowT, M::CoefficientField>
+    where
+        M: HasRowFiltration,
+        M::FiltrationT: ColumnFiltration,
+        M::RowT: ColumnRow,
+        M::CoefficientField: ColumnCoefficient,
+    {
+        match matrix.row_ranks() {
+            Some(ranks) if M::RowT::DENSE_INDEX => PivotCol::Bits(BitCol::new(ranks)),
+            _ => PivotCol::default(),
+        }
+    }
+
+    fn add_entries<FilT: ColumnFiltration, RowT: ColumnRow, CF: ColumnCoefficient>(
+        &self,
+        column: &mut PivotCol<FilT, RowT, CF>,
+        entries: impl Iterator<Item = ColumnEntry<FilT, RowT, CF>>,
+        multiple: CF,
+    ) {
+        match column {
+            PivotCol::Bits(column) => entries.for_each(|entry| column.add_entry(entry * multiple)),
+            PivotCol::Merged(column) => column.add_unsorted(entries, multiple),
+        }
+    }
+
+    fn add_sorted_entries<FilT: ColumnFiltration, RowT: ColumnRow, CF: ColumnCoefficient>(
+        &self,
+        column: &mut PivotCol<FilT, RowT, CF>,
+        entries: impl Iterator<Item = ColumnEntry<FilT, RowT, CF>>,
+        multiple: CF,
+    ) {
+        match column {
+            PivotCol::Bits(column) => entries.for_each(|entry| column.add_entry(entry * multiple)),
+            PivotCol::Merged(column) => column.add_sorted(entries, multiple),
+        }
+    }
+
+    fn add_run<FilT: ColumnFiltration, RowT: ColumnRow, CF: ColumnCoefficient>(
+        &self,
+        column: &mut PivotCol<FilT, RowT, CF>,
+        run: &SortedRun<FilT, RowT, CF>,
+        multiple: CF,
+    ) {
+        match column {
+            PivotCol::Bits(column) => {
+                for entry in run.iter() {
+                    column.add_entry(entry.clone() * multiple);
+                }
+            }
+            PivotCol::Merged(column) => column.add_run(run.clone(), multiple, 0),
+        }
     }
 }
 
@@ -974,6 +1243,123 @@ mod sorted_col_tests {
                 if expected.is_none() {
                     break;
                 }
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod pivot_col_tests {
+    use super::*;
+    use crate::fields::{NonZeroCoefficient, Z3};
+    use std::cmp::Reverse;
+
+    /// A densely numbered row, whose rank is a fixed permutation of its index
+    #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+    struct Row(usize);
+    impl BasisElement for Row {
+        const DENSE_INDEX: bool = true;
+        fn dense_index(&self) -> usize {
+            self.0
+        }
+        fn from_dense_index(index: usize) -> Self {
+            Row(index)
+        }
+    }
+
+    const N: usize = 200;
+
+    /// Filtration values with many ties, and ranks in the order (value, row)
+    fn values_and_ranks() -> (Vec<usize>, RowRanks) {
+        let values: Vec<usize> = (0..N).map(|i| (i * 37) % 23).collect();
+        let mut order: Vec<usize> = (0..N).collect();
+        order.sort_by_key(|&i| (values[i], i));
+        let mut table = vec![0u32; N];
+        for (rank, &i) in order.iter().enumerate() {
+            table[i] = rank as u32;
+        }
+        (values, RowRanks::new(table.into()))
+    }
+
+    fn check<FilT: FiltrationValue + Debug, RowT: BasisElement + Debug>(
+        ranks: RowRanks,
+        entry: impl Fn(usize, Z3) -> ColumnEntry<FilT, RowT, Z3>,
+    ) {
+        let mut state = 98765u64;
+        let mut next = move |m: u64| {
+            state = state
+                .wrapping_mul(6364136223846793005)
+                .wrapping_add(1442695040888963407);
+            (state >> 33) % m
+        };
+        let summary = |e: Option<ColumnEntry<FilT, RowT, Z3>>| e.map(|e| (e.row_index, e.coeff));
+        let mut bits = BitCol::new(ranks);
+        for _ in 0..300 {
+            let mut heap = BHCol::default();
+            for _ in 0..next(8) {
+                let one = Z3::one();
+                let coeff = |c: u64| if c == 0 { one } else { one.additive_inverse() };
+                // A batch (rows may repeat), drawn from a few rows so that there is plenty of cancellation
+                let spread = 1 + next(N as u64);
+                for _ in 0..next(30) {
+                    let e = entry(next(spread) as usize, coeff(next(2)));
+                    heap.add_entry(e.clone());
+                    bits.add_entry(e);
+                }
+                if next(2) == 0 {
+                    assert_eq!(summary(bits.pop_pivot()), summary(heap.pop_pivot()));
+                }
+            }
+            // Either drain the column or clear it (the column is reused, as in the reduction)
+            if next(2) == 0 {
+                loop {
+                    let expected = summary(heap.pop_pivot());
+                    assert_eq!(summary(bits.pop_pivot()), expected);
+                    if expected.is_none() {
+                        break;
+                    }
+                }
+            } else {
+                bits.clear();
+                assert!(bits.pop_pivot().is_none());
+            }
+        }
+    }
+
+    /// A bit column gives the same pivots as a heap, in the matrix's order and in the reversed order
+    #[test]
+    fn matches_bhcol() {
+        let (values, ranks) = values_and_ranks();
+        check(ranks.clone(), |row, coeff| ColumnEntry {
+            filtration_value: values[row],
+            row_index: Row(row),
+            coeff,
+        });
+        check(ranks.reversed(), |row, coeff| ColumnEntry {
+            filtration_value: Reverse(values[row]),
+            row_index: Reverse(Row(row)),
+            coeff,
+        });
+    }
+
+    /// The bit tree's largest element, across several levels
+    #[test]
+    fn bit_tree_max() {
+        for bound in [1, 63, 64, 65, 4096, 4097, 300_000] {
+            let mut tree = BitTree::new(bound);
+            assert_eq!(tree.max(), None);
+            let mut present = std::collections::BTreeSet::new();
+            for i in (0..bound).step_by(1 + bound / 50).chain([bound - 1, 0]) {
+                if present.insert(i) {
+                    tree.insert(i);
+                }
+                assert_eq!(tree.max(), present.last().copied());
+            }
+            while let Some(&i) = present.iter().nth(present.len() / 2) {
+                present.remove(&i);
+                tree.remove(i);
+                assert_eq!(tree.max(), present.last().copied());
+                assert!(!tree.contains(i));
             }
         }
     }

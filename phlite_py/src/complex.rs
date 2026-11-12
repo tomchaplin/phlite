@@ -19,12 +19,13 @@
 
 use std::cmp::Reverse;
 use std::ops::Range;
+use std::sync::Arc;
 
 use ordered_float::NotNan;
 use phlite::{
     barcode::{self, Algorithm, Bar, Method},
     columns::{ColumnEntry, ColumnRepresentation},
-    matrices::{BasisElement, HasRowFiltration, MatrixOracle, SplitBasis},
+    matrices::{BasisElement, HasRowFiltration, MatrixOracle, RowRanks, SplitBasis},
 };
 
 use crate::field::IntField;
@@ -99,6 +100,8 @@ pub struct Complex<CF> {
     values: Vec<NotNan<f64>>,
     /// The cells in filtration order.
     order: Vec<Cell>,
+    /// The inverse of `order`: the position of every cell in filtration order.
+    ranks: Arc<[u32]>,
     boundary: Csc<CF>,
     coboundary: Csc<CF>,
 }
@@ -110,6 +113,7 @@ pub struct View<'a, CF> {
     matrix: &'a Csc<CF>,
     transpose: &'a Csc<CF>,
     values: &'a [NotNan<f64>],
+    ranks: &'a Arc<[u32]>,
 }
 
 impl<CF> Clone for View<'_, CF> {
@@ -202,6 +206,11 @@ impl<'a, CF: IntField> HasRowFiltration for View<'a, CF> {
     fn last_column_in_row(&self, row: Cell) -> Option<Cell> {
         let range = self.transpose.range(row);
         (!range.is_empty()).then(|| self.transpose.rows[range.start])
+    }
+
+    // Cells are ordered by (value, index), as entries are, so a cell's rank is its position in that order
+    fn row_ranks(&self) -> Option<RowRanks> {
+        Some(RowRanks::new(Arc::clone(self.ranks)))
     }
 }
 
@@ -533,11 +542,16 @@ impl<CF: IntField> Chain<CF> {
         let mut order: Vec<Cell> = (0..n as u32).map(Cell).collect();
         order.sort_unstable_by_key(|cell| key(cell.idx()));
         let coboundary = transpose(&boundary, &order, n);
+        let mut ranks = vec![0u32; n];
+        for (rank, cell) in order.iter().enumerate() {
+            ranks[cell.idx()] = rank as u32;
+        }
 
         Ok(Complex {
             dimensions: self.dimensions.clone(),
             values,
             order,
+            ranks: ranks.into(),
             boundary,
             coboundary,
         })
@@ -576,6 +590,7 @@ impl<CF: IntField> Complex<CF> {
             matrix: &self.boundary,
             transpose: &self.coboundary,
             values: &self.values,
+            ranks: &self.ranks,
         }
     }
 
@@ -585,6 +600,7 @@ impl<CF: IntField> Complex<CF> {
             matrix: &self.coboundary,
             transpose: &self.boundary,
             values: &self.values,
+            ranks: &self.ranks,
         }
     }
 
@@ -803,6 +819,37 @@ mod tests {
             }
         }
         // Values out of index order, so that filtration order and index order differ
+        let values = vec![0.0, 2.0, 1.0, 5.0, 2.0, 3.0, 2.5, 4.0];
+        let complex = build::<Z2>(triangle(), Some(values)).unwrap();
+        let cells = || (0..8).map(Cell);
+        check(complex.boundary(), cells());
+        check(complex.coboundary(), cells());
+        check(complex.boundary().reverse(), cells().map(Reverse));
+        check(complex.coboundary().reverse(), cells().map(Reverse));
+    }
+
+    /// `row_ranks` numbers the rows in the order on entries (filtration value, then row), including through
+    /// `reverse()`, as `PivotColumns` relies on
+    #[test]
+    fn row_ranks_follow_entry_order() {
+        fn check<M: HasRowFiltration>(matrix: M, rows: impl Iterator<Item = M::RowT>)
+        where
+            M::RowT: std::fmt::Debug,
+        {
+            let ranks = matrix.row_ranks().unwrap();
+            let mut entries: Vec<_> = rows
+                .map(|row| ColumnEntry {
+                    filtration_value: matrix.filtration_value(row.clone()),
+                    row_index: row,
+                    coeff: (),
+                })
+                .collect();
+            entries.sort();
+            let by_rank: Vec<_> = entries.iter().map(|e| ranks.rank(&e.row_index)).collect();
+            assert_eq!(by_rank, (0..entries.len()).collect::<Vec<_>>());
+            assert_eq!(ranks.bound(), entries.len());
+        }
+        // Values out of index order, with ties broken by index
         let values = vec![0.0, 2.0, 1.0, 5.0, 2.0, 3.0, 2.5, 4.0];
         let complex = build::<Z2>(triangle(), Some(values)).unwrap();
         let cells = || (0..8).map(Cell);

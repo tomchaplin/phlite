@@ -205,6 +205,9 @@ where
     store_r: bool,
     /// The reduced columns `R_i` of the current dimension that have a pivot, if `store_r`
     r_columns: ElementMap<RowT, SortedRun<FilT, RowT, CF>>,
+    /// The working columns, reused for every column reduced so that their memory is only allocated once
+    r_i: C::Column<FilT, RowT, CF>,
+    v_i: BHCol<(), RowT, CF>,
 }
 
 impl<M, DimIter, C> CRMBuilder<M, DimIter, C, M::FiltrationT, M::RowT, M::CoefficientField>
@@ -225,6 +228,8 @@ where
         store_r: bool,
     ) -> Self {
         Self {
+            r_i: columns.new_column(&boundary),
+            v_i: BHCol::default(),
             skip_zero_apparent_pairs,
             columns,
             cache_columns,
@@ -263,6 +268,29 @@ where
         (pivot.row_index == *row).then_some((first, pivot.coeff))
     }
 
+    /// Call `f` on every term `(coefficient, column)` of `V_j`, without boxing the iterator for the usual cases.
+    #[inline]
+    fn for_each_v_term(&self, j: M::ColT, mut f: impl FnMut(M::CoefficientField, M::ColT)) {
+        match self.reduction_columns.get(&j) {
+            // Columns that needed no reduction are not stored: V_j = e_j
+            None => f(M::CoefficientField::one(), j),
+            Some(ReductionColumn::Reduced(terms)) => {
+                for (coeff, k) in terms {
+                    f(*coeff, k.clone());
+                }
+                f(M::CoefficientField::one(), j);
+            }
+            // Cleared columns have R_j = 0 so never own a pivot, but handle them anyway
+            Some(ReductionColumn::Cleared(_)) => {
+                let v_matrix =
+                    ClearedReductionMatrix::build_from_ref(&self.boundary, &self.reduction_columns);
+                for (coeff, k) in v_matrix.column(j) {
+                    f(coeff, k);
+                }
+            }
+        }
+    }
+
     /// Reduce the column `r_i` (and keep track of `v_i`), returning the pivot of `R_i` if it is non-zero
     /// (`r_i` then holds the rest of `R_i`).
     fn reduce_column(
@@ -287,8 +315,6 @@ where
             let col_multiple = pivot_entry.coeff.additive_inverse() * (j_coeff.mult_inverse());
             r_i.add_entry(pivot_entry);
 
-            let v_matrix =
-                ClearedReductionMatrix::build_from_ref(&self.boundary, &self.reduction_columns);
             if self.store_r {
                 // Add R_j itself: stored if column j was reduced, or else D_j (an apparent pair, so V_j = e_j)
                 match self.r_columns.get(&j_basis_element) {
@@ -302,12 +328,12 @@ where
                     ),
                 }
                 // and V_j to V_i
-                for (coeff, k) in v_matrix.column(j_basis_element) {
+                self.for_each_v_term(j_basis_element, |coeff, k| {
                     v_i.add_tuple((coeff * col_multiple, k, ()));
-                }
+                });
             } else {
                 // Add R_j = D V_j by adding the column of D for every term of V_j
-                for (coeff, k) in v_matrix.column(j_basis_element) {
+                self.for_each_v_term(j_basis_element, |coeff, k| {
                     let multiple = coeff * col_multiple;
                     self.columns.add_matrix_column(
                         &self.cache,
@@ -317,7 +343,7 @@ where
                         multiple,
                     );
                     v_i.add_tuple((multiple, k, ()));
-                }
+                });
             }
         }
     }
@@ -364,20 +390,23 @@ where
         low_inverse: &mut LowInverse<M::RowT, M::CoefficientField>,
         new_pairs: &mut Option<ElementMap<M::RowT, M::ColT>>,
         pivot: Option<(M::RowT, M::CoefficientField)>,
-        mut v_i: BHCol<(), M::RowT, M::CoefficientField>,
+        v_i: &mut BHCol<(), M::RowT, M::CoefficientField>,
+        scratch: &mut Vec<(M::CoefficientField, M::RowT)>,
     ) {
         self.record_reduced(basis_element.clone(), pivot, false, low_inverse, new_pairs);
 
-        // Then save v_i (minus the diagonal) to the reduction matrix, unless it is trivial
+        // Then save v_i (minus the diagonal) to the reduction matrix, unless it is trivial.
+        // Drained into a reused buffer first, so that the stored column is allocated once at its exact size.
         // TODO: Add option to only store this column when pivot is Some
         // Because otherwise we will never need the column again during reduction
-        let v_i: Vec<_> = v_i
-            .drain_sorted()
-            .map(|entry| (entry.coeff, entry.row_index))
-            .collect();
-        if !v_i.is_empty() {
+        scratch.clear();
+        scratch.extend(
+            v_i.drain_sorted()
+                .map(|entry| (entry.coeff, entry.row_index)),
+        );
+        if !scratch.is_empty() {
             self.reduction_columns
-                .insert(basis_element, ReductionColumn::Reduced(v_i));
+                .insert(basis_element, ReductionColumn::Reduced(scratch.to_vec()));
         }
     }
 
@@ -389,6 +418,12 @@ where
         let mut new_pairs = (!is_last).then(ElementMap::new);
 
         let basis_size = self.boundary.sub_basis(dim).size();
+
+        // Reused by every column reduced in this dimension, so that their capacity is only allocated once
+        let mut r_i = std::mem::take(&mut self.r_i);
+        let mut v_i = std::mem::take(&mut self.v_i);
+        let mut r_scratch = Vec::new();
+        let mut v_scratch = Vec::new();
 
         'column_loop: for i in 0..basis_size {
             // Reduce column i
@@ -427,11 +462,6 @@ where
             }
 
             // Otherwise reduce the column and update the builder accordingly
-            let mut v_i = {
-                let self_borrow = &self.boundary;
-                self_borrow.with_trivial_filtration().empty_bhcol()
-            };
-            let mut r_i = C::Column::default();
             self.columns.add_matrix_column(
                 &self.cache,
                 &self.boundary,
@@ -442,15 +472,29 @@ where
             let pivot = self.reduce_column(&low_inverse, &mut r_i, &mut v_i);
             if self.store_r {
                 if let Some(pivot) = &pivot {
-                    // Keep R_i: its pivot, then the rest of the column
-                    let mut column = vec![pivot.clone()];
-                    r_i.drain_into(&mut column);
-                    self.r_columns.insert(basis_element.clone(), column.into());
+                    // Keep R_i: its pivot, then the rest of the column (drained into a reused buffer, so that the
+                    // stored column is allocated once at its exact size)
+                    r_scratch.clear();
+                    r_scratch.push(pivot.clone());
+                    r_i.drain_into(&mut r_scratch);
+                    self.r_columns
+                        .insert(basis_element.clone(), SortedRun::from(&r_scratch[..]));
                 }
             }
+            // Whatever is left below the pivot isn't needed
+            r_i.clear();
             let pivot = pivot.map(|entry| (entry.row_index, entry.coeff));
-            self.save_column(basis_element, &mut low_inverse, &mut new_pairs, pivot, v_i);
+            self.save_column(
+                basis_element,
+                &mut low_inverse,
+                &mut new_pairs,
+                pivot,
+                &mut v_i,
+                &mut v_scratch,
+            );
         }
+        self.r_i = r_i;
+        self.v_i = v_i;
         // Columns of D are only ever added to columns of the same dimension
         self.cache = ColumnCache::new(self.cache_columns);
         // Stored columns of R are only ever added to columns of the same dimension

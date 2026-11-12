@@ -402,7 +402,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::columns::{HeapColumns, SortedColumns};
+    use crate::columns::{HeapColumns, PivotColumns, SortedColumns};
     use crate::{
         fields::Z2,
         matrices::{implementors::SimpleZ2Matrix, SplitBasis},
@@ -490,6 +490,7 @@ mod tests {
         homology_and_cohomology_agree_with::<MergedColumns>();
         homology_and_cohomology_agree_with::<HeapColumns>();
         homology_and_cohomology_agree_with::<SortedColumns>();
+        homology_and_cohomology_agree_with::<PivotColumns>();
     }
 
     fn homology_and_cohomology_agree_with<R: ColumnRepresentation>() {

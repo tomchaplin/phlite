@@ -13,7 +13,7 @@ use crate::columns::{BHCol, ColumnEntry};
 
 use super::{
     BasisElement, ColBasis, FiltrationValue, HasColBasis, HasRowFiltration, HasSplitColBasis,
-    HasTranspose, MatrixOracle, SplitByDimension, SquareMatrix,
+    HasTranspose, MatrixOracle, RowRanks, SplitByDimension, SquareMatrix,
 };
 
 /// Return type of [`MatrixOracle::with_trivial_filtration`].
@@ -330,6 +330,10 @@ where
     > {
         self.matrix.sorted_column_ascending(col)
     }
+
+    fn row_ranks(&self) -> Option<RowRanks> {
+        self.matrix.row_ranks()
+    }
 }
 
 impl<M, B> HasColBasis for MatrixWithBasis<M, B>
@@ -490,6 +494,10 @@ where
     > {
         self.oracle.sorted_column_ascending(col)
     }
+
+    fn row_ranks(&self) -> Option<RowRanks> {
+        self.oracle.row_ranks()
+    }
 }
 
 impl<M> HasColBasis for WithSubBasis<M>
@@ -604,6 +612,11 @@ where
                 coeff: entry.coeff,
             })
         })
+    }
+
+    // Reversing the order reverses the ranks
+    fn row_ranks(&self) -> Option<RowRanks> {
+        self.oracle.row_ranks().map(RowRanks::reversed)
     }
 
     // Reversing the order swaps the largest and smallest entries of each column
@@ -810,6 +823,11 @@ where
                 coeff: entry.coeff,
             })
         })
+    }
+
+    // Reversing the order reverses the ranks
+    fn row_ranks(&self) -> Option<RowRanks> {
+        self.oracle.row_ranks().map(RowRanks::reversed)
     }
 
     // Reversing the order swaps the largest and smallest entries of each column
@@ -1057,6 +1075,10 @@ where
         impl Iterator<Item = ColumnEntry<Self::FiltrationT, Self::RowT, Self::CoefficientField>>,
     > {
         self.matrix.sorted_column_ascending(col)
+    }
+
+    fn row_ranks(&self) -> Option<RowRanks> {
+        self.matrix.row_ranks()
     }
 }
 
