@@ -227,7 +227,7 @@ def report(paths, criterion):
         "[criterion](https://bheisler.github.io/criterion.rs/book/)), on one machine.",
         "In the Python tables each time is the fastest of several runs (one run for the largest cases), with the peak "
         "heap memory allocated during a separate run in MB (measured with [memray](https://bloomberg.github.io/memray/), "
-        "which includes native allocations, such as Rust's). Python's garbage collector is off while timing. "
+        "which includes native allocations, such as Rust's). "
         f"Parallel implementations use {', '.join(map(str, sorted(t for t in threads if t)))} "
         "threads. Every barcode agrees with the reference implementation's (each benchmark checks this).",
         "",

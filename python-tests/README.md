@@ -92,9 +92,7 @@ Each benchmark is one implementation on one case, so the usual pytest options se
    benchmark runs in the same process, this is more reliable than resident memory, which doesn't grow when a run
    reuses memory freed by an earlier one (memray works on Linux and macOS);
 2. is timed over `PHLITE_BENCH_ROUNDS` runs (default 3) with `benchmark.pedantic`, building a fresh input before each,
-   untimed, since some implementations reduce their input in place. The `just` recipes pass `--benchmark-disable-gc`:
-   with Python's garbage collector on, any implementation's Python allocations trigger collections that walk every
-   object in the process, including other benchmarks' cached inputs, so timings would depend on what else is alive.
+   untimed, since some implementations reduce their input in place.
 
 Parallel implementations use `PHLITE_BENCH_THREADS` threads (default 4, or fewer cores).
 `benchmarks/conftest.py` leaves the hostname and the CPU's current clock speed out of the saved machine info.
