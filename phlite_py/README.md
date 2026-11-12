@@ -143,10 +143,10 @@ reduction:
 | input | random | structured (long bars) |
 |---|---|---|
 | Rips complexes, by cohomology | phlite 6–8× faster (random points in the plane) | phlite 7–11× faster (noisy torus, wedge of circles) |
-| cubical complexes | PHAT 1.6–2× faster (smoothed noise) | PHAT 1.5–1.7× faster (an image of rings) |
-| triangulated surfaces | | PHAT 1.2–1.5× faster (a torus filtered by height) |
-| sparse cell complexes | phlite 1.1–1.4× faster | |
-| dense boundaries (cells with hundreds of faces) | PHAT 3–4× faster | |
+| cubical complexes | PHAT 1.7–2.1× faster (smoothed noise) | PHAT 1.4–1.8× faster (an image of rings) |
+| triangulated surfaces | | PHAT 1.05–1.5× faster (a torus filtered by height) |
+| sparse cell complexes | phlite 1.1–1.7× faster | |
+| dense boundaries (cells with hundreds of faces) | PHAT 1.4–1.5× faster | |
 
 See [`python-tests/BENCHMARKS.md`](../python-tests/BENCHMARKS.md) for these and comparisons with LoPHAT.
 
