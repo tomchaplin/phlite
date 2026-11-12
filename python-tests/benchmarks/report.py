@@ -16,18 +16,25 @@ REPO = Path(__file__).resolve().parent.parent.parent
 SUITES = {
     "rips": {
         "title": "Rips: `phlite_rips` vs ripser and giotto-ph",
-        "description": "Vietoris–Rips persistence in dimensions up to `dim` of `n` points uniformly in the unit cube, "
-        "from a distance matrix. giotto-ph is ripser with parallelism. The 1000- and 2000-point cases are timed once "
-        "each, and at 1000 points in dimension 2 ripser runs out of memory (over 7 GB), so isn't run.",
+        "description": "Vietoris–Rips persistence in dimensions up to `dim` of `n` points, from a distance matrix: "
+        "uniformly random in the unit cube (unlabelled; every bar is short), or noisy samples (by tadasets) of a torus "
+        "in R³ (two long H1 bars and one long H2 bar), a 2-sphere (one long H2 bar), a wedge of two 2-spheres (two) or "
+        "a wedge of three circles in the plane (three long H1 bars). giotto-ph is ripser with parallelism. The cases "
+        "with 1000 or more points are timed once each, and at 1000 points in dimension 2 ripser runs out of memory "
+        "(over 7 GB), so isn't run.",
         "summary": ["ripser", "giotto-ph (1 thread)", "giotto-ph (parallel)", "phlite (serial)", "phlite (parallel)", "phlite (serial, reps)"],
         "default": "phlite (serial)",
     },
     "grpph": {
         "title": "GrPPH: `phlite_grpph` vs grpphati",
-        "description": "Grounded persistent path homology (dimension 1) of random digraphs on `n` nodes, each edge "
-        "present with probability `p`, with integer weights 1–5. `GrPPH_par_wedge` is grpphati's parallel pipeline "
-        "over wedge components. The 200-node case is timed once each, and only phlite runs on it (grpphati needs over "
-        "5 GB at 100 nodes); its barcodes are checked against phlite's default.",
+        "description": "Grounded persistent path homology (dimension 1) of digraphs with integer weights 1–5: random "
+        "digraphs on `n` nodes, each edge present with probability `p`; a directed `ring` of `n` nodes with random "
+        "short chords (one long bar, around the ring); and a `lattice` of `n`×`n` nodes, with edges right and down, "
+        "and four rectangular holes (a long bar around each). `GrPPH_par_wedge` is grpphati's parallel pipeline over "
+        "wedge components. The largest case of each kind is timed once, and only phlite runs on it (grpphati needs "
+        "over 5 GB on random digraphs of 100 nodes, and minutes on the others); its barcodes are checked against "
+        "phlite's default. grpphati splits some digraphs (the lattices) into parts that joblib reduces in worker "
+        "processes, whose memory isn't counted.",
         "summary": ["grpphati (GrPPH)", "grpphati (GrPPH_par_wedge)", "phlite (serial)", "phlite (parallel)", "phlite (serial, reps)"],
         "default": "phlite (serial)",
     },
@@ -41,7 +48,10 @@ SUITES = {
         "once each. `rips`: Rips complexes of `n` random points in the plane, "
         "up to triangles. `grid`: cubical complexes of `n`×`n` grids, filtered by smoothed noise on the vertices. "
         "`cells`: sparse random cellular complexes with `n` cells in each dimension up to 3. `dense`: the same, with "
-        "dense boundaries.",
+        "dense boundaries. Structured, with long bars: `rips torus` and `rips circles`, Rips complexes of the noisy "
+        "torus and wedge of circles from the Rips section; `rings`, cubical complexes of `n`×`n` images of the "
+        "distance to five overlapping rings, plus noise (a long H1 bar for each hole); and `torus mesh`, a "
+        "triangulated torus filtered by its height, plus noise (essential bars in every dimension).",
         "summary": [
             "phat (twist)",
             "phat (twist, reduce)",
@@ -229,7 +239,9 @@ def report(paths, criterion):
         "heap memory allocated during a separate run in MB (measured with [memray](https://bloomberg.github.io/memray/), "
         "which includes native allocations, such as Rust's). "
         f"Parallel implementations use {', '.join(map(str, sorted(t for t in threads if t)))} "
-        "threads. Every barcode agrees with the reference implementation's (each benchmark checks this).",
+        "threads. Every barcode agrees with the reference implementation's (each benchmark checks this). An empty cell "
+        "is a case not run (as each section says), or one whose first run went over the time limit (10 minutes, by "
+        "default) and was stopped.",
         "",
         f"* Machine: {machine['cpu'].get('brand_raw', machine['processor'])} ({machine['cpu'].get('count', '?')} "
         f"cores), {machine['system']} {machine['machine']}",

@@ -25,11 +25,12 @@ testpaths = ["tests"]
 python_files = ["test_*.py", "bench_*.py"]
 markers = [
     "quick: the benchmark cases that `just bench-check` compares with the saved baseline",
-    "large: slow benchmark cases (1000-point Rips), timed once each",
+    "large: the slowest benchmark cases, timed once each",
 ]
 
 [dependency-groups]
 dev = [
     "memray>=1.20.0",
     "pytest-benchmark>=5.3.1",
+    "tadasets>=0.2.2",
 ]

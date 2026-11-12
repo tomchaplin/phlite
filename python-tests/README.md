@@ -70,12 +70,14 @@ The tests use [Hypothesis](https://hypothesis.readthedocs.io/) to generate input
 
 `benchmarks/bench_*.py` are pytest-benchmark suites, each comparing a binding with its references:
 
-* `bench_rips.py`: `phlite_rips` vs ripser and giotto-ph, on random point clouds, up to 2000 points.
-* `bench_grpph.py`: `phlite_grpph` vs grpphati, on random weighted digraphs (on the largest, 200 nodes, only phlite
-  runs, since grpphati needs over 5 GB at 100).
+* `bench_rips.py`: `phlite_rips` vs ripser and giotto-ph, on random point clouds, up to 2000 points, and on noisy samples of a torus,
+  spheres and a wedge of circles (from `benchmarks/datasets.py`, using tadasets), which have long bars.
+* `bench_grpph.py`: `phlite_grpph` vs grpphati, on random weighted digraphs, a ring with chords and a lattice with holes
+  (on the largest of each, only phlite runs, since grpphati needs over 5 GB or minutes).
 * `bench_sparse.py`: `phlite` vs PHAT and LoPHAT, on explicit boundary matrices given to every implementation as the
   same list of columns in filtration order: Rips complexes, cubical grids with a lower-star filtration, and sparse and
-  dense random cellular complexes. Plain times include loading the columns from Python; `(reduce)` variants build the
+  dense random cellular complexes; and, with long bars, Rips complexes of a noisy torus and wedge of circles, images
+  of rings, and a triangulated torus filtered by height. Plain times include loading the columns from Python; `(reduce)` variants build the
   matrix before the clock starts. Variants cover every column representation (including `pivot`, the default), cached
   or not, with and without storing R.
 
@@ -90,7 +92,9 @@ Each benchmark is one implementation on one case, so the usual pytest options se
    [memray](https://bloomberg.github.io/memray/): the most heap memory allocated at once during the run, including
    native allocations (such as Rust's, on any thread), stored in the results as `extra_info["peak_mb"]`. Since every
    benchmark runs in the same process, this is more reliable than resident memory, which doesn't grow when a run
-   reuses memory freed by an earlier one (memray works on Linux and macOS);
+   reuses memory freed by an earlier one (memray works on Linux and macOS). This first run is in a forked child
+   process, killed after `PHLITE_BENCH_TIMEOUT` seconds (default 600; 0 for no limit), when the benchmark is skipped
+   rather than holding up the session: the time is spent in native code, which a Python timeout couldn't interrupt;
 2. is timed over `PHLITE_BENCH_ROUNDS` runs (default 3) with `benchmark.pedantic`, building a fresh input before each,
    untimed, since some implementations reduce their input in place.
 

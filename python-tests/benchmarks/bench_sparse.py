@@ -4,11 +4,17 @@ Every implementation gets the same columns, as a list of `(dimension, boundary)`
 also gets the filtration values, so that it can leave out zero-length bars). Times include loading the columns from
 Python, except for `(reduce)` variants, whose matrix is built before the clock starts.
 
-Kinds of complex:
+Kinds of complex, random (whose bars are mostly short):
     rips    Rips complex of n random points in the unit square, up to triangles
     grid    Cubical complex of an n x n grid with a lower-star filtration of smoothed noise
     cells   A random cellular complex (see tests/test_sparse.py): n vertices, and n cells in each dimension 1 to 3
     dense   The same, but with dense boundaries (each basis cycle is in a cell's boundary with probability 0.3)
+and structured, with long bars:
+    rips    with `shape`: Rips complex of n noisy points on a torus or a wedge of circles (see datasets.py)
+    rings   Cubical complex of an n x n image of a few noisy rings (lower star of the distance to them): a long H1 bar
+            for each ring
+    torus   A triangulated n x n torus, filtered by the lower star of its height (a Morse function) plus noise:
+            essential H0, H1 (two) and H2 bars, and long bars from the critical points
 
 Inputs are generated once and cached in a temporary directory. Cases marked `quick` are the ones `just bench-check` uses.
 """
@@ -34,6 +40,8 @@ import phlite
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "tests"))
 from test_sparse import random_complex  # noqa: E402
 
+import datasets  # noqa: E402
+
 Algorithm = phlite.Algorithm
 INF = math.inf
 REFERENCE = "phat (twist)"
@@ -43,11 +51,13 @@ CACHE = os.path.join(tempfile.gettempdir(), "phlite-bench-sparse")
 # ====== Inputs ===========================================================
 
 
-def rips_complex(n, top_dim, seed):
-    """The Rips complex of `n` random points in the unit square, up to dimension `top_dim`."""
-    rng = np.random.default_rng(seed)
-    points = rng.uniform(size=(n, 2))
-    distances = np.linalg.norm(points[:, None] - points[None], axis=-1).astype(np.float32).astype(np.float64)
+def rips_complex(n, top_dim, seed, shape=None):
+    """The Rips complex of `n` points, up to dimension `top_dim`: random in the unit square, or sampled from `shape`."""
+    if shape is None:
+        points = np.random.default_rng(seed).uniform(size=(n, 2))
+    else:
+        points = datasets.points(shape, n, seed)
+    distances = datasets.distance_matrix(points)
     simplices = [list(itertools.combinations(range(n), k + 1)) for k in range(top_dim + 1)]
     values = [np.zeros(n)]
     for k in range(1, top_dim + 1):
@@ -61,14 +71,31 @@ def _simplicial_faces(simplex):
     return [simplex[:i] + simplex[i + 1 :] for i in range(len(simplex))] if len(simplex) > 1 else []
 
 
-def grid_complex(n, seed):
-    """The cubical complex of an n x n grid of vertices, filtered by smoothed noise on the vertices (lower star)."""
+def smoothed_noise(n, seed):
+    """An n x n image of noise, smoothed with a few box blurs, so that there are features at several scales."""
     rng = np.random.default_rng(seed)
     noise = rng.normal(size=(n, n))
-    # Smooth with a few box blurs, so that there are features at several scales
     for _ in range(3):
         noise = (noise + np.roll(noise, 1, 0) + np.roll(noise, -1, 0) + np.roll(noise, 1, 1) + np.roll(noise, -1, 1)) / 5
-    height = noise.astype(np.float32).astype(np.float64)
+    return noise
+
+
+def rings_image(n, seed, rings=5):
+    """An n x n image of the distance to a few rings (random centres and radii) in the unit square, plus noise:
+    its lower star has a long H1 bar for each ring, born when the ring closes and dying when its inside fills."""
+    rng = np.random.default_rng(seed)
+    y, x = np.mgrid[0:n, 0:n] / n
+    distance = np.full((n, n), np.inf)
+    for _ in range(rings):
+        cx, cy = rng.uniform(0.2, 0.8, size=2)
+        r = rng.uniform(0.08, 0.2)
+        distance = np.minimum(distance, np.abs(np.hypot(x - cx, y - cy) - r))
+    return distance + 0.003 * rng.normal(size=(n, n))
+
+
+def grid_complex(n, seed, image=smoothed_noise):
+    """The cubical complex of an n x n grid of vertices, filtered by `image(n, seed)` on the vertices (lower star)."""
+    height = image(n, seed).astype(np.float32).astype(np.float64)
     vertex = lambda i, j: i * n + j  # noqa: E731
     cells = [[(vertex(i, j),) for i in range(n) for j in range(n)], [], []]
     for i in range(n):
@@ -93,6 +120,27 @@ def grid_complex(n, seed):
     return _sorted_columns(cells, values, faces)
 
 
+def torus_complex(n, seed):
+    """A triangulated torus (an n x n grid of vertices, with wraparound), filtered by the lower star of the height of
+    a torus standing on its side (a Morse function: a minimum, two saddles and a maximum), plus a little noise."""
+    rng = np.random.default_rng(seed)
+    u, v = np.meshgrid(np.arange(n) * 2 * np.pi / n, np.arange(n) * 2 * np.pi / n, indexing="ij")
+    height = ((2 + np.cos(v)) * np.cos(u) + 0.05 * rng.normal(size=(n, n))).astype(np.float32).astype(np.float64)
+    vertex = lambda i, j: (i % n) * n + (j % n)  # noqa: E731
+    triangles = set()
+    for i in range(n):
+        for j in range(n):
+            a, b, c, d = vertex(i, j), vertex(i + 1, j), vertex(i, j + 1), vertex(i + 1, j + 1)
+            triangles.add(tuple(sorted((a, b, d))))
+            triangles.add(tuple(sorted((a, c, d))))
+    triangles = sorted(triangles)
+    edges = sorted({face for t in triangles for face in _simplicial_faces(t)})
+    cells = [[(i,) for i in range(n * n)], edges, triangles]
+    flat = height.ravel()
+    values = [np.array([flat[list(c)].max() for c in cells_k]) for cells_k in cells]
+    return _sorted_columns(cells, values, _simplicial_faces)
+
+
 def _sorted_columns(cells, values, faces):
     """Columns in filtration order (by value, then dimension), and the values in that order."""
     keys = [(v, k, i) for k, vs in enumerate(values) for i, v in enumerate(vs.tolist())]
@@ -110,6 +158,8 @@ def cached_complex(case_key):
     temporary directory, since generating is slow. Stored as plain lists, so the cache doesn't depend on numpy."""
     case = dict(case_key)
     key = "-".join(str(case[k]) for k in ["kind", "n", "top_dim", "density", "seed"])
+    if case.get("shape"):
+        key += f"-{case['shape']}"
     path = os.path.join(CACHE, f"{key}.lists.pickle")
     try:
         with open(path, "rb") as f:
@@ -128,9 +178,13 @@ def cached_complex(case_key):
 def generate_complex(case):
     kind, n, seed = case["kind"], case["n"], case["seed"]
     if kind == "rips":
-        columns, values = rips_complex(n, case["top_dim"], seed)
+        columns, values = rips_complex(n, case["top_dim"], seed, case.get("shape"))
     elif kind == "grid":
         columns, values = grid_complex(n, seed)
+    elif kind == "rings":
+        columns, values = grid_complex(n, seed, rings_image)
+    elif kind == "torus":
+        columns, values = torus_complex(n, seed)
     else:
         density = case["density"] if kind == "dense" else None
         columns, values = random_complex(random.Random(seed), 3, n, n, 50, density=density)
@@ -249,16 +303,22 @@ IMPLEMENTATIONS = {
 # ====== Cases ============================================================
 
 
-def case(kind, n, quick=False, large=False):
-    values = {"kind": kind, "n": n, "top_dim": 2, "density": 0.3, "seed": 0, "large": large}
+def case(kind, n, quick=False, large=False, shape=None):
+    values = {"kind": kind, "n": n, "top_dim": 2, "density": 0.3, "seed": 0, "large": large, "shape": shape}
     marks = [pytest.mark.quick] if quick else [pytest.mark.large] if large else []
     return pytest.param(values, id=label(values), marks=marks)
 
 
 def label(case):
     kind, n = case["kind"], case["n"]
+    if kind == "rips" and case["shape"]:
+        return f"rips {case['shape']} n={n} dim≤{case['top_dim']}"
     if kind == "rips":
         return f"rips n={n} dim≤{case['top_dim']}"
+    if kind == "rings":
+        return f"rings {n}x{n}"
+    if kind == "torus":
+        return f"torus mesh {n}x{n}"
     if kind == "grid":
         return f"grid {n}x{n}"
     if kind == "dense":
@@ -275,11 +335,19 @@ CASES = [
     case("cells", 3000, quick=True),
     case("dense", 100, quick=True),
     case("dense", 200),
+    # Structured
+    case("rips", 150, shape="torus"),
+    case("rips", 150, shape="circles"),
+    case("rings", 500),
+    case("torus", 300),
     # Timed once each
     case("rips", 200, large=True),
     case("grid", 1000, large=True),
     case("cells", 10000, large=True),
     case("dense", 400, large=True),
+    case("rips", 200, large=True, shape="torus"),
+    case("rings", 1000, large=True),
+    case("torus", 700, large=True),
 ]
 
 

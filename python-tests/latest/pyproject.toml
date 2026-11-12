@@ -24,4 +24,5 @@ package = false
 dev = [
     "memray>=1.20.0",
     "pytest-benchmark>=5.3.1",
+    "tadasets>=0.2.2",
 ]

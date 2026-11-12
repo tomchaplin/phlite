@@ -1,9 +1,14 @@
-"""Benchmark phlite_grpph against grpphati on random weighted digraphs.
+"""Benchmark phlite_grpph against grpphati on weighted digraphs.
 
-Grounded persistent path homology (dimension 1, all grpphati computes) of random digraphs on `n` nodes, each edge
-present with probability 0.1, with integer weights 1–5. `GrPPH_par_wedge` is grpphati's parallel pipeline over wedge
-components. Cases marked `quick` are the ones `just bench-check` uses. Cases marked `large` are timed once each,
-and only phlite runs on them: grpphati needs over 5 GB at 100 nodes, so is checked against phlite's default instead.
+Grounded persistent path homology (dimension 1, all grpphati computes), with integer weights 1–5, of
+* random digraphs on `n` nodes, each edge present with probability 0.1;
+* `ring`: a directed cycle on `n` nodes with random forward chords, so one long bar (the cycle) among short ones;
+* `lattice`: an `n` x `n` grid with edges right and down, with rectangular holes, so a long bar around each hole.
+
+GrPPH works on the complete digraph of shortest-path distances, so the cost grows quickly with the number of nodes
+even when the digraph is sparse. `GrPPH_par_wedge` is grpphati's parallel pipeline over wedge components. Cases marked
+`quick` are the ones `just bench-check` uses. Cases marked `large` are timed once each, and only phlite runs on them
+(grpphati needs over 5 GB on random digraphs of 100 nodes, and minutes on the others), checked against phlite's default.
 """
 
 import functools
@@ -63,48 +68,86 @@ IMPLEMENTATIONS = {
     "phlite (parallel, lock-free)": phlite(lambda: Algorithm.parallel(THREADS).with_storage("lock-free")),
 }
 
-CASES = [25, 50, 100]
-QUICK = [50]
-LARGE = [200]
+# (kind, n)
+CASES = [("random", 25), ("random", 50), ("random", 100), ("ring", 100), ("lattice", 15)]
+QUICK = [("random", 50)]
+LARGE = [("random", 200), ("ring", 400), ("lattice", 30)]
+# grpphati needs over 5 GB at 100 random nodes, so these are checked against phlite's default instead
+NO_GRPPHATI = LARGE
 LARGE_REFERENCE = "phlite (serial)"
 
 
-def reference_name(n):
-    return LARGE_REFERENCE if n in LARGE else REFERENCE
+def reference_name(case):
+    return LARGE_REFERENCE if case in NO_GRPPHATI else REFERENCE
+
+
+def label(kind, n):
+    if kind == "random":
+        return f"grpph n={n} p={P}"
+    return f"grpph ring n={n}" if kind == "ring" else f"grpph lattice {n}x{n}"
 
 
 @functools.cache
-def graph(n):
-    """A random digraph with integer weights in 1..5."""
+def graph(kind, n):
+    """A digraph of the given kind (see the module docs) with integer weights in 1..5, as (nodes, edges)."""
     rng = np.random.default_rng(0)
-    mask = rng.uniform(size=(n, n)) < P
-    np.fill_diagonal(mask, False)
-    pairs = list(zip(*np.nonzero(mask)))
-    weights = rng.integers(1, 6, size=len(pairs))
-    return n, [(int(i), int(j), float(w)) for (i, j), w in zip(pairs, weights)]
+    if kind == "random":
+        mask = rng.uniform(size=(n, n)) < P
+        np.fill_diagonal(mask, False)
+        pairs = list(zip(*np.nonzero(mask)))
+        weights = rng.integers(1, 6, size=len(pairs))
+        return n, [(int(i), int(j), float(w)) for (i, j), w in zip(pairs, weights)]
+    if kind == "ring":
+        edges = [(i, (i + 1) % n) for i in range(n)]
+        # Chords jumping 2 to 4 nodes ahead
+        edges += [(i, (i + int(rng.integers(2, 5))) % n) for i in range(n) if rng.uniform() < 0.5]
+        nodes = n
+    else:
+        # Holes: a few rectangles of nodes removed, each a quarter to a fifth of the side
+        hole = np.zeros((n, n), dtype=bool)
+        for _ in range(4):
+            h, w = (int(x) for x in rng.integers(n // 5, n // 4 + 1, size=2))
+            i, j = (int(x) for x in rng.integers(1, n - max(h, w) - 1, size=2))
+            hole[i : i + h, j : j + w] = True
+        node = lambda i, j: i * n + j  # noqa: E731
+        edges = []
+        for i in range(n):
+            for j in range(n):
+                if hole[i, j]:
+                    continue
+                if j + 1 < n and not hole[i, j + 1]:
+                    edges.append((node(i, j), node(i, j + 1)))
+                if i + 1 < n and not hole[i + 1, j]:
+                    edges.append((node(i, j), node(i + 1, j)))
+        nodes = n * n
+    weights = rng.integers(1, 6, size=len(edges))
+    return nodes, [(i, j, float(w)) for (i, j), w in zip(edges, weights)]
 
 
 @functools.cache
-def reference(n):
-    return IMPLEMENTATIONS[reference_name(n)](graph(n))()
+def reference(case):
+    return IMPLEMENTATIONS[reference_name(case)](graph(*case))()
 
 
 def params():
-    for n in CASES + LARGE:
-        marks = [pytest.mark.quick] if n in QUICK else [pytest.mark.large] if n in LARGE else []
+    for case in CASES + LARGE:
+        kind, n = case
+        marks = [pytest.mark.quick] if case in QUICK else [pytest.mark.large] if case in LARGE else []
         for implementation in IMPLEMENTATIONS:
-            if n in LARGE and not implementation.startswith("phlite"):
+            if case in NO_GRPPHATI and not implementation.startswith("phlite"):
                 continue
-            yield pytest.param(n, implementation, marks=marks, id=f"{n}-{implementation}")
+            id = f"{n}-{implementation}" if kind == "random" else f"{kind}-{n}-{implementation}"
+            yield pytest.param(kind, n, implementation, marks=marks, id=id)
 
 
-@pytest.mark.parametrize("n, implementation", params())
-def test_grpph(benchmark, n, implementation):
+@pytest.mark.parametrize("kind, n, implementation", params())
+def test_grpph(benchmark, kind, n, implementation):
+    case = (kind, n)
     run(
         benchmark,
-        group=f"grpph n={n} p={P}",
+        group=label(kind, n),
         implementation=IMPLEMENTATIONS[implementation],
-        make_input=lambda: graph(n),
-        reference=None if implementation == reference_name(n) else functools.partial(reference, n),
-        rounds=1 if n in LARGE else None,
+        make_input=lambda: graph(kind, n),
+        reference=None if implementation == reference_name(case) else functools.partial(reference, case),
+        rounds=1 if case in LARGE else None,
     )
