@@ -1149,14 +1149,16 @@ impl<FilT: FiltrationValue, RowT: BasisElement, CF: NonZeroCoefficient> BitCol<F
             present,
             slots,
         } = self;
-        let (table, descending) = ranks.parts();
-        if descending {
-            let top = table.len() - 1;
-            Self::add_ranked(present, slots, entries, multiple, |i| {
+        let top = ranks.bound() - 1;
+        match ranks.parts() {
+            (Some(table), true) => Self::add_ranked(present, slots, entries, multiple, |i| {
                 top - table[i] as usize
-            });
-        } else {
-            Self::add_ranked(present, slots, entries, multiple, |i| table[i] as usize);
+            }),
+            (Some(table), false) => {
+                Self::add_ranked(present, slots, entries, multiple, |i| table[i] as usize)
+            }
+            (None, true) => Self::add_ranked(present, slots, entries, multiple, |i| top - i),
+            (None, false) => Self::add_ranked(present, slots, entries, multiple, |i| i),
         }
     }
 

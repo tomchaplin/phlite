@@ -109,6 +109,8 @@ impl BasisElement for isize {}
 impl FiltrationValue for NotNan<f32> {}
 impl FiltrationValue for NotNan<f64> {}
 impl FiltrationValue for usize {}
+impl FiltrationValue for u32 {}
+impl FiltrationValue for u64 {}
 impl FiltrationValue for isize {}
 impl FiltrationValue for () {}
 
@@ -139,8 +141,10 @@ impl<T> FiltrationValue for Reverse<T> where T: FiltrationValue {}
 /// rather than as a heap. The ranks are a shared table, cheap to clone, from the dense index of each row to its rank.
 #[derive(Clone, Debug)]
 pub struct RowRanks {
-    /// `table[row.dense_index()]` is the rank of `row` in increasing order
-    table: std::sync::Arc<[u32]>,
+    /// `table[row.dense_index()]` is the rank of `row` in increasing order, or `None` if that is the dense index itself
+    table: Option<std::sync::Arc<[u32]>>,
+    /// One more than the largest rank
+    bound: usize,
     /// Whether the order is reversed, so that the rank is `bound - 1 - table[..]`
     descending: bool,
 }
@@ -150,7 +154,17 @@ impl RowRanks {
     /// than `table.len()`, and increase with the order on [`ColumnEntry`] (filtration value, then row index).
     pub fn new(table: std::sync::Arc<[u32]>) -> Self {
         Self {
-            table,
+            bound: table.len(),
+            table: Some(table),
+            descending: false,
+        }
+    }
+
+    /// Ranks that are the dense indices `0..bound` themselves, for rows numbered in order (no table to look up).
+    pub fn identity(bound: usize) -> Self {
+        Self {
+            table: None,
+            bound,
             descending: false,
         }
     }
@@ -167,22 +181,26 @@ impl RowRanks {
     /// One more than the largest rank.
     #[inline]
     pub fn bound(&self) -> usize {
-        self.table.len()
+        self.bound
     }
 
-    /// The table from dense index to rank, and whether ranks are read descending (`bound() - 1 - table[i]`), for
-    /// loops that look up many ranks and want to branch on the direction once.
+    /// The table from dense index to rank (`None` for the identity), and whether ranks are read descending
+    /// (`bound() - 1 - table[i]`), for loops that look up many ranks and want to branch on these once.
     #[inline]
-    pub(crate) fn parts(&self) -> (&[u32], bool) {
-        (&self.table, self.descending)
+    pub(crate) fn parts(&self) -> (Option<&[u32]>, bool) {
+        (self.table.as_deref(), self.descending)
     }
 
     /// The rank of `row`.
     #[inline]
     pub fn rank<R: BasisElement>(&self, row: &R) -> usize {
-        let rank = self.table[row.dense_index()] as usize;
+        let index = row.dense_index();
+        let rank = match &self.table {
+            Some(table) => table[index] as usize,
+            None => index,
+        };
         if self.descending {
-            self.table.len() - 1 - rank
+            self.bound - 1 - rank
         } else {
             rank
         }

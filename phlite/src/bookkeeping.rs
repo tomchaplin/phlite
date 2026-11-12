@@ -6,6 +6,8 @@
 //!
 //! Vectors are much faster than hash maps (no hashing, and neighbouring cells sit together in memory), but cost 4 bytes
 //! for every index up to the largest one used (plus the entries themselves), so need the numbering to be dense.
+//! Small values (at most 8 bytes with their `Option` tag, such as a pivot and its coefficient) are kept inline in that
+//! vector instead, so that a lookup is one memory access rather than two.
 
 use std::hash::Hash;
 use std::marker::PhantomData;
@@ -24,8 +26,18 @@ pub struct ElementMap<K, V> {
 /// Marks an empty slot of [`Storage::Dense`].
 const EMPTY: u32 = u32::MAX;
 
+/// Whether values are small enough to keep inline in [`Storage::Inline`] rather than behind a slot.
+const fn inline<V>() -> bool {
+    std::mem::size_of::<Option<V>>() <= 8
+}
+
 #[derive(Debug, Clone)]
 enum Storage<V, H> {
+    /// `values[i]` is the value of the key numbered `i`; `len` counts the `Some`s.
+    Inline {
+        values: Vec<Option<V>>,
+        len: usize,
+    },
     /// `slots[i]` is the position in `entries` of the key numbered `i`, or [`EMPTY`].
     /// So a map holding few of many keys costs 4 bytes per key, plus its entries.
     Dense {
@@ -55,7 +67,12 @@ impl<K: BasisElement + Hash, V> Default for ElementMap<K, V> {
 impl<K: BasisElement + Hash, V> ElementMap<K, V> {
     /// An empty map.
     pub fn new() -> Self {
-        let storage = if K::DENSE_INDEX {
+        let storage = if K::DENSE_INDEX && inline::<V>() {
+            Storage::Inline {
+                values: Vec::new(),
+                len: 0,
+            }
+        } else if K::DENSE_INDEX {
             Storage::Dense {
                 slots: Vec::new(),
                 entries: Vec::new(),
@@ -73,6 +90,7 @@ impl<K: BasisElement + Hash, V> ElementMap<K, V> {
     #[inline]
     pub fn get(&self, key: &K) -> Option<&V> {
         match &self.storage {
+            Storage::Inline { values, .. } => values.get(slot(key))?.as_ref(),
             Storage::Dense { slots, entries } => match *slots.get(slot(key))? {
                 EMPTY => None,
                 position => Some(&entries[position as usize].1),
@@ -91,6 +109,15 @@ impl<K: BasisElement + Hash, V> ElementMap<K, V> {
     #[inline]
     pub fn insert(&mut self, key: K, value: V) -> Option<V> {
         match &mut self.storage {
+            Storage::Inline { values, len } => {
+                let i = slot(&key);
+                if i >= values.len() {
+                    values.resize_with(i + 1, || None);
+                }
+                let old = values[i].replace(value);
+                *len += usize::from(old.is_none());
+                old
+            }
             Storage::Dense { slots, entries } => {
                 let i = slot(&key);
                 if i >= slots.len() {
@@ -114,6 +141,11 @@ impl<K: BasisElement + Hash, V> ElementMap<K, V> {
     #[inline]
     pub fn remove(&mut self, key: &K) -> Option<V> {
         match &mut self.storage {
+            Storage::Inline { values, len } => {
+                let old = values.get_mut(slot(key))?.take();
+                *len -= usize::from(old.is_some());
+                old
+            }
             Storage::Dense { slots, entries } => {
                 let i = slot(key);
                 let position = match slots.get(i) {
@@ -132,9 +164,17 @@ impl<K: BasisElement + Hash, V> ElementMap<K, V> {
         }
     }
 
+    /// Whether values are kept inline, in a vector with a place for every key up to the largest one inserted.
+    /// Then storing more keys (below that) costs no more memory.
+    #[inline]
+    pub fn is_inline(&self) -> bool {
+        matches!(self.storage, Storage::Inline { .. })
+    }
+
     /// The number of keys with a value.
     pub fn len(&self) -> usize {
         match &self.storage {
+            Storage::Inline { len, .. } => *len,
             Storage::Dense { entries, .. } => entries.len(),
             Storage::Hashed(map) => map.len(),
         }
@@ -147,16 +187,23 @@ impl<K: BasisElement + Hash, V> ElementMap<K, V> {
 
     /// Every key and a reference to its value, in no particular order.
     pub fn iter(&self) -> impl Iterator<Item = (K, &V)> {
-        let (dense, hashed) = match &self.storage {
-            Storage::Dense { entries, .. } => (Some(entries), None),
-            Storage::Hashed(map) => (None, Some(map)),
+        let (inline, dense, hashed) = match &self.storage {
+            Storage::Inline { values, .. } => (Some(values), None, None),
+            Storage::Dense { entries, .. } => (None, Some(entries), None),
+            Storage::Hashed(map) => (None, None, Some(map)),
         };
+        let inline = inline.into_iter().flat_map(|values| {
+            values
+                .iter()
+                .enumerate()
+                .filter_map(|(i, value)| Some((K::from_dense_index(i), value.as_ref()?)))
+        });
         let dense = dense.into_iter().flat_map(|entries| {
             entries
                 .iter()
                 .map(|(i, value)| (K::from_dense_index(*i as usize), value))
         });
-        dense.chain(
+        inline.chain(dense).chain(
             hashed
                 .into_iter()
                 .flat_map(|map| map.iter().map(|(k, v)| (k.clone(), v))),
@@ -165,16 +212,23 @@ impl<K: BasisElement + Hash, V> ElementMap<K, V> {
 
     /// Every key and value, in no particular order.
     pub fn into_entries(self) -> impl Iterator<Item = (K, V)> {
-        let (dense, hashed) = match self.storage {
-            Storage::Dense { entries, .. } => (Some(entries), None),
-            Storage::Hashed(map) => (None, Some(map)),
+        let (inline, dense, hashed) = match self.storage {
+            Storage::Inline { values, .. } => (Some(values), None, None),
+            Storage::Dense { entries, .. } => (None, Some(entries), None),
+            Storage::Hashed(map) => (None, None, Some(map)),
         };
+        let inline = inline.into_iter().flat_map(|values| {
+            values
+                .into_iter()
+                .enumerate()
+                .filter_map(|(i, value)| Some((K::from_dense_index(i), value?)))
+        });
         let dense = dense.into_iter().flat_map(|entries| {
             entries
                 .into_iter()
                 .map(|(i, value)| (K::from_dense_index(i as usize), value))
         });
-        dense.chain(hashed.into_iter().flatten())
+        inline.chain(dense).chain(hashed.into_iter().flatten())
     }
 }
 
@@ -293,5 +347,38 @@ mod tests {
         exercise(Dense);
         exercise(|i| i as usize);
         exercise(|i| std::cmp::Reverse(Dense(i)));
+    }
+
+    /// Small values are kept inline, large ones behind a slot, and the two agree
+    #[test]
+    fn inline_and_slotted_agree() {
+        let mut small: ElementMap<Dense, u32> = ElementMap::new();
+        let mut large: ElementMap<Dense, [u32; 4]> = ElementMap::new();
+        assert!(matches!(small.storage, Storage::Inline { .. }));
+        assert!(matches!(large.storage, Storage::Dense { .. }));
+        let mut state = 1u64;
+        for _ in 0..2000 {
+            state = state
+                .wrapping_mul(6364136223846793005)
+                .wrapping_add(1442695040888963407);
+            let key = Dense(((state >> 33) % 300) as u32);
+            let value = (state >> 20) as u32;
+            if state % 3 == 0 {
+                assert_eq!(small.remove(&key), large.remove(&key).map(|v| v[0]));
+            } else {
+                assert_eq!(
+                    small.insert(key, value),
+                    large.insert(key, [value; 4]).map(|v| v[0])
+                );
+            }
+            assert_eq!(small.len(), large.len());
+            assert_eq!(small.get(&key), large.get(&key).map(|v| &v[0]));
+        }
+        let mut a: Vec<_> = small.iter().map(|(k, v)| (k, *v)).collect();
+        let mut b: Vec<_> = large.into_entries().map(|(k, v)| (k, v[0])).collect();
+        a.sort();
+        b.sort();
+        assert_eq!(a, b);
+        assert_eq!(small.into_entries().count(), b.len());
     }
 }

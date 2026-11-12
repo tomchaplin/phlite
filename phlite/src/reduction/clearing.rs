@@ -175,9 +175,23 @@ where
     }
 }
 
-/// The pivot table of a dimension: `pivot row -> (column, coefficient of the pivot)`.
-/// Apparent pairs are not stored here, see [`CRMBuilder::owner`].
-type LowInverse<RowT, CF> = ElementMap<RowT, (RowT, CF)>;
+/// The pivot table of a dimension: `pivot row -> (owner, coefficient of the pivot)`.
+/// Apparent pairs are only stored here if it is inline, see [`CRMBuilder::owner`].
+type LowInverse<RowT, CF> = ElementMap<RowT, (Owner<RowT>, CF)>;
+
+/// The column owning a pivot.
+///
+/// When R is stored, a reduced column is found by its position in [`CRMBuilder::r_columns`], so that adding it costs
+/// one lookup (in the pivot table) rather than another in a map of stored columns.
+/// (For explicit complexes, an `Option` of this and a [`Z2`](crate::fields::Z2) coefficient fits in 8 bytes, so that the
+/// pivot table is [inline](ElementMap::is_inline).)
+#[derive(Debug, Clone)]
+enum Owner<ColT> {
+    /// A column whose `R` is not stored, either because it needed no reduction (`R = D`) or R isn't being stored
+    Column(ColT),
+    /// The column `r_columns[k].0`, with `R = r_columns[k].1`
+    Stored(u32),
+}
 
 struct CRMBuilder<M, DimIter, C, FilT, RowT, CF>
 where
@@ -205,8 +219,8 @@ where
     store_r: bool,
     /// Whether to keep track of `V` (only optional when `store_r`, since otherwise `R` is recomputed from `V`)
     track_v: bool,
-    /// The reduced columns `R_i` of the current dimension that have a pivot, if `store_r`
-    r_columns: ElementMap<RowT, SortedRun<FilT, RowT, CF>>,
+    /// The reduced columns `(i, R_i)` of the current dimension that have a pivot, if `store_r`
+    r_columns: Vec<(RowT, SortedRun<FilT, RowT, CF>)>,
     /// The working columns, reused for every column reduced so that their memory is only allocated once
     r_i: C::Column<FilT, RowT, CF>,
     v_i: BHCol<(), RowT, CF>,
@@ -243,7 +257,7 @@ where
             cache_columns,
             cache: ColumnCache::new(cache_columns),
             store_r,
-            r_columns: ElementMap::new(),
+            r_columns: Vec::new(),
             boundary,
             dimension_order: dimension_order.peekable(),
             diagram: DiagramBuilder::default(),
@@ -255,14 +269,20 @@ where
 
     /// The column that owns `row` as its pivot (in the current dimension), and the coefficient of that pivot.
     ///
-    /// Apparent pairs are never stored, so if `row` is not in `low_inverse` we check whether it is the pivot of the first column in its row.
+    /// Apparent pairs are only stored when `low_inverse` [is inline](ElementMap::is_inline) (so storing them is free, and
+    /// saves looking them up), so otherwise if `row` is not in `low_inverse` we check whether it is the pivot of the
+    /// first column in its row.
+    #[inline]
     fn owner(
         &self,
         low_inverse: &LowInverse<M::RowT, M::CoefficientField>,
         row: &M::RowT,
-    ) -> Option<(M::ColT, M::CoefficientField)> {
+    ) -> Option<(Owner<M::ColT>, M::CoefficientField)> {
         if let Some(owner) = low_inverse.get(row) {
             return Some(owner.clone());
+        }
+        if low_inverse.is_inline() {
+            return None;
         }
         let first = self.boundary.first_column_in_row(row.clone())?;
         // A cleared column has R = 0 so owns nothing. This can't happen: if the first column in a row had its pivot
@@ -277,7 +297,7 @@ where
             return None;
         }
         let pivot = self.boundary.column_pivot(first.clone())?;
-        (pivot.row_index == *row).then_some((first, pivot.coeff))
+        (pivot.row_index == *row).then_some((Owner::Column(first), pivot.coeff))
     }
 
     /// Call `f` on every term `(coefficient, column)` of `V_j`, without boxing the iterator for the usual cases.
@@ -316,8 +336,7 @@ where
             let pivot_entry = r_i.pop_pivot()?;
 
             // Check if there is a column with the same pivot, otherwise we found a boundary
-            let Some((j_basis_element, j_coeff)) = self.owner(low_inverse, &pivot_entry.row_index)
-            else {
+            let Some((owner, j_coeff)) = self.owner(low_inverse, &pivot_entry.row_index) else {
                 return Some(pivot_entry);
             };
 
@@ -328,17 +347,24 @@ where
             r_i.add_entry(pivot_entry);
 
             if self.store_r {
-                // Add R_j itself: stored if column j was reduced, or else D_j (an apparent pair, so V_j = e_j)
-                match self.r_columns.get(&j_basis_element) {
-                    Some(run) => self.columns.add_run(r_i, run, col_multiple),
-                    None => self.columns.add_matrix_column(
-                        &self.cache,
-                        &self.boundary,
-                        r_i,
-                        j_basis_element.clone(),
-                        col_multiple,
-                    ),
-                }
+                // Add R_j itself: stored if column j was reduced, or else D_j (it needed no reduction, so V_j = e_j)
+                let j_basis_element = match owner {
+                    Owner::Stored(k) => {
+                        let (j, run) = &self.r_columns[k as usize];
+                        self.columns.add_run(r_i, run, col_multiple);
+                        j.clone()
+                    }
+                    Owner::Column(j) => {
+                        self.columns.add_matrix_column(
+                            &self.cache,
+                            &self.boundary,
+                            r_i,
+                            j.clone(),
+                            col_multiple,
+                        );
+                        j
+                    }
+                };
                 // and V_j to V_i
                 if self.track_v {
                     self.for_each_v_term(j_basis_element, |coeff, k| {
@@ -347,6 +373,9 @@ where
                 }
             } else {
                 // Add R_j = D V_j by adding the column of D for every term of V_j
+                let Owner::Column(j_basis_element) = owner else {
+                    unreachable!("R is only stored if store_r")
+                };
                 self.for_each_v_term(j_basis_element, |coeff, k| {
                     let multiple = coeff * col_multiple;
                     self.columns.add_matrix_column(
@@ -363,12 +392,13 @@ where
     }
 
     /// Record that the column `basis_element` has been reduced, with the given pivot (if any).
-    /// Apparent pairs are not added to `low_inverse`, since [`owner`](Self::owner) recomputes them.
+    /// Apparent pairs are only added to `low_inverse` if it is inline, see [`owner`](Self::owner).
     fn record_reduced(
         &mut self,
         basis_element: M::ColT,
         pivot: Option<(M::RowT, M::CoefficientField)>,
         apparent: bool,
+        stored: Option<u32>,
         low_inverse: &mut LowInverse<M::RowT, M::CoefficientField>,
         new_pairs: &mut Option<ElementMap<M::RowT, M::ColT>>,
     ) {
@@ -376,8 +406,12 @@ where
             self.diagram.essential.insert(basis_element);
             return;
         };
-        if !apparent {
-            low_inverse.insert(pivot_row.clone(), (basis_element.clone(), pivot_coeff));
+        if !apparent || low_inverse.is_inline() {
+            let owner = match stored {
+                Some(k) => Owner::Stored(k),
+                None => Owner::Column(basis_element.clone()),
+            };
+            low_inverse.insert(pivot_row.clone(), (owner, pivot_coeff));
         }
         // Remember the pair so that the pivot row's column can be cleared in the next dimension
         if let Some(new_pairs) = new_pairs {
@@ -404,10 +438,18 @@ where
         low_inverse: &mut LowInverse<M::RowT, M::CoefficientField>,
         new_pairs: &mut Option<ElementMap<M::RowT, M::ColT>>,
         pivot: Option<(M::RowT, M::CoefficientField)>,
+        stored: Option<u32>,
         v_i: &mut BHCol<(), M::RowT, M::CoefficientField>,
         scratch: &mut Vec<(M::CoefficientField, M::RowT)>,
     ) {
-        self.record_reduced(basis_element.clone(), pivot, false, low_inverse, new_pairs);
+        self.record_reduced(
+            basis_element.clone(),
+            pivot,
+            false,
+            stored,
+            low_inverse,
+            new_pairs,
+        );
 
         // Then save v_i (minus the diagonal) to the reduction matrix, unless it is trivial.
         // Drained into a reused buffer first, so that the stored column is allocated once at its exact size.
@@ -459,21 +501,38 @@ where
             // Most columns need no reduction: their pivot is not yet claimed (or they are zero).
             // Find the pivot without building the whole column, and only build it if there is work to do.
             let pivot = self.boundary.column_pivot(basis_element.clone());
-            let apparent = pivot.as_ref().is_some_and(|entry| {
-                self.boundary
-                    .first_column_in_row(entry.row_index.clone())
+            // When `low_inverse` holds every pivot (apparent or not), it alone says whether the pivot is claimed, and
+            // whether the column is apparent only matters for skipping zero-length pairs, so is only checked then
+            let complete = low_inverse.is_inline();
+            let claimed = complete
+                && pivot
                     .as_ref()
-                    == Some(&basis_element)
-            });
+                    .is_some_and(|entry| low_inverse.contains_key(&entry.row_index));
+            let apparent = !claimed
+                && pivot.as_ref().is_some_and(|entry| {
+                    (!complete
+                        || (self.skip_zero_apparent_pairs
+                            && self.boundary.filtration_value(entry.row_index.clone())
+                                == self.boundary.filtration_value(basis_element.clone())))
+                        && self
+                            .boundary
+                            .first_column_in_row(entry.row_index.clone())
+                            .as_ref()
+                            == Some(&basis_element)
+                });
             match pivot {
+                Some(_) if claimed => {}
                 Some(entry)
-                    if !apparent && self.owner(&low_inverse, &entry.row_index).is_some() => {}
+                    if !complete
+                        && !apparent
+                        && self.owner(&low_inverse, &entry.row_index).is_some() => {}
                 pivot => {
                     let pivot = pivot.map(|entry| (entry.row_index, entry.coeff));
                     self.record_reduced(
                         basis_element,
                         pivot,
                         apparent,
+                        None,
                         &mut low_inverse,
                         &mut new_pairs,
                     );
@@ -490,6 +549,7 @@ where
                 M::CoefficientField::one(),
             );
             let pivot = self.reduce_column(&low_inverse, &mut r_i, &mut v_i);
+            let mut stored = None;
             if self.store_r {
                 if let Some(pivot) = &pivot {
                     // Keep R_i: its pivot, then the rest of the column (drained into a reused buffer, so that the
@@ -497,8 +557,11 @@ where
                     r_scratch.clear();
                     r_scratch.push(pivot.clone());
                     r_i.drain_into(&mut r_scratch);
+                    let k = u32::try_from(self.r_columns.len())
+                        .expect("fewer than 2^32 columns reduced in a dimension");
+                    stored = Some(k);
                     self.r_columns
-                        .insert(basis_element.clone(), SortedRun::from(&r_scratch[..]));
+                        .push((basis_element.clone(), SortedRun::from(&r_scratch[..])));
                 }
             }
             // Whatever is left below the pivot isn't needed
@@ -509,6 +572,7 @@ where
                 &mut low_inverse,
                 &mut new_pairs,
                 pivot,
+                stored,
                 &mut v_i,
                 &mut v_scratch,
             );
@@ -518,7 +582,7 @@ where
         // Columns of D are only ever added to columns of the same dimension
         self.cache = ColumnCache::new(self.cache_columns);
         // Stored columns of R are only ever added to columns of the same dimension
-        self.r_columns = ElementMap::new();
+        self.r_columns = Vec::new();
         // Rows paired in the previous dimension that weren't columns of this one aren't needed for clearing.
         // But if their pair was skipped, the row's column may be reduced in a later dimension and marked essential.
         // (When dimensions are visited in the direction of the matrix there are no such rows.)

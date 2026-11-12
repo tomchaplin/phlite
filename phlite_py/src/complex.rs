@@ -14,12 +14,18 @@
 //!      apparent pairs in O(1) via [`first_column_in_row`](HasRowFiltration::first_column_in_row)
 //!      and cohomology representatives can be computed by involution.
 //!
+//! Inside a [`Complex`] cells are renumbered by their position in the filtration, so that the reduction, which visits
+//! cells in filtration order, reads the matrices sequentially rather than all over memory
+//! (this is what the [`boundary`](Complex::boundary) and [`coboundary`](Complex::coboundary) views index by).
+//! A cell's rank then orders cells exactly as (value, index) does, so the views use the rank itself as the filtration
+//! value, and the reduction never reads the real values (one random memory access per entry saved, and entries half
+//! the size). Bars are translated back to the input's cells and values, dropping those of length zero.
+//!
 //! Cells are indexed by `u32`, so each matrix costs 4 bytes per non-zero entry
 //! (coefficients in [`Z2`](phlite::fields::Z2) are zero-sized), plus a few bytes per cell.
 
 use std::cmp::Reverse;
 use std::ops::Range;
-use std::sync::Arc;
 
 use ordered_float::NotNan;
 use phlite::{
@@ -60,9 +66,6 @@ impl Cell {
     }
 }
 
-/// Orders cells by decreasing (filtration value, index).
-type SortKey = Reverse<(NotNan<f64>, usize)>;
-
 /// A chain complex as it arrives from the user, before any validation.
 #[derive(Debug, Clone, Default)]
 pub struct RawChain {
@@ -94,16 +97,28 @@ impl<CF: Copy> Csc<CF> {
 }
 
 /// A filtered chain complex with coefficients in `CF`, ready to be reduced.
+///
+/// Internally cell `r` is the cell at position `r` in the filtration (its *rank*); the public methods take and give the
+/// input's cells, except for the [`boundary`](Self::boundary) and [`coboundary`](Self::coboundary) views.
 #[derive(Debug, Clone)]
 pub struct Complex<CF> {
+    /// The dimension of every input cell.
     dimensions: Vec<u32>,
-    values: Vec<NotNan<f64>>,
-    /// The cells in filtration order.
-    order: Vec<Cell>,
-    /// The inverse of `order`: the position of every cell in filtration order.
-    ranks: Arc<[u32]>,
+    /// The input's cells in filtration order (by rank), together, so that translating a bar back reads one place.
+    ranked: Vec<Ranked>,
+    /// The inverse of `ranked`: the rank of every input cell.
+    ranks: Vec<u32>,
+    /// Columns and rows by rank.
     boundary: Csc<CF>,
     coboundary: Csc<CF>,
+}
+
+/// The cell at some rank, with its value and dimension.
+#[derive(Debug, Clone, Copy)]
+struct Ranked {
+    value: NotNan<f64>,
+    cell: Cell,
+    dimension: u32,
 }
 
 /// The (co)boundary matrix of a [`Complex`], with an oracle for its transpose.
@@ -112,8 +127,8 @@ pub struct Complex<CF> {
 pub struct View<'a, CF> {
     matrix: &'a Csc<CF>,
     transpose: &'a Csc<CF>,
-    values: &'a [NotNan<f64>],
-    ranks: &'a Arc<[u32]>,
+    /// The number of cells (rows are ranks, so their own ranks).
+    n_cells: usize,
 }
 
 impl<CF> Clone for View<'_, CF> {
@@ -126,10 +141,10 @@ impl<CF> Copy for View<'_, CF> {}
 
 impl<'a, CF: IntField> View<'a, CF> {
     #[inline]
-    fn entry(&self, matrix: &Csc<CF>, i: usize) -> ColumnEntry<NotNan<f64>, Cell, CF> {
+    fn entry(&self, matrix: &Csc<CF>, i: usize) -> ColumnEntry<u32, Cell, CF> {
         let row = matrix.rows[i];
         ColumnEntry {
-            filtration_value: self.values[row.idx()],
+            filtration_value: row.0,
             row_index: row,
             coeff: matrix.coeffs[i],
         }
@@ -152,30 +167,28 @@ impl<'a, CF: IntField> MatrixOracle for View<'a, CF> {
 }
 
 impl<'a, CF: IntField> HasRowFiltration for View<'a, CF> {
-    type FiltrationT = NotNan<f64>;
+    /// The rank of the cell, which orders cells as their (value, index) does
+    type FiltrationT = u32;
 
     #[inline]
-    fn filtration_value(&self, row: Cell) -> NotNan<f64> {
-        self.values[row.idx()]
+    fn filtration_value(&self, row: Cell) -> u32 {
+        row.0
     }
 
     // Columns are sorted in decreasing filtration order without repeats, so the pivot is the first entry
-    fn column_pivot(&self, col: Cell) -> Option<ColumnEntry<NotNan<f64>, Cell, CF>> {
+    fn column_pivot(&self, col: Cell) -> Option<ColumnEntry<u32, Cell, CF>> {
         let range = self.matrix.range(col);
         (!range.is_empty()).then(|| self.entry(self.matrix, range.start))
     }
 
     // ... and the smallest entry is the last
-    fn column_min(&self, col: Cell) -> Option<ColumnEntry<NotNan<f64>, Cell, CF>> {
+    fn column_min(&self, col: Cell) -> Option<ColumnEntry<u32, Cell, CF>> {
         let range = self.matrix.range(col);
         (!range.is_empty()).then(|| self.entry(self.matrix, range.end - 1))
     }
 
     // Columns are stored sorted, so the reductions can add them without sorting
-    fn sorted_column(
-        &self,
-        col: Cell,
-    ) -> Option<impl Iterator<Item = ColumnEntry<NotNan<f64>, Cell, CF>>> {
+    fn sorted_column(&self, col: Cell) -> Option<impl Iterator<Item = ColumnEntry<u32, Cell, CF>>> {
         let view = *self;
         Some(
             self.matrix
@@ -187,7 +200,7 @@ impl<'a, CF: IntField> HasRowFiltration for View<'a, CF> {
     fn sorted_column_ascending(
         &self,
         col: Cell,
-    ) -> Option<impl Iterator<Item = ColumnEntry<NotNan<f64>, Cell, CF>>> {
+    ) -> Option<impl Iterator<Item = ColumnEntry<u32, Cell, CF>>> {
         let view = *self;
         Some(
             self.matrix
@@ -208,9 +221,9 @@ impl<'a, CF: IntField> HasRowFiltration for View<'a, CF> {
         (!range.is_empty()).then(|| self.transpose.rows[range.start])
     }
 
-    // Cells are ordered by (value, index), as entries are, so a cell's rank is its position in that order
+    // Cells are numbered by their rank in the order on entries (value, then index)
     fn row_ranks(&self) -> Option<RowRanks> {
-        Some(RowRanks::new(Arc::clone(self.ranks)))
+        Some(RowRanks::identity(self.n_cells))
     }
 }
 
@@ -508,50 +521,62 @@ impl<CF: IntField> Chain<CF> {
             }
         };
         let key = |cell: usize| (values[cell], cell);
-
-        // Check the order, and sort each column in decreasing filtration order
-        let source = &self.boundary;
-        let mut rows: Vec<Cell> = Vec::with_capacity(source.rows.len());
-        let mut coeffs: Vec<CF> = Vec::with_capacity(source.rows.len());
-        let mut scratch: Vec<(SortKey, Cell, CF)> = Vec::new();
-        for col in 0..n {
-            scratch.clear();
-            for i in source.range(Cell(col as u32)) {
-                let row = source.rows[i];
-                if key(row.idx()) >= key(col) {
-                    return Err(ComplexError::FaceAfterCell {
-                        cell: col as u32,
-                        cell_value: values[col].into_inner(),
-                        face: row.0,
-                        face_value: values[row.idx()].into_inner(),
-                    });
-                }
-                scratch.push((Reverse(key(row.idx())), row, source.coeffs[i]));
-            }
-            scratch.sort_unstable_by_key(|(k, _, _)| *k);
-            for &(_, row, coeff) in &scratch {
-                rows.push(row);
-                coeffs.push(coeff);
-            }
-        }
-        let boundary = Csc {
-            indptr: source.indptr.clone(),
-            rows,
-            coeffs,
-        };
         let mut order: Vec<Cell> = (0..n as u32).map(Cell).collect();
         order.sort_unstable_by_key(|cell| key(cell.idx()));
-        let coboundary = transpose(&boundary, &order, n);
         let mut ranks = vec![0u32; n];
         for (rank, cell) in order.iter().enumerate() {
             ranks[cell.idx()] = rank as u32;
         }
 
+        // Check the order, and renumber by rank, sorting each column in decreasing filtration (so rank) order
+        let source = &self.boundary;
+        let mut indptr: Vec<usize> = Vec::with_capacity(n + 1);
+        indptr.push(0);
+        let mut rows: Vec<Cell> = Vec::with_capacity(source.rows.len());
+        let mut coeffs: Vec<CF> = Vec::with_capacity(source.rows.len());
+        let mut scratch: Vec<(Reverse<u32>, CF)> = Vec::new();
+        for &col in &order {
+            let col_rank = ranks[col.idx()];
+            scratch.clear();
+            for i in source.range(col) {
+                let row = source.rows[i];
+                let row_rank = ranks[row.idx()];
+                if row_rank >= col_rank {
+                    return Err(ComplexError::FaceAfterCell {
+                        cell: col.0,
+                        cell_value: values[col.idx()].into_inner(),
+                        face: row.0,
+                        face_value: values[row.idx()].into_inner(),
+                    });
+                }
+                scratch.push((Reverse(row_rank), source.coeffs[i]));
+            }
+            scratch.sort_unstable_by_key(|(r, _)| *r);
+            for &(Reverse(row), coeff) in &scratch {
+                rows.push(Cell(row));
+                coeffs.push(coeff);
+            }
+            indptr.push(rows.len());
+        }
+        let boundary = Csc {
+            indptr,
+            rows,
+            coeffs,
+        };
+        let coboundary = transpose(&boundary, n);
+        let ranked = order
+            .iter()
+            .map(|&cell| Ranked {
+                value: values[cell.idx()],
+                cell,
+                dimension: self.dimensions[cell.idx()],
+            })
+            .collect();
+
         Ok(Complex {
             dimensions: self.dimensions.clone(),
-            values,
-            order,
-            ranks: ranks.into(),
+            ranked,
+            ranks,
             boundary,
             coboundary,
         })
@@ -581,37 +606,46 @@ impl<CF: IntField> Complex<CF> {
 
     /// The filtration value of `cell`.
     pub fn value(&self, cell: Cell) -> f64 {
-        self.values[cell.idx()].into_inner()
+        self.ranked[self.rank(cell).idx()].value.into_inner()
     }
 
-    /// The boundary matrix, whose transpose is [`coboundary`](Self::coboundary).
+    /// The position of `cell` in the filtration, which is how the views number it.
+    pub fn rank(&self, cell: Cell) -> Cell {
+        Cell(self.ranks[cell.idx()])
+    }
+
+    /// The input cell at position `rank` in the filtration.
+    pub fn cell(&self, rank: Cell) -> Cell {
+        self.ranked[rank.idx()].cell
+    }
+
+    /// The boundary matrix, with cells numbered by [`rank`](Self::rank); its transpose is
+    /// [`coboundary`](Self::coboundary).
     pub fn boundary(&self) -> View<'_, CF> {
         View {
             matrix: &self.boundary,
             transpose: &self.coboundary,
-            values: &self.values,
-            ranks: &self.ranks,
+            n_cells: self.n_cells(),
         }
     }
 
-    /// The coboundary matrix, whose transpose is [`boundary`](Self::boundary).
+    /// The coboundary matrix, with cells numbered by [`rank`](Self::rank); its transpose is [`boundary`](Self::boundary).
     pub fn coboundary(&self) -> View<'_, CF> {
         View {
             matrix: &self.coboundary,
             transpose: &self.boundary,
-            values: &self.values,
-            ranks: &self.ranks,
+            n_cells: self.n_cells(),
         }
     }
 
-    /// The cells of dimension at most `max_dim`, split by dimension and in filtration order.
+    /// The cells of dimension at most `max_dim`, by [`rank`](Self::rank), split by dimension and in filtration order.
     pub fn basis(&self, max_dim: usize) -> SplitBasis<Cell> {
         let top = self.top_dimension().map_or(0, |top| top.min(max_dim));
         let mut dims: Vec<Vec<Cell>> = vec![vec![]; top + 1];
-        for &cell in &self.order {
-            let dim = self.dimension(cell);
+        for (rank, ranked) in self.ranked.iter().enumerate() {
+            let dim = ranked.dimension as usize;
             if dim <= max_dim {
-                dims[dim].push(cell);
+                dims[dim].push(Cell(rank as u32));
             }
         }
         SplitBasis::from_dimensions(dims)
@@ -631,6 +665,37 @@ impl<CF: IntField> Complex<CF> {
             return vec![];
         };
         let max_dim = max_dim.unwrap_or(top);
+        let bars = self.barcode_by_rank(max_dim, method, algorithm, representatives);
+        // Back to the input's cells and values, dropping bars of length zero
+        // (The filtration value of a cell in the views is its rank)
+        bars.into_iter()
+            .filter_map(|bar| {
+                let birth = self.ranked[bar.birth.idx()];
+                let death = bar.death.map(|(death, _)| self.ranked[death.idx()]);
+                if death.is_some_and(|death| death.value == birth.value) {
+                    return None;
+                }
+                Some(Bar {
+                    birth: birth.cell,
+                    birth_value: birth.value,
+                    death: death.map(|death| (death.cell, death.value)),
+                    representative: bar.representative.map(|rep| {
+                        rep.into_iter()
+                            .map(|(coeff, cell)| (coeff, self.cell(cell)))
+                            .collect()
+                    }),
+                })
+            })
+            .collect()
+    }
+
+    fn barcode_by_rank<R: ColumnRepresentation>(
+        &self,
+        max_dim: usize,
+        method: Method,
+        algorithm: Algorithm<'_, R>,
+        representatives: bool,
+    ) -> Vec<Bar<Cell, u32, CF>> {
         // Each matrix is given its transpose, so that the reduction can find apparent pairs,
         // and (for cohomology) so that representatives can be computed by involution.
         match method {
@@ -649,15 +714,15 @@ impl<CF: IntField> Complex<CF> {
                 let boundary = self.boundary().with_basis(self.basis(max_dim + 1));
                 let boundary = (&boundary).with_transpose(self.coboundary());
                 let mut bars = barcode::homology(boundary, algorithm, representatives);
-                bars.retain(|bar| self.dimension(bar.birth) <= max_dim);
+                bars.retain(|bar| self.ranked[bar.birth.idx()].dimension as usize <= max_dim);
                 bars
             }
         }
     }
 }
 
-/// The transpose of `matrix`, with each column sorted in decreasing filtration order (`order` lists the cells increasing).
-fn transpose<CF: Copy>(matrix: &Csc<CF>, order: &[Cell], n: usize) -> Csc<CF> {
+/// The transpose of `matrix`, an `n × n` matrix of cells numbered by rank, with each column in decreasing rank order.
+fn transpose<CF: Copy>(matrix: &Csc<CF>, n: usize) -> Csc<CF> {
     let mut indptr = vec![0usize; n + 1];
     for row in &matrix.rows {
         indptr[row.idx() + 1] += 1;
@@ -675,8 +740,8 @@ fn transpose<CF: Copy>(matrix: &Csc<CF>, order: &[Cell], n: usize) -> Csc<CF> {
         slots = vec![None; nnz];
     }
     let mut next = indptr.clone();
-    // Visit columns in decreasing filtration order, so that each column of the transpose comes out sorted that way
-    for &col in order.iter().rev() {
+    // Visit columns in decreasing rank order, so that each column of the transpose comes out sorted that way
+    for col in (0..n as u32).rev().map(Cell) {
         for i in matrix.range(col) {
             let row = matrix.rows[i];
             let slot = next[row.idx()];
@@ -883,10 +948,12 @@ mod tests {
         // Edge 6 enters first, so is the smallest entry of the triangle's boundary
         let values = Some(vec![0.0, 0.0, 0.0, 0.0, 2.0, 3.0, 1.0, 4.0]);
         let complex = build::<Z2>(triangle(), values).unwrap();
+        // The views number cells by rank: 0-3 are the vertices, then edges 6, 4, 5, then the triangle
+        assert_eq!([4, 5, 6, 7].map(|c| complex.rank(Cell(c)).0), [5, 6, 4, 7]);
         let col: Vec<_> = complex
             .boundary()
-            .column(Cell(7))
-            .map(|(_, r)| r.0)
+            .column(complex.rank(Cell(7)))
+            .map(|(_, r)| complex.cell(r).0)
             .collect();
         assert_eq!(col, vec![5, 4, 6]);
     }
