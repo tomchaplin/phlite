@@ -1010,8 +1010,41 @@ impl BitTree {
 
     /// Insert `i`, which must not be in the set.
     #[inline]
-    fn insert(&mut self, mut i: usize) {
-        for &offset in &self.offsets[..self.depth] {
+    fn insert(&mut self, i: usize) {
+        self.insert_from(0, i);
+    }
+
+    /// Insert `i` if it's not in the set, and remove it if it is. The bottom level is flipped without branching on
+    /// whether `i` was there (which, when adding dense columns, is a coin toss the CPU would often mispredict); the
+    /// levels above change only when a bottom word becomes empty or non-empty.
+    #[inline(always)]
+    fn toggle(&mut self, i: usize) {
+        let word = &mut self.words[i >> 6];
+        let before = *word;
+        *word ^= 1 << (i & 63);
+        let after = *word;
+        if before == 0 || after == 0 {
+            self.toggle_above(i >> 6, after != 0);
+        }
+    }
+
+    /// Mark word `i` of the bottom level as non-empty (`inserted`) or empty, in the levels above.
+    #[cold]
+    fn toggle_above(&mut self, i: usize, inserted: bool) {
+        if self.depth == 1 {
+            return;
+        }
+        if inserted {
+            self.insert_from(1, i);
+        } else {
+            self.remove_from(1, i);
+        }
+    }
+
+    /// Insert `i` (a bit of level `level`), which must not be there, and mark the words it fills in the levels above.
+    #[inline]
+    fn insert_from(&mut self, level: usize, mut i: usize) {
+        for &offset in &self.offsets[level..self.depth] {
             let word = &mut self.words[offset + (i >> 6)];
             let was_empty = *word == 0;
             *word |= 1 << (i & 63);
@@ -1022,10 +1055,10 @@ impl BitTree {
         }
     }
 
-    /// Remove `i`, which must be in the set.
+    /// Remove `i` (a bit of level `level`), which must be there, and unmark the words it empties in the levels above.
     #[inline]
-    fn remove(&mut self, mut i: usize) {
-        for &offset in &self.offsets[..self.depth] {
+    fn remove_from(&mut self, level: usize, mut i: usize) {
+        for &offset in &self.offsets[level..self.depth] {
             let word = &mut self.words[offset + (i >> 6)];
             *word &= !(1 << (i & 63));
             if *word != 0 {
@@ -1033,6 +1066,12 @@ impl BitTree {
             }
             i >>= 6;
         }
+    }
+
+    /// Remove `i`, which must be in the set.
+    #[inline]
+    fn remove(&mut self, i: usize) {
+        self.remove_from(0, i);
     }
 
     #[inline]
@@ -1084,6 +1123,78 @@ impl<FilT: FiltrationValue, RowT: BasisElement, CF: NonZeroCoefficient> BitCol<F
         } else {
             self.slots[rank] = entry;
             self.present.insert(rank);
+        }
+    }
+
+    /// Add every entry (times `multiple`), as [`add_entry`](Self::add_entry) would, but with the column's fields
+    /// held in locals and the direction of the ranks decided once, rather than per entry. Adding stored columns of R
+    /// is nearly all the work in reducing dense matrices.
+    #[inline]
+    fn add_all<'a>(
+        &mut self,
+        entries: impl Iterator<Item = &'a ColumnEntry<FilT, RowT, CF>>,
+        multiple: CF,
+    ) where
+        ColumnEntry<FilT, RowT, CF>: 'a,
+    {
+        let mut entries = entries.peekable();
+        let Some(&first) = entries.peek() else {
+            return;
+        };
+        if self.slots.is_empty() {
+            self.slots = vec![first.clone(); self.ranks.bound()];
+        }
+        let Self {
+            ranks,
+            present,
+            slots,
+        } = self;
+        let (table, descending) = ranks.parts();
+        if descending {
+            let top = table.len() - 1;
+            Self::add_ranked(present, slots, entries, multiple, |i| {
+                top - table[i] as usize
+            });
+        } else {
+            Self::add_ranked(present, slots, entries, multiple, |i| table[i] as usize);
+        }
+    }
+
+    #[inline(always)]
+    fn add_ranked<'a>(
+        present: &mut BitTree,
+        slots: &mut [ColumnEntry<FilT, RowT, CF>],
+        entries: impl Iterator<Item = &'a ColumnEntry<FilT, RowT, CF>>,
+        multiple: CF,
+        rank: impl Fn(usize) -> usize,
+    ) where
+        ColumnEntry<FilT, RowT, CF>: 'a,
+    {
+        if std::mem::size_of::<CF>() == 0 {
+            // A field with only one non-zero coefficient is Z/2, where adding an entry flips it: write the entry
+            // whether or not it ends up present (a slot is only read while its rank is), and flip its bit.
+            for entry in entries {
+                let rank = rank(entry.row_index.dense_index());
+                slots[rank].clone_from(entry);
+                present.toggle(rank);
+            }
+            return;
+        }
+        for entry in entries {
+            let rank = rank(entry.row_index.dense_index());
+            let coeff = entry.coeff * multiple;
+            if present.contains(rank) {
+                let slot = &mut slots[rank];
+                match coeff + Some(slot.coeff) {
+                    Some(sum) => slot.coeff = sum,
+                    None => present.remove(rank),
+                }
+            } else {
+                let slot = &mut slots[rank];
+                slot.clone_from(entry);
+                slot.coeff = coeff;
+                present.insert(rank);
+            }
         }
     }
 
@@ -1204,11 +1315,7 @@ impl ColumnRepresentation for PivotColumns {
         multiple: CF,
     ) {
         match column {
-            PivotCol::Bits(column) => {
-                for entry in run.iter() {
-                    column.add_entry(entry.clone() * multiple);
-                }
-            }
+            PivotCol::Bits(column) => column.add_all(run.iter(), multiple),
             PivotCol::Merged(column) => column.add_run(run.clone(), multiple, 0),
         }
     }
@@ -1280,7 +1387,7 @@ mod sorted_col_tests {
 #[cfg(test)]
 mod pivot_col_tests {
     use super::*;
-    use crate::fields::{NonZeroCoefficient, Z3};
+    use crate::fields::{NonZeroCoefficient, Z2, Z3};
     use std::cmp::Reverse;
 
     /// A densely numbered row, whose rank is a fixed permutation of its index
@@ -1310,9 +1417,15 @@ mod pivot_col_tests {
         (values, RowRanks::new(table.into()))
     }
 
-    fn check<FilT: FiltrationValue + Debug, RowT: BasisElement + Debug>(
+    /// Random batches of entries, added to a heap one by one and to a bit column either one by one or as a batch,
+    /// with pivots popped from both now and then, must give the same pivots.
+    fn check<
+        FilT: FiltrationValue + Debug,
+        RowT: BasisElement + Debug,
+        CF: NonZeroCoefficient + Debug,
+    >(
         ranks: RowRanks,
-        entry: impl Fn(usize, Z3) -> ColumnEntry<FilT, RowT, Z3>,
+        entry: impl Fn(usize, CF) -> ColumnEntry<FilT, RowT, CF>,
     ) {
         let mut state = 98765u64;
         let mut next = move |m: u64| {
@@ -1321,19 +1434,25 @@ mod pivot_col_tests {
                 .wrapping_add(1442695040888963407);
             (state >> 33) % m
         };
-        let summary = |e: Option<ColumnEntry<FilT, RowT, Z3>>| e.map(|e| (e.row_index, e.coeff));
+        let summary = |e: Option<ColumnEntry<FilT, RowT, CF>>| e.map(|e| (e.row_index, e.coeff));
         let mut bits = BitCol::new(ranks);
         for _ in 0..300 {
             let mut heap = BHCol::default();
             for _ in 0..next(8) {
-                let one = Z3::one();
+                let one = CF::one();
                 let coeff = |c: u64| if c == 0 { one } else { one.additive_inverse() };
                 // A batch (rows may repeat), drawn from a few rows so that there is plenty of cancellation
                 let spread = 1 + next(N as u64);
-                for _ in 0..next(30) {
-                    let e = entry(next(spread) as usize, coeff(next(2)));
+                let batch: Vec<_> = (0..next(30))
+                    .map(|_| entry(next(spread) as usize, coeff(next(2))))
+                    .collect();
+                for e in &batch {
                     heap.add_entry(e.clone());
-                    bits.add_entry(e);
+                }
+                if next(2) == 0 {
+                    bits.add_all(batch.iter(), one);
+                } else {
+                    batch.into_iter().for_each(|e| bits.add_entry(e));
                 }
                 if next(2) == 0 {
                     assert_eq!(summary(bits.pop_pivot()), summary(heap.pop_pivot()));
@@ -1355,20 +1474,52 @@ mod pivot_col_tests {
         }
     }
 
-    /// A bit column gives the same pivots as a heap, in the matrix's order and in the reversed order
+    /// A bit column gives the same pivots as a heap, in the matrix's order and in the reversed order, over Z/3 and
+    /// over Z/2 (where adding a batch flips bits without checking what's there)
     #[test]
     fn matches_bhcol() {
-        let (values, ranks) = values_and_ranks();
-        check(ranks.clone(), |row, coeff| ColumnEntry {
-            filtration_value: values[row],
-            row_index: Row(row),
-            coeff,
-        });
-        check(ranks.reversed(), |row, coeff| ColumnEntry {
-            filtration_value: Reverse(values[row]),
-            row_index: Reverse(Row(row)),
-            coeff,
-        });
+        fn both<CF: NonZeroCoefficient + Debug>() {
+            let (values, ranks) = values_and_ranks();
+            check::<_, _, CF>(ranks.clone(), |row, coeff| ColumnEntry {
+                filtration_value: values[row],
+                row_index: Row(row),
+                coeff,
+            });
+            check::<_, _, CF>(ranks.reversed(), |row, coeff| ColumnEntry {
+                filtration_value: Reverse(values[row]),
+                row_index: Reverse(Row(row)),
+                coeff,
+            });
+        }
+        both::<Z3>();
+        both::<Z2>();
+    }
+
+    /// Toggling bits, across several levels, against a set
+    #[test]
+    fn bit_tree_toggle() {
+        for bound in [1, 64, 65, 4097, 300_000] {
+            let mut tree = BitTree::new(bound);
+            let mut present = std::collections::BTreeSet::new();
+            let mut state = 12345u64;
+            for _ in 0..5000 {
+                state = state
+                    .wrapping_mul(6364136223846793005)
+                    .wrapping_add(1442695040888963407);
+                // Mostly a few clustered values, so words fill and empty, plus some anywhere
+                let i = if state >> 63 == 0 {
+                    ((state >> 33) % 130) as usize % bound
+                } else {
+                    ((state >> 20) % bound as u64) as usize
+                };
+                tree.toggle(i);
+                if !present.remove(&i) {
+                    present.insert(i);
+                }
+                assert_eq!(tree.contains(i), present.contains(&i));
+                assert_eq!(tree.max(), present.last().copied());
+            }
+        }
     }
 
     /// The bit tree's largest element, across several levels

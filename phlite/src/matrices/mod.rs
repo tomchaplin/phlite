@@ -170,6 +170,13 @@ impl RowRanks {
         self.table.len()
     }
 
+    /// The table from dense index to rank, and whether ranks are read descending (`bound() - 1 - table[i]`), for
+    /// loops that look up many ranks and want to branch on the direction once.
+    #[inline]
+    pub(crate) fn parts(&self) -> (&[u32], bool) {
+        (&self.table, self.descending)
+    }
+
     /// The rank of `row`.
     #[inline]
     pub fn rank<R: BasisElement>(&self, row: &R) -> usize {
