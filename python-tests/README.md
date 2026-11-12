@@ -70,13 +70,17 @@ The tests use [Hypothesis](https://hypothesis.readthedocs.io/) to generate input
 
 `benchmarks/bench_*.py` are pytest-benchmark suites, each comparing a binding with its references:
 
-* `bench_rips.py`: `phlite_rips` vs ripser and giotto-ph, on random point clouds, up to 1000 points (marked `large`,
-  timed once each; deselect them with `-m "not large"`).
-* `bench_grpph.py`: `phlite_grpph` vs grpphati, on random weighted digraphs.
+* `bench_rips.py`: `phlite_rips` vs ripser and giotto-ph, on random point clouds, up to 2000 points.
+* `bench_grpph.py`: `phlite_grpph` vs grpphati, on random weighted digraphs (on the largest, 200 nodes, only phlite
+  runs, since grpphati needs over 5 GB at 100).
 * `bench_sparse.py`: `phlite` vs PHAT and LoPHAT, on explicit boundary matrices given to every implementation as the
   same list of columns in filtration order: Rips complexes, cubical grids with a lower-star filtration, and sparse and
   dense random cellular complexes. Plain times include loading the columns from Python; `(reduce)` variants build the
-  matrix before the clock starts. Variants cover every column representation, cached or not, with and without storing R.
+  matrix before the clock starts. Variants cover every column representation (including `pivot`, the default), cached
+  or not, with and without storing R.
+
+Each suite's largest cases are marked `large` and timed once each (deselect them with `-m "not large"`); every
+implementation runs on them, except as noted, so that they show which phlite configuration is best at scale.
 
 Each benchmark is one implementation on one case, so the usual pytest options select them, e.g.
 `just bench-py -k "grid and phlite"` or `just bench-py -m quick`. Each one (see `benchmarks/common.py`):
@@ -88,7 +92,9 @@ Each benchmark is one implementation on one case, so the usual pytest options se
    benchmark runs in the same process, this is more reliable than resident memory, which doesn't grow when a run
    reuses memory freed by an earlier one (memray works on Linux and macOS);
 2. is timed over `PHLITE_BENCH_ROUNDS` runs (default 3) with `benchmark.pedantic`, building a fresh input before each,
-   untimed, since some implementations reduce their input in place.
+   untimed, since some implementations reduce their input in place. The `just` recipes pass `--benchmark-disable-gc`:
+   with Python's garbage collector on, any implementation's Python allocations trigger collections that walk every
+   object in the process, including other benchmarks' cached inputs, so timings would depend on what else is alive.
 
 Parallel implementations use `PHLITE_BENCH_THREADS` threads (default 4, or fewer cores).
 `benchmarks/conftest.py` leaves the hostname and the CPU's current clock speed out of the saved machine info.

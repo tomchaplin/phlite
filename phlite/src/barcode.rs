@@ -188,6 +188,26 @@ where
     }
 }
 
+/// Run `algorithm` on `matrix` for its diagram only, so that it can skip work only needed for `V`
+/// (see [`ReductionAlgorithm::diagram`]).
+fn run_diagram<C, F, CF, M, R>(matrix: M, algorithm: Algorithm<'_, R>) -> Diagram<C>
+where
+    C: Cell,
+    F: FiltrationValue + Send + Sync,
+    CF: Field,
+    M: Reducible<C, F, CF>,
+    R: ColumnRepresentation,
+{
+    match algorithm {
+        Algorithm::Standard(alg) => alg.diagram(matrix),
+        Algorithm::Clearing(alg) => alg.diagram(matrix),
+        #[cfg(feature = "parallel")]
+        Algorithm::ParallelClearing(alg) => alg.diagram(matrix),
+        #[cfg(not(feature = "parallel"))]
+        Algorithm::_Lifetime(_, never) => match never {},
+    }
+}
+
 /// Collect a column of `matrix` into a consolidated linear combination, in decreasing order with respect to the matrix's row filtration.
 fn collect_column<M>(matrix: M, col: M::ColT) -> Vec<(M::CoefficientField, M::RowT)>
 where
@@ -222,7 +242,7 @@ where
     M: Reducible<C, F, CF>,
     R: ColumnRepresentation,
 {
-    struct Visitor<M>(M, bool);
+    struct Visitor<M>(M);
     impl<C, F, CF, M> ReductionVisitor<C, CF, Vec<Bar<C, F, CF>>> for Visitor<M>
     where
         C: Cell,
@@ -234,49 +254,65 @@ where
         where
             V: MatrixOracle<CoefficientField = CF, ColT = C, RowT = C>,
         {
-            let Visitor(boundary, representatives) = self;
+            let Visitor(boundary) = self;
             let v = &reduction.v;
             let r = product(boundary, v);
-            let Diagram {
-                essential,
-                pairings,
-            } = reduction.diagram;
-
-            let finite = pairings.into_iter().filter_map(|(birth, death)| {
-                let birth_value = boundary.filtration_value(birth.clone());
-                let death_value = boundary.filtration_value(death.clone());
-                (birth_value != death_value).then(|| Bar {
-                    birth_value,
-                    representative: representatives.then(|| collect_column(&r, death.clone())),
-                    death: Some((death, death_value)),
-                    birth,
-                })
-            });
-            let essential = essential.into_iter().map(|birth| Bar {
-                birth_value: boundary.filtration_value(birth.clone()),
-                representative: representatives
-                    .then(|| collect_column(v.with_trivial_filtration(), birth.clone())),
-                death: None,
-                birth,
-            });
-            finite.chain(essential).collect()
+            homology_bars(
+                boundary,
+                reduction.diagram,
+                |death| Some(collect_column(&r, death.clone())),
+                |birth| Some(collect_column(v.with_trivial_filtration(), birth.clone())),
+            )
         }
     }
-    run(boundary, algorithm, Visitor(boundary, representatives))
+    if representatives {
+        run(boundary, algorithm, Visitor(boundary))
+    } else {
+        // Without representatives `V` isn't needed, which saves work for some algorithms
+        let diagram = run_diagram(boundary, algorithm);
+        homology_bars(boundary, diagram, |_| None, |_| None)
+    }
+}
+
+/// Read the bars of non-zero length off the diagram of `boundary`, with representatives for finite bars (given their
+/// death) and essential bars (given their birth).
+fn homology_bars<C, F, CF, M>(
+    boundary: M,
+    diagram: Diagram<C>,
+    mut finite_representative: impl FnMut(&C) -> Option<Vec<(CF, C)>>,
+    mut essential_representative: impl FnMut(&C) -> Option<Vec<(CF, C)>>,
+) -> Vec<Bar<C, F, CF>>
+where
+    C: Cell,
+    F: FiltrationValue,
+    CF: Field,
+    M: Reducible<C, F, CF>,
+{
+    let Diagram {
+        essential,
+        pairings,
+    } = diagram;
+    let finite = pairings.into_iter().filter_map(|(birth, death)| {
+        let birth_value = boundary.filtration_value(birth.clone());
+        let death_value = boundary.filtration_value(death.clone());
+        (birth_value != death_value).then(|| Bar {
+            birth_value,
+            representative: finite_representative(&death),
+            death: Some((death, death_value)),
+            birth,
+        })
+    });
+    let mut bars: Vec<_> = finite.collect();
+    bars.extend(essential.into_iter().map(|birth| Bar {
+        birth_value: boundary.filtration_value(birth.clone()),
+        representative: essential_representative(&birth),
+        death: None,
+        birth,
+    }));
+    bars
 }
 
 // ====== Cohomology =====================================================
-
-struct DiagramVisitor;
-
-impl<C, CF> ReductionVisitor<C, CF, Diagram<C>> for DiagramVisitor {
-    fn visit<V>(self, reduction: Reduction<V, C>) -> Diagram<C>
-    where
-        V: MatrixOracle<CoefficientField = CF, ColT = C, RowT = C>,
-    {
-        reduction.diagram
-    }
-}
 
 /// Read the bars of non-zero length (without representatives) off the diagram of the anti-transposed coboundary,
 /// converting to homology conventions.
@@ -325,7 +361,7 @@ where
     M: Reducible<C, F, CF>,
     R: ColumnRepresentation,
 {
-    let diagram: Diagram<Reverse<C>> = run(coboundary.reverse(), algorithm, DiagramVisitor);
+    let diagram: Diagram<Reverse<C>> = run_diagram(coboundary.reverse(), algorithm);
     cohomology_bars(coboundary, &diagram)
 }
 
@@ -351,7 +387,7 @@ where
     M: Reducible<C, F, CF> + HasTranspose,
     R: ColumnRepresentation,
 {
-    let diagram: Diagram<Reverse<C>> = run(coboundary.reverse(), algorithm, DiagramVisitor);
+    let diagram: Diagram<Reverse<C>> = run_diagram(coboundary.reverse(), algorithm);
     let mut bars = cohomology_bars(coboundary, &diagram);
 
     // The columns of the involuted boundary matrix: the death cells of finite bars (whose R columns are representatives)
@@ -512,6 +548,8 @@ mod tests {
         for algorithm in algorithms::<R>() {
             let hom = homology(&d, algorithm.clone(), true);
             assert_eq!(summary(&hom), expected);
+            // Without representatives (which skips V for some algorithms)
+            assert_eq!(summary(&homology(&d, algorithm.clone(), false)), expected);
             let cohom = cohomology(&delta, algorithm.clone());
             assert_eq!(summary(&cohom), expected);
             let b = boundary();

@@ -58,9 +58,13 @@ def test_presets():
     assert Algorithm.serial() == Algorithm.clearing() and Algorithm.serial().skip_zero_apparent_pairs
     assert Algorithm.parallel() == Algorithm.parallel_clearing() and Algorithm.parallel().storage == "locking"
     assert repr(Algorithm.parallel(4)) == "Algorithm.parallel_clearing().with_threads(4)"
-    assert Algorithm.serial().cache and not Algorithm.serial().with_cache(False).cache
-    assert repr(Algorithm.serial().with_columns("sorted").with_cache(False)) == (
-        'Algorithm.clearing().with_columns("sorted").with_cache(False)'
+    # phlite's defaults: pivot columns, uncached, storing R (serial clearing only)
+    serial = Algorithm.serial()
+    assert (serial.columns, serial.cache, serial.store_r) == ("pivot", False, True)
+    assert not Algorithm.parallel().store_r and Algorithm.parallel().columns == "pivot"
+    assert Algorithm.serial().with_cache().cache
+    assert repr(Algorithm.serial().with_columns("sorted").with_cache()) == (
+        'Algorithm.clearing().with_columns("sorted").with_cache(True)'
     )
 
 

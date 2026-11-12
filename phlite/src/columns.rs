@@ -39,6 +39,19 @@
 //!   whole working column, so the cost grows with its length. On GrPPH and on the cohomology of cubical complexes
 //!   it is 15–35× slower than [`MergedColumns`]. Only use it when you have measured it on your matrices.
 //!
+//! **[`PivotColumns`]** keeps the working column as a dense array with a slot for every row of the matrix, and a
+//! 64-ary tree of bitsets saying which slots are in use, as PHAT's default `bit_tree_pivot_column` does. Adding an
+//! entry flips a bit (equal entries cancel at once), and the pivot is the highest set bit, found with a few bit-scans.
+//! It needs the rank of every row in filtration order, from
+//! [`row_ranks`](crate::matrices::HasRowFiltration::row_ranks), and falls back to [`MergedColumns`] for matrices
+//! without it.
+//! * Good when many columns are added to each, as for explicit dense or cubical complexes, especially with
+//!   [`store_r`](crate::reduction::Clearing::store_r): on those it is 1.4–5× faster than [`MergedColumns`], and it is
+//!   the default for explicit complexes in `phlite_py`.
+//! * Every entry added is visited (none are skipped lazily below the pivot), and the column costs a slot per row of the
+//!   matrix, allocated once per reduction. Only the serial clearing algorithm reuses one column, so the parallel and
+//!   standard algorithms fall back to [`MergedColumns`].
+//!
 //! # Caching columns of `D`
 //!
 //! Separately from the representation, the algorithms can keep each column of `D` the first time it is added, sorted,
@@ -59,14 +72,17 @@
 //! # Choosing
 //!
 //! Start with the default. If memory matters and your columns are cheap to compute, try turning caching off, and
-//! [`HeapColumns`] if columns of `D` are short. Try [`SortedColumns`] for homology of explicit complexes. The
-//! benchmarks in the repository (`python-tests/BENCHMARKS.md`) compare every combination on several kinds of matrix.
+//! [`HeapColumns`] if columns of `D` are short. If your matrix can give [`row_ranks`](crate::matrices::HasRowFiltration::row_ranks),
+//! use [`PivotColumns`] with [`store_r`](crate::reduction::Clearing::store_r), and caching off if it gives
+//! [`sorted_column`](crate::matrices::HasRowFiltration::sorted_column)s. The benchmarks in the repository
+//! (`python-tests/BENCHMARKS.md`) compare every combination on several kinds of matrix.
 //!
 //! # The column types
 //!
 //! * [`BHCol`] stores every term in a heap.
 //! * [`MergeCol`] lazily merges sorted runs of terms, keeping one heap slot per run.
 //! * [`SortedCol`] keeps its terms in a sorted vector.
+//! * [`PivotCol`] keeps its terms in a dense array over row ranks ([`BitCol`]), or merges them.
 //!
 //! Most of the content of this module is an implementation detail of the reduction algorithms and is likely to change in the future.
 //! Unless you wish to access pivots of matrices yourself, or to plug a different column representation into the
@@ -954,35 +970,49 @@ impl ColumnRepresentation for SortedColumns {
 /// Inserting, removing and finding the largest element each touch one word per level (at most 4 for 16 million).
 #[derive(Clone, Debug)]
 struct BitTree {
-    /// `levels[0]` is the bottom level, and the last level is a single word
-    levels: Vec<Vec<u64>>,
+    /// Every level in one vector, bottom level first; the last level is a single word
+    words: Vec<u64>,
+    /// `offsets[k]` is where level `k` starts in `words`, for `k < depth`
+    offsets: [usize; BitTree::MAX_DEPTH],
+    depth: usize,
 }
 
 impl BitTree {
+    /// Enough for 64^8 = 2^48 elements
+    const MAX_DEPTH: usize = 8;
+
     fn new(bound: usize) -> Self {
-        let mut levels = Vec::new();
+        let mut offsets = [0; Self::MAX_DEPTH];
+        let mut depth = 0;
+        let mut total = 0;
         let mut n = bound.max(1);
         loop {
             let words = n.div_ceil(64);
-            levels.push(vec![0; words]);
+            offsets[depth] = total;
+            total += words;
+            depth += 1;
             if words == 1 {
                 break;
             }
             n = words;
         }
-        Self { levels }
+        Self {
+            words: vec![0; total],
+            offsets,
+            depth,
+        }
     }
 
     #[inline]
     fn contains(&self, i: usize) -> bool {
-        (self.levels[0][i >> 6] >> (i & 63)) & 1 == 1
+        (self.words[i >> 6] >> (i & 63)) & 1 == 1
     }
 
     /// Insert `i`, which must not be in the set.
     #[inline]
     fn insert(&mut self, mut i: usize) {
-        for level in &mut self.levels {
-            let word = &mut level[i >> 6];
+        for &offset in &self.offsets[..self.depth] {
+            let word = &mut self.words[offset + (i >> 6)];
             let was_empty = *word == 0;
             *word |= 1 << (i & 63);
             if !was_empty {
@@ -995,8 +1025,8 @@ impl BitTree {
     /// Remove `i`, which must be in the set.
     #[inline]
     fn remove(&mut self, mut i: usize) {
-        for level in &mut self.levels {
-            let word = &mut level[i >> 6];
+        for &offset in &self.offsets[..self.depth] {
+            let word = &mut self.words[offset + (i >> 6)];
             *word &= !(1 << (i & 63));
             if *word != 0 {
                 return;
@@ -1007,14 +1037,13 @@ impl BitTree {
 
     #[inline]
     fn max(&self) -> Option<usize> {
-        let (top, below) = self.levels.split_last()?;
-        let word = top[0];
+        let word = *self.words.last()?;
         if word == 0 {
             return None;
         }
         let mut i = 63 - word.leading_zeros() as usize;
-        for level in below.iter().rev() {
-            let word = level[i];
+        for &offset in self.offsets[..self.depth - 1].iter().rev() {
+            let word = self.words[offset + i];
             i = (i << 6) | (63 - word.leading_zeros() as usize);
         }
         Some(i)
@@ -1022,7 +1051,7 @@ impl BitTree {
 }
 
 /// The working column of [`PivotColumns`], for a matrix with [`row_ranks`](HasRowFiltration::row_ranks): a dense
-/// column indexed by rank, with a [`BitTree`] of the ranks present.
+/// column indexed by rank, with a 64-ary tree of bitsets marking the ranks present.
 pub struct BitCol<FilT: FiltrationValue, RowT: BasisElement, CF> {
     ranks: RowRanks,
     present: BitTree,
@@ -1040,7 +1069,7 @@ impl<FilT: FiltrationValue, RowT: BasisElement, CF: NonZeroCoefficient> BitCol<F
         }
     }
 
-    #[inline]
+    #[inline(always)]
     fn add_entry(&mut self, entry: ColumnEntry<FilT, RowT, CF>) {
         let rank = self.ranks.rank(&entry.row_index);
         if self.slots.is_empty() {

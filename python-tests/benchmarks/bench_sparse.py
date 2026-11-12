@@ -202,21 +202,23 @@ def phlite_impl(algorithm=Algorithm.serial, method="cohomology", csc=False, repr
 
 
 def representation_variants():
-    """Variations on the default (which stores R, with merged, cached columns), in both directions, named like
-    `phlite (homology, heap, uncached, reduce)`. Storing R: every column representation, uncached, and merged cached
-    (the default, so left out). `V only` doesn't store R (recomputing each R_j = D V_j instead): every
-    representation, cached or not."""
+    """Variations on the default (which stores R, with pivot columns, uncached), in both directions, named by how they
+    differ, like `phlite (homology, heap, cached, reduce)`. Storing R: every other column representation (uncached),
+    and pivot columns cached. `V only` doesn't store R (recomputing each R_j = D V_j instead): every representation
+    uncached, and merged columns cached (the default before pivot columns)."""
     for method in ["cohomology", "homology"]:
         for store_r in [True, False]:
-            for columns in ["merged", "heap", "sorted"]:
-                for cache in [True, False]:
-                    if store_r and (cache and columns == "merged" or cache and columns != "merged"):
+            for columns in ["pivot", "merged", "heap", "sorted"]:
+                for cache in [False, True]:
+                    if store_r and (columns == "pivot") != cache:
                         # The default, or cached non-default representations (caching barely matters when storing R)
+                        continue
+                    if not store_r and cache and columns != "merged":
                         continue
                     parts = ["homology"] if method == "homology" else []
                     parts += [] if store_r else ["V only"]
-                    parts += [columns] if columns != "merged" else []
-                    parts += [] if cache else ["uncached"]
+                    parts += [columns] if columns != "pivot" else []
+                    parts += ["cached"] if cache else []
                     algorithm = lambda columns=columns, cache=cache, store_r=store_r: (
                         Algorithm.serial().with_columns(columns).with_cache(cache).with_store_r(store_r)
                     )
@@ -247,9 +249,10 @@ IMPLEMENTATIONS = {
 # ====== Cases ============================================================
 
 
-def case(kind, n, quick=False):
-    values = {"kind": kind, "n": n, "top_dim": 2, "density": 0.3, "seed": 0}
-    return pytest.param(values, id=label(values), marks=[pytest.mark.quick] if quick else [])
+def case(kind, n, quick=False, large=False):
+    values = {"kind": kind, "n": n, "top_dim": 2, "density": 0.3, "seed": 0, "large": large}
+    marks = [pytest.mark.quick] if quick else [pytest.mark.large] if large else []
+    return pytest.param(values, id=label(values), marks=marks)
 
 
 def label(case):
@@ -272,6 +275,11 @@ CASES = [
     case("cells", 3000, quick=True),
     case("dense", 100, quick=True),
     case("dense", 200),
+    # Timed once each
+    case("rips", 200, large=True),
+    case("grid", 1000, large=True),
+    case("cells", 30000, large=True),
+    case("dense", 400, large=True),
 ]
 
 
@@ -304,4 +312,5 @@ def test_sparse(benchmark, case, implementation):
         implementation=IMPLEMENTATIONS[implementation],
         make_input=lambda: make_input(case, implementation),
         reference=None if implementation == REFERENCE else functools.partial(reference, case_key(case)),
+        rounds=1 if case["large"] else None,
     )

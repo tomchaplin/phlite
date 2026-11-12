@@ -94,10 +94,11 @@ class Algorithm:
         Clearing, with the columns of each dimension reduced in parallel.
         Skips zero-length apparent pairs by default, and uses all cores and locking storage.
         """
-    def with_columns(self, columns: typing.Literal['merged', 'heap', 'sorted']) -> Algorithm:
+    def with_columns(self, columns: typing.Literal['merged', 'heap', 'sorted', 'pivot']) -> Algorithm:
         r"""
-        How the column being reduced is represented: `'merged'`, `'heap'` or `'sorted'`. The presets use `'merged'`,
-        except in `phlite_rips`, which uses `'heap'`. Every choice gives the same barcode; only time and memory differ.
+        How the column being reduced is represented: `'merged'`, `'heap'`, `'sorted'` or `'pivot'`. The presets use
+        `'merged'` in `phlite_grpph`, `'heap'` in `phlite_rips` and `'pivot'` in `phlite`. Every choice gives the same
+        barcode; only time and memory differ.
         
         Reducing a column means repeatedly finding its pivot (largest entry) and adding other columns to cancel it.
         
@@ -109,17 +110,23 @@ class Algorithm:
           when the columns added stay near the pivot (typically homology of simplicial or cell complexes, about 1.5×
           faster than `'merged'`), but very slow when they reach far below it (15–35× slower on GrPPH or the cohomology
           of cubical complexes). Measure before using it.
+        * `'pivot'` keeps the column as a dense array over all rows, with a tree of bitsets marking which are present
+          (as PHAT does): adding an entry flips a bit, and the pivot is found with a few bit-scans. The fastest when
+          many columns are added to each, as for dense or cubical complexes, especially with `with_store_r()`. Needs a
+          matrix that knows the rank of every row in filtration order (`phlite`'s explicit complexes do); otherwise, and
+          in the parallel and standard algorithms, it behaves as `'merged'`.
         """
     def with_cache(self, cache: builtins.bool = True) -> Algorithm:
         r"""
         Whether to cache the columns of the boundary matrix as they are added during the reduction. The presets
-        cache, except in `phlite_rips`, whose columns are cheap to recompute.
+        cache in `phlite_grpph`, but not in `phlite_rips`, whose columns are cheap to recompute, nor in `phlite`, whose
+        columns are stored sorted.
         
         Caching saves recomputing (and re-sorting) a column every time it is added, which pays off when columns are
         expensive to compute (about 3× faster for GrPPH), but keeps every column needed in a dimension in memory
         until that dimension is done (most of the memory for Vietoris–Rips). For `phlite.ChainComplex`, whose columns
-        are stored sorted, it only saves copying them: about 10% faster on cell complexes, but about 20% slower on
-        cubical complexes, whose columns are short.
+        are stored sorted, it only saves copying them, and with the default pivot columns and stored R it is slower:
+        about 20% on cell complexes and nearly 2× on cubical complexes.
         """
     def with_store_r(self, store: builtins.bool = True) -> Algorithm:
         r"""

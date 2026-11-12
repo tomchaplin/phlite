@@ -156,8 +156,8 @@ then adjust it with the `with_*` methods, each of which returns a new `Algorithm
 
 | Method | Values | Default |
 |---|---|---|
-| `with_columns` | How the column being reduced is stored: `'merged'` (sorted columns, merged lazily, so never looking below the pivot), `'heap'` (every entry pushed onto one heap) or `'sorted'` (one sorted vector: fast when the columns added stay near the pivot, slow when they reach far below it). | `'merged'` |
-| `with_cache` | Whether to cache the columns of the boundary matrix that get added, rather than recomputing them each time. Pays off when columns are expensive to compute, but holds them in memory until their dimension is done. | `True` |
+| `with_columns` | How the column being reduced is stored: `'pivot'` (a dense array over every cell, with a tree of bitsets marking those present, as in PHAT: adding an entry flips a bit; serial clearing only, the others fall back to `'merged'`), `'merged'` (sorted columns, merged lazily, so never looking below the pivot), `'heap'` (every entry pushed onto one heap) or `'sorted'` (one sorted vector: fast when the columns added stay near the pivot, slow when they reach far below it). | `'pivot'` |
+| `with_cache` | Whether to cache the columns of the boundary matrix that get added, rather than recomputing them each time. Columns are stored sorted, so this only saves a copy, which here costs more than it saves. | `False` |
 | `with_store_r` | Keep each reduced column of R = D V and add it directly when cancelling a pivot (as PHAT does), rather than recompute it from V (serial clearing only). Pays off when columns need many additions, as in dense or cubical complexes, at the cost of memory. | `True` for serial clearing |
 | `with_skip_zero_apparent_pairs` | Whether to leave zero-length apparent pairs out of the reduction's diagram (clearing only). They would be dropped from the barcode anyway, and recording them can dominate the time and memory. | `True` |
 | `with_dimension_order` | The order to reduce dimensions in (clearing only), or `None` to detect the efficient order from the matrix. | `None` |

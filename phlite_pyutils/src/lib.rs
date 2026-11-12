@@ -269,8 +269,9 @@ impl AlgorithmConfig {
         Self::base(Kind::ParallelClearing)
     }
 
-    /// How the column being reduced is represented: `'merged'`, `'heap'` or `'sorted'`. The presets use `'merged'`,
-    /// except in `phlite_rips`, which uses `'heap'`. Every choice gives the same barcode; only time and memory differ.
+    /// How the column being reduced is represented: `'merged'`, `'heap'`, `'sorted'` or `'pivot'`. The presets use
+    /// `'merged'` in `phlite_grpph`, `'heap'` in `phlite_rips` and `'pivot'` in `phlite`. Every choice gives the same
+    /// barcode; only time and memory differ.
     ///
     /// Reducing a column means repeatedly finding its pivot (largest entry) and adding other columns to cancel it.
     ///
@@ -310,13 +311,14 @@ impl AlgorithmConfig {
     }
 
     /// Whether to cache the columns of the boundary matrix as they are added during the reduction. The presets
-    /// cache, except in `phlite_rips`, whose columns are cheap to recompute.
+    /// cache in `phlite_grpph`, but not in `phlite_rips`, whose columns are cheap to recompute, nor in `phlite`, whose
+    /// columns are stored sorted.
     ///
     /// Caching saves recomputing (and re-sorting) a column every time it is added, which pays off when columns are
     /// expensive to compute (about 3× faster for GrPPH), but keeps every column needed in a dimension in memory
     /// until that dimension is done (most of the memory for Vietoris–Rips). For `phlite.ChainComplex`, whose columns
-    /// are stored sorted, it only saves copying them: about 10% faster on cell complexes, but about 20% slower on
-    /// cubical complexes, whose columns are short.
+    /// are stored sorted, it only saves copying them, and with the default pivot columns and stored R it is slower:
+    /// about 20% on cell complexes and nearly 2× on cubical complexes.
     #[pyo3(signature = (cache = true))]
     fn with_cache(&self, cache: bool) -> Self {
         Self {

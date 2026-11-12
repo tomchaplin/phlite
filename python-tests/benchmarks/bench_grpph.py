@@ -2,7 +2,8 @@
 
 Grounded persistent path homology (dimension 1, all grpphati computes) of random digraphs on `n` nodes, each edge
 present with probability 0.1, with integer weights 1–5. `GrPPH_par_wedge` is grpphati's parallel pipeline over wedge
-components. Cases marked `quick` are the ones `just bench-check` uses.
+components. Cases marked `quick` are the ones `just bench-check` uses. Cases marked `large` are timed once each,
+and only phlite runs on them: grpphati needs over 5 GB at 100 nodes, so is checked against phlite's default instead.
 """
 
 import functools
@@ -64,6 +65,12 @@ IMPLEMENTATIONS = {
 
 CASES = [25, 50, 100]
 QUICK = [50]
+LARGE = [200]
+LARGE_REFERENCE = "phlite (serial)"
+
+
+def reference_name(n):
+    return LARGE_REFERENCE if n in LARGE else REFERENCE
 
 
 @functools.cache
@@ -79,16 +86,25 @@ def graph(n):
 
 @functools.cache
 def reference(n):
-    return IMPLEMENTATIONS[REFERENCE](graph(n))()
+    return IMPLEMENTATIONS[reference_name(n)](graph(n))()
 
 
-@pytest.mark.parametrize("implementation", IMPLEMENTATIONS)
-@pytest.mark.parametrize("n", [pytest.param(n, marks=pytest.mark.quick) if n in QUICK else n for n in CASES])
+def params():
+    for n in CASES + LARGE:
+        marks = [pytest.mark.quick] if n in QUICK else [pytest.mark.large] if n in LARGE else []
+        for implementation in IMPLEMENTATIONS:
+            if n in LARGE and not implementation.startswith("phlite"):
+                continue
+            yield pytest.param(n, implementation, marks=marks, id=f"{n}-{implementation}")
+
+
+@pytest.mark.parametrize("n, implementation", params())
 def test_grpph(benchmark, n, implementation):
     run(
         benchmark,
         group=f"grpph n={n} p={P}",
         implementation=IMPLEMENTATIONS[implementation],
         make_input=lambda: graph(n),
-        reference=None if implementation == REFERENCE else functools.partial(reference, n),
+        reference=None if implementation == reference_name(n) else functools.partial(reference, n),
+        rounds=1 if n in LARGE else None,
     )

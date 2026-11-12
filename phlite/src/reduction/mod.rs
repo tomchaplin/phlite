@@ -141,6 +141,17 @@ pub trait ReductionAlgorithm<M: MatrixOracle> {
     ///
     /// The matrix is consumed so you probably want to pass a reference to your matrix.
     fn reduce(self, boundary: M) -> Reduction<Self::V, M::ColT>;
+
+    /// Reduce `boundary`, returning only the persistence diagram.
+    ///
+    /// By default this is [`reduce`](Self::reduce) without `V`, but algorithms may do less work when `V` isn't
+    /// wanted: [`Clearing`] with [`store_r`](Clearing::store_r) doesn't track `V` at all.
+    fn diagram(self, boundary: M) -> Diagram<M::ColT>
+    where
+        Self: Sized,
+    {
+        self.reduce(boundary).diagram
+    }
 }
 
 #[cfg(test)]

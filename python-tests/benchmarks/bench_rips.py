@@ -68,9 +68,8 @@ IMPLEMENTATIONS = {
 # (n, max_dim)
 CASES = [(100, 2), (200, 2), (300, 2), (400, 2)]
 QUICK = [(100, 2)]
-LARGE = [(1000, 1), (1000, 2)]
-# The implementations run on the large cases
-LARGE_IMPLEMENTATIONS = ["ripser", "giotto-ph (1 thread)", "giotto-ph (parallel)", "phlite (serial)", "phlite (parallel)"]
+LARGE = [(1000, 1), (1000, 2), (2000, 1)]
+# The implementations run on the large cases: all but representatives (whose memory grows with the barcode)
 # ripser runs out of memory (more than 7 GB) on these, so they are checked against giotto-ph instead
 NO_RIPSER = [(1000, 2)]
 
@@ -98,7 +97,7 @@ def params():
         large = (n, max_dim) in LARGE
         marks = [pytest.mark.quick] if (n, max_dim) in QUICK else [pytest.mark.large] if large else []
         for implementation in IMPLEMENTATIONS:
-            if large and implementation not in LARGE_IMPLEMENTATIONS:
+            if large and implementation == "phlite (serial, reps)":
                 continue
             if (n, max_dim) in NO_RIPSER and implementation == "ripser":
                 continue

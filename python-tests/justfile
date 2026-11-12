@@ -62,6 +62,9 @@ _pytest *pytest_args:
 
 # The pytest-benchmark suites for each environment, and where the quick baselines are saved
 main_benches := "benchmarks/bench_rips.py benchmarks/bench_grpph.py"
+# Python's garbage collector is off while timing: otherwise its collections, triggered by any implementation's Python
+# allocations, walk every object alive in the process (including other benchmarks' cached inputs), which is noise
+nogc := "--benchmark-disable-gc"
 latest_benches := "benchmarks/bench_sparse.py"
 storage := "--benchmark-storage=file://benchmarks/baselines"
 
@@ -81,8 +84,8 @@ bench-baseline: build
 # Run every Python benchmark into benchmarks/results/ and regenerate BENCHMARKS.md (`just bench-docs` at the root adds Rust)
 bench-docs: build
     mkdir -p benchmarks/results
-    uv run --no-sync pytest {{main_benches}} --benchmark-json=benchmarks/results/main.json
-    {{latest}} pytest {{latest_benches}} --benchmark-json=benchmarks/results/latest.json
+    uv run --no-sync pytest {{main_benches}} {{nogc}} --benchmark-json=benchmarks/results/main.json
+    {{latest}} pytest {{latest_benches}} {{nogc}} --benchmark-json=benchmarks/results/latest.json
     uv run --no-sync python benchmarks/report.py benchmarks/results/main.json benchmarks/results/latest.json --out BENCHMARKS.md
 
 # Run pytest on each environment's benchmarks. With `allow-empty`, a filter may leave no benchmarks in one of them
@@ -93,8 +96,8 @@ _bench mode *args:
     mode=$1; shift
     status=0
     check() { s=$1; if [ "$s" != 0 ] && { [ "$s" != 5 ] || [ "$mode" != allow-empty ]; }; then status=$s; fi; }
-    uv run --no-sync pytest {{main_benches}} "$@"; check $?
-    uv run --no-sync --project latest pytest {{latest_benches}} "$@"; check $?
+    uv run --no-sync pytest {{main_benches}} {{nogc}} "$@"; check $?
+    uv run --no-sync --project latest pytest {{latest_benches}} {{nogc}} "$@"; check $?
     exit "$status"
 
 # Remove both environments and hypothesis' example database

@@ -19,7 +19,7 @@ use crate::{
     matrices::{ColBasis, HasColBasis, HasRowFiltration, HasSplitColBasis, MatrixOracle},
 };
 
-use crate::reduction::{DiagramBuilder, Reduction, ReductionAlgorithm};
+use crate::reduction::{Diagram, DiagramBuilder, Reduction, ReductionAlgorithm};
 
 use crate::bookkeeping::{ElementMap, ElementSet};
 
@@ -203,6 +203,8 @@ where
     cache: ColumnCache<FilT, RowT, CF>,
     /// Whether to keep the reduced column `R_i` of every column reduced (see [`Clearing::store_r`])
     store_r: bool,
+    /// Whether to keep track of `V` (only optional when `store_r`, since otherwise `R` is recomputed from `V`)
+    track_v: bool,
     /// The reduced columns `R_i` of the current dimension that have a pivot, if `store_r`
     r_columns: ElementMap<RowT, SortedRun<FilT, RowT, CF>>,
     /// The working columns, reused for every column reduced so that their memory is only allocated once
@@ -226,8 +228,14 @@ where
         columns: C,
         cache_columns: bool,
         store_r: bool,
+        track_v: bool,
     ) -> Self {
+        debug_assert!(
+            track_v || store_r,
+            "R is recomputed from V unless it is stored"
+        );
         Self {
+            track_v,
             r_i: columns.new_column(&boundary),
             v_i: BHCol::default(),
             skip_zero_apparent_pairs,
@@ -257,11 +265,15 @@ where
             return Some(owner.clone());
         }
         let first = self.boundary.first_column_in_row(row.clone())?;
-        // A cleared column has R = 0 so owns nothing (this can't happen for a chain complex, but costs nothing to check)
-        if matches!(
-            self.reduction_columns.get(&first),
-            Some(ReductionColumn::Cleared(_))
-        ) {
+        // A cleared column has R = 0 so owns nothing. This can't happen: if the first column in a row had its pivot
+        // there it would be an apparent pair, with R = D != 0. So we only check when tracking V (which records
+        // cleared columns anyway).
+        if self.track_v
+            && matches!(
+                self.reduction_columns.get(&first),
+                Some(ReductionColumn::Cleared(_))
+            )
+        {
             return None;
         }
         let pivot = self.boundary.column_pivot(first.clone())?;
@@ -328,9 +340,11 @@ where
                     ),
                 }
                 // and V_j to V_i
-                self.for_each_v_term(j_basis_element, |coeff, k| {
-                    v_i.add_tuple((coeff * col_multiple, k, ()));
-                });
+                if self.track_v {
+                    self.for_each_v_term(j_basis_element, |coeff, k| {
+                        v_i.add_tuple((coeff * col_multiple, k, ()));
+                    });
+                }
             } else {
                 // Add R_j = D V_j by adding the column of D for every term of V_j
                 self.for_each_v_term(j_basis_element, |coeff, k| {
@@ -399,6 +413,9 @@ where
         // Drained into a reused buffer first, so that the stored column is allocated once at its exact size.
         // TODO: Add option to only store this column when pivot is Some
         // Because otherwise we will never need the column again during reduction
+        if !self.track_v {
+            return;
+        }
         scratch.clear();
         scratch.extend(
             v_i.drain_sorted()
@@ -431,8 +448,11 @@ where
 
             // First check whether it can be cleared: V_i = R_j where (i, j) was a pair in the previous dimension
             if let Some(birth) = self.previous_pairs.remove(&basis_element) {
-                self.reduction_columns
-                    .insert(basis_element, ReductionColumn::Cleared(birth));
+                // Only `V` needs to know (`R_i = 0`, so column i never owns a pivot)
+                if self.track_v {
+                    self.reduction_columns
+                        .insert(basis_element, ReductionColumn::Cleared(birth));
+                }
                 continue 'column_loop;
             }
 
@@ -597,7 +617,10 @@ impl<C: ColumnRepresentation> Clearing<C> {
     /// With this on, `R_j` is kept once reduced (for the rest of its dimension) and added as one column, as in PHAT.
     /// That costs memory for the columns of `R` that have a pivot, and pays off when `V_j` gets long, as in dense or
     /// cubical complexes. Apparent pairs are still never stored (`R_j = D_j` for them), so Vietoris–Rips cohomology,
-    /// where almost every pair is apparent, gains little. `V` is tracked as before.
+    /// where almost every pair is apparent, gains little. `V` is still tracked for [`reduce`](ReductionAlgorithm::reduce),
+    /// but not at all for [`diagram`](ReductionAlgorithm::diagram) (as when no representatives are wanted), since
+    /// nothing needs it: that saves the time and memory of building `V`, which is most of the work left on dense
+    /// matrices.
     pub fn store_r(mut self, store: bool) -> Self {
         self.store_r = store;
         self
@@ -713,6 +736,34 @@ where
     type V = ClearedReductionMatrix<'static, M>;
 
     fn reduce(self, boundary: M) -> Reduction<Self::V, M::ColT> {
+        let builder = self.run(boundary, true);
+        let v =
+            ClearedReductionMatrix::build_from_owned(builder.boundary, builder.reduction_columns);
+        let diagram = builder.diagram.finish(Some(&builder.skipped_births));
+        Reduction { v, diagram }
+    }
+
+    /// With [`store_r`](Clearing::store_r), `V` isn't needed to reduce, so it isn't tracked at all.
+    fn diagram(self, boundary: M) -> Diagram<M::ColT> {
+        let track_v = !self.store_r;
+        let builder = self.run(boundary, track_v);
+        builder.diagram.finish(Some(&builder.skipped_births))
+    }
+}
+
+impl<C: ColumnRepresentation> Clearing<C> {
+    fn run<M>(
+        self,
+        boundary: M,
+        track_v: bool,
+    ) -> CRMBuilder<M, std::vec::IntoIter<usize>, C, M::FiltrationT, M::RowT, M::CoefficientField>
+    where
+        M: MatrixOracle + SquareMatrix + HasRowFiltration + HasSplitColBasis,
+        M::CoefficientField: Invertible + ColumnCoefficient + 'static,
+        M::FiltrationT: ColumnFiltration,
+        M::RowT: ColumnRow + 'static,
+        M::ColT: Debug,
+    {
         let dimension_order = self.dimension_order(&boundary);
         let mut builder = CRMBuilder::init(
             boundary,
@@ -721,11 +772,9 @@ where
             self.columns,
             self.cache_columns,
             self.store_r,
+            track_v,
         );
         builder.reduce_all_dimension();
-        let v =
-            ClearedReductionMatrix::build_from_owned(builder.boundary, builder.reduction_columns);
-        let diagram = builder.diagram.finish(Some(&builder.skipped_births));
-        Reduction { v, diagram }
+        builder
     }
 }

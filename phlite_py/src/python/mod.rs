@@ -17,6 +17,7 @@ use phlite::{
 };
 use phlite_pyutils::{
     add_algorithm_class, parse_method, AlgorithmConfig, AlgorithmDefaults, AlgorithmVisitor,
+    Columns,
 };
 use pyo3::{
     exceptions::{PyTypeError, PyValueError},
@@ -658,9 +659,12 @@ fn phlite_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
         "phlite",
         AlgorithmDefaults {
             // Explicit complexes often need many additions per column (dense or cubical complexes, homology), where
-            // adding stored columns of R is much faster than recomputing them from V
+            // adding stored columns of R is much faster than recomputing them from V, and a dense pivot column (the
+            // complex knows the rank of every cell) is much faster than merging. Columns are stored sorted, so
+            // caching them only saves a copy, which costs more than it saves.
+            columns: Columns::Pivot,
+            cache: false,
             store_r: true,
-            ..AlgorithmDefaults::default()
         },
     )?;
     Ok(())
