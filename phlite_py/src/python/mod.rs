@@ -175,9 +175,12 @@ impl<CF: IntField> AlgorithmVisitor for Run<'_, CF> {
         self,
         algorithm: phlite::barcode::Algorithm<'_, R>,
     ) -> BarData {
-        let bars = self
-            .complex
-            .barcode(self.max_dim, self.method, algorithm, self.representatives);
+        let bars = self.complex.barcode_by_rank(
+            self.max_dim,
+            self.method,
+            algorithm,
+            self.representatives,
+        );
         BarData::new(self.complex, bars, self.max_dim, self.representatives)
     }
 }
@@ -420,38 +423,51 @@ pub(crate) struct BarData {
 }
 
 impl BarData {
+    /// From the bars of [`Complex::barcode_by_rank`], dropping those of length zero.
     pub(crate) fn new<CF: IntField>(
         complex: &Complex<CF>,
-        bars: Vec<PhliteBar<Cell, NotNan<f64>, CF>>,
+        bars: Vec<PhliteBar<Cell, u32, CF>>,
         max_dim: Option<usize>,
         representatives: bool,
     ) -> Self {
         let n_dims = max_dim.or(complex.top_dimension()).map_or(0, |d| d + 1);
-        let mut bars: Vec<Record> = bars
+        let records: Vec<Record> = bars
             .into_iter()
-            .map(|bar| Record {
-                birth: bar.birth.0,
-                death: bar.death.as_ref().map(|(cell, _)| cell.0),
-                dimension: complex.dimension(bar.birth),
-                birth_value: bar.birth_value.into_inner(),
-                death_value: bar
-                    .death
-                    .map_or(f64::INFINITY, |(_, value)| value.into_inner()),
-                representative: bar.representative.map(|rep| {
-                    let mut rep: Vec<(u32, u64)> = rep
-                        .into_iter()
-                        .map(|(coeff, cell)| (cell.0, coeff.to_int()))
-                        .collect();
-                    // phlite gives no particular order; list in decreasing filtration order, so the birth cell is first
-                    rep.sort_by(|(a, _), (b, _)| {
-                        let value = |c: u32| complex.value(Cell(c));
-                        value(*b).total_cmp(&value(*a)).then(b.cmp(a))
-                    });
-                    rep
-                }),
+            .filter_map(|bar| {
+                let (birth, birth_value, dimension) = complex.at_rank(bar.birth);
+                let death = bar.death.map(|(death, _)| complex.at_rank(death));
+                if death.is_some_and(|(_, death_value, _)| death_value == birth_value) {
+                    return None;
+                }
+                Some(Record {
+                    birth: birth.0,
+                    death: death.map(|(cell, _, _)| cell.0),
+                    dimension,
+                    birth_value,
+                    death_value: death.map_or(f64::INFINITY, |(_, value, _)| value),
+                    representative: bar.representative.map(|mut rep| {
+                        // phlite gives no particular order; list in decreasing filtration order (so decreasing rank),
+                        // so the birth cell is first
+                        rep.sort_unstable_by(|(_, a), (_, b)| b.cmp(a));
+                        rep.into_iter()
+                            .map(|(coeff, rank)| (complex.cell(rank).0, coeff.to_int()))
+                            .collect()
+                    }),
+                })
             })
             .collect();
-        bars.sort_unstable_by_key(|bar| bar.birth);
+        // Sorted by birth cell: sort the (distinct) births with their positions, which is cheaper than moving records
+        let mut order: Vec<(u32, u32)> = records
+            .iter()
+            .enumerate()
+            .map(|(i, record)| (record.birth, i as u32))
+            .collect();
+        order.sort_unstable();
+        let mut records: Vec<Option<Record>> = records.into_iter().map(Some).collect();
+        let bars: Vec<Record> = order
+            .into_iter()
+            .map(|(_, i)| records[i as usize].take().expect("births are distinct"))
+            .collect();
         Self {
             bars,
             n_dims,

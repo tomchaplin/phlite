@@ -108,6 +108,8 @@ pub struct Complex<CF> {
     ranked: Vec<Ranked>,
     /// The inverse of `ranked`: the rank of every input cell.
     ranks: Vec<u32>,
+    /// The number of cells of each dimension.
+    dimension_counts: Vec<usize>,
     /// Columns and rows by rank.
     boundary: Csc<CF>,
     coboundary: Csc<CF>,
@@ -564,6 +566,10 @@ impl<CF: IntField> Chain<CF> {
             coeffs,
         };
         let coboundary = transpose(&boundary, n);
+        let mut dimension_counts = vec![0; self.top_dimension().map_or(0, |top| top + 1)];
+        for &dim in &self.dimensions {
+            dimension_counts[dim as usize] += 1;
+        }
         let ranked = order
             .iter()
             .map(|&cell| Ranked {
@@ -577,6 +583,7 @@ impl<CF: IntField> Chain<CF> {
             dimensions: self.dimensions.clone(),
             ranked,
             ranks,
+            dimension_counts,
             boundary,
             coboundary,
         })
@@ -619,6 +626,16 @@ impl<CF: IntField> Complex<CF> {
         self.ranked[rank.idx()].cell
     }
 
+    /// The input cell at position `rank` in the filtration, with its filtration value and dimension.
+    pub fn at_rank(&self, rank: Cell) -> (Cell, f64, usize) {
+        let ranked = self.ranked[rank.idx()];
+        (
+            ranked.cell,
+            ranked.value.into_inner(),
+            ranked.dimension as usize,
+        )
+    }
+
     /// The boundary matrix, with cells numbered by [`rank`](Self::rank); its transpose is
     /// [`coboundary`](Self::coboundary).
     pub fn boundary(&self) -> View<'_, CF> {
@@ -641,7 +658,10 @@ impl<CF: IntField> Complex<CF> {
     /// The cells of dimension at most `max_dim`, by [`rank`](Self::rank), split by dimension and in filtration order.
     pub fn basis(&self, max_dim: usize) -> SplitBasis<Cell> {
         let top = self.top_dimension().map_or(0, |top| top.min(max_dim));
-        let mut dims: Vec<Vec<Cell>> = vec![vec![]; top + 1];
+        let mut dims: Vec<Vec<Cell>> = self.dimension_counts[..=top]
+            .iter()
+            .map(|&count| Vec::with_capacity(count))
+            .collect();
         for (rank, ranked) in self.ranked.iter().enumerate() {
             let dim = ranked.dimension as usize;
             if dim <= max_dim {
@@ -661,13 +681,8 @@ impl<CF: IntField> Complex<CF> {
         algorithm: Algorithm<'_, R>,
         representatives: bool,
     ) -> Vec<Bar<Cell, NotNan<f64>, CF>> {
-        let Some(top) = self.top_dimension() else {
-            return vec![];
-        };
-        let max_dim = max_dim.unwrap_or(top);
         let bars = self.barcode_by_rank(max_dim, method, algorithm, representatives);
         // Back to the input's cells and values, dropping bars of length zero
-        // (The filtration value of a cell in the views is its rank)
         bars.into_iter()
             .filter_map(|bar| {
                 let birth = self.ranked[bar.birth.idx()];
@@ -689,13 +704,20 @@ impl<CF: IntField> Complex<CF> {
             .collect()
     }
 
-    fn barcode_by_rank<R: ColumnRepresentation>(
+    /// As [`barcode`](Self::barcode), but with cells numbered by [`rank`](Self::rank) and their ranks as filtration
+    /// values (see [`at_rank`](Self::at_rank) for the input's cells and values), and including bars of length zero.
+    /// For translating the bars straight into another form.
+    pub fn barcode_by_rank<R: ColumnRepresentation>(
         &self,
-        max_dim: usize,
+        max_dim: Option<usize>,
         method: Method,
         algorithm: Algorithm<'_, R>,
         representatives: bool,
     ) -> Vec<Bar<Cell, u32, CF>> {
+        let Some(top) = self.top_dimension() else {
+            return vec![];
+        };
+        let max_dim = max_dim.unwrap_or(top);
         // Each matrix is given its transpose, so that the reduction can find apparent pairs,
         // and (for cohomology) so that representatives can be computed by involution.
         match method {
