@@ -77,4 +77,12 @@ fn main() {
         "barcode {:8.1} ms (best of {repetitions}; {bars} bars)",
         best * 1e3
     );
+    let algorithm = Algorithm::Clearing(
+        Clearing::new()
+            .with_columns(PivotColumns)
+            .cache_columns(false)
+            .store_r(true),
+    );
+    let by_rank = complex.barcode_by_rank(None, method, algorithm, false).len();
+    println!("({by_rank} bars before dropping zero-length ones)");
 }

@@ -456,6 +456,16 @@ pub trait HasRowFiltration: MatrixOracle {
     /// Implementing the filtration function on the row basis.
     fn filtration_value(&self, row: Self::RowT) -> Self::FiltrationT;
 
+    /// Whether rows `a` and `b` have the same filtration value, so that a pair between them is a bar of length zero
+    /// (which the reductions can skip, see [`Clearing::skip_zero_apparent_pairs`](crate::reduction::Clearing)).
+    ///
+    /// By default this compares [`filtration_value`](Self::filtration_value)s. A matrix whose filtration values are
+    /// finer than its filtration (for example positions in it, which are cheaper to look up and compare) overrides
+    /// this to compare the real values.
+    fn same_filtration_value(&self, a: Self::RowT, b: Self::RowT) -> bool {
+        self.filtration_value(a) == self.filtration_value(b)
+    }
+
     /// Uses [`MatrixOracle::column`] and [`HasRowFiltration::filtration_value`] to provide an iterator over non-zero column entries, enriches with the row filtration value.
     ///
     /// **Note:** You may wish to override the default implementation for efficiency's sake.
@@ -653,6 +663,10 @@ where
 
     fn filtration_value(&self, row: Self::RowT) -> Self::FiltrationT {
         (*self).filtration_value(row)
+    }
+
+    fn same_filtration_value(&self, a: Self::RowT, b: Self::RowT) -> bool {
+        (*self).same_filtration_value(a, b)
     }
 
     fn column_pivot(

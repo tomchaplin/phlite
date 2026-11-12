@@ -194,6 +194,10 @@ where
     fn filtration_value(&self, row: Self::RowT) -> Self::FiltrationT {
         self.oracle.filtration_value(row)
     }
+
+    fn same_filtration_value(&self, a: Self::RowT, b: Self::RowT) -> bool {
+        self.oracle.same_filtration_value(a, b)
+    }
 }
 
 impl<M: MatrixOracle> HasColBasis for Consolidator<M>
@@ -281,6 +285,10 @@ where
 
     fn filtration_value(&self, row: Self::RowT) -> Self::FiltrationT {
         self.matrix.filtration_value(row)
+    }
+
+    fn same_filtration_value(&self, a: Self::RowT, b: Self::RowT) -> bool {
+        self.matrix.same_filtration_value(a, b)
     }
 
     fn column_with_filtration(
@@ -406,6 +414,10 @@ where
     fn filtration_value(&self, row: Self::RowT) -> Self::FiltrationT {
         self.oracle.filtration_value(row)
     }
+
+    fn same_filtration_value(&self, a: Self::RowT, b: Self::RowT) -> bool {
+        self.oracle.same_filtration_value(a, b)
+    }
 }
 
 // TODO: Should we give it the standard column basis?
@@ -445,6 +457,10 @@ where
 
     fn filtration_value(&self, row: Self::RowT) -> Self::FiltrationT {
         self.oracle.filtration_value(row)
+    }
+
+    fn same_filtration_value(&self, a: Self::RowT, b: Self::RowT) -> bool {
+        self.oracle.same_filtration_value(a, b)
     }
 
     fn column_with_filtration(
@@ -557,6 +573,10 @@ where
 
     fn filtration_value(&self, row: Self::RowT) -> Self::FiltrationT {
         Reverse(self.oracle.filtration_value(row.0))
+    }
+
+    fn same_filtration_value(&self, a: Self::RowT, b: Self::RowT) -> bool {
+        self.oracle.same_filtration_value(a.0, b.0)
     }
 
     fn column_with_filtration(
@@ -765,6 +785,10 @@ where
 
     fn filtration_value(&self, row: Self::RowT) -> Self::FiltrationT {
         self.oracle.filtration_value(Reverse(row)).0
+    }
+
+    fn same_filtration_value(&self, a: Self::RowT, b: Self::RowT) -> bool {
+        self.oracle.same_filtration_value(Reverse(a), Reverse(b))
     }
 
     fn column_with_filtration(
@@ -1022,6 +1046,10 @@ where
 
     fn filtration_value(&self, row: Self::RowT) -> Self::FiltrationT {
         self.matrix.filtration_value(row)
+    }
+
+    fn same_filtration_value(&self, a: Self::RowT, b: Self::RowT) -> bool {
+        self.matrix.same_filtration_value(a, b)
     }
 
     fn column_with_filtration(

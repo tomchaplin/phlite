@@ -129,8 +129,8 @@ struct Ranked {
 pub struct View<'a, CF> {
     matrix: &'a Csc<CF>,
     transpose: &'a Csc<CF>,
-    /// The number of cells (rows are ranks, so their own ranks).
-    n_cells: usize,
+    /// The cells by rank, for their real filtration values (rows are ranks, so their own ranks).
+    ranked: &'a [Ranked],
 }
 
 impl<CF> Clone for View<'_, CF> {
@@ -175,6 +175,12 @@ impl<'a, CF: IntField> HasRowFiltration for View<'a, CF> {
     #[inline]
     fn filtration_value(&self, row: Cell) -> u32 {
         row.0
+    }
+
+    // Ranks are finer than the filtration: compare the real values, so that zero-length pairs can be skipped
+    #[inline]
+    fn same_filtration_value(&self, a: Cell, b: Cell) -> bool {
+        self.ranked[a.idx()].value == self.ranked[b.idx()].value
     }
 
     // Columns are sorted in decreasing filtration order without repeats, so the pivot is the first entry
@@ -225,7 +231,7 @@ impl<'a, CF: IntField> HasRowFiltration for View<'a, CF> {
 
     // Cells are numbered by their rank in the order on entries (value, then index)
     fn row_ranks(&self) -> Option<RowRanks> {
-        Some(RowRanks::identity(self.n_cells))
+        Some(RowRanks::identity(self.ranked.len()))
     }
 }
 
@@ -642,7 +648,7 @@ impl<CF: IntField> Complex<CF> {
         View {
             matrix: &self.boundary,
             transpose: &self.coboundary,
-            n_cells: self.n_cells(),
+            ranked: &self.ranked,
         }
     }
 
@@ -651,7 +657,7 @@ impl<CF: IntField> Complex<CF> {
         View {
             matrix: &self.coboundary,
             transpose: &self.boundary,
-            n_cells: self.n_cells(),
+            ranked: &self.ranked,
         }
     }
 
@@ -718,6 +724,11 @@ impl<CF: IntField> Complex<CF> {
             return vec![];
         };
         let max_dim = max_dim.unwrap_or(top);
+        // The basis is every cell up to some dimension, so the pivot table can hold apparent pairs too
+        let algorithm = match algorithm {
+            Algorithm::Clearing(clearing) => Algorithm::Clearing(clearing.full_basis(true)),
+            other => other,
+        };
         // Each matrix is given its transpose, so that the reduction can find apparent pairs,
         // and (for cohomology) so that representatives can be computed by involution.
         match method {

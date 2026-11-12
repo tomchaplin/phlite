@@ -633,8 +633,8 @@ where
                             == Some(&col) =>
                     {
                         let record = !(skip_zero_apparent_pairs
-                            && boundary.filtration_value(entry.row_index.clone())
-                                == boundary.filtration_value(col.clone()));
+                            && boundary
+                                .same_filtration_value(entry.row_index.clone(), col.clone()));
                         // Unrecorded pairs are still needed to clear the next dimension, and to un-mark their birth
                         // as essential if its dimension was reduced earlier (against the direction of the matrix)
                         if record || !is_last || diagram.essential.contains(&entry.row_index) {
@@ -691,10 +691,7 @@ where
                     reduction_columns.get(&row),
                     Some(ReductionColumn::Cleared(_))
                 );
-                if !was_cleared
-                    && boundary.filtration_value(row.clone())
-                        == boundary.filtration_value(col.clone())
-                {
+                if !was_cleared && boundary.same_filtration_value(row.clone(), col.clone()) {
                     skipped_births.insert(row);
                 }
             }

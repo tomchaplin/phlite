@@ -176,7 +176,7 @@ where
 }
 
 /// The pivot table of a dimension: `pivot row -> (owner, coefficient of the pivot)`.
-/// Apparent pairs are only stored here if it is inline, see [`CRMBuilder::owner`].
+/// Apparent pairs are only stored here if it is complete, see [`CRMBuilder::complete`].
 type LowInverse<RowT, CF> = ElementMap<RowT, (Owner<RowT>, CF)>;
 
 /// The column owning a pivot.
@@ -208,6 +208,8 @@ where
     /// The pairs `pivot row -> column` found in the previous dimension, whose rows are the columns to clear in this one
     previous_pairs: ElementMap<RowT, RowT>,
     skip_zero_apparent_pairs: bool,
+    /// Whether the basis holds every column, see [`Clearing::full_basis`]
+    full_basis: bool,
     /// Births of skipped (zero-persistence apparent) pairs that weren't cleared, and so may be wrongly marked essential.
     /// Only ever non-empty when dimensions are reduced against the direction of the matrix.
     skipped_births: ElementSet<RowT>,
@@ -239,6 +241,7 @@ where
         boundary: M,
         dimension_order: DimIter,
         skip_zero_apparent_pairs: bool,
+        full_basis: bool,
         columns: C,
         cache_columns: bool,
         store_r: bool,
@@ -253,6 +256,7 @@ where
             r_i: columns.new_column(&boundary),
             v_i: BHCol::default(),
             skip_zero_apparent_pairs,
+            full_basis,
             columns,
             cache_columns,
             cache: ColumnCache::new(cache_columns),
@@ -267,11 +271,20 @@ where
         }
     }
 
+    /// Whether `low_inverse` holds every pivot, apparent pairs included, so that it alone says who owns a row.
+    ///
+    /// Apparent pairs are stored when that is free (`low_inverse` is [inline](ElementMap::is_inline), so has a place for
+    /// every row anyway) and saves looking them up. But only when the basis holds every column
+    /// ([`Clearing::full_basis`]): otherwise the column of an apparent pair may never be visited, so never recorded.
+    #[inline]
+    fn complete(&self, low_inverse: &LowInverse<M::RowT, M::CoefficientField>) -> bool {
+        self.full_basis && low_inverse.is_inline()
+    }
+
     /// The column that owns `row` as its pivot (in the current dimension), and the coefficient of that pivot.
     ///
-    /// Apparent pairs are only stored when `low_inverse` [is inline](ElementMap::is_inline) (so storing them is free, and
-    /// saves looking them up), so otherwise if `row` is not in `low_inverse` we check whether it is the pivot of the
-    /// first column in its row.
+    /// Unless `low_inverse` is [complete](Self::complete), apparent pairs aren't stored, so if `row` is not in
+    /// `low_inverse` we check whether it is the pivot of the first column in its row.
     #[inline]
     fn owner(
         &self,
@@ -281,7 +294,7 @@ where
         if let Some(owner) = low_inverse.get(row) {
             return Some(owner.clone());
         }
-        if low_inverse.is_inline() {
+        if self.complete(low_inverse) {
             return None;
         }
         let first = self.boundary.first_column_in_row(row.clone())?;
@@ -392,7 +405,7 @@ where
     }
 
     /// Record that the column `basis_element` has been reduced, with the given pivot (if any).
-    /// Apparent pairs are only added to `low_inverse` if it is inline, see [`owner`](Self::owner).
+    /// Apparent pairs are only added to `low_inverse` if it is [complete](Self::complete).
     fn record_reduced(
         &mut self,
         basis_element: M::ColT,
@@ -406,7 +419,7 @@ where
             self.diagram.essential.insert(basis_element);
             return;
         };
-        if !apparent || low_inverse.is_inline() {
+        if !apparent || self.complete(low_inverse) {
             let owner = match stored {
                 Some(k) => Owner::Stored(k),
                 None => Owner::Column(basis_element.clone()),
@@ -421,8 +434,9 @@ where
         // Otherwise the birth may already be marked essential, which is fixed up once at the end.
         let skip = apparent
             && self.skip_zero_apparent_pairs
-            && self.boundary.filtration_value(pivot_row.clone())
-                == self.boundary.filtration_value(basis_element.clone());
+            && self
+                .boundary
+                .same_filtration_value(pivot_row.clone(), basis_element.clone());
         if skip {
             // The birth's column may already have been reduced (if dimensions are visited against the direction of the
             // matrix), and then marked essential since nothing had claimed it yet
@@ -503,7 +517,7 @@ where
             let pivot = self.boundary.column_pivot(basis_element.clone());
             // When `low_inverse` holds every pivot (apparent or not), it alone says whether the pivot is claimed, and
             // whether the column is apparent only matters for skipping zero-length pairs, so is only checked then
-            let complete = low_inverse.is_inline();
+            let complete = self.complete(&low_inverse);
             let claimed = complete
                 && pivot
                     .as_ref()
@@ -512,8 +526,10 @@ where
                 && pivot.as_ref().is_some_and(|entry| {
                     (!complete
                         || (self.skip_zero_apparent_pairs
-                            && self.boundary.filtration_value(entry.row_index.clone())
-                                == self.boundary.filtration_value(basis_element.clone())))
+                            && self.boundary.same_filtration_value(
+                                entry.row_index.clone(),
+                                basis_element.clone(),
+                            )))
                         && self
                             .boundary
                             .first_column_in_row(entry.row_index.clone())
@@ -589,9 +605,7 @@ where
         let leftover = std::mem::replace(&mut self.previous_pairs, new_pairs.unwrap_or_default());
         if self.skip_zero_apparent_pairs {
             for (row, col) in leftover.into_entries() {
-                if self.boundary.filtration_value(row.clone())
-                    == self.boundary.filtration_value(col)
-                {
+                if self.boundary.same_filtration_value(row.clone(), col) {
                     self.skipped_births.insert(row);
                 }
             }
@@ -631,6 +645,7 @@ where
 pub struct Clearing<C = MergedColumns> {
     dimension_order: Option<Vec<usize>>,
     pub(crate) skip_zero_apparent_pairs: bool,
+    pub(crate) full_basis: bool,
     pub(crate) columns: C,
     pub(crate) cache_columns: bool,
     pub(crate) store_r: bool,
@@ -641,6 +656,7 @@ impl<C: Default> Default for Clearing<C> {
         Self {
             dimension_order: None,
             skip_zero_apparent_pairs: true,
+            full_basis: false,
             columns: C::default(),
             cache_columns: true,
             store_r: false,
@@ -667,10 +683,23 @@ impl<C: ColumnRepresentation> Clearing<C> {
         Clearing {
             dimension_order: self.dimension_order,
             skip_zero_apparent_pairs: self.skip_zero_apparent_pairs,
+            full_basis: self.full_basis,
             columns,
             cache_columns: self.cache_columns,
             store_r: self.store_r,
         }
+    }
+
+    /// Promise that, in each dimension reduced, the basis holds every column of the matrix with an entry in that
+    /// dimension's rows (as when the basis is the whole complex, up to some dimension). Off by default.
+    ///
+    /// Then, for matrices whose rows have [dense indices](crate::matrices::BasisElement::DENSE_INDEX), the pivot table
+    /// also records apparent pairs (which costs no memory there), so that finding the owner of a pivot is one lookup.
+    /// Otherwise apparent pairs are recognised again whenever they are needed, which reads the matrix and its
+    /// transpose. A false promise gives wrong results.
+    pub fn full_basis(mut self, full: bool) -> Self {
+        self.full_basis = full;
+        self
     }
 
     /// Whether to keep each reduced column of `R = D V` and add it directly, rather than recompute it from `V`
@@ -833,6 +862,7 @@ impl<C: ColumnRepresentation> Clearing<C> {
             boundary,
             dimension_order.into_iter(),
             self.skip_zero_apparent_pairs,
+            self.full_basis,
             self.columns,
             self.cache_columns,
             self.store_r,
