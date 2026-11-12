@@ -110,6 +110,8 @@ pub struct Complex<CF> {
     ranks: Vec<u32>,
     /// The number of cells of each dimension.
     dimension_counts: Vec<usize>,
+    /// `tie_start[r]` is the first rank with the same filtration value as rank `r`.
+    tie_start: Vec<u32>,
     /// Columns and rows by rank.
     boundary: Csc<CF>,
     coboundary: Csc<CF>,
@@ -129,8 +131,9 @@ struct Ranked {
 pub struct View<'a, CF> {
     matrix: &'a Csc<CF>,
     transpose: &'a Csc<CF>,
-    /// The cells by rank, for their real filtration values (rows are ranks, so their own ranks).
-    ranked: &'a [Ranked],
+    /// The first rank with the same filtration value as each rank, see [`Complex`] (rows are ranks, so their own
+    /// ranks).
+    tie_start: &'a [u32],
 }
 
 impl<CF> Clone for View<'_, CF> {
@@ -177,10 +180,13 @@ impl<'a, CF: IntField> HasRowFiltration for View<'a, CF> {
         row.0
     }
 
-    // Ranks are finer than the filtration: compare the real values, so that zero-length pairs can be skipped
+    // Ranks are finer than the filtration: compare the real values, so that zero-length pairs can be skipped.
+    // Ranks with the same value are consecutive, so that is whether the earlier rank is in the later one's run of ties,
+    // which reads the later one (in a reduction, the column being reduced, so in order) rather than both.
     #[inline]
     fn same_filtration_value(&self, a: Cell, b: Cell) -> bool {
-        self.ranked[a.idx()].value == self.ranked[b.idx()].value
+        let (early, late) = if a <= b { (a, b) } else { (b, a) };
+        self.tie_start[late.idx()] <= early.0
     }
 
     // Columns are sorted in decreasing filtration order without repeats, so the pivot is the first entry
@@ -231,7 +237,7 @@ impl<'a, CF: IntField> HasRowFiltration for View<'a, CF> {
 
     // Cells are numbered by their rank in the order on entries (value, then index)
     fn row_ranks(&self) -> Option<RowRanks> {
-        Some(RowRanks::identity(self.ranked.len()))
+        Some(RowRanks::identity(self.tie_start.len()))
     }
 }
 
@@ -576,7 +582,7 @@ impl<CF: IntField> Chain<CF> {
         for &dim in &self.dimensions {
             dimension_counts[dim as usize] += 1;
         }
-        let ranked = order
+        let ranked: Vec<Ranked> = order
             .iter()
             .map(|&cell| Ranked {
                 value: values[cell.idx()],
@@ -584,12 +590,22 @@ impl<CF: IntField> Chain<CF> {
                 dimension: self.dimensions[cell.idx()],
             })
             .collect();
+        let mut tie_start = Vec::with_capacity(n);
+        for (rank, ranked_cell) in ranked.iter().enumerate() {
+            let start = match rank {
+                0 => 0,
+                _ if ranked[rank - 1].value == ranked_cell.value => tie_start[rank - 1],
+                _ => rank as u32,
+            };
+            tie_start.push(start);
+        }
 
         Ok(Complex {
             dimensions: self.dimensions.clone(),
             ranked,
             ranks,
             dimension_counts,
+            tie_start,
             boundary,
             coboundary,
         })
@@ -648,7 +664,7 @@ impl<CF: IntField> Complex<CF> {
         View {
             matrix: &self.boundary,
             transpose: &self.coboundary,
-            ranked: &self.ranked,
+            tie_start: &self.tie_start,
         }
     }
 
@@ -657,24 +673,29 @@ impl<CF: IntField> Complex<CF> {
         View {
             matrix: &self.coboundary,
             transpose: &self.boundary,
-            ranked: &self.ranked,
+            tie_start: &self.tie_start,
         }
     }
 
     /// The cells of dimension at most `max_dim`, by [`rank`](Self::rank), split by dimension and in filtration order.
     pub fn basis(&self, max_dim: usize) -> SplitBasis<Cell> {
         let top = self.top_dimension().map_or(0, |top| top.min(max_dim));
-        let mut dims: Vec<Vec<Cell>> = self.dimension_counts[..=top]
-            .iter()
-            .map(|&count| Vec::with_capacity(count))
-            .collect();
+        // Fill each dimension's range at once, from the counts
+        let mut offsets = vec![0];
+        for dim in 0..=top {
+            let count = self.dimension_counts.get(dim).copied().unwrap_or(0);
+            offsets.push(offsets[dim] + count);
+        }
+        let mut next = offsets.clone();
+        let mut elems = vec![Cell(0); offsets[top + 1]];
         for (rank, ranked) in self.ranked.iter().enumerate() {
             let dim = ranked.dimension as usize;
-            if dim <= max_dim {
-                dims[dim].push(Cell(rank as u32));
+            if dim <= top {
+                elems[next[dim]] = Cell(rank as u32);
+                next[dim] += 1;
             }
         }
-        SplitBasis::from_dimensions(dims)
+        SplitBasis::from_parts(elems, offsets)
     }
 
     /// The barcode in dimensions `0..=max_dim` (by default, every dimension of the complex).
