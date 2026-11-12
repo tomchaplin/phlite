@@ -9,6 +9,7 @@ from hypothesis import given, note
 from hypothesis import strategies as st
 from ripser import ripser
 
+from grid import algorithm_grid
 from mod2 import Span, boundary, chain_sum
 import phlite_rips
 from phlite_rips import rips
@@ -167,3 +168,13 @@ def test_default_columns():
     for algorithm in [phlite_rips.Algorithm.serial(), phlite_rips.Algorithm.parallel(), phlite_rips.Algorithm.standard()]:
         assert not algorithm.store_r
         assert (algorithm.columns, algorithm.cache) == ('heap', False)
+
+
+@given(distances=distance_matrices(), max_dim=st.integers(0, 2))
+def test_every_algorithm_agrees(distances, max_dim):
+    """Every algorithm and option of the full grid (as for phlite_py) gives the default's barcode."""
+    expected = rips(distances, max_dim)
+    for method, algorithm in itertools.product(METHODS, algorithm_grid(phlite_rips.Algorithm)):
+        note(f"method={method} algorithm={algorithm!r}")
+        barcode = rips(distances, max_dim, method=method, algorithm=algorithm)
+        assert (barcode.essential, barcode.pairings) == (expected.essential, expected.pairings)

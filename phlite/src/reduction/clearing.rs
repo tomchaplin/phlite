@@ -872,3 +872,16 @@ impl<C: ColumnRepresentation> Clearing<C> {
         builder
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::Owner;
+    use crate::fields::Z2;
+
+    /// The pivot table of 4-byte cells over Z/2 must stay small enough to be stored inline (one memory access per
+    /// lookup, and room to hold apparent pairs for free): a layout change would silently lose that.
+    #[test]
+    fn pivot_table_of_small_cells_is_inline() {
+        assert!(std::mem::size_of::<Option<(Owner<u32>, Z2)>>() <= 8);
+    }
+}

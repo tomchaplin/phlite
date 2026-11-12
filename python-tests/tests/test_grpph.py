@@ -8,6 +8,7 @@ from grpphati.pipelines.grounded import GrPPH
 from hypothesis import given, note
 from hypothesis import strategies as st
 
+from grid import algorithm_grid
 from mod2 import Span
 import phlite_grpph
 from phlite_grpph import grpph
@@ -141,3 +142,14 @@ def test_default_columns():
     for algorithm in [phlite_grpph.Algorithm.serial(), phlite_grpph.Algorithm.parallel(), phlite_grpph.Algorithm.standard()]:
         assert not algorithm.store_r
         assert (algorithm.columns, algorithm.cache) == ('merged', True)
+
+
+@given(graph=digraphs())
+def test_every_algorithm_agrees(graph):
+    """Every algorithm and option of the full grid (as for phlite_py) gives the default's barcode."""
+    n, edges = graph
+    expected = grpph(n, edges)
+    for method, algorithm in itertools.product(METHODS, algorithm_grid(phlite_grpph.Algorithm)):
+        note(f"method={method} algorithm={algorithm!r}")
+        barcode = grpph(n, edges, method=method, algorithm=algorithm)
+        assert (barcode.essential, barcode.pairings) == (expected.essential, expected.pairings)

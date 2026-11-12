@@ -826,6 +826,7 @@ fn transpose<CF: Copy>(matrix: &Csc<CF>, n: usize) -> Csc<CF> {
 mod tests {
     use super::*;
     use phlite::fields::{Z2, Z3};
+    use phlite::matrices::{ColBasis, HasSplitColBasis};
     use phlite::reduction::{Clearing, Standard};
 
     /// The boundary of a hollow triangle, filled in last, with a lone extra vertex.
@@ -1134,5 +1135,268 @@ mod tests {
             chain.extend(partial),
             Err(ComplexError::MissingValue { cell: 1 })
         );
+    }
+
+    // ====== Random complexes ===================================================
+
+    /// A small deterministic random generator, so that these tests need no dependencies.
+    struct Lcg(u64);
+
+    impl Lcg {
+        fn below(&mut self, n: usize) -> usize {
+            self.0 = self
+                .0
+                .wrapping_mul(6364136223846793005)
+                .wrapping_add(1442695040888963407);
+            ((self.0 >> 33) % n as u64) as usize
+        }
+    }
+
+    /// A random simplicial complex (random triangles and edges, closed under faces) with oriented boundaries, values
+    /// that grow with faces and have many ties, and its cells listed by dimension, at random within a dimension: so a
+    /// cell's index is not its position in the filtration, but faces still come before cofaces of equal value.
+    fn random_simplicial(seed: u64) -> (RawChain, Vec<f64>) {
+        let mut rng = Lcg(seed);
+        let n = 1 + rng.below(9);
+        let max_value = [1, 2, 5, 100][rng.below(4)];
+        let mut simplices = std::collections::BTreeSet::new();
+        for v in 0..n {
+            simplices.insert(vec![v]);
+        }
+        for _ in 0..rng.below(12) {
+            let mut s: Vec<usize> = (0..2 + rng.below(2)).map(|_| rng.below(n)).collect();
+            s.sort_unstable();
+            s.dedup();
+            for mask in 1..(1u32 << s.len()) {
+                let face: Vec<usize> = (0..s.len())
+                    .filter(|i| mask & (1 << i) != 0)
+                    .map(|i| s[i])
+                    .collect();
+                simplices.insert(face);
+            }
+        }
+        // By dimension, and at random within one
+        let mut ordered: Vec<(usize, usize, Vec<usize>)> = simplices
+            .into_iter()
+            .map(|s| (s.len(), rng.below(1000), s))
+            .collect();
+        ordered.sort();
+        let index: std::collections::HashMap<Vec<usize>, usize> = ordered
+            .iter()
+            .enumerate()
+            .map(|(i, (_, _, s))| (s.clone(), i))
+            .collect();
+        let (mut indptr, mut indices, mut coefficients, mut dimensions) =
+            (vec![0], vec![], vec![], vec![]);
+        let mut values: Vec<f64> = vec![];
+        for (_, _, s) in &ordered {
+            let mut value = rng.below(max_value + 1) as f64;
+            if s.len() > 1 {
+                for i in 0..s.len() {
+                    let mut face = s.clone();
+                    face.remove(i);
+                    let f = index[&face];
+                    indices.push(f as i64);
+                    coefficients.push(if i % 2 == 0 { 1 } else { -1 });
+                    value = value.max(values[f]);
+                }
+            }
+            values.push(value);
+            dimensions.push(s.len() as i64 - 1);
+            indptr.push(indices.len() as i64);
+        }
+        let raw = RawChain {
+            dimensions,
+            indptr,
+            indices,
+            coefficients: Some(coefficients),
+        };
+        (raw, values)
+    }
+
+    /// The renumbering by rank, the views and the bases on random complexes.
+    #[test]
+    fn rank_numbering_on_random_complexes() {
+        for seed in 0..60 {
+            let (raw, values) = random_simplicial(seed);
+            let complex = build::<Z3>(raw.clone(), Some(values.clone())).unwrap();
+            let n = complex.n_cells();
+            let key = |c: usize| (NotNan::new(values[c]).unwrap(), c);
+            // `rank` and `cell` are inverse, and ranks follow (value, index)
+            for c in 0..n as u32 {
+                assert_eq!(complex.cell(complex.rank(Cell(c))), Cell(c));
+                let (cell, value, dim) = complex.at_rank(complex.rank(Cell(c)));
+                assert_eq!(
+                    (cell, value, dim),
+                    (
+                        Cell(c),
+                        values[c as usize],
+                        raw.dimensions[c as usize] as usize
+                    )
+                );
+            }
+            for r in 1..n as u32 {
+                assert!(key(complex.cell(Cell(r - 1)).idx()) < key(complex.cell(Cell(r)).idx()));
+            }
+            // Columns of the boundary are the faces, by rank, each before its coface, in decreasing order;
+            // the coboundary is their transpose
+            let (boundary, coboundary) = (complex.boundary(), complex.coboundary());
+            let mut entries = vec![];
+            for col in (0..n as u32).map(Cell) {
+                let rows: Vec<Cell> = boundary.column(col).map(|(_, r)| r).collect();
+                assert!(rows.windows(2).all(|w| w[0] > w[1]) && rows.iter().all(|&r| r < col));
+                let cell = complex.cell(col).idx();
+                let range = raw.indptr[cell] as usize..raw.indptr[cell + 1] as usize;
+                let mut faces: Vec<u32> = raw.indices[range].iter().map(|&f| f as u32).collect();
+                let mut found: Vec<u32> = rows.iter().map(|&r| complex.cell(r).0).collect();
+                faces.sort();
+                found.sort();
+                assert_eq!(faces, found);
+                entries.extend(boundary.column(col).map(|(c, r)| (r, col, c.to_int())));
+                let corows: Vec<Cell> = coboundary.column(col).map(|(_, r)| r).collect();
+                assert!(corows.windows(2).all(|w| w[0] > w[1]));
+            }
+            let mut transposed: Vec<_> = (0..n as u32)
+                .map(Cell)
+                .flat_map(|row| {
+                    coboundary
+                        .column(row)
+                        .map(move |(c, col)| (row, col, c.to_int()))
+                })
+                .collect();
+            entries.sort();
+            transposed.sort();
+            assert_eq!(entries, transposed);
+            // Whether two cells share a value, directly and through `reverse`
+            let reversed = boundary.reverse();
+            for a in (0..n as u32).map(Cell) {
+                for b in (0..n as u32).map(Cell) {
+                    let same = complex.at_rank(a).1 == complex.at_rank(b).1;
+                    assert_eq!(boundary.same_filtration_value(a, b), same);
+                    assert_eq!(reversed.same_filtration_value(Reverse(a), Reverse(b)), same);
+                }
+            }
+            // The basis up to each dimension: the ranks of each dimension, increasing
+            let top = complex.top_dimension().unwrap();
+            for max_dim in 0..=top + 1 {
+                let with_basis = complex.boundary().with_basis(complex.basis(max_dim));
+                assert_eq!(with_basis.n_dimensions(), top.min(max_dim) + 1);
+                for dim in 0..=top.min(max_dim) {
+                    let sub = with_basis.sub_basis(dim);
+                    let got: Vec<Cell> = (0..sub.size()).map(|i| sub.element(i)).collect();
+                    let want: Vec<Cell> = (0..n as u32)
+                        .map(Cell)
+                        .filter(|&r| complex.at_rank(r).2 == dim)
+                        .collect();
+                    assert_eq!(got, want);
+                }
+            }
+        }
+    }
+
+    /// The bars of every algorithm, straight from the views (so without `barcode`'s promise of a full basis), as
+    /// sorted `(birth, death)` input cells without zero-length bars.
+    fn bars_from_views<CF: IntField, R: ColumnRepresentation>(
+        complex: &Complex<CF>,
+        method: Method,
+        algorithm: Algorithm<'_, R>,
+    ) -> Vec<(u32, Option<u32>)> {
+        let top = complex.top_dimension().unwrap();
+        let bars: Vec<Bar<Cell, u32, CF>> = match method {
+            Method::Cohomology => {
+                let coboundary = complex.coboundary().with_basis(complex.basis(top));
+                barcode::cohomology((&coboundary).with_transpose(complex.boundary()), algorithm)
+            }
+            Method::Homology => {
+                let boundary = complex.boundary().with_basis(complex.basis(top));
+                barcode::homology(
+                    (&boundary).with_transpose(complex.coboundary()),
+                    algorithm,
+                    false,
+                )
+            }
+        };
+        let mut out: Vec<_> = bars
+            .into_iter()
+            .filter(|bar| {
+                bar.death
+                    .as_ref()
+                    .is_none_or(|(d, _)| complex.at_rank(*d).1 != complex.at_rank(bar.birth).1)
+            })
+            .map(|bar| {
+                (
+                    complex.cell(bar.birth).0,
+                    bar.death.map(|(d, _)| complex.cell(d).0),
+                )
+            })
+            .collect();
+        out.sort();
+        out
+    }
+
+    fn algorithms_agree<CF: IntField>() {
+        use phlite::columns::{HeapColumns, MergedColumns, PivotColumns, SortedColumns};
+        for seed in 0..40 {
+            let (raw, values) = random_simplicial(seed);
+            let complex = build::<CF>(raw, Some(values)).unwrap();
+            for method in [Method::Cohomology, Method::Homology] {
+                let reference =
+                    bars_from_views(&complex, method, Algorithm::Standard(Standard::new()));
+                let via_barcode =
+                    summary(complex.barcode(None, method, Algorithm::default(), false));
+                assert_eq!(via_barcode, reference, "seed {seed}");
+                for full_basis in [false, true] {
+                    for store_r in [false, true] {
+                        let clearing = Clearing::new().full_basis(full_basis).store_r(store_r);
+                        let check = |bars: Vec<(u32, Option<u32>)>, columns: &str| {
+                            assert_eq!(bars, reference, "seed {seed} {method:?} {columns} full_basis={full_basis} store_r={store_r}");
+                        };
+                        let c = clearing.clone();
+                        check(
+                            bars_from_views(
+                                &complex,
+                                method,
+                                Algorithm::Clearing(c.with_columns(PivotColumns)),
+                            ),
+                            "pivot",
+                        );
+                        let c = clearing.clone();
+                        check(
+                            bars_from_views(
+                                &complex,
+                                method,
+                                Algorithm::Clearing(c.with_columns(HeapColumns)),
+                            ),
+                            "heap",
+                        );
+                        let c = clearing.clone();
+                        check(
+                            bars_from_views(
+                                &complex,
+                                method,
+                                Algorithm::Clearing(c.with_columns(SortedColumns)),
+                            ),
+                            "sorted",
+                        );
+                        check(
+                            bars_from_views(
+                                &complex,
+                                method,
+                                Algorithm::Clearing(clearing.with_columns(MergedColumns)),
+                            ),
+                            "merged",
+                        );
+                    }
+                }
+            }
+        }
+    }
+
+    /// Clearing with and without the promise of a full basis, storing R or not, with every column representation,
+    /// agrees with the standard algorithm, over Z/2 (with the inline pivot table) and Z/3 (without).
+    #[test]
+    fn algorithms_agree_on_random_complexes() {
+        algorithms_agree::<Z2>();
+        algorithms_agree::<Z3>();
     }
 }

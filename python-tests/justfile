@@ -10,7 +10,7 @@ set positional-arguments
 # The test files for each environment; tests/conftest.py and tests/mod2.py are shared.
 # phlite_py's test against grpphati's own columns needs grpphati, so runs in the main environment (and skips in latest).
 main_tests := "tests/test_rips.py tests/test_grpph.py ../phlite_py/tests/test_cells.py::test_real_grpphati"
-latest_tests := "tests/test_sparse.py ../phlite_py/tests"
+latest_tests := "tests/test_sparse.py tests/test_invariants.py ../phlite_py/tests"
 latest := "uv run --no-sync --project latest"
 
 # PHAT's only PyPI release is an sdist whose metadata doesn't match its version, which uv and pip refuse to install,
