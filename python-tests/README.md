@@ -14,7 +14,7 @@ The `justfile` at the root of the repository runs everything, Rust and Python:
 
 ```sh
 just test                 # all tests: Rust, then Python (fuzzing briefly, 100 examples per test)
-just fuzz 20000           # fuzz for longer (20000 examples per test)
+just fuzz 20000           # fuzz for longer (20000 cases per Rust property test and examples per Python test)
 just bench                # every benchmark: Rust (criterion), then Python (pytest-benchmark)
 just bench-py -k grid     # Python benchmarks, with pytest options
 just bench-rust 'rips'    # Rust benchmarks, with criterion options (a filter, --baseline, ...)
@@ -35,7 +35,7 @@ modules (in release mode) into the environment that uses them:
 | Environment | Python | References | Tests | Benchmark suite |
 |---|---|---|---|---|
 | `.` | 3.11 | ripser, giotto-ph, grpphati | `test_rips.py`, `test_grpph.py`, phlite_py's `test_real_grpphati` | `rips`, `grpph` |
-| `latest/` | 3.13 | PHAT, LoPHAT | `test_sparse.py`, phlite_py's own tests | `sparse` |
+| `latest/` | 3.13 | PHAT, LoPHAT | `test_sparse.py`, `test_invariants.py`, phlite_py's own tests | `sparse` |
 
 giotto-ph has no wheels after 3.12 and grpphati pins `numpy<1.25` (no wheels after 3.11), while LoPHAT 0.14 needs 3.12 or later.
 PHAT's only PyPI release is an sdist whose metadata disagrees with its version, which uv and pip refuse,
@@ -44,10 +44,17 @@ so `just venv` builds it from the unpacked sdist instead (`just install-phat`, c
 ## Fuzz tests
 
 The tests use [Hypothesis](https://hypothesis.readthedocs.io/) to generate inputs, and on failure shrink them to a minimal example.
+Every algorithm configuration (`tests/grid.py`: algorithm, column representation, caching, skipping, dimension order,
+storing R, threads and storage) is checked in all three packages. Each test has a time limit (`pytest-timeout`, 300 s
+plus half a second per example, or `PHLITE_TEST_TIMEOUT`), so a bug that makes a reduction loop forever fails the run
+instead of hanging it.
 
 * `tests/test_rips.py` generates distance matrices: Euclidean point clouds, and small-integer (often non-metric) matrices with lots of ties, sometimes with infinite entries.
   Entries are rounded to float32, since that is what ripser and giotto-ph use internally, so all barcodes can be compared exactly.
-  * Every `method` × `algorithm` must give exactly the barcode of ripser (which must agree with giotto-ph).
+  * Every `method` × `algorithm` must give exactly the barcode of ripser (which must agree with giotto-ph), and the
+    whole configuration grid must agree.
+  * The rank invariant: for diameters s ≤ t, the bars alive from s to t count the cycles at s that are not yet boundaries at t.
+  * Permuting the points, or changing distances by a strictly increasing function, changes the bars accordingly.
   * Every representative is checked from first principles with linear algebra over Z/2 (see `tests/mod2.py`):
     it is a cycle, its latest simplex appears at the birth time, it is not a boundary before the death time, and it is a boundary at the death time.
 * `tests/test_grpph.py` generates weighted digraphs with half-integer weights (so shortest paths are exact), sometimes with infinite weights.
@@ -55,6 +62,7 @@ The tests use [Hypothesis](https://hypothesis.readthedocs.io/) to generate input
   * H₁ representatives must be cycles made of edges present at the birth time;
     H₀ representatives must pick out the weakly connected components.
   * Passing a networkx graph (with mixed, shuffled node labels) must agree with the integer API, including representatives.
+  * Renaming nodes changes nothing, and doubling the weights doubles the bars.
 * `tests/test_sparse.py` generates random filtered cellular chain complexes over Z/2, up to dimension 3: each k-cell's boundary is a random (k-1)-cycle,
   so there are multi-edges, loops, zero boundaries and long boundaries. Cells are in a random valid filtration order, with few distinct values (so many ties and zero-length pairs).
   * PHAT (with four reduction/representation pairs) and LoPHAT (with and without clearing and anti-transposition, on 1 and 2 threads) must agree.
@@ -63,6 +71,20 @@ The tests use [Hypothesis](https://hypothesis.readthedocs.io/) to generate input
   * With filtration values (as a list or numpy array, via `from_pairs`, `from_columns` or `from_csc`, with and without `max_dim`), phlite must give PHAT's pairs of positive length.
   * Representatives must be cycles in decreasing filtration order starting at the birth, a boundary at the death and not before, and never a boundary if essential.
   * A few larger complexes (~1600 cells) give the parallel algorithms something to race on.
+* `tests/test_invariants.py` generates random cellular complexes over Z/2, Z/3 and Z/5 with cells listed out of
+  filtration order (so a cell's index is not its position), and checks properties needing no other library
+  (with linear algebra over Z/p, see `tests/modp.py`):
+  * every configuration agrees with a reference reduction, and representatives are cycles, led by the birth, that
+    become boundaries exactly at the death;
+  * relabelling cells and strictly increasing changes of values change the bars accordingly;
+  * bars pair a cell with a later one of the dimension above; the essential bars give the Betti numbers and the Euler
+    characteristic; and the rank invariant holds;
+  * the barcode's accessors agree with each other, and with `max_dim` and `representatives`;
+  * cubical complexes of ~20k cells (three levels of the pivot columns' bit tree) agree with PHAT.
+
+The Rust crates have their own property tests ([proptest](https://proptest-rs.github.io/proptest/)): every column
+representation against a simple model, `ElementMap` against `BTreeMap`, and phlite_py's renumbering and every clearing
+configuration on random complexes over Z/2 and Z/3.
 
 ## Benchmarks
 
