@@ -278,7 +278,7 @@ CASES = [
     # Timed once each
     case("rips", 200, large=True),
     case("grid", 1000, large=True),
-    case("cells", 30000, large=True),
+    case("cells", 10000, large=True),
     case("dense", 400, large=True),
 ]
 
