@@ -1014,17 +1014,23 @@ impl BitTree {
         self.insert_from(0, i);
     }
 
-    /// Insert `i` if it's not in the set, and remove it if it is. The bottom level is flipped without branching on
-    /// whether `i` was there (which, when adding dense columns, is a coin toss the CPU would often mispredict); the
-    /// levels above change only when a bottom word becomes empty or non-empty.
-    #[inline(always)]
+    /// Insert `i` if it's not in the set, and remove it if it is.
+    #[cfg(test)]
     fn toggle(&mut self, i: usize) {
-        let word = &mut self.words[i >> 6];
+        self.toggle_word(i >> 6, 1 << (i & 63));
+    }
+
+    /// Flip the bits `flips` of word `w` of the bottom level (the elements `64 w + b` for each bit `b` of `flips`).
+    /// The bottom word is flipped without branching on which bits were there (which, when adding dense columns, is a
+    /// coin toss the CPU would often mispredict); the levels above change only when it becomes empty or non-empty.
+    #[inline(always)]
+    fn toggle_word(&mut self, w: usize, flips: u64) {
+        let word = &mut self.words[w];
         let before = *word;
-        *word ^= 1 << (i & 63);
+        *word ^= flips;
         let after = *word;
-        if before == 0 || after == 0 {
-            self.toggle_above(i >> 6, after != 0);
+        if (before == 0) != (after == 0) {
+            self.toggle_above(w, after != 0);
         }
     }
 
@@ -1175,10 +1181,24 @@ impl<FilT: FiltrationValue, RowT: BasisElement, CF: NonZeroCoefficient> BitCol<F
         if std::mem::size_of::<CF>() == 0 {
             // A field with only one non-zero coefficient is Z/2, where adding an entry flips it: write the entry
             // whether or not it ends up present (a slot is only read while its rank is), and flip its bit.
+            // Entries come in order, so neighbours often share a word of bits: gather their flips and apply them
+            // together, rather than each waiting on the last one's write to the same word.
+            let mut word = usize::MAX;
+            let mut flips = 0u64;
             for entry in entries {
                 let rank = rank(entry.row_index.dense_index());
                 slots[rank].clone_from(entry);
-                present.toggle(rank);
+                if rank >> 6 != word {
+                    if flips != 0 {
+                        present.toggle_word(word, flips);
+                    }
+                    word = rank >> 6;
+                    flips = 0;
+                }
+                flips ^= 1 << (rank & 63);
+            }
+            if flips != 0 {
+                present.toggle_word(word, flips);
             }
             return;
         }
