@@ -137,11 +137,18 @@ As with Ripser, `method="cohomology"` is usually much faster; it computes repres
 
 By default the serial algorithm stores the reduced columns of R = DV, as PHAT does, and adds them directly when
 cancelling pivots. (`phlite_rips` and `phlite_grpph` store only V and recompute columns of R, like Ripser, which is
-better when almost every column is an apparent pair.) Reducing a prebuilt matrix on one thread, phlite is about 7×
-faster than PHAT's twist on Rips complexes (by cohomology) and a little faster on sparse random cell complexes, but
-PHAT is still 1.2–2× faster on cubical complexes and triangulated surfaces, and 3–4× faster on dense boundary matrices
-(cells with hundreds of faces).
-See [`python-tests/BENCHMARKS.md`](../python-tests/BENCHMARKS.md) for comparisons with PHAT and LoPHAT.
+better when almost every column is an apparent pair.) Reducing a prebuilt matrix on one thread, against PHAT's twist
+reduction:
+
+| input | random | structured (long bars) |
+|---|---|---|
+| Rips complexes, by cohomology | phlite 6–8× faster (random points in the plane) | phlite 7–11× faster (noisy torus, wedge of circles) |
+| cubical complexes | PHAT 1.6–2× faster (smoothed noise) | PHAT 1.5–1.7× faster (an image of rings) |
+| triangulated surfaces | | PHAT 1.2–1.5× faster (a torus filtered by height) |
+| sparse cell complexes | phlite 1.1–1.4× faster | |
+| dense boundaries (cells with hundreds of faces) | PHAT 3–4× faster | |
+
+See [`python-tests/BENCHMARKS.md`](../python-tests/BENCHMARKS.md) for these and comparisons with LoPHAT.
 
 **Zero-length bars are omitted** (birth and death at the same filtration value), as everywhere in `phlite`. With the
 default index filtration no bar has length zero, so you get every pair, as with PHAT.

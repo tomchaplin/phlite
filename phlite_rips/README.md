@@ -36,6 +36,9 @@ barcode.pairing_representatives[1]  # a cycle (list of edges (a, b)) for each of
 `algorithm` is a `phlite_rips.Algorithm`, built as described [there](../phlite_grpph/README.md#choosing-an-algorithm), for example `rips(distances, algorithm=Algorithm.parallel(threads=4))`.
 The presets represent columns with a heap and don't cache them: Rips columns are cheap to recompute, and caching them
 would take most of the memory (about 4× the peak, see [the benchmarks](../python-tests/BENCHMARKS.md)).
+On point clouds with long bars (noisy samples of spheres or wedges of circles), merged, cached columns
+(`Algorithm.serial().with_columns("merged").with_cache(True)`) are up to 1.9× faster, at about twice the memory.
+Avoid `'sorted'` columns there: they can take hours where the others take seconds.
 Representatives are lists of simplices, each a tuple of point indices in increasing order.
 An infinite distance means that edge never appears. See `examples/circle.py` for a full example.
 

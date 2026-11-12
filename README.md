@@ -66,28 +66,56 @@ Most of `phlite`'s performance comes from optimisations we have adapted from Rip
 
 `phlite`'s contribution is making these available for any filtration, behind generic traits, rather than just Vietoris-Rips.
 
-With these, on the following benchmark, `phlite_rips` is several times faster than Ripser and uses a fraction of its
-memory, and up to 1.8× as fast as giotto-ph [[9]](#9) in dimension 2 with about the same memory. In dimension 1
-alone giotto-ph is faster.
+With these, `phlite_rips` is several times faster than Ripser and uses a fraction of its memory. Against giotto-ph
+[[9]](#9), it depends on the data. On random points it is up to 1.8× as fast in dimension 2, with about the same
+memory, though giotto-ph is faster in dimension 1 alone. On points sampled from shapes with long bars, the two are
+level on one thread, except on the torus, where `phlite_rips` keeps its lead.
 
-**Test case:** $n$ points sampled uniformly from the unit cube $[0, 1]^3$ (seed 0), with Euclidean distances (rounded to `float32`, so every implementation sees identical input),
-computing persistent homology in dimensions up to $d$ over $\mathbb{Z}/2$ by cohomology.
+**Test cases:** $n$ points, with Euclidean distances (rounded to `float32`, so every implementation sees identical
+input), computing persistent homology in dimensions up to $d$ over $\mathbb{Z}/2$ by cohomology. The points are either
+sampled uniformly from the unit cube $[0, 1]^3$ (seed 0), whose bars are all short, or are noisy samples (from
+[tadasets](https://github.com/scikit-tda/tadasets), Gaussian noise of standard deviation 0.05, seed 0) of shapes
+with long bars:
+* a torus in $\mathbb{R}^3$ (tube radius 1, centre radius 2): two long $H_1$ bars and one long $H_2$ bar;
+* a unit 2-sphere: one long $H_2$ bar;
+* a wedge of two unit 2-spheres: two long $H_2$ bars;
+* a wedge of three unit circles in the plane: three long $H_1$ bars.
+
 We compare `phlite_rips` (`Algorithm.serial()`) with [ripser.py](https://github.com/scikit-tda/ripser.py) and giotto-ph
 on one thread, and `phlite_rips` (`Algorithm.parallel(threads=4)`) with giotto-ph (`n_threads=4`).
-Times are the best of 3 runs (one run for 1000 points), and peak memory is the most heap memory allocated at once during
-the computation (measured with [memray](https://bloomberg.github.io/memray/), including native allocations), on one
-8-core Linux machine; all implementations produced the same barcodes. Ripser ran out of memory (over 7 GB) on 1000
-points in dimension 2.
+Times are the best of 3 runs (one run for 1000 points or more), and peak memory is the most heap memory allocated at
+once during the computation (measured with [memray](https://bloomberg.github.io/memray/), including native
+allocations), on one 8-core Linux machine; all implementations produced the same barcodes. Ripser runs out of memory
+(over 7 GB) on 1000 points in dimension 2, so isn't run there.
+
+Random points in the unit cube:
 
 | $n$ | $d$ | Ripser | giotto-ph (1 thread) | `phlite_rips` (serial) | giotto-ph (4 threads) | `phlite_rips` (4 threads) |
 |---|---|---|---|---|---|---|
-| 200 | 2 | 0.37s / 66 MB | 0.10s / 1.3 MB | 0.090s / 1.3 MB | 0.038s / 1.3 MB | 0.034s / 1.4 MB |
-| 300 | 2 | 1.61s / 260 MB | 0.39s / 4.8 MB | 0.33s / 4.2 MB | 0.13s / 4.8 MB | 0.13s / 4.5 MB |
-| 400 | 2 | 3.53s / 518 MB | 1.04s / 5.4 MB | 0.62s / 5.2 MB | 0.36s / 5.5 MB | 0.28s / 5.5 MB |
-| 1000 | 1 | 0.55s / 79 MB | 0.24s / 31 MB | 0.40s / 33 MB | 0.19s / 28 MB | 0.30s / 33 MB |
-| 1000 | 2 | out of memory | 18.6s / 31 MB | 10.3s / 34 MB | 7.69s / 31 MB | 4.69s / 34 MB |
+| 200 | 2 | 0.38s / 66 MB | 0.11s / 2.3 MB | 0.091s / 1.5 MB | 0.038s / 1.3 MB | 0.033s / 1.4 MB |
+| 300 | 2 | 1.61s / 260 MB | 0.39s / 4.8 MB | 0.32s / 4.5 MB | 0.14s / 4.8 MB | 0.13s / 4.5 MB |
+| 400 | 2 | 3.52s / 518 MB | 1.05s / 5.4 MB | 0.62s / 5.9 MB | 0.37s / 5.5 MB | 0.27s / 5.5 MB |
+| 1000 | 1 | 0.54s / 79 MB | 0.25s / 31 MB | 0.42s / 33 MB | 0.19s / 27 MB | 0.28s / 33 MB |
+| 1000 | 2 | out of memory | 18.5s / 31 MB | 10.3s / 39 MB | 7.74s / 31 MB | 4.62s / 34 MB |
+| 2000 | 1 | 2.72s / 365 MB | 1.51s / 175 MB | 2.06s / 133 MB | 1.60s / 175 MB | 1.75s / 158 MB |
 
-These are a single family of inputs on a single machine, so treat them as indicative.
+Noisy samples of shapes:
+
+| shape | $n$ | $d$ | Ripser | giotto-ph (1 thread) | `phlite_rips` (serial) | giotto-ph (4 threads) | `phlite_rips` (4 threads) |
+|---|---|---|---|---|---|---|---|
+| torus | 400 | 2 | 2.65s / 333 MB | 0.86s / 15 MB | 0.56s / 12 MB | 0.30s / 15 MB | 0.26s / 12 MB |
+| torus | 1000 | 2 | not run | 15.6s / 220 MB | 9.93s / 290 MB | 6.81s / 287 MB | 4.69s / 294 MB |
+| sphere | 400 | 2 | 18.0s / 1703 MB | 7.42s / 813 MB | 7.15s / 547 MB | 6.58s / 813 MB | 6.47s / 546 MB |
+| wedge of spheres | 400 | 2 | 5.08s / 418 MB | 2.61s / 104 MB | 2.66s / 140 MB | 1.35s / 171 MB | 1.56s / 140 MB |
+| wedge of circles | 1000 | 1 | 2.23s / 166 MB | 1.31s / 119 MB | 1.42s / 84 MB | 1.28s / 119 MB | 1.26s / 84 MB |
+| wedge of circles | 2000 | 1 | 20.3s / 1070 MB | 15.3s / 878 MB | 16.1s / 604 MB | 11.2s / 1415 MB | 10.3s / 1140 MB |
+
+Long bars make a filtration much harder for every implementation (400 points on a sphere take over ten times as long
+as 400 random points), since many more columns need reducing. On these, `phlite_rips` with merged, cached columns
+(`Algorithm.serial().with_columns("merged").with_cache(True)`) is up to 1.9× faster than its default, at about twice
+the memory; the default favours memory.
+
+These are a few families of inputs on a single machine, so treat them as indicative.
 To reproduce, run `just bench-py -k test_rips` (the Rips benchmarks, which include these cases).
 [`python-tests/BENCHMARKS.md`](python-tests/BENCHMARKS.md) has benchmarks of all three Python bindings against their
 references (ripser and giotto-ph, grpphati, and PHAT and LoPHAT), and of the Rust reduction alone, regenerated with
