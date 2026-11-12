@@ -1214,10 +1214,25 @@ mod tests {
         (raw, values)
     }
 
-    /// The renumbering by rank, the views and the bases on random complexes.
-    #[test]
-    fn rank_numbering_on_random_complexes() {
-        for seed in 0..60 {
+    proptest::proptest! {
+        /// The renumbering by rank, the views and the bases on random complexes.
+        #[test]
+        fn rank_numbering_on_random_complexes(seed in proptest::prelude::any::<u64>()) {
+            check_rank_numbering(seed);
+        }
+
+        /// Clearing with and without the promise of a full basis, storing R or not, with every column
+        /// representation, agrees with the standard algorithm, over Z/2 (with the inline pivot table) and Z/3
+        /// (without).
+        #[test]
+        fn algorithms_agree_on_random_complexes(seed in proptest::prelude::any::<u64>()) {
+            algorithms_agree::<Z2>(seed);
+            algorithms_agree::<Z3>(seed);
+        }
+    }
+
+    fn check_rank_numbering(seed: u64) {
+        {
             let (raw, values) = random_simplicial(seed);
             let complex = build::<Z3>(raw.clone(), Some(values.clone())).unwrap();
             let n = complex.n_cells();
@@ -1334,9 +1349,9 @@ mod tests {
         out
     }
 
-    fn algorithms_agree<CF: IntField>() {
+    fn algorithms_agree<CF: IntField>(seed: u64) {
         use phlite::columns::{HeapColumns, MergedColumns, PivotColumns, SortedColumns};
-        for seed in 0..40 {
+        {
             let (raw, values) = random_simplicial(seed);
             let complex = build::<CF>(raw, Some(values)).unwrap();
             for method in [Method::Cohomology, Method::Homology] {
@@ -1390,13 +1405,5 @@ mod tests {
                 }
             }
         }
-    }
-
-    /// Clearing with and without the promise of a full basis, storing R or not, with every column representation,
-    /// agrees with the standard algorithm, over Z/2 (with the inline pivot table) and Z/3 (without).
-    #[test]
-    fn algorithms_agree_on_random_complexes() {
-        algorithms_agree::<Z2>();
-        algorithms_agree::<Z3>();
     }
 }

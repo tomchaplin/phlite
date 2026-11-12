@@ -1566,3 +1566,325 @@ mod pivot_col_tests {
         }
     }
 }
+
+/// Every column representation, driven through the whole [`ColumnRepresentation`] API by random operations, against a
+/// plain map from row to coefficient.
+#[cfg(test)]
+mod representation_props {
+    use super::*;
+    use crate::fields::{Z2, Z3};
+    use crate::matrices::MatrixOracle;
+    use proptest::prelude::*;
+    use std::collections::BTreeMap;
+    use std::fmt::Debug;
+
+    const N: usize = 150;
+
+    #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+    struct Row(usize);
+    impl BasisElement for Row {
+        const DENSE_INDEX: bool = true;
+        fn dense_index(&self) -> usize {
+            self.0
+        }
+        fn from_dense_index(index: usize) -> Self {
+            Row(index)
+        }
+    }
+
+    /// A square matrix on rows `0..N` with filtration values with ties, optionally with row ranks (from a table, or
+    /// the identity when values increase with rows) and optionally giving its columns sorted.
+    struct TestMatrix<CF> {
+        columns: Vec<Vec<(CF, Row)>>,
+        values: Vec<usize>,
+        ranks: Option<RowRanks>,
+        sorted: bool,
+    }
+
+    impl<CF: NonZeroCoefficient> MatrixOracle for TestMatrix<CF> {
+        type CoefficientField = CF;
+        type ColT = Row;
+        type RowT = Row;
+        fn column(&self, col: Row) -> impl Iterator<Item = (CF, Row)> {
+            self.columns[col.0].iter().copied()
+        }
+    }
+
+    impl<CF: NonZeroCoefficient> HasRowFiltration for TestMatrix<CF> {
+        type FiltrationT = usize;
+        fn filtration_value(&self, row: Row) -> usize {
+            self.values[row.0]
+        }
+        fn row_ranks(&self) -> Option<RowRanks> {
+            self.ranks.clone()
+        }
+        fn sorted_column(
+            &self,
+            col: Row,
+        ) -> Option<impl Iterator<Item = ColumnEntry<usize, Row, CF>>> {
+            self.sorted.then(|| {
+                sorted_run(self.column_with_filtration(col))
+                    .to_vec()
+                    .into_iter()
+            })
+        }
+    }
+
+    #[derive(Clone, Copy, Debug)]
+    enum RanksKind {
+        None,
+        Table,
+        Identity,
+    }
+
+    #[derive(Clone, Debug)]
+    enum Op {
+        /// Distinct rows in any order, with signs, and the sign of the multiple
+        Entries(Vec<(usize, bool)>, bool),
+        Sorted(Vec<(usize, bool)>, bool),
+        Run(Vec<(usize, bool)>, bool),
+        MatrixColumn(usize, bool),
+        Pop,
+        Peek,
+        Drain,
+        Clear,
+    }
+
+    fn op() -> impl Strategy<Value = Op> {
+        let terms = || prop::collection::vec((0..N, any::<bool>()), 0..25);
+        prop_oneof![
+            1 => (terms(), any::<bool>()).prop_map(|(t, m)| Op::Entries(t, m)),
+            1 => (terms(), any::<bool>()).prop_map(|(t, m)| Op::Sorted(t, m)),
+            1 => (terms(), any::<bool>()).prop_map(|(t, m)| Op::Run(t, m)),
+            2 => (0..N, any::<bool>()).prop_map(|(k, m)| Op::MatrixColumn(k, m)),
+            3 => Just(Op::Pop),
+            1 => Just(Op::Peek),
+            1 => Just(Op::Drain),
+            1 => Just(Op::Clear),
+        ]
+    }
+
+    fn sign<CF: NonZeroCoefficient>(negative: bool) -> CF {
+        if negative {
+            CF::one().additive_inverse()
+        } else {
+            CF::one()
+        }
+    }
+
+    /// Run `ops` on a working column of `R` and on the model, for `matrix` (possibly reversed, via `row`).
+    fn run<M, R>(representation: &R, matrix: &M, cached: bool, ops: &[Op])
+    where
+        M: HasRowFiltration + SquareMatrix,
+        M::FiltrationT: ColumnFiltration + Debug,
+        M::RowT: ColumnRow + Debug,
+        M::CoefficientField: ColumnCoefficient + Debug,
+        R: ColumnRepresentation,
+    {
+        let row = |i: usize| M::RowT::from_dense_index(i);
+        let entry = |i: usize, coeff| ColumnEntry {
+            filtration_value: matrix.filtration_value(row(i)),
+            row_index: row(i),
+            coeff,
+        };
+        let cache = ColumnCache::new(cached);
+        let mut column = representation.new_column(matrix);
+        let mut model: BTreeMap<(M::FiltrationT, M::RowT), M::CoefficientField> = BTreeMap::new();
+        let add = |model: &mut BTreeMap<_, _>,
+                   e: ColumnEntry<M::FiltrationT, M::RowT, M::CoefficientField>| {
+            let key = (e.filtration_value, e.row_index);
+            match e.coeff + model.get(&key).copied() {
+                Some(sum) => model.insert(key, sum),
+                None => model.remove(&key),
+            };
+        };
+        let summary = |e: Option<ColumnEntry<M::FiltrationT, M::RowT, M::CoefficientField>>| {
+            e.map(|e| (e.row_index, e.coeff))
+        };
+        for op in ops {
+            match op {
+                Op::Entries(terms, m) | Op::Sorted(terms, m) | Op::Run(terms, m) => {
+                    let multiple = sign(*m);
+                    let mut seen = std::collections::HashSet::new();
+                    let entries: Vec<_> = terms
+                        .iter()
+                        .filter(|(i, _)| seen.insert(*i))
+                        .map(|&(i, s)| entry(i, sign(s)))
+                        .collect();
+                    for e in &entries {
+                        add(
+                            &mut model,
+                            ColumnEntry {
+                                coeff: e.coeff * multiple,
+                                ..e.clone()
+                            },
+                        );
+                    }
+                    match op {
+                        Op::Entries(..) => {
+                            representation.add_entries(&mut column, entries.into_iter(), multiple)
+                        }
+                        Op::Sorted(..) => {
+                            let run = sorted_run(entries);
+                            representation.add_sorted_entries(
+                                &mut column,
+                                run.iter().cloned(),
+                                multiple,
+                            )
+                        }
+                        _ => representation.add_run(&mut column, &sorted_run(entries), multiple),
+                    }
+                }
+                Op::MatrixColumn(k, m) => {
+                    let multiple = sign(*m);
+                    for e in matrix.column_with_filtration(row(*k)) {
+                        add(
+                            &mut model,
+                            ColumnEntry {
+                                coeff: e.coeff * multiple,
+                                ..e
+                            },
+                        );
+                    }
+                    representation.add_matrix_column(
+                        &cache,
+                        matrix,
+                        &mut column,
+                        row(*k),
+                        multiple,
+                    );
+                }
+                Op::Pop | Op::Peek => {
+                    let expected = model.last_key_value().map(|((_, r), c)| (r.clone(), *c));
+                    if matches!(op, Op::Pop) {
+                        model.pop_last();
+                        assert_eq!(summary(column.pop_pivot()), expected);
+                    } else {
+                        assert_eq!(summary(column.clone_pivot()), expected);
+                    }
+                }
+                Op::Drain => {
+                    let mut out = vec![];
+                    column.drain_into(&mut out);
+                    let got: Vec<_> = out.into_iter().map(|e| (e.row_index, e.coeff)).collect();
+                    let expected: Vec<_> = model
+                        .iter()
+                        .rev()
+                        .map(|((_, r), c)| (r.clone(), *c))
+                        .collect();
+                    assert_eq!(got, expected);
+                    model.clear();
+                }
+                Op::Clear => {
+                    column.clear();
+                    model.clear();
+                }
+            }
+        }
+        // Whatever is left comes out in order
+        let mut out = vec![];
+        column.drain_into(&mut out);
+        let got: Vec<_> = out.into_iter().map(|e| (e.row_index, e.coeff)).collect();
+        let expected: Vec<_> = model
+            .iter()
+            .rev()
+            .map(|((_, r), c)| (r.clone(), *c))
+            .collect();
+        assert_eq!(got, expected);
+    }
+
+    fn matrix<CF: NonZeroCoefficient>(
+        values: Vec<usize>,
+        columns: Vec<Vec<(usize, bool)>>,
+        ranks: RanksKind,
+        sorted: bool,
+    ) -> TestMatrix<CF> {
+        let mut values = values;
+        if let RanksKind::Identity = ranks {
+            // Identity ranks need values that increase with rows
+            values.sort_unstable();
+        }
+        let mut order: Vec<usize> = (0..N).collect();
+        order.sort_by_key(|&i| (values[i], i));
+        let mut table = vec![0u32; N];
+        for (rank, &i) in order.iter().enumerate() {
+            table[i] = rank as u32;
+        }
+        let columns = columns
+            .into_iter()
+            .map(|terms| {
+                let mut seen = std::collections::HashSet::new();
+                terms
+                    .into_iter()
+                    .filter(|(i, _)| seen.insert(*i))
+                    .map(|(i, s)| (sign(s), Row(i)))
+                    .collect()
+            })
+            .collect();
+        let ranks = match ranks {
+            RanksKind::None => None,
+            RanksKind::Table => Some(RowRanks::new(table.into())),
+            RanksKind::Identity => Some(RowRanks::identity(N)),
+        };
+        TestMatrix {
+            columns,
+            values,
+            ranks,
+            sorted,
+        }
+    }
+
+    fn every_representation<CF: ColumnCoefficient + Debug>(
+        values: Vec<usize>,
+        columns: Vec<Vec<(usize, bool)>>,
+        ranks: RanksKind,
+        sorted: bool,
+        cached: bool,
+        ops: &[Op],
+    ) {
+        let m = matrix::<CF>(values, columns, ranks, sorted);
+        for reversed in [false, true] {
+            macro_rules! each {
+                ($r:expr) => {
+                    if reversed {
+                        run(&$r, &(&m).reverse(), cached, ops)
+                    } else {
+                        run(&$r, &m, cached, ops)
+                    }
+                };
+            }
+            each!(HeapColumns);
+            each!(MergedColumns);
+            each!(SortedColumns);
+            each!(PivotColumns);
+        }
+    }
+
+    fn ranks_kind() -> impl Strategy<Value = RanksKind> {
+        prop_oneof![
+            Just(RanksKind::None),
+            Just(RanksKind::Table),
+            Just(RanksKind::Identity)
+        ]
+    }
+
+    proptest! {
+        #[test]
+        fn representations_match_a_model(
+            // Few distinct values, so many ties
+            values in prop::collection::vec(0..8usize, N),
+            columns in prop::collection::vec(prop::collection::vec((0..N, any::<bool>()), 0..8), N),
+            ranks in ranks_kind(),
+            sorted in any::<bool>(),
+            cached in any::<bool>(),
+            z3 in any::<bool>(),
+            ops in prop::collection::vec(op(), 0..60),
+        ) {
+            if z3 {
+                every_representation::<Z3>(values, columns, ranks, sorted, cached, &ops);
+            } else {
+                every_representation::<Z2>(values, columns, ranks, sorted, cached, &ops);
+            }
+        }
+    }
+}

@@ -178,3 +178,56 @@ def test_every_algorithm_agrees(distances, max_dim):
         note(f"method={method} algorithm={algorithm!r}")
         barcode = rips(distances, max_dim, method=method, algorithm=algorithm)
         assert (barcode.essential, barcode.pairings) == (expected.essential, expected.pairings)
+
+
+# ====== Invariants (no reference library needed) ===========================
+
+
+def rips_simplices(distances, max_dim):
+    """Every simplex of dimension at most `max_dim + 1` that ever appears, with its diameter."""
+    n = len(distances)
+    return {
+        s: diameter(distances, s)
+        for k in range(1, max_dim + 3)
+        for s in itertools.combinations(range(n), k)
+        if diameter(distances, s) != INF
+    }
+
+
+@given(distances=distance_matrices(), max_dim=st.integers(0, 2), data=st.data())
+def test_rank_invariant(distances, max_dim, data):
+    """For diameters s <= t, the bars of dimension d alive from s to t count the d-cycles of the Rips complex at s
+    that are not yet boundaries at t (by linear algebra over Z/2). This determines the barcode completely."""
+    from modp import Echelon, kernel
+
+    simplices = rips_simplices(distances, max_dim)
+    boundaries = {s: {f: 1 for f in boundary(s)} for s in simplices}
+    barcode = rips(distances, max_dim)
+    times = sorted(set(simplices.values()))
+    if len(times) > 5:
+        times = sorted(data.draw(st.lists(st.sampled_from(times), min_size=1, max_size=5, unique=True)))
+    for s, t in itertools.combinations_with_replacement(times, 2):
+        for dim in range(max_dim + 1):
+            cycles = kernel([c for c, f in simplices.items() if f <= s and len(c) == dim + 1], boundaries, 2)
+            span = Echelon(2, [boundaries[c] for c, f in simplices.items() if f <= t and len(c) == dim + 2])
+            rank = len(span)
+            for cycle in cycles:
+                span.add(cycle)
+            bars = sum(1 for birth, death in diagram(barcode, dim) if birth <= s and death > t)
+            assert bars == len(span) - rank, f"dim {dim}, s={s}, t={t}"
+
+
+@given(distances=distance_matrices(), max_dim=st.integers(0, 2), seed=st.integers(0, 2**32 - 1))
+def test_relabelling_and_monotone_change(distances, max_dim, seed):
+    """Permuting the points changes nothing, and a strictly increasing change of distances (keeping 0) changes each
+    bar's values by the same function, since a simplex's diameter is the largest of its distances. The change is to
+    each distance's rank among the distances, which is exact in float32 (as the distances are read)."""
+    barcode = rips(distances, max_dim)
+    order = np.random.default_rng(seed).permutation(len(distances))
+    permuted = rips(distances[np.ix_(order, order)], max_dim)
+    rank = {d: float(i) for i, d in enumerate(sorted(set(distances.flat) - {INF}))}
+    rank[INF] = INF
+    ranked = rips(np.vectorize(rank.__getitem__)(distances), max_dim)
+    for dim in range(max_dim + 1):
+        assert diagram(permuted, dim) == diagram(barcode, dim)
+        assert diagram(ranked, dim) == [(rank[b], rank[d]) for b, d in diagram(barcode, dim)]

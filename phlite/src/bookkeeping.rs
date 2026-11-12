@@ -382,3 +382,112 @@ mod tests {
         assert_eq!(small.into_entries().count(), b.len());
     }
 }
+
+/// Random operations on every kind of storage against a `BTreeMap`.
+#[cfg(test)]
+mod props {
+    use super::*;
+    use proptest::prelude::*;
+    use std::collections::BTreeMap;
+
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+    struct Dense(u32);
+
+    impl BasisElement for Dense {
+        const DENSE_INDEX: bool = true;
+        fn dense_index(&self) -> usize {
+            self.0 as usize
+        }
+        fn from_dense_index(index: usize) -> Self {
+            Dense(index as u32)
+        }
+    }
+
+    #[derive(Debug, Clone)]
+    enum Op {
+        Insert(u32, u32),
+        Remove(u32),
+        Get(u32),
+        Entries,
+    }
+
+    fn op() -> impl Strategy<Value = Op> {
+        // Mostly a few keys, so that they are reused, and sometimes a far one, so that the vectors grow
+        let key = prop_oneof![4 => 0..40u32, 1 => 0..5000u32];
+        prop_oneof![
+            3 => (key.clone(), any::<u32>()).prop_map(|(k, v)| Op::Insert(k, v)),
+            2 => key.clone().prop_map(Op::Remove),
+            2 => key.prop_map(Op::Get),
+            1 => Just(Op::Entries),
+        ]
+    }
+
+    /// Run `ops` on a map with keys `key(k)` and values `value(v)`, checking it against a `BTreeMap`.
+    fn check<K, V>(
+        ops: &[Op],
+        key: impl Fn(u32) -> K,
+        value: impl Fn(u32) -> V,
+        unkey: impl Fn(&K) -> u32,
+    ) where
+        K: BasisElement + Hash + std::fmt::Debug,
+        V: Clone + PartialEq + std::fmt::Debug,
+    {
+        let mut map: ElementMap<K, V> = ElementMap::new();
+        let mut model: BTreeMap<u32, V> = BTreeMap::new();
+        for op in ops {
+            match *op {
+                Op::Insert(k, v) => {
+                    assert_eq!(map.insert(key(k), value(v)), model.insert(k, value(v)))
+                }
+                Op::Remove(k) => assert_eq!(map.remove(&key(k)), model.remove(&k)),
+                Op::Get(k) => {
+                    assert_eq!(map.get(&key(k)), model.get(&k));
+                    assert_eq!(map.contains_key(&key(k)), model.contains_key(&k));
+                }
+                Op::Entries => {
+                    let mut entries: Vec<(u32, V)> =
+                        map.iter().map(|(k, v)| (unkey(&k), v.clone())).collect();
+                    entries.sort_by_key(|(k, _)| *k);
+                    assert_eq!(
+                        entries,
+                        model
+                            .iter()
+                            .map(|(k, v)| (*k, v.clone()))
+                            .collect::<Vec<_>>()
+                    );
+                }
+            }
+            assert_eq!(map.len(), model.len());
+            assert_eq!(map.is_empty(), model.is_empty());
+        }
+        let mut entries: Vec<(u32, V)> = map.into_entries().map(|(k, v)| (unkey(&k), v)).collect();
+        entries.sort_by_key(|(k, _)| *k);
+        assert_eq!(entries, model.into_iter().collect::<Vec<_>>());
+    }
+
+    proptest! {
+        #[test]
+        fn every_storage_matches_a_btree_map(ops in prop::collection::vec(op(), 0..200)) {
+            // Inline (small values), slotted (large values) and hashed (keys without dense indices)
+            assert!(ElementMap::<Dense, u32>::new().is_inline());
+            check(&ops, Dense, |v| v, |k| k.0);
+            assert!(!ElementMap::<Dense, [u32; 4]>::new().is_inline());
+            check(&ops, Dense, |v| [v, 1, 2, 3], |k| k.0);
+            check(&ops, |k| k as usize, |v| v, |k| *k as u32);
+            // And a set
+            let mut set = ElementSet::default();
+            let mut model = std::collections::BTreeSet::new();
+            for op in &ops {
+                if let Op::Insert(k, _) | Op::Remove(k) = *op {
+                    if matches!(op, Op::Insert(..)) {
+                        assert_eq!(set.insert(Dense(k)), model.insert(k));
+                    } else {
+                        assert_eq!(set.remove(&Dense(k)), model.remove(&k));
+                    }
+                    assert_eq!(set.contains(&Dense(k)), model.contains(&k));
+                    assert_eq!(set.len(), model.len());
+                }
+            }
+        }
+    }
+}

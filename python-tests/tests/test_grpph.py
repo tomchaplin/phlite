@@ -2,6 +2,7 @@
 
 import itertools
 import math
+import random
 
 import networkx as nx
 from grpphati.pipelines.grounded import GrPPH
@@ -153,3 +154,18 @@ def test_every_algorithm_agrees(graph):
         note(f"method={method} algorithm={algorithm!r}")
         barcode = grpph(n, edges, method=method, algorithm=algorithm)
         assert (barcode.essential, barcode.pairings) == (expected.essential, expected.pairings)
+
+
+@given(graph=digraphs(), seed=st.integers(0, 2**32 - 1))
+def test_relabelling_and_scaling(graph, seed):
+    """Renaming the nodes changes nothing, and doubling every weight doubles every bar's values (path lengths are
+    sums of weights)."""
+    n, edges = graph
+    barcode = grpph(n, edges)
+    order = list(range(n))
+    random.Random(seed).shuffle(order)
+    renamed = grpph(n, [(order[i], order[j], w) for i, j, w in edges])
+    doubled = grpph(n, [(i, j, 2 * w) for i, j, w in edges])
+    for dim in range(2):
+        assert diagram(renamed, dim) == diagram(barcode, dim)
+        assert diagram(doubled, dim) == [(2 * b, 2 * d) for b, d in diagram(barcode, dim)]

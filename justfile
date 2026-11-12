@@ -14,8 +14,10 @@ test:
     cargo test --workspace --all-features
     cd python-tests && just test
 
-# Fuzz the Python bindings for longer, e.g. `just fuzz 20000` (examples per test)
+# Fuzz for longer, e.g. `just fuzz 20000`: that many cases per Rust property test (proptest), then examples per
+# Python test (Hypothesis)
 fuzz examples="5000":
+    PROPTEST_CASES="$1" cargo test --release --workspace --all-features
     cd python-tests && just fuzz "$1"
 
 # The criterion benchmarks of the Rust reduction (in phlite_rips and phlite_grpph)
