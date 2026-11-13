@@ -20,9 +20,9 @@ Headline results, one thread:
   columns, uncached) favours memory; merged cached columns are up to 1.9× faster on point clouds with long bars, at
   about twice the memory.
 - **GrPPH**: 25–100× faster than grpphati.
-- **Explicit complexes**, against PHAT's twist reduction with a prebuilt matrix: 7–13× faster on Rips complexes,
-  1.1–2× faster on sparse cell complexes, level on dense boundaries and meshes, PHAT 1.1–1.3× faster on cubical
-  complexes.
+- **Explicit complexes**, against PHAT's twist reduction with a prebuilt matrix: 11–24× faster on Rips complexes,
+  1.1–2× faster on sparse cell complexes, level on dense boundaries, meshes and noisy cubical complexes, PHAT 1.1–1.2×
+  faster on structured cubical complexes.
 
 ```sh
 just bench           # every benchmark

@@ -89,7 +89,8 @@ def python_sections(paths):
     for path in paths:
         data = json.loads(Path(path).read_text())
         machine, commit = data["machine_info"], data["commit_info"]
-        machines.append((machine, commit, data["datetime"][:10]))
+        suites = sorted({Path(b["fullname"].split("::")[0]).stem.removeprefix("bench_") for b in data["benchmarks"]})
+        machines.append((machine, commit, data["datetime"][:10], suites))
         for b in data["benchmarks"]:
             suite = Path(b["fullname"].split("::")[0]).stem.removeprefix("bench_")
             by_suite.setdefault(suite, {"python": machine["python_version"], "rows": []})["rows"].append(b)
@@ -224,8 +225,18 @@ def criterion_order(name):
 
 def report(paths, criterion):
     machines, python = python_sections(paths)
-    machine, commit, date = machines[0]
-    commit_str = commit.get("id", "?")[:7] + (" (with uncommitted changes)" if commit.get("dirty") else "")
+    machine = machines[0][0]
+
+    def when(commit, date):
+        dirty = " (with uncommitted changes)" if commit.get("dirty") else ""
+        return f"{date} at commit `{commit.get('id', '?')[:7]}{dirty}`"
+
+    # One line if every suite was run together, otherwise when each was
+    runs = {when(commit, date) for _, commit, date, _ in machines}
+    if len(runs) == 1:
+        measured = [f"* Measured {runs.pop()}"]
+    else:
+        measured = [f"* {', '.join(suites)}: measured {when(commit, date)}" for _, commit, date, suites in machines]
     threads = {b for p in paths for b in [json.loads(Path(p).read_text())["benchmarks"][0]["extra_info"].get("threads")]}
     out = [
         "# Benchmarks",
@@ -245,7 +256,7 @@ def report(paths, criterion):
         "",
         f"* Machine: {machine['cpu'].get('brand_raw', machine['processor'])} ({machine['cpu'].get('count', '?')} "
         f"cores), {machine['system']} {machine['machine']}",
-        f"* Measured {date} at commit `{commit_str}`",
+        *measured,
         "",
         "Full results are in `python-tests/benchmarks/results/` (pytest-benchmark JSON; compare runs with "
         "`pytest-benchmark compare`). See [python-tests/README.md](README.md#benchmarks) for how to run them and check "

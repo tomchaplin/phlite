@@ -58,8 +58,8 @@ Measured on one thread against the specialised tools (see the [benchmarks](appen
 
 - **Vietoris–Rips**: on a par with ripser and giotto-ph, faster in dimension 2 on random points.
 - **GrPPH**: 25–100× faster than grpphati.
-- **Explicit complexes**: 7–13× faster than PHAT on Rips complexes, faster on sparse cell complexes, level on dense
-  boundaries and meshes, and within about 10–20% on large cubical complexes.
+- **Explicit complexes**: 11–24× faster than PHAT on Rips complexes, faster on sparse cell complexes, level on dense
+  boundaries and meshes, and within about 10–20% on cubical complexes.
 
 ## How to read this book
 

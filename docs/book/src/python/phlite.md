@@ -93,9 +93,9 @@ PHAT's twist reduction, on one thread with the matrix prebuilt:
 
 | input | random | structured (long bars) |
 |---|---|---|
-| Rips complexes, by cohomology | phlite 7–10× faster | phlite 9–13× faster |
-| cubical complexes | PHAT 1.1–1.2× faster | PHAT 1.2–1.3× faster |
-| triangulated surfaces | | level to PHAT 1.1× faster |
+| Rips complexes, by cohomology | phlite 11–13× faster | phlite 14–24× faster |
+| cubical complexes | level (PHAT 1.1× faster to phlite 1.05× faster) | PHAT 1.1–1.2× faster |
+| triangulated surfaces | | level |
 | sparse cell complexes | phlite 1.1–2× faster | |
 | dense boundaries | level | |
 
