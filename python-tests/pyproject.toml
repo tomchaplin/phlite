@@ -13,11 +13,17 @@ dependencies = [
     "ripser",
     "giotto-ph",
     "grpphati",
+    # For phlite.cloud (alpha, Čech, ...) and phlite.image (cubical)
+    "gudhi",
+    # For phlite.network (directed flag complexes)
+    "pyflagser",
+    # For phlite.image (cubical)
+    "cripser",
     "pytest-timeout>=2.3",
 ]
 
 [tool.uv]
-# phlite_grpph and phlite_rips are built into this environment by `maturin develop` (see justfile)
+# phlite is built into this environment by `maturin develop` (see justfile)
 package = false
 
 [tool.pytest.ini_options]

@@ -1,4 +1,4 @@
-"""Benchmark phlite_rips against ripser and giotto-ph on point clouds.
+"""Benchmark phlite.cloud.rips against ripser and giotto-ph on point clouds.
 
 Vietoris–Rips persistence of `n` points, in dimensions up to `max_dim`, from a distance matrix: points uniformly in
 the unit cube (`cube`, whose bars are all short), or noisy samples of shapes with long bars (`torus`, `sphere`, a wedge
@@ -15,11 +15,28 @@ import datasets
 
 # Import everything up front, so that import costs are not counted
 from gph import ripser_parallel
-from phlite_rips import Algorithm, rips
+from phlite import Algorithm
+from phlite.cloud import rips
 from ripser import ripser
 
 INF = float("inf")
 REFERENCE = "ripser"
+
+# How report.py presents this suite in BENCHMARKS.md, and which references the light CI benchmark runs (read
+# without importing this module, so plain literals only)
+SUITE = {
+    "title": "Rips: `phlite.cloud.rips` vs ripser and giotto-ph",
+    "description": "Vietoris–Rips persistence in dimensions up to `dim` of `n` points, from a distance matrix: uniformly "
+        "random in the unit cube (unlabelled; every bar is short), or noisy samples (by tadasets) of a torus "
+        "in R³ (two long H1 bars and one long H2 bar), a 2-sphere (one long H2 bar), a wedge of two 2-spheres "
+        "(two) or a wedge of three circles in the plane (three long H1 bars). giotto-ph is ripser with "
+        "parallelism. The cases with 1000 or more points are timed once each, and at 1000 points in dimension "
+        "2 ripser runs out of memory (over 7 GB), so isn't run.",
+    "order": 10,
+    "summary": ["ripser", "giotto-ph (1 thread)", "giotto-ph (parallel)", "phlite (serial)", "phlite (parallel)", "phlite (serial, reps)"],
+    "default": "phlite (serial)",
+    "light_references": ["ripser", "giotto-ph (1 thread)"],
+}
 
 
 def phlite(algorithm=Algorithm.serial, method="cohomology", representatives=False):

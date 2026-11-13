@@ -1,15 +1,20 @@
 # Fuzz tests and benchmarks for phlite's Python bindings against reference implementations.
 # Requires `just` and `uv`. There are two uv environments, since the references need different Pythons:
-#   .        Python 3.11: phlite_rips and phlite_grpph, against ripser, giotto-ph and grpphati
-#   latest/  Python 3.13: phlite_py, against PHAT and LoPHAT (and phlite_py's own tests)
+#   .        Python 3.11: phlite.cloud, phlite.network and phlite.image, against ripser, giotto-ph, grpphati, gudhi,
+#            pyflagser and cripser
+#   latest/  Python 3.13: phlite's explicit complexes, against PHAT and LoPHAT (and phlite_py's own tests)
+# Both get the same `phlite` package, built from phlite_py.
 
 set shell := ["bash", "-euo", "pipefail", "-c"]
 # Pass recipe arguments on as "$@", keeping their quoting
 set positional-arguments
 
 # The test files for each environment; tests/conftest.py and tests/mod2.py are shared.
-# phlite_py's test against grpphati's own columns needs grpphati, so runs in the main environment (and skips in latest).
-main_tests := "tests/test_rips.py tests/test_grpph.py ../phlite_py/tests/test_cells.py::test_real_grpphati"
+# Each submodule's tests are `tests/test_<submodule>_<pipeline>.py` (e.g. test_cloud_rips.py), all picked up here, so
+# a new pipeline's tests need no change to this file. test_algorithm.py checks the `Algorithm` class and the registry
+# of pipelines' defaults (against the book). phlite_py's test against grpphati's own columns needs grpphati, so runs in
+# the main environment (and skips in latest).
+main_tests := `shopt -s nullglob; echo tests/test_algorithm.py tests/test_{cloud,network,image}*.py` + " ../phlite_py/tests/test_cells.py::test_real_grpphati"
 latest_tests := "tests/test_sparse.py tests/test_invariants.py ../phlite_py/tests"
 latest := "uv run --no-sync --project latest"
 
@@ -41,10 +46,8 @@ install-phat:
     uv pip install "pybind11<3" setuptools
     uv pip install --no-build-isolation "$dir"/phat-*/
 
-# Build the extension modules (release mode): phlite_grpph, phlite_rips and phlite_py into ., phlite_py into latest/
+# Build the `phlite` package (release mode) into both environments
 build: venv
-    uv run --no-sync maturin develop --uv --release -m ../phlite_grpph/Cargo.toml
-    uv run --no-sync maturin develop --uv --release -m ../phlite_rips/Cargo.toml
     uv run --no-sync maturin develop --uv --release -m ../phlite_py/Cargo.toml
     {{latest}} maturin develop --uv --release -m ../phlite_py/Cargo.toml
 
@@ -61,8 +64,10 @@ _pytest *pytest_args:
     uv run --no-sync pytest {{main_tests}} ${PHLITE_JUNIT_DIR:+--junitxml="$PHLITE_JUNIT_DIR/main.xml"} "$@"
     {{latest}} pytest {{latest_tests}} ${PHLITE_JUNIT_DIR:+--junitxml="$PHLITE_JUNIT_DIR/latest.xml"} "$@"
 
-# The pytest-benchmark suites for each environment, and where the quick baselines are saved
-main_benches := "benchmarks/bench_rips.py benchmarks/bench_grpph.py"
+# The pytest-benchmark suites for each environment, and where the quick baselines are saved. As for the tests, each
+# submodule's suites are `benchmarks/bench_<submodule>_<pipeline>.py` (e.g. bench_cloud_rips.py), all picked up here;
+# each describes itself for the reports in a `SUITE` dict (see benchmarks/suites.py).
+main_benches := `shopt -s nullglob; echo benchmarks/bench_{cloud,network,image}*.py`
 latest_benches := "benchmarks/bench_sparse.py"
 storage := "--benchmark-storage=file://benchmarks/baselines"
 
@@ -87,15 +92,15 @@ bench-docs: build
     uv run --no-sync python benchmarks/report.py benchmarks/results/main.json benchmarks/results/latest.json --out BENCHMARKS.md
 
 # A light benchmark for CI: phlite's default serial and parallel algorithms on the quick cases, with the reference
-# implementations (ripser, giotto-ph, grpphati, PHAT) for scale, a few rounds each. benchmarks/results/light/report.md
+# implementations each suite names in `SUITE["light_references"]` (ripser, grpphati, PHAT, ...) for scale, a few
+# rounds each. benchmarks/results/light/report.md
 # gives phlite's times as multiples of the references' in the same run, and compares those with the run in
 # `$LIGHT_BASELINE` (a directory of the same JSON files, e.g. from main) if set. Nothing fails.
-light_only := "phlite (serial)|phlite (parallel)|ripser|giotto-ph (1 thread)|grpphati (GrPPH)|phat (twist)"
 bench-light: build
     rm -rf benchmarks/results/light && mkdir -p benchmarks/results/light
-    PHLITE_BENCH_ONLY="{{light_only}}" PHLITE_BENCH_ROUNDS=3 \
+    PHLITE_BENCH_LIGHT=1 PHLITE_BENCH_ROUNDS=3 \
         uv run --no-sync pytest {{main_benches}} -m quick -q -p no:warnings --benchmark-json=benchmarks/results/light/main.json
-    PHLITE_BENCH_ONLY="{{light_only}}" PHLITE_BENCH_ROUNDS=3 \
+    PHLITE_BENCH_LIGHT=1 PHLITE_BENCH_ROUNDS=3 \
         {{latest}} pytest {{latest_benches}} -m quick -q -p no:warnings --benchmark-json=benchmarks/results/light/latest.json
     uv run --no-sync python benchmarks/light_report.py benchmarks/results/light \
         ${LIGHT_BASELINE:+--baseline "$LIGHT_BASELINE"} --out benchmarks/results/light/report.md

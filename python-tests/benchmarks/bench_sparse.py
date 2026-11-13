@@ -1,4 +1,4 @@
-"""Benchmark phlite_py (the `phlite` package) against PHAT and LoPHAT on explicit boundary matrices over Z/2.
+"""Benchmark `phlite`'s explicit complexes against PHAT and LoPHAT on explicit boundary matrices over Z/2.
 
 Every implementation gets the same columns, as a list of `(dimension, boundary)` pairs in filtration order (and phlite
 also gets the filtration values, so that it can leave out zero-length bars). Times include loading the columns from
@@ -45,6 +45,30 @@ import datasets  # noqa: E402
 Algorithm = phlite.Algorithm
 INF = math.inf
 REFERENCE = "phat (twist)"
+
+# How report.py presents this suite in BENCHMARKS.md, and which references the light CI benchmark runs (read
+# without importing this module, so plain literals only)
+SUITE = {
+    "title": "Sparse matrices: `phlite` (explicit complexes) vs PHAT and LoPHAT",
+    "description": "Persistence of explicit boundary matrices over Z/2, given to every implementation as the same list "
+        "of columns in filtration order. Times include loading the columns from Python, except for "
+        "`(reduce)`, where the matrix is built before the clock starts. phlite's default stores the reduced "
+        "columns of R and reduces with a dense pivot column (`pivot`, as PHAT does), without caching columns "
+        "of D; other configurations are named by how they differ, and `V only` recomputes the columns of R "
+        "from V instead. Larger cases are timed once each. `rips`: Rips complexes of `n` random points in the "
+        "plane, up to triangles. `grid`: cubical complexes of `n`×`n` grids, filtered by smoothed noise on "
+        "the vertices. `cells`: sparse random cellular complexes with `n` cells in each dimension up to 3. "
+        "`dense`: the same, with dense boundaries. Structured, with long bars: `rips torus` and `rips "
+        "circles`, Rips complexes of the noisy torus and wedge of circles from the Rips section; `rings`, "
+        "cubical complexes of `n`×`n` images of the distance to five overlapping rings, plus noise (a long H1 "
+        "bar for each hole); and `torus mesh`, a triangulated torus filtered by its height, plus noise "
+        "(essential bars in every dimension).",
+    "order": 90,
+    "summary": ["phat (twist)", "phat (twist, reduce)", "lophat (1 thread)", "phlite (serial)", "phlite (serial, reduce)", "phlite (V only, reduce)", "phlite (parallel, reduce)", "phlite (homology, reduce)"],
+    "default": "phlite (serial, reduce)",
+    "compare_only": "reduce",
+    "light_references": ["phat (twist)"],
+}
 CACHE = os.path.join(tempfile.gettempdir(), "phlite-bench-sparse")
 
 

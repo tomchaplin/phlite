@@ -214,7 +214,7 @@
         {
             "group": "rips n=100 dim\u22642",
             "name": "test_rips[100-2-ripser]",
-            "fullname": "benchmarks/bench_rips.py::test_rips[100-2-ripser]",
+            "fullname": "benchmarks/bench_cloud_rips.py::test_rips[100-2-ripser]",
             "params": {
                 "n": 100,
                 "max_dim": 2,
@@ -275,7 +275,7 @@
         {
             "group": "rips n=100 dim\u22642",
             "name": "test_rips[100-2-giotto-ph (1 thread)]",
-            "fullname": "benchmarks/bench_rips.py::test_rips[100-2-giotto-ph (1 thread)]",
+            "fullname": "benchmarks/bench_cloud_rips.py::test_rips[100-2-giotto-ph (1 thread)]",
             "params": {
                 "n": 100,
                 "max_dim": 2,
@@ -336,7 +336,7 @@
         {
             "group": "rips n=100 dim\u22642",
             "name": "test_rips[100-2-giotto-ph (parallel)]",
-            "fullname": "benchmarks/bench_rips.py::test_rips[100-2-giotto-ph (parallel)]",
+            "fullname": "benchmarks/bench_cloud_rips.py::test_rips[100-2-giotto-ph (parallel)]",
             "params": {
                 "n": 100,
                 "max_dim": 2,
@@ -397,7 +397,7 @@
         {
             "group": "rips n=100 dim\u22642",
             "name": "test_rips[100-2-phlite (serial)]",
-            "fullname": "benchmarks/bench_rips.py::test_rips[100-2-phlite (serial)]",
+            "fullname": "benchmarks/bench_cloud_rips.py::test_rips[100-2-phlite (serial)]",
             "params": {
                 "n": 100,
                 "max_dim": 2,
@@ -458,7 +458,7 @@
         {
             "group": "rips n=100 dim\u22642",
             "name": "test_rips[100-2-phlite (parallel)]",
-            "fullname": "benchmarks/bench_rips.py::test_rips[100-2-phlite (parallel)]",
+            "fullname": "benchmarks/bench_cloud_rips.py::test_rips[100-2-phlite (parallel)]",
             "params": {
                 "n": 100,
                 "max_dim": 2,
@@ -519,7 +519,7 @@
         {
             "group": "rips n=100 dim\u22642",
             "name": "test_rips[100-2-phlite (serial, reps)]",
-            "fullname": "benchmarks/bench_rips.py::test_rips[100-2-phlite (serial, reps)]",
+            "fullname": "benchmarks/bench_cloud_rips.py::test_rips[100-2-phlite (serial, reps)]",
             "params": {
                 "n": 100,
                 "max_dim": 2,
@@ -580,7 +580,7 @@
         {
             "group": "rips n=100 dim\u22642",
             "name": "test_rips[100-2-phlite (serial, merged)]",
-            "fullname": "benchmarks/bench_rips.py::test_rips[100-2-phlite (serial, merged)]",
+            "fullname": "benchmarks/bench_cloud_rips.py::test_rips[100-2-phlite (serial, merged)]",
             "params": {
                 "n": 100,
                 "max_dim": 2,
@@ -641,7 +641,7 @@
         {
             "group": "rips n=100 dim\u22642",
             "name": "test_rips[100-2-phlite (serial, merged, uncached)]",
-            "fullname": "benchmarks/bench_rips.py::test_rips[100-2-phlite (serial, merged, uncached)]",
+            "fullname": "benchmarks/bench_cloud_rips.py::test_rips[100-2-phlite (serial, merged, uncached)]",
             "params": {
                 "n": 100,
                 "max_dim": 2,
@@ -702,7 +702,7 @@
         {
             "group": "rips n=100 dim\u22642",
             "name": "test_rips[100-2-phlite (serial, heap)]",
-            "fullname": "benchmarks/bench_rips.py::test_rips[100-2-phlite (serial, heap)]",
+            "fullname": "benchmarks/bench_cloud_rips.py::test_rips[100-2-phlite (serial, heap)]",
             "params": {
                 "n": 100,
                 "max_dim": 2,
@@ -763,7 +763,7 @@
         {
             "group": "rips n=100 dim\u22642",
             "name": "test_rips[100-2-phlite (serial, heap, uncached)]",
-            "fullname": "benchmarks/bench_rips.py::test_rips[100-2-phlite (serial, heap, uncached)]",
+            "fullname": "benchmarks/bench_cloud_rips.py::test_rips[100-2-phlite (serial, heap, uncached)]",
             "params": {
                 "n": 100,
                 "max_dim": 2,
@@ -824,7 +824,7 @@
         {
             "group": "rips n=100 dim\u22642",
             "name": "test_rips[100-2-phlite (serial, sorted)]",
-            "fullname": "benchmarks/bench_rips.py::test_rips[100-2-phlite (serial, sorted)]",
+            "fullname": "benchmarks/bench_cloud_rips.py::test_rips[100-2-phlite (serial, sorted)]",
             "params": {
                 "n": 100,
                 "max_dim": 2,
@@ -885,7 +885,7 @@
         {
             "group": "rips n=100 dim\u22642",
             "name": "test_rips[100-2-phlite (serial, sorted, uncached)]",
-            "fullname": "benchmarks/bench_rips.py::test_rips[100-2-phlite (serial, sorted, uncached)]",
+            "fullname": "benchmarks/bench_cloud_rips.py::test_rips[100-2-phlite (serial, sorted, uncached)]",
             "params": {
                 "n": 100,
                 "max_dim": 2,
@@ -946,7 +946,7 @@
         {
             "group": "rips n=100 dim\u22642",
             "name": "test_rips[100-2-phlite (serial, store R)]",
-            "fullname": "benchmarks/bench_rips.py::test_rips[100-2-phlite (serial, store R)]",
+            "fullname": "benchmarks/bench_cloud_rips.py::test_rips[100-2-phlite (serial, store R)]",
             "params": {
                 "n": 100,
                 "max_dim": 2,
@@ -1007,7 +1007,7 @@
         {
             "group": "rips n=100 dim\u22642",
             "name": "test_rips[100-2-phlite (parallel, lock-free)]",
-            "fullname": "benchmarks/bench_rips.py::test_rips[100-2-phlite (parallel, lock-free)]",
+            "fullname": "benchmarks/bench_cloud_rips.py::test_rips[100-2-phlite (parallel, lock-free)]",
             "params": {
                 "n": 100,
                 "max_dim": 2,
@@ -1068,7 +1068,7 @@
         {
             "group": "grpph n=50 p=0.1",
             "name": "test_grpph[50-grpphati (GrPPH)]",
-            "fullname": "benchmarks/bench_grpph.py::test_grpph[50-grpphati (GrPPH)]",
+            "fullname": "benchmarks/bench_network_grpph.py::test_grpph[50-grpphati (GrPPH)]",
             "params": {
                 "n": 50,
                 "implementation": "grpphati (GrPPH)"
@@ -1118,7 +1118,7 @@
         {
             "group": "grpph n=50 p=0.1",
             "name": "test_grpph[50-grpphati (GrPPH_par_wedge)]",
-            "fullname": "benchmarks/bench_grpph.py::test_grpph[50-grpphati (GrPPH_par_wedge)]",
+            "fullname": "benchmarks/bench_network_grpph.py::test_grpph[50-grpphati (GrPPH_par_wedge)]",
             "params": {
                 "n": 50,
                 "implementation": "grpphati (GrPPH_par_wedge)"
@@ -1168,7 +1168,7 @@
         {
             "group": "grpph n=50 p=0.1",
             "name": "test_grpph[50-phlite (serial)]",
-            "fullname": "benchmarks/bench_grpph.py::test_grpph[50-phlite (serial)]",
+            "fullname": "benchmarks/bench_network_grpph.py::test_grpph[50-phlite (serial)]",
             "params": {
                 "n": 50,
                 "implementation": "phlite (serial)"
@@ -1218,7 +1218,7 @@
         {
             "group": "grpph n=50 p=0.1",
             "name": "test_grpph[50-phlite (parallel)]",
-            "fullname": "benchmarks/bench_grpph.py::test_grpph[50-phlite (parallel)]",
+            "fullname": "benchmarks/bench_network_grpph.py::test_grpph[50-phlite (parallel)]",
             "params": {
                 "n": 50,
                 "implementation": "phlite (parallel)"
@@ -1268,7 +1268,7 @@
         {
             "group": "grpph n=50 p=0.1",
             "name": "test_grpph[50-phlite (serial, reps)]",
-            "fullname": "benchmarks/bench_grpph.py::test_grpph[50-phlite (serial, reps)]",
+            "fullname": "benchmarks/bench_network_grpph.py::test_grpph[50-phlite (serial, reps)]",
             "params": {
                 "n": 50,
                 "implementation": "phlite (serial, reps)"
@@ -1318,7 +1318,7 @@
         {
             "group": "grpph n=50 p=0.1",
             "name": "test_grpph[50-phlite (serial, merged)]",
-            "fullname": "benchmarks/bench_grpph.py::test_grpph[50-phlite (serial, merged)]",
+            "fullname": "benchmarks/bench_network_grpph.py::test_grpph[50-phlite (serial, merged)]",
             "params": {
                 "n": 50,
                 "implementation": "phlite (serial, merged)"
@@ -1368,7 +1368,7 @@
         {
             "group": "grpph n=50 p=0.1",
             "name": "test_grpph[50-phlite (serial, merged, uncached)]",
-            "fullname": "benchmarks/bench_grpph.py::test_grpph[50-phlite (serial, merged, uncached)]",
+            "fullname": "benchmarks/bench_network_grpph.py::test_grpph[50-phlite (serial, merged, uncached)]",
             "params": {
                 "n": 50,
                 "implementation": "phlite (serial, merged, uncached)"
@@ -1418,7 +1418,7 @@
         {
             "group": "grpph n=50 p=0.1",
             "name": "test_grpph[50-phlite (serial, heap)]",
-            "fullname": "benchmarks/bench_grpph.py::test_grpph[50-phlite (serial, heap)]",
+            "fullname": "benchmarks/bench_network_grpph.py::test_grpph[50-phlite (serial, heap)]",
             "params": {
                 "n": 50,
                 "implementation": "phlite (serial, heap)"
@@ -1468,7 +1468,7 @@
         {
             "group": "grpph n=50 p=0.1",
             "name": "test_grpph[50-phlite (serial, heap, uncached)]",
-            "fullname": "benchmarks/bench_grpph.py::test_grpph[50-phlite (serial, heap, uncached)]",
+            "fullname": "benchmarks/bench_network_grpph.py::test_grpph[50-phlite (serial, heap, uncached)]",
             "params": {
                 "n": 50,
                 "implementation": "phlite (serial, heap, uncached)"
@@ -1518,7 +1518,7 @@
         {
             "group": "grpph n=50 p=0.1",
             "name": "test_grpph[50-phlite (serial, sorted)]",
-            "fullname": "benchmarks/bench_grpph.py::test_grpph[50-phlite (serial, sorted)]",
+            "fullname": "benchmarks/bench_network_grpph.py::test_grpph[50-phlite (serial, sorted)]",
             "params": {
                 "n": 50,
                 "implementation": "phlite (serial, sorted)"
@@ -1568,7 +1568,7 @@
         {
             "group": "grpph n=50 p=0.1",
             "name": "test_grpph[50-phlite (serial, sorted, uncached)]",
-            "fullname": "benchmarks/bench_grpph.py::test_grpph[50-phlite (serial, sorted, uncached)]",
+            "fullname": "benchmarks/bench_network_grpph.py::test_grpph[50-phlite (serial, sorted, uncached)]",
             "params": {
                 "n": 50,
                 "implementation": "phlite (serial, sorted, uncached)"
@@ -1618,7 +1618,7 @@
         {
             "group": "grpph n=50 p=0.1",
             "name": "test_grpph[50-phlite (serial, store R)]",
-            "fullname": "benchmarks/bench_grpph.py::test_grpph[50-phlite (serial, store R)]",
+            "fullname": "benchmarks/bench_network_grpph.py::test_grpph[50-phlite (serial, store R)]",
             "params": {
                 "n": 50,
                 "implementation": "phlite (serial, store R)"
@@ -1668,7 +1668,7 @@
         {
             "group": "grpph n=50 p=0.1",
             "name": "test_grpph[50-phlite (parallel, lock-free)]",
-            "fullname": "benchmarks/bench_grpph.py::test_grpph[50-phlite (parallel, lock-free)]",
+            "fullname": "benchmarks/bench_network_grpph.py::test_grpph[50-phlite (parallel, lock-free)]",
             "params": {
                 "n": 50,
                 "implementation": "phlite (parallel, lock-free)"

@@ -1,7 +1,7 @@
 [project]
 name = "phlite-python-tests-latest"
 version = "0.0.0"
-description = "The newer environment of phlite's python-tests: phlite_py against PHAT and LoPHAT"
+description = "The newer environment of phlite's python-tests: phlite's explicit complexes against PHAT and LoPHAT"
 # LoPHAT 0.14 needs Python >= 3.12, while the main python-tests environment is stuck on 3.11 (see ../pyproject.toml)
 requires-python = ">=3.12"
 dependencies = [
@@ -18,7 +18,7 @@ dependencies = [
 ]
 
 [tool.uv]
-# phlite_py is built into this environment by `maturin develop` (see ../justfile)
+# phlite is built into this environment by `maturin develop` (see ../justfile)
 package = false
 
 [dependency-groups]

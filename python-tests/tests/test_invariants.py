@@ -1,4 +1,4 @@
-"""Properties every barcode from phlite_py must have, checked on random filtered chain complexes over Z/p.
+"""Properties every barcode from `phlite`'s explicit complexes must have, checked on random filtered chain complexes over Z/p.
 
 Unlike `test_sparse.py` (which compares with PHAT and LoPHAT over Z/2, on cells listed in filtration order), the
 complexes here have coefficients in Z/p and cells listed in a shuffled order, so a cell's index is not its position in

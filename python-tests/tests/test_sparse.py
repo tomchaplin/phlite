@@ -1,4 +1,4 @@
-"""Fuzz phlite_py (the `phlite` package) against PHAT and LoPHAT on random filtered chain complexes over Z/2.
+"""Fuzz `phlite`'s explicit complexes against PHAT and LoPHAT on random filtered chain complexes over Z/2.
 
 The complexes are cellular rather than simplicial: each k-cell's boundary is a random (k-1)-cycle of the cells before
 it, so there are multi-edges, loops, cells with zero boundary, and k-cells with long boundaries. Cells are listed in a

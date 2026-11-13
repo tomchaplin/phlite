@@ -13,19 +13,28 @@ def pytest_benchmark_update_machine_info(config, machine_info):
 
 
 def pytest_collection_modifyitems(config, items):
-    """With `PHLITE_BENCH_ONLY` set to implementation names separated by `|` (e.g. `phlite (serial)|phlite (parallel)`),
-    run only those implementations (a light benchmark for CI; the references still compute the expected barcodes)."""
+    """Run only some implementations (the references still compute the expected barcodes):
+    * with `PHLITE_BENCH_ONLY` set to implementation names separated by `|` (e.g. `phlite (serial)|ripser`), those;
+    * with `PHLITE_BENCH_LIGHT` set (the light benchmark for CI), `phlite (serial)`, `phlite (parallel)` and the
+      references in each suite's `SUITE["light_references"]` (see suites.py)."""
     import os
 
     only = os.environ.get("PHLITE_BENCH_ONLY")
-    if not only:
+    light = os.environ.get("PHLITE_BENCH_LIGHT")
+    if not only and not light:
         return
-    wanted = set(only.split("|"))
+
+    def wanted(item):
+        if only:
+            return set(only.split("|"))
+        suite = getattr(item.module, "SUITE", {})
+        return {"phlite (serial)", "phlite (parallel)", *suite.get("light_references", [])}
+
     keep, drop = [], []
     for item in items:
         callspec = getattr(item, "callspec", None)
         implementation = callspec.params.get("implementation") if callspec else None
-        (keep if implementation in wanted else drop).append(item)
+        (keep if implementation in wanted(item) else drop).append(item)
     if drop:
         config.hook.pytest_deselected(items=drop)
         items[:] = keep

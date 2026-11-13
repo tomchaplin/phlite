@@ -1,4 +1,4 @@
-"""Fuzz phlite_grpph against grpphati, and check its representatives."""
+"""Fuzz phlite.network.grpph against grpphati, and check its representatives."""
 
 import itertools
 import math
@@ -12,18 +12,18 @@ from hypothesis import strategies as st
 
 from grid import algorithm_grid
 from mod2 import Span
-import phlite_grpph
-from phlite_grpph import grpph
+from phlite import Algorithm
+from phlite.network import grpph
 
 METHODS = ["cohomology", "homology"]
 ALGORITHMS = [
-    phlite_grpph.Algorithm.standard(),
-    phlite_grpph.Algorithm.serial(),
-    phlite_grpph.Algorithm.parallel(),
-    phlite_grpph.Algorithm.parallel().with_storage("lock-free"),
-    phlite_grpph.Algorithm.clearing().with_store_r(),
-    # The other representation and caching from this package's default
-    phlite_grpph.Algorithm.serial().with_columns("heap").with_cache(False),
+    Algorithm.standard(),
+    Algorithm.serial(),
+    Algorithm.parallel(),
+    Algorithm.parallel().with_storage("lock-free"),
+    Algorithm.clearing().with_store_r(),
+    # The other representation and caching from this pipeline's default
+    Algorithm.serial().with_columns("heap").with_cache(False),
 ]
 INF = math.inf
 
@@ -140,21 +140,22 @@ def test_networkx_input_matches_integer_input(graph, data):
 
 
 def test_default_columns():
-    """Each package's presets use its own column representation and caching."""
-    for algorithm in [phlite_grpph.Algorithm.serial(), phlite_grpph.Algorithm.parallel(), phlite_grpph.Algorithm.standard()]:
-        assert not algorithm.store_r
-        # This package's matrices give no row ranks, so pivot columns would merge: refused rather than silently
+    """The pipeline's defaults fill in what the presets leave unset, and are what runs."""
+    for algorithm in [Algorithm.serial(), Algorithm.parallel(), Algorithm.standard()]:
+        resolved = algorithm.resolve("network.grpph")
+        assert not resolved.store_r
+        assert (resolved.columns, resolved.cache) == ('merged', True)
+        # These matrices give no row ranks, so pivot columns would merge: refused rather than silently
         with pytest.raises(ValueError, match="'pivot' columns"):
-            algorithm.with_columns("pivot")
-        assert (algorithm.columns, algorithm.cache) == ('merged', True)
+            algorithm.with_columns("pivot").resolve("network.grpph")
 
 
 @given(graph=digraphs())
 def test_every_algorithm_agrees(graph):
-    """Every algorithm and option of the full grid (as for phlite_py) gives the default's barcode."""
+    """Every algorithm and option of the full grid (as for explicit complexes) gives the default's barcode."""
     n, edges = graph
     expected = grpph(n, edges)
-    for method, algorithm in itertools.product(METHODS, algorithm_grid(phlite_grpph.Algorithm)):
+    for method, algorithm in itertools.product(METHODS, algorithm_grid(Algorithm, row_ranks=False)):
         note(f"method={method} algorithm={algorithm!r}")
         barcode = grpph(n, edges, method=method, algorithm=algorithm)
         assert (barcode.essential, barcode.pairings) == (expected.essential, expected.pairings)

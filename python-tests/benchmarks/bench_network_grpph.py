@@ -1,4 +1,4 @@
-"""Benchmark phlite_grpph against grpphati on weighted digraphs.
+"""Benchmark phlite.network.grpph against grpphati on weighted digraphs.
 
 Grounded persistent path homology (dimension 1, all grpphati computes), with integer weights 1–5, of
 * random digraphs on `n` nodes, each edge present with probability 0.1;
@@ -20,10 +20,29 @@ from common import THREADS, fingerprint, run
 # Import everything up front, so that import costs are not counted
 import networkx as nx
 from grpphati.pipelines import grounded
-from phlite_grpph import Algorithm, grpph
+from phlite import Algorithm
+from phlite.network import grpph
 
 INF = float("inf")
 REFERENCE = "grpphati (GrPPH)"
+
+# How report.py presents this suite in BENCHMARKS.md, and which references the light CI benchmark runs (read
+# without importing this module, so plain literals only)
+SUITE = {
+    "title": "GrPPH: `phlite.network.grpph` vs grpphati",
+    "description": "Grounded persistent path homology (dimension 1) of digraphs with integer weights 1–5: random "
+        "digraphs on `n` nodes, each edge present with probability `p`; a directed `ring` of `n` nodes with "
+        "random short chords (one long bar, around the ring); and a `lattice` of `n`×`n` nodes, with edges "
+        "right and down, and four rectangular holes (a long bar around each). `GrPPH_par_wedge` is grpphati's "
+        "parallel pipeline over wedge components. The largest case of each kind is timed once, and only "
+        "phlite runs on it (grpphati needs over 5 GB on random digraphs of 100 nodes, and minutes on the "
+        "others); its barcodes are checked against phlite's default. grpphati splits some digraphs (the "
+        "lattices) into parts that joblib reduces in worker processes, whose memory isn't counted.",
+    "order": 20,
+    "summary": ["grpphati (GrPPH)", "grpphati (GrPPH_par_wedge)", "phlite (serial)", "phlite (parallel)", "phlite (serial, reps)"],
+    "default": "phlite (serial)",
+    "light_references": ["grpphati (GrPPH)"],
+}
 P = 0.1
 
 

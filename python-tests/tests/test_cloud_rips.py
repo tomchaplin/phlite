@@ -1,4 +1,4 @@
-"""Fuzz phlite_rips against ripser and giotto-ph, and check its representatives from first principles."""
+"""Fuzz phlite.cloud.rips against ripser and giotto-ph, and check its representatives from first principles."""
 
 import itertools
 import math
@@ -12,18 +12,18 @@ from ripser import ripser
 
 from grid import algorithm_grid
 from mod2 import Span, boundary, chain_sum
-import phlite_rips
-from phlite_rips import rips
+from phlite import Algorithm
+from phlite.cloud import rips
 
 METHODS = ["cohomology", "homology"]
 ALGORITHMS = [
-    phlite_rips.Algorithm.standard(),
-    phlite_rips.Algorithm.serial(),
-    phlite_rips.Algorithm.parallel(),
-    phlite_rips.Algorithm.parallel().with_storage("lock-free"),
-    phlite_rips.Algorithm.clearing().with_store_r(),
-    # The other representation and caching from this package's default
-    phlite_rips.Algorithm.serial().with_columns("merged").with_cache(True),
+    Algorithm.standard(),
+    Algorithm.serial(),
+    Algorithm.parallel(),
+    Algorithm.parallel().with_storage("lock-free"),
+    Algorithm.clearing().with_store_r(),
+    # The other representation and caching from this pipeline's default
+    Algorithm.serial().with_columns("merged").with_cache(True),
 ]
 INF = math.inf
 
@@ -120,7 +120,7 @@ def test_rips_matches_references(distances, max_dim):
 @given(distances=distance_matrices(), max_dim=st.integers(0, 2), threads=st.integers(1, 4))
 def test_representatives_flag_and_threads_do_not_change_barcode(distances, max_dim, threads):
     plain = rips(distances, max_dim)
-    with_reps = rips(distances, max_dim, algorithm=phlite_rips.Algorithm.parallel(threads), representatives=True)
+    with_reps = rips(distances, max_dim, algorithm=Algorithm.parallel(threads), representatives=True)
     assert plain.pairing_representatives is None and plain.essential_representatives is None
     assert (plain.essential, plain.pairings) == (with_reps.essential, with_reps.pairings)
 
@@ -164,20 +164,21 @@ def test_input_validation():
 
 
 def test_default_columns():
-    """Each package's presets use its own column representation and caching."""
-    for algorithm in [phlite_rips.Algorithm.serial(), phlite_rips.Algorithm.parallel(), phlite_rips.Algorithm.standard()]:
-        assert not algorithm.store_r
-        # This package's matrices give no row ranks, so pivot columns would merge: refused rather than silently
+    """The pipeline's defaults fill in what the presets leave unset, and are what runs."""
+    for algorithm in [Algorithm.serial(), Algorithm.parallel(), Algorithm.standard()]:
+        resolved = algorithm.resolve("cloud.rips")
+        assert not resolved.store_r
+        assert (resolved.columns, resolved.cache) == ('heap', False)
+        # These matrices give no row ranks, so pivot columns would merge: refused rather than silently
         with pytest.raises(ValueError, match="'pivot' columns"):
-            algorithm.with_columns("pivot")
-        assert (algorithm.columns, algorithm.cache) == ('heap', False)
+            algorithm.with_columns("pivot").resolve("cloud.rips")
 
 
 @given(distances=distance_matrices(), max_dim=st.integers(0, 2))
 def test_every_algorithm_agrees(distances, max_dim):
-    """Every algorithm and option of the full grid (as for phlite_py) gives the default's barcode."""
+    """Every algorithm and option of the full grid (as for explicit complexes) gives the default's barcode."""
     expected = rips(distances, max_dim)
-    for method, algorithm in itertools.product(METHODS, algorithm_grid(phlite_rips.Algorithm)):
+    for method, algorithm in itertools.product(METHODS, algorithm_grid(Algorithm, row_ranks=False)):
         note(f"method={method} algorithm={algorithm!r}")
         barcode = rips(distances, max_dim, method=method, algorithm=algorithm)
         assert (barcode.essential, barcode.pairings) == (expected.essential, expected.pairings)
