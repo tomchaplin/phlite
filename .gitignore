@@ -6,3 +6,4 @@ __marimo__/
 __pycache__/
 # The light CI benchmark (see python-tests/justfile)
 /python-tests/benchmarks/results/light
+/test-results

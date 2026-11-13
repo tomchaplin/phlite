@@ -56,9 +56,10 @@ test *pytest_args: build
 fuzz examples="5000" *pytest_args: build
     HYPOTHESIS_PROFILE=fuzz FUZZ_EXAMPLES="$1" just _pytest "${@:2}"
 
+# With `PHLITE_JUNIT_DIR` set, each environment also writes JUnit XML there (for CI's test report)
 _pytest *pytest_args:
-    uv run --no-sync pytest {{main_tests}} "$@"
-    {{latest}} pytest {{latest_tests}} "$@"
+    uv run --no-sync pytest {{main_tests}} ${PHLITE_JUNIT_DIR:+--junitxml="$PHLITE_JUNIT_DIR/main.xml"} "$@"
+    {{latest}} pytest {{latest_tests}} ${PHLITE_JUNIT_DIR:+--junitxml="$PHLITE_JUNIT_DIR/latest.xml"} "$@"
 
 # The pytest-benchmark suites for each environment, and where the quick baselines are saved
 main_benches := "benchmarks/bench_rips.py benchmarks/bench_grpph.py"
@@ -85,16 +86,19 @@ bench-docs: build
     {{latest}} pytest {{latest_benches}} --benchmark-json=benchmarks/results/latest.json
     uv run --no-sync python benchmarks/report.py benchmarks/results/main.json benchmarks/results/latest.json --out BENCHMARKS.md
 
-# A light benchmark for CI: phlite's default serial and parallel algorithms on the quick cases, a few rounds each, with
-# a report in benchmarks/results/light/report.md. (Timings from shared CI machines are noisy, so nothing is compared.)
+# A light benchmark for CI: phlite's default serial and parallel algorithms on the quick cases, with the reference
+# implementations (ripser, giotto-ph, grpphati, PHAT) for scale, a few rounds each. benchmarks/results/light/report.md
+# gives phlite's times as multiples of the references' in the same run, and compares those with the run in
+# `$LIGHT_BASELINE` (a directory of the same JSON files, e.g. from main) if set. Nothing fails.
+light_only := "phlite (serial)|phlite (parallel)|ripser|giotto-ph (1 thread)|grpphati (GrPPH)|phat (twist)"
 bench-light: build
-    mkdir -p benchmarks/results/light
-    PHLITE_BENCH_ONLY="phlite (serial)|phlite (parallel)" PHLITE_BENCH_ROUNDS=3 \
+    rm -rf benchmarks/results/light && mkdir -p benchmarks/results/light
+    PHLITE_BENCH_ONLY="{{light_only}}" PHLITE_BENCH_ROUNDS=3 \
         uv run --no-sync pytest {{main_benches}} -m quick -q -p no:warnings --benchmark-json=benchmarks/results/light/main.json
-    PHLITE_BENCH_ONLY="phlite (serial)|phlite (parallel)" PHLITE_BENCH_ROUNDS=3 \
+    PHLITE_BENCH_ONLY="{{light_only}}" PHLITE_BENCH_ROUNDS=3 \
         {{latest}} pytest {{latest_benches}} -m quick -q -p no:warnings --benchmark-json=benchmarks/results/light/latest.json
-    uv run --no-sync python benchmarks/report.py benchmarks/results/light/main.json benchmarks/results/light/latest.json \
-        --out benchmarks/results/light/report.md
+    uv run --no-sync python benchmarks/light_report.py benchmarks/results/light \
+        ${LIGHT_BASELINE:+--baseline "$LIGHT_BASELINE"} --out benchmarks/results/light/report.md
 
 # Run pytest on each environment's benchmarks. With `allow-empty`, a filter may leave no benchmarks in one of them
 # (pytest's exit code 5); with `require-all` that's an error.

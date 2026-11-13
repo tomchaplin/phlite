@@ -1,0 +1,14 @@
+# cargo-nextest profiles for CI (.github/workflows/ci.yml), which write JUnit XML for the pull request's test report.
+# Locally, `just test` uses plain `cargo test`.
+
+[profile.ci]
+fail-fast = false
+
+[profile.ci.junit]
+path = "junit.xml"
+
+[profile.ci-fuzz]
+fail-fast = false
+
+[profile.ci-fuzz.junit]
+path = "junit.xml"
