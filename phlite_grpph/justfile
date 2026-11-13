@@ -31,7 +31,7 @@ sdist: venv
 
 # Regenerate phlite_grpph.pyi type stubs
 stubs:
-    cargo run --bin phlite_grpph_stub_gen
+    cargo run --features python --bin phlite_grpph_stub_gen
 
 # Run all example scripts against a release build
 examples: develop-release
