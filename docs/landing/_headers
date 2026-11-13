@@ -1,0 +1,6 @@
+# Netlify response headers (https://docs.netlify.com/routing/headers/).
+# The playground runs phlite on several threads, which share WebAssembly memory; browsers only allow that on
+# cross-origin isolated pages. Everything the playground loads is its own, so these break nothing there.
+/playground/*
+  Cross-Origin-Opener-Policy: same-origin
+  Cross-Origin-Embedder-Policy: require-corp

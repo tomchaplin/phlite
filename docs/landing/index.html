@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>phlite</title>
+<meta name="description" content="phlite: lazy, fast persistent homology in Rust, with Python bindings and an in-browser playground.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect x='1' y='3' width='9' height='2.5' rx='1' fill='%234c78a8'/%3E%3Crect x='4' y='7' width='11' height='2.5' rx='1' fill='%23f58518'/%3E%3Crect x='2' y='11' width='6' height='2.5' rx='1' fill='%2354a24b'/%3E%3C/svg%3E">
+<style>
+  :root {
+    --bg: #f7f7f5; --panel: #ffffff; --fg: #1d1f24; --muted: #646a73; --line: #d9d9d4; --accent: #4c78a8;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #15171b; --panel: #1d2026; --fg: #e7e9ec; --muted: #9aa1ab; --line: #353a43; --accent: #7aa6d6; color-scheme: dark; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  main { max-width: 1040px; margin: 0 auto; padding: 4rem 16px 3rem; }
+  header { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2rem; align-items: center; margin-bottom: 3rem; }
+  h1 { font-size: 3.2rem; line-height: 1; margin: 0 0 0.8rem; letter-spacing: -0.02em; }
+  .lede { font-size: 1.2rem; color: var(--muted); margin: 0; max-width: 34rem; }
+  .bars { width: 220px; height: auto; }
+  .tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1.25rem; }
+  .tile {
+    display: flex; flex-direction: column; gap: 0.6rem; padding: 1.6rem; min-height: 15rem;
+    background: var(--panel); border: 1px solid var(--line); border-radius: 14px; color: inherit; text-decoration: none;
+    transition: border-color 0.15s, transform 0.15s, box-shadow 0.15s;
+  }
+  .tile:hover, .tile:focus-visible { border-color: var(--accent); transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08); outline: none; }
+  .tile svg { width: 44px; height: 44px; }
+  .tile h2 { margin: 0.4rem 0 0; font-size: 1.45rem; }
+  .tile p { margin: 0; color: var(--muted); flex: 1; }
+  .tile .go { color: var(--accent); font-weight: 600; }
+  footer { margin-top: 3rem; display: flex; gap: 1.5rem; flex-wrap: wrap; color: var(--muted); font-size: 0.92rem; }
+  footer a { color: var(--accent); }
+  @media (max-width: 760px) {
+    main { padding-top: 2.5rem; }
+    header { grid-template-columns: minmax(0, 1fr); }
+    .bars { display: none; }
+    .tiles { grid-template-columns: minmax(0, 1fr); }
+    .tile { min-height: 0; }
+    h1 { font-size: 2.6rem; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <div>
+      <h1>phlite</h1>
+      <p class="lede">Persistent homology in Rust: lazy, so it only builds the parts of a boundary matrix the reduction needs; fast when it does build them; with Python bindings, and a playground that runs in your browser.</p>
+    </div>
+    <svg class="bars" viewBox="0 0 220 120" aria-hidden="true">
+      <rect x="4" y="10" width="200" height="12" rx="3" fill="#4c78a8"/>
+      <rect x="4" y="30" width="70" height="12" rx="3" fill="#4c78a8" opacity="0.75"/>
+      <rect x="4" y="50" width="34" height="12" rx="3" fill="#4c78a8" opacity="0.55"/>
+      <rect x="56" y="76" width="130" height="12" rx="3" fill="#f58518"/>
+      <rect x="96" y="96" width="40" height="12" rx="3" fill="#f58518" opacity="0.6"/>
+    </svg>
+  </header>
+
+  <nav class="tiles">
+    <a class="tile" href="playground/">
+      <svg viewBox="0 0 44 44" aria-hidden="true"><circle cx="12" cy="30" r="4" fill="#4c78a8"/><circle cx="22" cy="12" r="4" fill="#4c78a8"/><circle cx="33" cy="28" r="4" fill="#4c78a8"/><path d="M12 30 L22 12 L33 28 Z" fill="#f58518" fill-opacity="0.25" stroke="#f58518" stroke-width="2.5" stroke-linejoin="round"/></svg>
+      <h2>Playground</h2>
+      <p>Compute barcodes of point clouds, images, weighted networks and chain complexes, from examples, random data, your own files or by drawing. See the representatives on your data. Everything runs locally, on all your cores.</p>
+      <span class="go">Open the playground →</span>
+    </a>
+    <a class="tile" href="book/">
+      <svg viewBox="0 0 44 44" aria-hidden="true"><path d="M8 9 h12 a4 4 0 0 1 4 4 v23 a3 3 0 0 0 -3 -3 H8 Z" fill="none" stroke="#4c78a8" stroke-width="2.5" stroke-linejoin="round"/><path d="M36 9 h-12 a4 4 0 0 0 -4 4 v23 a3 3 0 0 1 3 -3 H36 Z" fill="none" stroke="#54a24b" stroke-width="2.5" stroke-linejoin="round"/></svg>
+      <h2>Book</h2>
+      <p>What phlite is and why, how its algorithms and optimisations work and when they help, a tutorial for writing your own lazy filtration in Rust, and guides to the Python packages with example notebooks.</p>
+      <span class="go">Read the book →</span>
+    </a>
+    <a class="tile" href="api/">
+      <svg viewBox="0 0 44 44" aria-hidden="true"><path d="M15 10 L6 22 L15 34" fill="none" stroke="#e45756" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M29 10 L38 22 L29 34" fill="none" stroke="#e45756" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M25 8 L19 36" stroke="#b279a2" stroke-width="2.5" stroke-linecap="round"/></svg>
+      <h2>API reference</h2>
+      <p>Every class, method and argument of the Python packages: <code>phlite</code> for chain complexes you build, <code>phlite_rips</code> for Vietoris–Rips and <code>phlite_grpph</code> for weighted digraphs.</p>
+      <span class="go">Browse the API →</span>
+    </a>
+  </nav>
+
+  <footer>
+    <a href="https://github.com/tomchaplin/phlite">Source on GitHub</a>
+    <span>MIT licensed</span>
+  </footer>
+</main>
+</body>
+</html>

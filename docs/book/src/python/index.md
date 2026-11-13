@@ -6,7 +6,7 @@
 | [`phlite_rips`](rips.md) | `phlite_rips` | a distance matrix | Vietoris–Rips persistence, like ripser and giotto-ph |
 | [`phlite_grpph`](grpph.md) | `phlite_grpph` | a weighted digraph (networkx or edge list) | grounded persistent path homology, like grpphati |
 
-The full **[API reference](../api/index.html)** (every class, method and argument) is generated from the packages'
+The full **[API reference](../../api/index.html)** (every class, method and argument) is generated from the packages'
 docstrings with Sphinx (`docs/python`). These chapters are the guide.
 
 All three share:

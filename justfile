@@ -28,11 +28,25 @@ docs-modules:
     cd python-tests && uv run --no-sync maturin develop --uv --release -m ../phlite_grpph/Cargo.toml
     cd python-tests && uv run --no-sync --project latest maturin develop --uv --release -m ../phlite_py/Cargo.toml
 
-# Build the documentation site into docs/site: the book (docs/book, mdBook) at its root, the Python API reference
-# (docs/python, Sphinx) in docs/site/api, and the example notebooks (docs/notebooks, marimo) in docs/site/notebooks.
-# Needs `mdbook` on your PATH; the notebooks run in python-tests' two environments (`just docs-modules` first).
+# Build the documentation site into docs/site:
+# * the landing page (docs/landing) at its root;
+# * the book (docs/book, mdBook) in docs/site/book;
+# * the Python API reference (docs/python, Sphinx) in docs/site/api;
+# * the example notebooks (docs/notebooks, marimo) in docs/site/notebooks;
+# * the playground (phlite_web: phlite in WebAssembly, and a Svelte app) in docs/site/playground.
+# Needs `mdbook` on your PATH, the notebooks run in python-tests' two environments (`just docs-modules` first), and the
+# playground needs what phlite_web/justfile says (a nightly Rust, wasm-bindgen-cli and Node).
 # CI builds and deploys it to Netlify (.github/workflows/docs.yml).
-docs:
+#
+# Build the whole documentation site into docs/site
+docs: docs-pages docs-playground
+    @echo "Built docs/site (run just docs-serve to look at it)"
+
+# Everything but the playground (see `docs`)
+docs-pages:
+    mkdir -p docs/site
+    find docs/site -mindepth 1 -maxdepth 1 ! -name playground -exec rm -rf {} +
+    cp docs/landing/index.html docs/landing/_headers docs/site/
     cd python-tests && uv sync --inexact --group docs && uv sync --inexact --project latest --group docs
     cd python-tests && uv run --no-sync --project latest python ../docs/figures/make_figures.py
     mdbook build docs/book
@@ -44,11 +58,17 @@ docs:
     cd python-tests && for notebook in rips_points grpph_digraph; do \
         uv run --no-sync marimo export html ../docs/notebooks/$notebook.py \
             -o ../docs/site/notebooks/$notebook.html; done
-    @echo "Built docs/site (open docs/site/index.html, or run just docs-serve)"
 
-# Serve the built site (run `just docs` first) at http://localhost:8000
+# The playground (see `docs`)
+docs-playground:
+    just phlite_web/build
+    rm -rf docs/site/playground
+    mkdir -p docs/site
+    cp -r phlite_web/app/dist docs/site/playground
+
+# Serve the built site (run `just docs` first) at http://localhost:8000, with the headers the playground needs
 docs-serve:
-    python3 -m http.server --directory docs/site 8000
+    python3 docs/serve.py 8000
 
 # The criterion benchmarks of the Rust reduction (in phlite_rips and phlite_grpph)
 cargo_bench := "cargo bench -p phlite_rips -p phlite_grpph --features phlite_rips/lock-free --bench reduction"

@@ -70,5 +70,7 @@ Measured on one thread against the specialised tools (see the [benchmarks](appen
   explain every algorithm and trick: how it works, why it helps, and when it doesn't.
 - [Inside phlite](internals/bookkeeping.md) covers the lower-level engineering, and where the time actually goes.
 - The [tutorial](tutorial/index.md) builds a filtration of your own in Rust, step by step.
-- The [Python chapters](python/index.md) document the three packages, with example notebooks. (The [API reference](api/index.html)
+- The [Python chapters](python/index.md) document the three packages, with example notebooks. (The [API reference](../api/index.html)
   is generated from their docstrings.)
+- The **[playground](../playground/)** runs phlite in your browser (compiled to WebAssembly, on all your cores): point
+  clouds, images, weighted networks and chain complexes, with their barcodes and representatives drawn on the data.
