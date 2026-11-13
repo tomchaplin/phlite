@@ -1,0 +1,52 @@
+# The playground: phlite compiled to WebAssembly (with threads) and a Svelte app that runs it in a Web Worker.
+#
+#   just wasm      build the WebAssembly package into pkg/ (release, optimised)
+#   just dev       the app with hot reloading at http://localhost:5173 (after `just wasm`)
+#   just build     build everything into app/dist
+#
+# Needs: rustup (the nightly in rust-toolchain.toml is installed on first use), wasm-bindgen-cli at the version in
+# Cargo.toml, and Node with npm.
+
+wasm_bindgen_version := "0.2.130"
+
+default:
+    @just --list
+
+# The pinned nightly, with rust-src and the wasm32 target
+toolchain:
+    rustup toolchain install
+
+wasm: toolchain
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if [ "$(wasm-bindgen --version 2>/dev/null)" != "wasm-bindgen {{wasm_bindgen_version}}" ]; then
+        echo "Need wasm-bindgen {{wasm_bindgen_version}}: cargo install wasm-bindgen-cli --version {{wasm_bindgen_version}} --locked" >&2
+        exit 1
+    fi
+    cargo build --release
+    rm -rf pkg
+    wasm-bindgen --target web --out-dir pkg target/wasm32-unknown-unknown/release/phlite_web.wasm
+    # The thread pool's workers import the package by its directory, so make it a package
+    printf '{\n  "name": "phlite-web",\n  "version": "0.1.0",\n  "type": "module",\n  "main": "phlite_web.js",\n  "types": "phlite_web.d.ts"\n}\n' > pkg/package.json
+    just _npm-install
+    app/node_modules/.bin/wasm-opt -O3 --enable-threads --enable-bulk-memory --enable-mutable-globals \
+        --enable-nontrapping-float-to-int --enable-sign-ext --enable-reference-types --enable-multivalue \
+        --strip-debug pkg/phlite_web_bg.wasm -o pkg/phlite_web_bg.wasm
+    ls -la pkg/phlite_web_bg.wasm
+
+_npm-install:
+    cd app && ([ -d node_modules ] || npm ci)
+
+dev: _npm-install
+    cd app && npm run dev
+
+build: wasm
+    cd app && npm run build
+
+# Type-check the app
+check: _npm-install
+    cd app && npm run check
+
+# Rust unit tests (on the host, not in WebAssembly)
+test:
+    cargo +nightly-2026-11-01 test --target x86_64-unknown-linux-gnu -Z build-std=std,panic_abort

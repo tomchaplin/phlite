@@ -1,0 +1,6 @@
+# WebAssembly threads need the standard library rebuilt with atomics (`build-std`), which is nightly-only
+[toolchain]
+channel = "nightly-2026-11-01"
+components = ["rust-src"]
+targets = ["wasm32-unknown-unknown"]
+profile = "minimal"

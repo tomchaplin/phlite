@@ -8,3 +8,5 @@ members = [
   "phlite_pyutils",
   "phlite_py",
 ]
+# The browser build (WebAssembly with threads) has its own toolchain and target, see phlite_web/README.md
+exclude = ["phlite_web"]
