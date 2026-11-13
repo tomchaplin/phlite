@@ -59,32 +59,31 @@ def test_presets():
         assert (barcode.pairings, barcode.essential) == expected
     assert Algorithm.serial() == Algorithm.clearing() and Algorithm.serial().skip_zero_apparent_pairs
     assert Algorithm.parallel() == Algorithm.parallel_clearing() and Algorithm.parallel().storage == "locking"
-    # The repr gives every option, resolved, so it means the same in every package
+    # The repr gives every option that applies, those left to the pipeline as such
     assert repr(Algorithm.parallel(4)) == (
-        'Algorithm.parallel_clearing().with_columns("merged").with_cache(False)'
-        '.with_skip_zero_apparent_pairs(True).with_storage("locking").with_threads(4)'
+        "Algorithm('parallel-clearing', columns=<pipeline default>, cache=<pipeline default>, "
+        "skip_zero_apparent_pairs=True, dimension_order=None, storage='locking', threads=4)"
     )
-    assert repr(Algorithm.serial()) == (
-        'Algorithm.clearing().with_columns("pivot").with_cache(False).with_store_r(True)'
-        ".with_skip_zero_apparent_pairs(True)"
+    assert repr(Algorithm.standard()) == (
+        "Algorithm('standard', columns=<pipeline default>, cache=<pipeline default>)"
     )
-    assert repr(Algorithm.standard()) == 'Algorithm.standard().with_columns("merged").with_cache(False)'
-    for algorithm in [Algorithm.serial().with_dimension_order([2, 1, 0]), Algorithm.parallel(), Algorithm.standard()]:
-        assert eval(repr(algorithm), {"Algorithm": Algorithm}) == algorithm
-    # phlite's defaults: pivot columns, uncached, storing R (serial clearing only)
-    serial = Algorithm.serial()
+    # Explicit complexes' defaults (the pipeline 'complex'): pivot columns, uncached, storing R (serial clearing only)
+    serial = Algorithm.serial().resolve("complex")
     assert (serial.columns, serial.cache, serial.store_r) == ("pivot", False, True)
-    # Only serial clearing uses pivot columns, so the others' presets merge, and say so
-    assert not Algorithm.parallel().store_r and Algorithm.parallel().columns == "merged"
-    assert Algorithm.standard().columns == "merged"
+    assert repr(serial) == (
+        "Algorithm('clearing', columns='pivot', cache=False, store_r=True, skip_zero_apparent_pairs=True, "
+        "dimension_order=None)"
+    )
+    assert complex.persistence().algorithm == serial
+    # Only serial clearing uses pivot columns, so the others merge
     for algorithm in [Algorithm.parallel(), Algorithm.standard()]:
+        resolved = algorithm.resolve("complex")
+        assert not resolved.store_r and resolved.columns == "merged"
         with pytest.raises(ValueError, match="only used by serial clearing"):
             algorithm.with_columns("pivot")
     assert Algorithm.serial().with_cache().cache
-    assert repr(Algorithm.serial().with_columns("sorted").with_cache()) == (
-        'Algorithm.clearing().with_columns("sorted").with_cache(True).with_store_r(True)'
-        ".with_skip_zero_apparent_pairs(True)"
-    )
+    resolved = Algorithm.serial().with_columns("sorted").with_cache().resolve("complex")
+    assert (resolved.columns, resolved.cache, resolved.store_r) == ("sorted", True, True)
 
 
 def test_bad_options():
@@ -99,9 +98,10 @@ def test_bad_options():
         Algorithm.parallel().with_store_r()
     with pytest.raises(ValueError, match="store_r can't be set for the standard"):
         Algorithm.standard().with_store_r()
-    # phlite's serial preset stores R; the other algorithms can't
-    assert Algorithm.serial().store_r and not Algorithm.parallel().store_r and not Algorithm.standard().store_r
-    assert "with_store_r(False)" in repr(Algorithm.serial().with_store_r(False))
+    # Explicit complexes' serial preset stores R; the other algorithms can't
+    assert Algorithm.serial().resolve("complex").store_r
+    assert not Algorithm.parallel().resolve("complex").store_r and not Algorithm.standard().resolve("complex").store_r
+    assert "store_r=False" in repr(Algorithm.serial().with_store_r(False))
     with pytest.raises(ValueError, match="Unknown columns"):
         Algorithm.serial().with_columns("vec")
     with pytest.raises(ValueError, match="threads must be positive"):

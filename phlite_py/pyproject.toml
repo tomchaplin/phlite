@@ -4,7 +4,7 @@ build-backend = "maturin"
 
 [project]
 name = "phlite"
-description = "Persistent homology of sparse filtered chain complexes, computed with phlite"
+description = "Persistent homology of filtered chain complexes, point clouds, networks and images, computed with phlite"
 requires-python = ">=3.9"
 license = "MIT"
 classifiers = [
@@ -18,8 +18,10 @@ dynamic = ["version"]
 
 [tool.maturin]
 features = ["python", "pyo3/extension-module"]
-# The crate can't be called `phlite` (it depends on the `phlite` crate), but the module is
-module-name = "phlite"
+# The package `phlite` is the Python files in python/phlite (one per module: `phlite`, `phlite.cloud`, ...), with
+# their stubs, which re-export the extension module `phlite._phlite` built from this crate
+python-source = "python"
+module-name = "phlite._phlite"
 
 [dependency-groups]
 dev = [

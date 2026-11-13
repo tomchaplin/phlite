@@ -1,6 +1,16 @@
 # phlite (Python)
 
-Python bindings for `phlite`: persistent homology of explicit, sparse, filtered chain complexes.
+The `phlite` Python package. At its top level, persistent homology of explicit, sparse, filtered chain complexes (this
+README); in its submodules, persistent homology of kinds of data, each the bindings of a Rust crate:
+
+| Submodule | Crate | Pipelines |
+|---|---|---|
+| `phlite.cloud` | [`phlite_cloud`](../phlite_cloud/README.md) | `rips`: Vietoris–Rips of a distance matrix |
+| `phlite.network` | [`phlite_network`](../phlite_network/README.md) | `grpph`: grounded persistent path homology of a weighted digraph |
+| `phlite.image` | [`phlite_image`](../phlite_image/README.md) | none yet |
+
+(`phlite.cloud` and `phlite.network` were the packages `phlite_rips` and `phlite_grpph`.) Every pipeline takes the same
+`phlite.Algorithm` (see [below](#choosing-an-algorithm)).
 
 You describe a chain complex once — as integer columns (like [PHAT](https://github.com/blazs/phat) and
 [LoPHAT](https://github.com/tomchaplin/lophat)), as sparse arrays, or with your own Python objects as cells — then attach
@@ -139,7 +149,7 @@ slower on the other cubical complexes and meshes, and about 3× slower on cell c
 time both.
 
 By default the serial algorithm stores the reduced columns of R = DV, as PHAT does, and adds them directly when
-cancelling pivots. (`phlite_rips` and `phlite_grpph` store only V and recompute columns of R, like Ripser, which is
+cancelling pivots. (`phlite.cloud.rips` and `phlite.network.grpph` store only V and recompute columns of R, like Ripser, which is
 better when almost every column is an apparent pair.) Reducing a prebuilt matrix on one thread, against PHAT's twist
 reduction:
 
@@ -160,7 +170,7 @@ default index filtration no bar has length zero, so you get every pair, as with 
 
 ### Choosing an algorithm
 
-The `algorithm` argument takes an `Algorithm`. Start from a preset:
+The `algorithm` argument takes an `Algorithm` (the same class for every pipeline of the package). Start from a preset:
 
 * `Algorithm.serial()` (the default): clearing, skipping zero-length apparent pairs;
 * `Algorithm.parallel(threads=None)`: the same, with each dimension reduced in parallel on `threads` threads (default: all cores).
@@ -170,7 +180,7 @@ then adjust it with the `with_*` methods, each of which returns a new `Algorithm
 
 | Method | Values | Default |
 |---|---|---|
-| `with_columns` | How the column being reduced is stored: `'pivot'` (a dense array over every cell, with a tree of bitsets marking those present, as in PHAT: adding an entry flips a bit; serial clearing only, so the standard and parallel presets use `'merged'`, and asking them for `'pivot'` is an error), `'merged'` (sorted columns, merged lazily, so never looking below the pivot), `'heap'` (every entry pushed onto one heap) or `'sorted'` (one sorted vector: fast when the columns added stay near the pivot, slow when they reach far below it). | `'pivot'` (`'merged'` for standard and parallel) |
+| `with_columns` | How the column being reduced is stored: `'pivot'` (a dense array over every cell, with a tree of bitsets marking those present, as in PHAT: adding an entry flips a bit; serial clearing only, so the standard and parallel presets use `'merged'`, and asking them for `'pivot'` is an error), `'merged'` (sorted columns, merged lazily, so never looking below the pivot), `'heap'` (every entry pushed onto one heap) or `'sorted'` (one sorted vector: fast when the columns added stay near the pivot, slow when they reach far below it). | `'pivot'` (`'merged'` for standard and parallel) for explicit complexes |
 | `with_cache` | Whether to cache the columns of the boundary matrix that get added, rather than recomputing them each time. Columns are stored sorted, so this only saves a copy, which here costs more than it saves. | `False` |
 | `with_store_r` | Keep each reduced column of R = D V and add it directly when cancelling a pivot (as PHAT does), rather than recompute it from V (serial clearing only). Pays off when columns need many additions, as in dense or cubical complexes, at the cost of memory. | `True` for serial clearing |
 | `with_skip_zero_apparent_pairs` | Whether to leave zero-length apparent pairs out of the reduction's diagram (clearing only). They would be dropped from the barcode anyway, and recording them can dominate the time and memory. | `True` |
@@ -186,9 +196,11 @@ Algorithm.clearing().with_columns("heap").with_skip_zero_apparent_pairs(False)
 ```
 
 Every algorithm gives the same barcode; only the time and memory differ.
-An `Algorithm` shows every option it resolves to, as a chain that rebuilds it: `repr(phlite.Algorithm.serial())` is
-`Algorithm.clearing().with_columns("pivot").with_cache(False).with_store_r(True).with_skip_zero_apparent_pairs(True)`,
-and each option is also a property (`.columns`, `.cache`, `.store_r`, ...). `serial()` is the same as `clearing()`, and
+The defaults of the columns, caching and storing R depend on the pipeline (above, those of explicit complexes, the
+pipeline `complex`), so the presets leave them unset and each pipeline fills them in: `phlite.defaults()` lists every
+pipeline's, `algorithm.resolve("complex")` fills them in, and every barcode records the algorithm that computed it
+(`barcode.algorithm`). An `Algorithm` shows every option, those left to the pipeline as `<pipeline default>`, and each
+option is also a property (`.columns`, `.cache`, `.store_r`, ..., `None` while left to the pipeline). `serial()` is the same as `clearing()`, and
 `parallel(threads)` as `parallel_clearing().with_threads(threads)`.
 Options that don't apply to an algorithm (such as `with_threads` on `Algorithm.serial()`) raise a `ValueError`.
 
@@ -254,7 +266,7 @@ most of the build is spent calling `boundary()`, which `face_keys=True` makes ch
   That is about 8 bytes per non-zero entry and 36 bytes per cell for each filtered complex (which can have up to
   2³² − 2 non-zero entries).
 
-So the same `phlite` reduction runs as for `phlite_rips` and `phlite_grpph`, on the matrix you supplied.
+So the same `phlite` reduction runs as for `phlite.cloud.rips` and `phlite.network.grpph`, on the matrix you supplied.
 
 ## Why not matrix oracles written in Python?
 
@@ -276,7 +288,7 @@ cohomology reduction:
 | 300 | 193k | 58.5 ms + 5.7 ms | 64.0 ms |
 
 If your complex is too big to write down, the better route is a small Rust crate implementing the oracle,
-as `phlite_rips` and `phlite_grpph` do, with its own Python bindings.
+as `phlite_cloud` and `phlite_network` do, with its bindings as a submodule here.
 
 ## Development
 
@@ -285,6 +297,32 @@ Requires `just` and `uv`.
 ```sh
 just develop-release     # build and install into .venv
 just test                # pytest: against a brute-force reduction, LoPHAT and grpphati's published results
-just stubs               # regenerate phlite.pyi
+just stubs               # regenerate the stubs, python/phlite/**/__init__.pyi
 cargo test -p phlite_py  # the Rust side, without Python
 ```
+
+### Layout
+
+The package is one extension module, `phlite._phlite`, built from this crate with maturin, and a thin layer of Python
+in `python/phlite` that re-exports it as `phlite`, `phlite.cloud`, `phlite.network` and `phlite.image`, alongside the
+type stubs (`__init__.pyi`, one per module, written by `just stubs`). In `src/python`:
+
+* `mod.rs`, `chain.rs`, `filtered.rs`: the explicit complexes (`ChainComplex`, `FilteredComplex`, `Barcode`, `Bar`);
+* `algorithm.rs`: `Algorithm`, a builder for an `AlgorithmSpec` (`src/algorithm.rs`, plain Rust), whose unset options
+  each pipeline fills in with its own `AlgorithmDefaults`;
+* `pipelines.rs`: the registry of every pipeline's defaults (`phlite.defaults()`, `Algorithm.resolve`);
+* `shared.rs` and `value_barcode.rs`: what every pipeline in a submodule uses: reading `method` and `algorithm`, and
+  building the `ValueBarcode` it returns;
+* `cloud/`, `network/`, `image/`: each submodule, one file per pipeline (e.g. `cloud/rips.rs`, with its function and
+  its `DEFAULTS`), listed in the folder's `mod.rs` (`register` and `PIPELINES`).
+
+To add a pipeline: implement it in its crate (e.g. `phlite_cloud::alpha`), add `src/python/<module>/<pipeline>.rs`
+with its function and `DEFAULTS` (and a "Pipeline defaults" line in its docstring), list it in that folder's `mod.rs`,
+add a row to the book's table of defaults (`docs/book/src/python/algorithms.md`), run `just stubs`, and add its tests
+and benchmarks to `python-tests` (see its README).
+
+### Releases
+
+Every crate of the workspace and this package share one version, `[workspace.package] version` in the root
+`Cargo.toml`, which maturin uses for the wheel. To release, bump it there, then push a tag `vX.Y.Z`: CI builds and
+publishes every wheel (`.github/workflows/release.yml`). `just wheel` builds one locally.

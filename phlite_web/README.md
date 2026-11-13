@@ -5,9 +5,9 @@ the page sends the data to a Web Worker, which runs phlite's reductions on a poo
 [wasm-bindgen-rayon](https://github.com/RReverser/wasm-bindgen-rayon)). There is no server-side code.
 
 * `src/lib.rs`: the WebAssembly API, one function per pipeline:
-  * `rips` (Vietoris–Rips, by `phlite_rips` with 64-bit simplex indices);
+  * `rips` (Vietoris–Rips, by `phlite_cloud` with 64-bit simplex indices);
   * `alpha` (the Delaunay alpha filtration from `alphalpha`, reduced as an explicit complex);
-  * `grpph` (`phlite_grpph`);
+  * `grpph` (`phlite_network`);
   * `image` (cubical complexes);
   * `complex` (explicit complexes over Z/2, 3, 5 or 7, by `phlite_py`'s explicit complexes).
   Each takes an options object (missing options take the pipeline's Python defaults) and returns the bars, with
@@ -73,4 +73,4 @@ everywhere at the playground's sizes (8 threads, Chromium, median of 5):
 Parallel clearing can't use pivot columns or store R, which is what makes serial clearing fast on explicit complexes.
 
 One more thing: `usize` is 32 bits in WebAssembly, so the playground indexes Rips simplices with `u64`
-(`phlite_rips::rips_barcode::<_, u64>`). With `usize` it could only handle 254 points for H₂.
+(`phlite_cloud::rips::rips_barcode::<_, u64>`). With `usize` it could only handle 254 points for H₂.

@@ -3,8 +3,8 @@
 //!
 //! Four pipelines, each taking plain arrays and an [`Options`] object and returning a [`Barcode`]:
 //!
-//! * [`rips`]: Vietoris–Rips persistence of a point cloud (any dimension) or a distance matrix, by `phlite_rips`;
-//! * [`grpph`]: grounded persistent path homology of a weighted digraph, by `phlite_grpph`;
+//! * [`rips`]: Vietoris–Rips persistence of a point cloud (any dimension) or a distance matrix, by `phlite_cloud`;
+//! * [`grpph`]: grounded persistent path homology of a weighted digraph, by `phlite_network`;
 //! * [`image`]: persistence of a greyscale image (its cubical complex, pixels as vertices, sublevel or superlevel
 //!   sets), by `phlite_py`'s explicit complexes;
 //! * [`alpha`]: alpha persistence of points in the plane (the Delaunay triangulation filtered by `alphalpha`), by
@@ -114,7 +114,7 @@ pub fn crash_for_testing(how: &str) {
 // ---- Options ----
 
 /// How to compute: the reduction algorithm and its options, the method and whether to compute representatives.
-/// Every field is optional; a missing one takes the pipeline's default (the same as its Python package's
+/// Every field is optional; a missing one takes the pipeline's default (the same as its Python pipeline's
 /// `Algorithm.serial()`, or `Algorithm.parallel()` for the parallel algorithm).
 #[derive(Debug, Default, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
@@ -148,7 +148,7 @@ enum Columns {
     Pivot,
 }
 
-/// A pipeline's defaults, as in its Python package.
+/// A pipeline's defaults, as in Python (`phlite.defaults()`).
 #[derive(Debug, Clone, Copy)]
 struct Defaults {
     columns: Columns,
@@ -457,7 +457,7 @@ pub fn rips(
         });
     }
     // usize is 32 bits here, so index simplices by u64: up to 65 534 points for H₂ rather than 254
-    if !phlite_rips::RipsIndex::<u64>::fits(n, max_dim + 1) {
+    if !phlite_cloud::rips::RipsIndex::<u64>::fits(n, max_dim + 1) {
         return Err(err(format!(
             "Too many points ({n}) for simplices of dimension {}",
             max_dim + 1
@@ -473,9 +473,9 @@ pub fn rips(
         representatives: bool,
     }
     impl Visitor for V {
-        type Output = Vec<phlite_rips::RipsBar<u64>>;
+        type Output = Vec<phlite_cloud::rips::RipsBar<u64>>;
         fn visit<R: ColumnRepresentation>(self, algorithm: Algorithm<'_, R>) -> Self::Output {
-            phlite_rips::rips_barcode::<_, u64>(
+            phlite_cloud::rips::rips_barcode::<_, u64>(
                 self.distances,
                 self.max_dim,
                 self.threshold,
@@ -544,20 +544,20 @@ pub fn grpph(
         }
         edges.push((s, t, w));
     }
-    let filtration = phlite_grpph::build_filtration(n_vertices, &edges);
-    let edge_set = phlite_grpph::build_edge_set(&edges);
+    let filtration = phlite_network::grpph::build_filtration(n_vertices, &edges);
+    let edge_set = phlite_network::grpph::build_edge_set(&edges);
 
     struct V<'a> {
-        filtration: &'a phlite_grpph::coboundary::VecDigraphFiltration,
-        edge_set: &'a phlite_grpph::coboundary::DigraphEdgeSet,
+        filtration: &'a phlite_network::grpph::coboundary::VecDigraphFiltration,
+        edge_set: &'a phlite_network::grpph::coboundary::DigraphEdgeSet,
         n: u16,
         method: Method,
         representatives: bool,
     }
     impl Visitor for V<'_> {
-        type Output = Vec<phlite_grpph::GrPPHBar>;
+        type Output = Vec<phlite_network::grpph::GrPPHBar>;
         fn visit<R: ColumnRepresentation>(self, algorithm: Algorithm<'_, R>) -> Self::Output {
-            phlite_grpph::grpph_barcode(
+            phlite_network::grpph::grpph_barcode(
                 self.filtration,
                 self.edge_set,
                 self.n,
@@ -574,7 +574,7 @@ pub fn grpph(
         method: config.method,
         representatives: config.representatives,
     });
-    use phlite_grpph::coboundary::{PathHom2Cell, PathHomCell};
+    use phlite_network::grpph::coboundary::{PathHom2Cell, PathHomCell};
     let bars = translate::<_, Z2>(
         bars,
         |c: PathHomCell| c.dimension(),

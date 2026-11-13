@@ -3,10 +3,24 @@ resolver = "2"
 
 members = [
   "phlite",
-  "phlite_grpph",
-  "phlite_rips",
-  "phlite_pyutils",
   "phlite_py",
+  "phlite_cloud",
+  "phlite_network",
+  "phlite_image",
 ]
 # The browser build (WebAssembly with threads) has its own toolchain and target, see phlite_web/README.md
 exclude = ["phlite_web"]
+
+# Every crate is released in lockstep on this version, as is the `phlite` Python package (built from phlite_py, whose
+# version maturin takes from here): bump it here, then build and release everything.
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+repository = "https://github.com/tomchaplin/phlite"
+
+# The `phlite` extension module calls into phlite_cloud and phlite_network from phlite_py, a different crate, so their
+# non-generic hot code (simplex and path arithmetic) can only be inlined across crates with LTO: without it, Rips and
+# GrPPH run about 1.5-2x slower than when each had its own extension module.
+[profile.release]
+lto = "thin"

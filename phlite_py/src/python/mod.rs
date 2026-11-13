@@ -4,6 +4,11 @@
 //!   cell indices.
 //! * [`FilteredComplex`] is a chain complex with a filtration attached, ready to reduce.
 //! * [`Barcode`] holds the result, and translates cell indices back to cells.
+//! * [`AlgorithmConfig`] (`Algorithm`) and [`ValueBarcode`] are shared with the pipelines in the submodules
+//!   (`cloud`, `network` and `image`), as are the helpers in [`shared`].
+//!
+//! The extension module is `phlite._phlite`; the Python files in `python/phlite` re-export it as `phlite`, and its
+//! submodules as `phlite.cloud` and so on.
 
 use numpy::{
     ndarray::Array2, IntoPyArray, PyArray1, PyArray2, PyArrayMethods, PyUntypedArray,
@@ -14,10 +19,6 @@ use phlite::{
     barcode::Bar as PhliteBar,
     fields::{Z11, Z13, Z2, Z3, Z5, Z7},
 };
-use phlite_pyutils::{
-    add_algorithm_class, parse_method, AlgorithmConfig, AlgorithmDefaults, AlgorithmVisitor,
-    Columns,
-};
 use pyo3::{
     exceptions::{PyTypeError, PyValueError},
     prelude::*,
@@ -26,6 +27,7 @@ use pyo3::{
 use pyo3_stub_gen::derive::*;
 
 use crate::{
+    algorithm::{AlgorithmDefaults, AlgorithmVisitor, Columns, ResolvedAlgorithm},
     complex::{Cell, Chain, Complex, ComplexError, RawChain},
     field::IntField,
 };
@@ -44,10 +46,38 @@ macro_rules! dispatch {
     };
 }
 
+mod algorithm;
 mod chain;
 mod filtered;
+mod pipelines;
+mod shared;
+mod value_barcode;
+
+mod cloud;
+mod image;
+mod network;
+pub use algorithm::AlgorithmConfig;
 pub use chain::ChainComplex;
 pub use filtered::{Barcode, FilteredComplex};
+pub use value_barcode::ValueBarcode;
+
+use shared::parse_method;
+
+pyo3_stub_gen::module_variable!("phlite", "__version__", String);
+
+/// The defaults of `FilteredComplex.persistence`, the pipeline `'complex'` (see [`pipelines`]).
+pub(crate) const COMPLEX_DEFAULTS: AlgorithmDefaults = AlgorithmDefaults {
+    pipeline: "complex",
+    // Explicit complexes often need many additions per column (dense or cubical complexes, homology), where adding
+    // stored columns of R is much faster than recomputing them from V, and a dense pivot column (the complex knows the
+    // rank of every cell) is much faster than merging. Columns are stored sorted, so caching them only saves a copy,
+    // which costs more than it saves.
+    columns: Columns::Pivot,
+    cache: false,
+    store_r: true,
+    // The complex knows the position of every cell in the filtration
+    row_ranks: true,
+};
 
 // ====== Coefficient fields ===============================================
 
@@ -136,18 +166,19 @@ impl AnyComplex {
         py: Python<'_>,
         max_dim: Option<usize>,
         method: &str,
-        algorithm: &AlgorithmConfig,
+        algorithm: &ResolvedAlgorithm,
         representatives: bool,
     ) -> PyResult<BarData> {
         let method = parse_method(method)?;
-        dispatch!(Self, self, complex => py.detach(|| {
+        let data = dispatch!(Self, self, complex => py.detach(|| {
             algorithm.run(Run {
                 complex,
                 max_dim,
                 method,
                 representatives,
             })
-        }))
+        }))?;
+        Ok(data)
     }
 
     fn n_cells(&self) -> usize {
@@ -554,7 +585,7 @@ impl BarData {
             .collect()
     }
 
-    pub(crate) fn repr(&self, name: &str) -> String {
+    pub(crate) fn repr(&self, name: &str, algorithm: &str) -> String {
         let mut finite = vec![0; self.n_dims];
         let mut essential = vec![0; self.n_dims];
         for bar in &self.bars {
@@ -568,7 +599,7 @@ impl BarData {
             }
         }
         format!(
-            "{name}(pairings={finite:?}, essential={essential:?}, representatives={})",
+            "{name}(pairings={finite:?}, essential={essential:?}, representatives={}, algorithm={algorithm})",
             if self.representatives {
                 "True"
             } else {
@@ -701,28 +732,41 @@ impl Bar {
 
 // ====== The module =======================================================
 
-/// Persistent homology of sparse filtered chain complexes, computed with `phlite`.
-#[pymodule(name = "phlite", gil_used = false)]
+/// Persistent homology computed with `phlite`: of sparse filtered chain complexes here, and of point clouds,
+/// networks and images in the submodules.
+#[pymodule(name = "_phlite", gil_used = false)]
 fn phlite_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
     pyo3_log::init();
+    m.add("__version__", env!("CARGO_PKG_VERSION"))?;
     m.add_class::<ChainComplex>()?;
     m.add_class::<FilteredComplex>()?;
     m.add_class::<Barcode>()?;
     m.add_class::<Bar>()?;
-    add_algorithm_class(
-        m,
-        "phlite",
-        AlgorithmDefaults {
-            // Explicit complexes often need many additions per column (dense or cubical complexes, homology), where
-            // adding stored columns of R is much faster than recomputing them from V, and a dense pivot column (the
-            // complex knows the rank of every cell) is much faster than merging. Columns are stored sorted, so
-            // caching them only saves a copy, which costs more than it saves.
-            columns: Columns::Pivot,
-            cache: false,
-            store_r: true,
-            // The complex knows the position of every cell in the filtration
-            row_ranks: true,
-        },
-    )?;
+    m.add_class::<AlgorithmConfig>()?;
+    m.add_class::<ValueBarcode>()?;
+    m.add_function(wrap_pyfunction!(pipelines::defaults, m)?)?;
+    add_submodule(m, "cloud", cloud::register)?;
+    add_submodule(m, "network", network::register)?;
+    add_submodule(m, "image", image::register)?;
+    Ok(())
+}
+
+/// Add the submodule `phlite._phlite.{name}`, whose contents `register` adds, which `python/phlite/{name}` re-exports
+/// as `phlite.{name}`.
+///
+/// It is named `phlite.{name}`, so that its functions say they live there, and listed in `sys.modules` as
+/// `phlite._phlite.{name}`, so that it can be imported from.
+fn add_submodule(
+    parent: &Bound<'_, PyModule>,
+    name: &str,
+    register: impl FnOnce(&Bound<'_, PyModule>) -> PyResult<()>,
+) -> PyResult<()> {
+    let py = parent.py();
+    let module = PyModule::new(py, &format!("phlite.{name}"))?;
+    register(&module)?;
+    parent.add(name, &module)?;
+    py.import("sys")?
+        .getattr("modules")?
+        .set_item(format!("phlite._phlite.{name}"), &module)?;
     Ok(())
 }

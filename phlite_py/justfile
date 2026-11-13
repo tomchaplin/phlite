@@ -25,11 +25,11 @@ develop-release: venv
 test: develop-release
     uv run --no-sync pytest tests
 
-# Build a release wheel into dist/
+# Build a release wheel into dist/ (its version is the workspace's, see Cargo.toml at the root)
 wheel: venv
     uv run --no-sync maturin build --release --out dist
 
-# Regenerate phlite.pyi type stubs
+# Regenerate the type stubs, python/phlite/**/__init__.pyi (one per module)
 stubs:
     cargo run --features python --bin phlite_py_stub_gen
 

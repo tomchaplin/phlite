@@ -4,9 +4,11 @@ use numpy::{IntoPyArray, PyArray1, PyArray2};
 use pyo3::{exceptions::PyValueError, prelude::*, types::PyList};
 use pyo3_stub_gen::derive::*;
 
-use phlite_pyutils::AlgorithmConfig;
+use super::shared::algorithm_from_py;
 
-use super::{chain, AnyComplex, Bar, BarData, ChainComplex, Record};
+use super::{
+    chain, AlgorithmConfig, AnyComplex, Bar, BarData, ChainComplex, Record, COMPLEX_DEFAULTS,
+};
 
 /// A chain complex with a filtration attached, ready to compute persistent homology.
 /// Made by `ChainComplex.filtration`.
@@ -29,6 +31,8 @@ impl FilteredComplex {
     ///         `'homology'` reduces the boundary matrix instead.
     ///     algorithm: The reduction algorithm and its options, as an `Algorithm` (default: `Algorithm.serial()`).
     ///         For example `Algorithm.parallel(threads=8)`.
+    ///         Pipeline defaults (`'complex'`): columns='pivot', cache=False, store_r=True. Only serial clearing
+    ///         uses pivot columns and stores R; the other algorithms merge columns.
     ///     representatives: Whether to also compute a representative cycle for every bar.
     ///         With `method='cohomology'` these are computed via involution.
     ///
@@ -43,7 +47,7 @@ impl FilteredComplex {
         algorithm: Option<Bound<'_, AlgorithmConfig>>,
         representatives: bool,
     ) -> PyResult<Barcode> {
-        let algorithm = algorithm.map(|a| a.get().clone()).unwrap_or_default();
+        let algorithm = algorithm_from_py(algorithm.as_ref(), &COMPLEX_DEFAULTS)?;
         let data = slf.get().complex.persistence(
             slf.py(),
             max_dim,
@@ -54,6 +58,7 @@ impl FilteredComplex {
         Ok(Barcode {
             data,
             complex: slf.clone().unbind(),
+            algorithm: Py::new(slf.py(), AlgorithmConfig::from(&algorithm))?,
         })
     }
 
@@ -108,6 +113,7 @@ impl FilteredComplex {
 pub struct Barcode {
     data: BarData,
     complex: Py<FilteredComplex>,
+    algorithm: Py<AlgorithmConfig>,
 }
 
 impl Barcode {
@@ -218,12 +224,18 @@ impl Barcode {
         self.complex.clone_ref(py)
     }
 
+    /// The algorithm that computed this barcode, with every option as it ran (see `Algorithm.resolve`).
+    #[getter]
+    fn algorithm(&self, py: Python<'_>) -> Py<AlgorithmConfig> {
+        self.algorithm.clone_ref(py)
+    }
+
     fn __len__(&self) -> usize {
         self.data.bars.len()
     }
 
     fn __repr__(&self) -> String {
-        self.data.repr("Barcode")
+        self.data.repr("Barcode", &self.algorithm.get().__repr__())
     }
 
     #[gen_stub(skip)]

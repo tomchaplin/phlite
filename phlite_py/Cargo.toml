@@ -1,17 +1,17 @@
 [package]
 name = "phlite_py"
-version = "0.1.0"
-edition = "2021"
-license = "MIT"
-description = "Python bindings for phlite: persistent homology of explicit sparse filtered chain complexes"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "The phlite Python package: persistent homology of explicit sparse filtered chain complexes, point clouds, networks and images"
 publish = false
 
 [lib]
-# The Python module is called `phlite` (see `#[pymodule(name = "phlite")]` and pyproject.toml),
-# but the crate can't be, since it depends on the `phlite` crate
+# The Python package is called `phlite` (its extension module `phlite._phlite`, see pyproject.toml), but the crate
+# can't be, since it depends on the `phlite` crate
 name = "phlite_py"
 path = "src/lib.rs"
-# cdylib for the Python extension module (feature `python`), rlib for Rust tests
+# cdylib for the Python extension module (feature `python`), rlib for Rust tests and for phlite_web
 crate-type = ["cdylib", "rlib"]
 
 [[bin]]
@@ -23,17 +23,33 @@ required-features = ["python"]
 [dependencies]
 ordered-float = "5.5.1"
 phlite = { version = "0.1.0", path = "../phlite", features = ["parallel"] }
+rayon = "1.12.0"
 pyo3 = { version = "0.30.1", optional = true }
 pyo3-log = { version = "0.13.5", optional = true }
 pyo3-stub-gen = { version = "0.23.2", optional = true }
-phlite_pyutils = { path = "../phlite_pyutils", default-features = false, optional = true }
 numpy = { version = "0.30.0", optional = true }
+# The pipelines of the `phlite.cloud`, `phlite.network` and `phlite.image` submodules (their bindings are here, in
+# src/python)
+phlite_cloud = { path = "../phlite_cloud", optional = true }
+phlite_network = { path = "../phlite_network", default-features = false, optional = true }
+phlite_image = { path = "../phlite_image", optional = true }
 
 [features]
 # Also build the lock-free backend of the parallel reduction
-lock-free = ["phlite/lock-free", "phlite_pyutils?/lock-free"]
+lock-free = ["phlite/lock-free"]
 # The `phlite` Python extension module, built with maturin (see pyproject.toml)
-python = ["dep:pyo3", "dep:pyo3-log", "dep:pyo3-stub-gen", "dep:phlite_pyutils", "dep:numpy", "lock-free"]
+python = [
+  "dep:pyo3",
+  "dep:pyo3-log",
+  "dep:pyo3-stub-gen",
+  "dep:numpy",
+  "dep:phlite_cloud",
+  "dep:phlite_network",
+  "dep:phlite_image",
+  "lock-free",
+  "phlite_cloud?/lock-free",
+  "phlite_network?/lock-free",
+]
 
 [dev-dependencies]
 proptest = "1.12.0"

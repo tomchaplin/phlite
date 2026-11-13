@@ -1,8 +1,8 @@
 [package]
 name = "phlite"
-version = "0.1.0"
-edition = "2021"
-license = "MIT"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
 description = "Persistent homology, for generic matrices, that's light on memory usage"
 homepage = "https://github.com/tomchaplin/phlite"
 repository = "https://github.com/tomchaplin/phlite"
