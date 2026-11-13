@@ -881,22 +881,39 @@ impl<FilT: FiltrationValue, RowT: BasisElement, CF: NonZeroCoefficient> SortedCo
         let start = self
             .sorted
             .partition_point(|entry| *entry < self.pending[0]);
-        self.scratch.clear();
-        {
-            let mut old = self.sorted.drain(start..).peekable();
-            let mut new = self.pending.drain(..).peekable();
-            loop {
-                let take_old = match (old.peek(), new.peek()) {
-                    (Some(a), Some(b)) => a <= b,
-                    (Some(_), None) => true,
-                    (None, Some(_)) => false,
-                    (None, None) => break,
-                };
-                let entry = if take_old { old.next() } else { new.next() }.expect("peeked");
-                Self::push_consolidated(&mut self.scratch, entry);
-            }
+        // Merge by position over the two slices (iterator adaptors here kept the merge's state in memory rather than
+        // in registers, which doubled its cost)
+        let Self {
+            sorted,
+            pending,
+            scratch,
+        } = self;
+        scratch.clear();
+        scratch.reserve(sorted.len() - start + pending.len());
+        let (old, new) = (&sorted[start..], &pending[..]);
+        let (mut i, mut j) = (0, 0);
+        while i < old.len() && j < new.len() {
+            let entry = if old[i] <= new[j] {
+                i += 1;
+                old[i - 1].clone()
+            } else {
+                j += 1;
+                new[j - 1].clone()
+            };
+            Self::push_consolidated(scratch, entry);
         }
-        self.sorted.append(&mut self.scratch);
+        // Pending terms may repeat rows, so are consolidated one by one; the rest of `sorted` has distinct rows, so
+        // only its first term can meet the last one merged
+        for entry in &new[j..] {
+            Self::push_consolidated(scratch, entry.clone());
+        }
+        if let Some((first, rest)) = old[i..].split_first() {
+            Self::push_consolidated(scratch, first.clone());
+            scratch.extend_from_slice(rest);
+        }
+        pending.clear();
+        sorted.truncate(start);
+        sorted.append(scratch);
     }
 
     /// Add a single term. This __need not__ coalesce terms with the same row index.
