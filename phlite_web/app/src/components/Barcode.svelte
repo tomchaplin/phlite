@@ -10,7 +10,7 @@
     t = null,
     reversed = false,
     hidden = new Set<number>(),
-    limit = 150,
+    limit = 80,
     onselect,
     onscale,
   }: {

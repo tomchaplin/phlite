@@ -25,13 +25,12 @@ export class Runner {
     }
     this.running = true;
     this.error = null;
+    // The selected bar belongs to the old barcode: drawing it on new data would be nonsense
+    this.selected = null;
     try {
       const result = await engine.run(job);
       if (generation !== this.#generation) return;
       this.result = result;
-      if (this.selected !== null && this.selected >= result.barcode.bars.length) this.selected = null;
-      // A new barcode's bars are different bars
-      this.selected = null;
     } catch (e) {
       if (generation !== this.#generation) return;
       this.error = e instanceof Cancelled ? 'Cancelled.' : (e as Error).message;

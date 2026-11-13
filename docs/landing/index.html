@@ -4,26 +4,29 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>phlite</title>
-<meta name="description" content="phlite: lazy, fast persistent homology in Rust, with Python bindings and an in-browser playground.">
+<meta name="description" content="phlite: fast, lazy persistent homology in Rust, with Python bindings and an in-browser playground.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect x='1' y='3' width='9' height='2.5' rx='1' fill='%234c78a8'/%3E%3Crect x='4' y='7' width='11' height='2.5' rx='1' fill='%23f58518'/%3E%3Crect x='2' y='11' width='6' height='2.5' rx='1' fill='%2354a24b'/%3E%3C/svg%3E">
 <style>
   :root {
     --bg: #f7f7f5; --panel: #ffffff; --fg: #1d1f24; --muted: #646a73; --line: #d9d9d4; --accent: #4c78a8;
+    --green: #287900; --plane-light: #f7f7f7; --plane-dark: #ebebeb;
     color-scheme: light;
   }
   @media (prefers-color-scheme: dark) {
-    :root { --bg: #15171b; --panel: #1d2026; --fg: #e7e9ec; --muted: #9aa1ab; --line: #353a43; --accent: #7aa6d6; color-scheme: dark; }
+    :root { --bg: #15171b; --panel: #1d2026; --fg: #e7e9ec; --muted: #9aa1ab; --line: #353a43; --accent: #7aa6d6;
+      --green: #6cc644; --plane-light: #2a2e36; --plane-dark: #353a43; color-scheme: dark; }
   }
   * { box-sizing: border-box; }
   body { margin: 0; background: var(--bg); color: var(--fg); font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
   main { max-width: 1040px; margin: 0 auto; padding: 4rem 16px 3rem; }
   header { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2rem; align-items: center; margin-bottom: 3rem; }
-  h1 { font-size: 3.2rem; line-height: 1; margin: 0 0 0.8rem; letter-spacing: -0.02em; }
+  h1 { margin: 0 0 0.6rem; line-height: 0; }
+  .logo { width: min(340px, 80vw); height: auto; color: var(--fg); }
   .lede { font-size: 1.2rem; color: var(--muted); margin: 0; max-width: 34rem; }
   .bars { width: 220px; height: auto; }
   .tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1.25rem; }
   .tile {
-    display: flex; flex-direction: column; gap: 0.6rem; padding: 1.6rem; min-height: 15rem;
+    display: flex; flex-direction: column; gap: 0.6rem; padding: 1.6rem; min-height: 11rem;
     background: var(--panel); border: 1px solid var(--line); border-radius: 14px; color: inherit; text-decoration: none;
     transition: border-color 0.15s, transform 0.15s, box-shadow 0.15s;
   }
@@ -48,8 +51,56 @@
 <main>
   <header>
     <div>
-      <h1>phlite</h1>
-      <p class="lede">Persistent homology in Rust: lazy, so it only builds the parts of a boundary matrix the reduction needs; fast when it does build them; with Python bindings, and a playground that runs in your browser.</p>
+      <h1><svg class="logo" role="img" aria-label="phlite" fill="currentColor" viewBox="0 0 1032 468" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xml:space="preserve" xmlns:serif="http://www.serif.com/" style="fill-rule:evenodd;clip-rule:evenodd;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:1.5;">
+    <g transform="matrix(1,0,0,1,-531.903,-269.235)">
+        <g transform="matrix(1.10743,0,0,0.711366,-1.00638,87.687)">
+            <rect x="481.211" y="255.211" width="931.793" height="657.069" style="fill:var(--plane-light);fill-opacity:0;"/>
+        </g>
+        <g transform="matrix(1,0,0,1,484.477,-251.024)">
+            <g transform="matrix(-0.63875,-0.508183,0.95593,-0.785856,348.137,1234.28)">
+                <path d="M492.874,66.667L672.222,407.886L492.874,407.886L492.874,66.667Z" style="fill:var(--plane-dark);stroke:currentColor;stroke-width:4.42px;"/>
+            </g>
+            <g transform="matrix(0.633032,0.564336,1.02655,-0.737043,-287.273,702.721)">
+                <path d="M492.874,66.667L672.222,407.886L492.874,407.886L492.874,66.667Z" style="fill:var(--plane-dark);stroke:currentColor;stroke-width:3.53px;"/>
+            </g>
+            <g transform="matrix(-0.650327,1.22785,-1.01625,-0.351055,1560.83,-343.501)">
+                <path d="M1048.17,552.281L1229.68,658.957L974.306,658.957L1048.17,552.281Z" style="fill:var(--plane-light);stroke:currentColor;stroke-width:3.13px;"/>
+            </g>
+            <g transform="matrix(-1.29887,1.06224,-0.11657,-0.104491,1765.24,-302.358)">
+                <path d="M1002.73,552.281L1229.68,658.957L974.306,658.957L1002.73,552.281Z" style="fill:var(--plane-light);stroke:currentColor;stroke-width:3.45px;"/>
+            </g>
+            <g transform="matrix(-1.3644,0.987114,0.0273744,0.0536458,1753.57,-316.532)">
+                <path d="M1002.73,552.281L1229.68,658.957L974.306,658.957L1002.73,552.281Z" style="fill:var(--plane-light);stroke:currentColor;stroke-width:3.48px;"/>
+            </g>
+            <g transform="matrix(-1.54625,0.425789,0.387937,0.895082,1737.14,-178.357)">
+                <path d="M1048.17,552.281L1229.68,658.957L974.306,658.957L1048.17,552.281Z" style="fill:var(--plane-light);stroke:currentColor;stroke-width:3.35px;"/>
+            </g>
+            <g transform="matrix(0.445478,0,0,0.445478,210.345,405.295)">
+                <g transform="matrix(478.118,0,0,478.118,802.599,843.158)">
+                    <path d="M0.158,0.24L0.09,0.24L0.09,-0.468L0.158,-0.468L0.158,-0.387L0.161,-0.387C0.18,-0.418 0.206,-0.441 0.239,-0.457C0.271,-0.472 0.304,-0.48 0.337,-0.48C0.374,-0.48 0.407,-0.474 0.437,-0.461C0.466,-0.448 0.492,-0.431 0.513,-0.409C0.534,-0.387 0.55,-0.361 0.562,-0.331C0.573,-0.301 0.579,-0.269 0.579,-0.234C0.579,-0.199 0.573,-0.167 0.562,-0.137C0.55,-0.107 0.534,-0.081 0.513,-0.059C0.492,-0.037 0.466,-0.02 0.437,-0.007C0.407,0.006 0.374,0.012 0.337,0.012C0.304,0.012 0.271,0.004 0.239,-0.012C0.206,-0.027 0.18,-0.05 0.161,-0.079L0.158,-0.079L0.158,0.24ZM0.507,-0.234C0.507,-0.26 0.503,-0.285 0.495,-0.308C0.487,-0.331 0.475,-0.351 0.461,-0.368C0.446,-0.385 0.427,-0.398 0.405,-0.408C0.383,-0.418 0.358,-0.423 0.33,-0.423C0.304,-0.423 0.28,-0.418 0.258,-0.409C0.236,-0.399 0.217,-0.386 0.201,-0.369C0.185,-0.352 0.172,-0.332 0.164,-0.309C0.155,-0.286 0.15,-0.261 0.15,-0.234C0.15,-0.207 0.155,-0.183 0.164,-0.16C0.172,-0.136 0.185,-0.117 0.201,-0.1C0.217,-0.083 0.236,-0.07 0.258,-0.061C0.28,-0.051 0.304,-0.046 0.33,-0.046C0.358,-0.046 0.383,-0.051 0.405,-0.061C0.427,-0.07 0.446,-0.084 0.461,-0.101C0.475,-0.118 0.487,-0.137 0.495,-0.161C0.503,-0.184 0.507,-0.208 0.507,-0.234Z" style="fill-rule:nonzero;"/>
+                </g>
+                <g transform="matrix(478.118,0,0,478.118,1106.2,843.158)">
+                    <path d="M0.162,-0.391C0.175,-0.418 0.196,-0.44 0.225,-0.456C0.254,-0.472 0.286,-0.48 0.319,-0.48C0.378,-0.48 0.423,-0.462 0.453,-0.427C0.482,-0.392 0.497,-0.345 0.497,-0.287L0.497,-0L0.429,-0L0.429,-0.259C0.429,-0.284 0.427,-0.306 0.423,-0.326C0.419,-0.346 0.412,-0.363 0.403,-0.378C0.393,-0.392 0.38,-0.403 0.364,-0.411C0.347,-0.419 0.327,-0.423 0.302,-0.423C0.284,-0.423 0.267,-0.419 0.25,-0.412C0.233,-0.405 0.217,-0.394 0.204,-0.379C0.191,-0.364 0.18,-0.345 0.172,-0.322C0.164,-0.299 0.16,-0.271 0.16,-0.24L0.16,-0L0.092,-0L0.092,-0.756L0.16,-0.756L0.16,-0.391L0.162,-0.391Z" style="fill-rule:nonzero;"/>
+                </g>
+            </g>
+            <g transform="matrix(0.461508,0,0,0.461508,390.773,514.461)">
+                <g transform="matrix(361.135,0,0,361.135,924.25,724.981)">
+                    <rect x="0.092" y="-0.756" width="0.068" height="0.756" style="fill:var(--green);fill-rule:nonzero;"/>
+                </g>
+                <g transform="matrix(361.135,0,0,361.135,1015.26,724.981)">
+                    <path d="M0.159,-0L0.091,-0L0.091,-0.468L0.159,-0.468L0.159,-0ZM0.173,-0.648C0.173,-0.634 0.168,-0.623 0.158,-0.614C0.148,-0.604 0.137,-0.6 0.125,-0.6C0.113,-0.6 0.102,-0.604 0.092,-0.614C0.082,-0.623 0.077,-0.634 0.077,-0.648C0.077,-0.662 0.082,-0.674 0.092,-0.683C0.102,-0.692 0.113,-0.696 0.125,-0.696C0.137,-0.696 0.148,-0.692 0.158,-0.683C0.168,-0.674 0.173,-0.662 0.173,-0.648Z" style="fill:var(--green);fill-rule:nonzero;"/>
+                </g>
+                <g transform="matrix(361.135,0,0,361.135,1105.54,724.981)">
+                    <path d="M0.301,-0.411L0.169,-0.411L0.169,-0.138C0.169,-0.121 0.171,-0.106 0.174,-0.095C0.177,-0.084 0.182,-0.075 0.189,-0.069C0.195,-0.062 0.202,-0.058 0.211,-0.056C0.22,-0.053 0.229,-0.052 0.239,-0.052C0.248,-0.052 0.258,-0.053 0.269,-0.056C0.279,-0.059 0.289,-0.062 0.298,-0.067L0.301,-0.008C0.289,-0.003 0.277,0 0.264,0.003C0.251,0.005 0.236,0.006 0.221,0.006C0.208,0.006 0.195,0.004 0.181,0.001C0.167,-0.002 0.154,-0.009 0.142,-0.018C0.13,-0.027 0.12,-0.04 0.113,-0.056C0.105,-0.072 0.101,-0.093 0.101,-0.119L0.101,-0.411L0.004,-0.411L0.004,-0.468L0.101,-0.468L0.101,-0.6L0.169,-0.6L0.169,-0.468L0.301,-0.468L0.301,-0.411Z" style="fill:var(--green);fill-rule:nonzero;"/>
+                </g>
+                <g transform="matrix(361.135,0,0,361.135,1220.02,724.981)">
+                    <path d="M0.447,-0.27C0.445,-0.314 0.431,-0.351 0.405,-0.38C0.378,-0.409 0.341,-0.423 0.292,-0.423C0.269,-0.423 0.248,-0.419 0.229,-0.411C0.21,-0.402 0.193,-0.391 0.178,-0.377C0.163,-0.362 0.152,-0.346 0.143,-0.328C0.134,-0.309 0.129,-0.29 0.128,-0.27L0.447,-0.27ZM0.516,-0.248L0.516,-0.233C0.516,-0.228 0.516,-0.222 0.515,-0.216L0.127,-0.216C0.128,-0.193 0.132,-0.171 0.141,-0.15C0.15,-0.129 0.162,-0.111 0.177,-0.096C0.192,-0.081 0.21,-0.068 0.231,-0.06C0.252,-0.05 0.274,-0.046 0.298,-0.046C0.333,-0.046 0.364,-0.054 0.39,-0.071C0.415,-0.087 0.435,-0.106 0.448,-0.127L0.499,-0.087C0.471,-0.052 0.44,-0.026 0.407,-0.011C0.373,0.004 0.337,0.012 0.298,0.012C0.263,0.012 0.231,0.006 0.202,-0.007C0.172,-0.019 0.146,-0.036 0.125,-0.058C0.104,-0.08 0.087,-0.106 0.075,-0.136C0.062,-0.166 0.056,-0.199 0.056,-0.234C0.056,-0.269 0.062,-0.302 0.074,-0.332C0.086,-0.362 0.103,-0.388 0.124,-0.41C0.145,-0.432 0.17,-0.449 0.199,-0.462C0.228,-0.474 0.259,-0.48 0.292,-0.48C0.329,-0.48 0.361,-0.474 0.389,-0.462C0.417,-0.449 0.44,-0.433 0.459,-0.412C0.478,-0.391 0.492,-0.366 0.502,-0.338C0.511,-0.31 0.516,-0.28 0.516,-0.248Z" style="fill:var(--green);fill-rule:nonzero;"/>
+                </g>
+            </g>
+        </g>
+    </g>
+</svg></h1>
+      <p class="lede">Fast, lazy persistent homology in Rust, with Python bindings.</p>
     </div>
     <svg class="bars" viewBox="0 0 220 120" aria-hidden="true">
       <rect x="4" y="10" width="200" height="12" rx="3" fill="#4c78a8"/>
@@ -64,19 +115,19 @@
     <a class="tile" href="playground/">
       <svg viewBox="0 0 44 44" aria-hidden="true"><circle cx="12" cy="30" r="4" fill="#4c78a8"/><circle cx="22" cy="12" r="4" fill="#4c78a8"/><circle cx="33" cy="28" r="4" fill="#4c78a8"/><path d="M12 30 L22 12 L33 28 Z" fill="#f58518" fill-opacity="0.25" stroke="#f58518" stroke-width="2.5" stroke-linejoin="round"/></svg>
       <h2>Playground</h2>
-      <p>Compute barcodes of point clouds, images, weighted networks and chain complexes, from examples, random data, your own files or by drawing. See the representatives on your data. Everything runs locally, on all your cores.</p>
+      <p>Barcodes of point clouds, images, networks and chain complexes, computed in your browser.</p>
       <span class="go">Open the playground →</span>
     </a>
     <a class="tile" href="book/">
       <svg viewBox="0 0 44 44" aria-hidden="true"><path d="M8 9 h12 a4 4 0 0 1 4 4 v23 a3 3 0 0 0 -3 -3 H8 Z" fill="none" stroke="#4c78a8" stroke-width="2.5" stroke-linejoin="round"/><path d="M36 9 h-12 a4 4 0 0 0 -4 4 v23 a3 3 0 0 1 3 -3 H36 Z" fill="none" stroke="#54a24b" stroke-width="2.5" stroke-linejoin="round"/></svg>
       <h2>Book</h2>
-      <p>What phlite is and why, how its algorithms and optimisations work and when they help, a tutorial for writing your own lazy filtration in Rust, and guides to the Python packages with example notebooks.</p>
+      <p>How phlite works, when each optimisation helps, and how to write your own filtration.</p>
       <span class="go">Read the book →</span>
     </a>
     <a class="tile" href="api/">
       <svg viewBox="0 0 44 44" aria-hidden="true"><path d="M15 10 L6 22 L15 34" fill="none" stroke="#e45756" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M29 10 L38 22 L29 34" fill="none" stroke="#e45756" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M25 8 L19 36" stroke="#b279a2" stroke-width="2.5" stroke-linecap="round"/></svg>
       <h2>API reference</h2>
-      <p>Every class, method and argument of the Python packages: <code>phlite</code> for chain complexes you build, <code>phlite_rips</code> for Vietoris–Rips and <code>phlite_grpph</code> for weighted digraphs.</p>
+      <p>The Python packages: <code>phlite</code>, <code>phlite_rips</code> and <code>phlite_grpph</code>.</p>
       <span class="go">Browse the API →</span>
     </a>
   </nav>

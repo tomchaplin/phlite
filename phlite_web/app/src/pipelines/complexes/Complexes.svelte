@@ -36,6 +36,8 @@
   function useRandom(newSeed = false) {
     if (newSeed) seed = randomSeed();
     c = randomComplex(randomN, randomRadius, randomValues, seed);
+    // Without 3-cells, every tetrahedron's four triangles would make a spurious H₂ class
+    maxDim = 1;
   }
 
   let uploadError = $state<string | null>(null);
@@ -170,7 +172,7 @@
           </select>
         </label>
         <div class="field"><span>Seed {seed}</span><button onclick={() => useRandom(true)}>New complex</button></div>
-        <p class="note">Random points, an edge for each close pair, and a triangle for every three mutually close points.</p>
+        <p class="note">Random points, an edge for each close pair, and a triangle for every three mutually close points (no tetrahedra, so only H₀ and H₁ are meaningful).</p>
       {:else if source === 'upload'}
         <FileDrop accept=".txt,.cplx" onfile={upload}>
           {FORMAT_HELP}

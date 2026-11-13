@@ -1,6 +1,7 @@
 <script lang="ts">
   import Barcode from './Barcode.svelte';
   import Diagram from './Diagram.svelte';
+  import BarsSpinner from './BarsSpinner.svelte';
   import { dimColour, type Bar, type RunResult } from '../lib/types';
   import { H, persistence } from '../lib/scale';
   import { fmt, duration, download } from '../lib/format';
@@ -57,7 +58,7 @@
 <div class="results">
   <div class="status">
     {#if running}
-      <span class="spinner"></span> Computing…
+      <BarsSpinner /> Computing…
       <button onclick={() => engine.cancel()}>Cancel</button>
     {:else if error}
       <span class="error">{error}</span>
@@ -135,10 +136,8 @@
   .chips button:not(.on) { opacity: 0.45; }
   .plots.stale { opacity: 0.5; }
   .pd { display: flex; justify-content: center; }
-  .bc { max-height: 520px; overflow-y: auto; overflow-x: hidden; }
+  .bc { max-height: 640px; overflow-y: auto; overflow-x: hidden; }
   .detail { font-size: 0.88rem; border-top: 1px solid var(--line); padding-top: 0.5rem; display: flex; flex-direction: column; gap: 0.2rem; }
   .detail .link { font-size: 0.82rem; margin-left: 0.4rem; }
   .rep { max-height: 6rem; overflow-y: auto; word-break: break-word; }
-  .spinner { width: 0.9rem; height: 0.9rem; border: 2px solid var(--line); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
-  @keyframes spin { to { transform: rotate(360deg); } }
 </style>

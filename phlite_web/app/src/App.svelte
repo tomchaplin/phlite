@@ -1,5 +1,6 @@
 <script lang="ts">
   import { engine } from './lib/engine.svelte';
+  import BarsSpinner from './components/BarsSpinner.svelte';
   import Points from './pipelines/points/Points.svelte';
   import Images from './pipelines/images/Images.svelte';
   import Networks from './pipelines/networks/Networks.svelte';
@@ -38,9 +39,9 @@
     <a href="https://github.com/tomchaplin/phlite">GitHub</a>
   </nav>
   <span class="status" class:err={engine.status === 'error'}>
-    {#if engine.status === 'loading'}starting phlite…
+    {#if engine.status === 'loading'}<BarsSpinner size={14} /> starting phlite…
     {:else if engine.status === 'error'}phlite failed to start
-    {:else}phlite · WebAssembly · {engine.threads} thread{engine.threads === 1 ? '' : 's'}{engine.status === 'busy' ? ' · computing…' : ''}
+    {:else}{#if engine.status === 'busy'}<BarsSpinner size={14} /> {/if}phlite · WebAssembly · {engine.threads} thread{engine.threads === 1 ? '' : 's'}
     {/if}
   </span>
 </header>
