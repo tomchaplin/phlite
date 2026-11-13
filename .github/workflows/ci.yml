@@ -1,0 +1,64 @@
+# Tests, a light fuzz and a light benchmark, on pull requests and pushes to main.
+#
+# One job, so that the extension modules and the reference implementations (PHAT is built from source) are built once:
+# 1. the full test suite: the Rust workspace, then the Python tests against ripser, giotto-ph, grpphati, PHAT and
+#    LoPHAT (`just test`);
+# 2. a light fuzz: 1000 cases per Rust property test and 1000 Hypothesis examples per Python test (`just fuzz 1000`);
+# 3. a light benchmark of phlite's default serial and parallel algorithms on the quick cases, reported in the job
+#    summary. Shared CI machines are noisy and differ from run to run, so it reports and never fails.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+
+      # uv also fetches the two Pythons python-tests needs (3.11 and 3.13)
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          cache-dependency-glob: "python-tests/**/uv.lock"
+
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: just
+
+      - name: Test (Rust, then Python against the references)
+        run: just test
+
+      - name: Fuzz, lightly
+        run: just fuzz 1000
+
+      - name: Benchmark the default algorithms, lightly
+        working-directory: python-tests
+        run: |
+          just bench-light
+          cat benchmarks/results/light/report.md >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: light-benchmark
+          path: python-tests/benchmarks/results/light
+          if-no-files-found: ignore
+          retention-days: 30

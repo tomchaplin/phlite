@@ -10,3 +10,22 @@ def pytest_benchmark_update_machine_info(config, machine_info):
     machine_info.pop("node", None)
     for key in ["hz_actual", "hz_actual_friendly"]:
         machine_info.get("cpu", {}).pop(key, None)
+
+
+def pytest_collection_modifyitems(config, items):
+    """With `PHLITE_BENCH_ONLY` set to implementation names separated by `|` (e.g. `phlite (serial)|phlite (parallel)`),
+    run only those implementations (a light benchmark for CI; the references still compute the expected barcodes)."""
+    import os
+
+    only = os.environ.get("PHLITE_BENCH_ONLY")
+    if not only:
+        return
+    wanted = set(only.split("|"))
+    keep, drop = [], []
+    for item in items:
+        callspec = getattr(item, "callspec", None)
+        implementation = callspec.params.get("implementation") if callspec else None
+        (keep if implementation in wanted else drop).append(item)
+    if drop:
+        config.hook.pytest_deselected(items=drop)
+        items[:] = keep

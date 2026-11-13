@@ -85,6 +85,17 @@ bench-docs: build
     {{latest}} pytest {{latest_benches}} --benchmark-json=benchmarks/results/latest.json
     uv run --no-sync python benchmarks/report.py benchmarks/results/main.json benchmarks/results/latest.json --out BENCHMARKS.md
 
+# A light benchmark for CI: phlite's default serial and parallel algorithms on the quick cases, a few rounds each, with
+# a report in benchmarks/results/light/report.md. (Timings from shared CI machines are noisy, so nothing is compared.)
+bench-light: build
+    mkdir -p benchmarks/results/light
+    PHLITE_BENCH_ONLY="phlite (serial)|phlite (parallel)" PHLITE_BENCH_ROUNDS=3 \
+        uv run --no-sync pytest {{main_benches}} -m quick -q -p no:warnings --benchmark-json=benchmarks/results/light/main.json
+    PHLITE_BENCH_ONLY="phlite (serial)|phlite (parallel)" PHLITE_BENCH_ROUNDS=3 \
+        {{latest}} pytest {{latest_benches}} -m quick -q -p no:warnings --benchmark-json=benchmarks/results/light/latest.json
+    uv run --no-sync python benchmarks/report.py benchmarks/results/light/main.json benchmarks/results/light/latest.json \
+        --out benchmarks/results/light/report.md
+
 # Run pytest on each environment's benchmarks. With `allow-empty`, a filter may leave no benchmarks in one of them
 # (pytest's exit code 5); with `require-all` that's an error.
 _bench mode *args:
