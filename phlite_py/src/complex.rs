@@ -22,8 +22,8 @@
 //! the size). Bars are translated back to the input's cells and values, dropping those of length zero.
 //!
 //! Cells are indexed by `u32`, so each matrix costs 4 bytes per non-zero entry
-//! (coefficients in [`Z2`](phlite::fields::Z2) are zero-sized), plus 8 bytes per cell; a [`Complex`] also keeps about
-//! 28 bytes per cell to number cells back and look up their values and dimensions.
+//! (coefficients in [`Z2`](phlite::fields::Z2) are zero-sized), plus 4 bytes per cell (with fewer than 2^32 entries); a
+//! [`Complex`] also keeps about 28 bytes per cell to number cells back and look up their values and dimensions.
 
 use std::cmp::Reverse;
 use std::ops::Range;
@@ -84,7 +84,9 @@ pub struct RawChain {
 /// In a [`Chain`] columns are sorted by row index; in a [`Complex`], in decreasing filtration order.
 #[derive(Debug, Clone)]
 struct Csc<CF> {
-    indptr: Vec<usize>,
+    /// `u32`, half the size of `usize`, since the reduction reads it at random (so a complex has fewer than 2^32
+    /// entries, checked by [`Chain::from_raw`]).
+    indptr: Vec<u32>,
     rows: Vec<Cell>,
     /// Zero-sized (so free) for `Z2`.
     coeffs: Vec<CF>,
@@ -93,7 +95,7 @@ struct Csc<CF> {
 impl<CF: Copy> Csc<CF> {
     #[inline]
     fn range(&self, col: Cell) -> Range<usize> {
-        self.indptr[col.idx()]..self.indptr[col.idx() + 1]
+        self.indptr[col.idx()] as usize..self.indptr[col.idx() + 1] as usize
     }
 }
 
@@ -388,6 +390,14 @@ impl<CF: IntField> Chain<CF> {
                 indptr[n]
             )));
         }
+        // Column pointers are kept as u32 (half the memory, which the reduction reads at random)
+        if indices.len() >= u32::MAX as usize {
+            return Err(Input(format!(
+                "There are {} entries, but at most {} are supported",
+                indices.len(),
+                u32::MAX - 1
+            )));
+        }
         if let Some(j) = (0..n).find(|&j| indptr[j] > indptr[j + 1]) {
             return Err(Input(format!(
                 "indptr must be non-decreasing, but indptr[{j}] > indptr[{}]",
@@ -406,7 +416,7 @@ impl<CF: IntField> Chain<CF> {
 
         // ---- Columns: validate, sort by row, sum repeats ----
         let mut out_indptr = Vec::with_capacity(n + 1);
-        out_indptr.push(0usize);
+        out_indptr.push(0u32);
         let mut out_rows: Vec<Cell> = Vec::with_capacity(indices.len());
         let mut out_coeffs: Vec<CF> = Vec::with_capacity(indices.len());
         let mut scratch: Vec<(u32, i64)> = Vec::new();
@@ -450,7 +460,7 @@ impl<CF: IntField> Chain<CF> {
                     out_coeffs.push(coeff);
                 }
             }
-            out_indptr.push(out_rows.len());
+            out_indptr.push(out_rows.len() as u32);
         }
         out_rows.shrink_to_fit();
         out_coeffs.shrink_to_fit();
@@ -545,7 +555,7 @@ impl<CF: IntField> Chain<CF> {
 
         // Check the order, and renumber by rank, sorting each column in decreasing filtration (so rank) order
         let source = &self.boundary;
-        let mut indptr: Vec<usize> = Vec::with_capacity(n + 1);
+        let mut indptr: Vec<u32> = Vec::with_capacity(n + 1);
         indptr.push(0);
         let mut rows: Vec<Cell> = Vec::with_capacity(source.rows.len());
         let mut coeffs: Vec<CF> = Vec::with_capacity(source.rows.len());
@@ -571,7 +581,7 @@ impl<CF: IntField> Chain<CF> {
                 rows.push(Cell(row));
                 coeffs.push(coeff);
             }
-            indptr.push(rows.len());
+            indptr.push(rows.len() as u32);
         }
         let boundary = Csc {
             indptr,
@@ -778,7 +788,7 @@ impl<CF: IntField> Complex<CF> {
 
 /// The transpose of `matrix`, an `n × n` matrix of cells numbered by rank, with each column in decreasing rank order.
 fn transpose<CF: Copy>(matrix: &Csc<CF>, n: usize) -> Csc<CF> {
-    let mut indptr = vec![0usize; n + 1];
+    let mut indptr = vec![0u32; n + 1];
     for row in &matrix.rows {
         indptr[row.idx() + 1] += 1;
     }
@@ -799,7 +809,7 @@ fn transpose<CF: Copy>(matrix: &Csc<CF>, n: usize) -> Csc<CF> {
     for col in (0..n as u32).rev().map(Cell) {
         for i in matrix.range(col) {
             let row = matrix.rows[i];
-            let slot = next[row.idx()];
+            let slot = next[row.idx()] as usize;
             next[row.idx()] += 1;
             rows[slot] = col;
             if !zero_sized {
