@@ -35,6 +35,8 @@ plt.rcParams.update(
         "font.family": "DejaVu Sans",
         "font.size": 11,
         "svg.fonttype": "none",
+        # Reproducible SVGs (no random ids), so that regenerating unchanged figures changes nothing
+        "svg.hashsalt": "phlite",
         "axes.edgecolor": INK,
         "text.color": INK,
     }
@@ -83,7 +85,8 @@ ESSENTIAL = [i for i in range(N) if i not in PAIRED]
 
 def save(fig, name):
     os.makedirs(OUT, exist_ok=True)
-    fig.savefig(os.path.join(OUT, name), bbox_inches="tight", transparent=False, facecolor="white")
+    fig.savefig(os.path.join(OUT, name), bbox_inches="tight", transparent=False, facecolor="white",
+                metadata={"Date": None})
     plt.close(fig)
     print("wrote", name)
 

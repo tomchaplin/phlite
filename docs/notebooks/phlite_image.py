@@ -129,19 +129,25 @@ def _(mo):
 def _(chain, image, pl, size):
     pixel_values = {(2 * i, 2 * j): float(image[i, j]) for i in range(size) for j in range(size)}
     barcode = chain.filtration(pixel_values, extend=True).persistence(representatives=True)
-    bars = pl.DataFrame(
-        [
-            {"dimension": f"H{b.dimension}", "birth": b.birth_value, "death": b.death_value}
-            for b in barcode.bars
-        ]
-    ).with_columns(persistence=pl.col("death") - pl.col("birth"))
+    # Essential bars never die: their death is null (charts need finite numbers), and `end` is where to stop drawing
+    bars = (
+        pl.DataFrame(
+            [
+                {"dimension": f"H{b.dimension}", "birth": b.birth_value, "death": None if b.is_essential else b.death_value}
+                for b in barcode.bars
+            ],
+            schema={"dimension": pl.String, "birth": pl.Float64, "death": pl.Float64},
+        )
+        .with_columns(end=pl.col("death").fill_null(9.5))
+        .with_columns(persistence=pl.col("end") - pl.col("birth"))
+    )
     barcode
     return bars, barcode
 
 
 @app.cell
 def _(alt, bars, pl):
-    _finite = bars.filter(pl.col("death").is_finite())
+    _finite = bars.filter(pl.col("death").is_not_null())
     _diagonal = alt.Chart(pl.DataFrame({"t": [_finite["birth"].min(), _finite["death"].max()]})).mark_line(
         color="grey", strokeWidth=1
     ).encode(x="t:Q", y="t:Q")
@@ -156,8 +162,7 @@ def _(alt, bars, pl):
         """The bars of one dimension longer than 0.25, sorted by birth (essential bars run off the right)."""
         frame = (
             bars.filter((pl.col("dimension") == dimension) & (pl.col("persistence") > 0.25))
-            .with_columns(end=pl.when(pl.col("death").is_finite()).then(pl.col("death")).otherwise(9.5))
-            .sort("birth", "death")
+            .sort("birth", "end")
             .with_row_index("bar")
         )
         return (
@@ -248,8 +253,8 @@ def _(bars, image, mo, np, pl):
         """Bars as horizontal lines, those alive at `t` in colour, the rest faded, and a line at `t`."""
         ax.clear()
         for y, (dimension, birth, death) in enumerate(frame.iter_rows()):
-            end = death if np.isfinite(death) else top
-            alive = birth <= t < death
+            end = top if death is None else death
+            alive = birth <= t and (death is None or t < death)
             ax.plot([birth, end], [y, y], color=colours[dimension], lw=2.2, alpha=1.0 if alive else 0.15)
         ax.axvline(t, color="black", lw=1)
         ax.set_yticks([])

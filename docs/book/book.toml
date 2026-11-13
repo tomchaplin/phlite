@@ -6,7 +6,9 @@ language = "en"
 src = "src"
 
 [build]
-build-dir = "book"
+# The whole documentation site: this book at the root, with the Python API reference in `api/` and the notebooks in
+# `notebooks/` (see `just docs`)
+build-dir = "../site"
 
 [output.html]
 git-repository-url = "https://github.com/tomchaplin/phlite"

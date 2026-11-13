@@ -91,8 +91,13 @@ def _(edge_frame, edges, phlite, pl, points, simplices):
     values = {(v,): 0.0 for v in range(len(points))}
     values.update(zip(edges, edge_frame["length"].to_list()))
     barcode = chain.filtration(values, extend=True).persistence(1, representatives=True)
+    # Essential bars never die: their death is null (charts need finite numbers)
     bars = pl.DataFrame(
-        [{"dimension": f"H{b.dimension}", "birth": b.birth_value, "death": b.death_value} for b in barcode.bars]
+        [
+            {"dimension": f"H{b.dimension}", "birth": b.birth_value, "death": None if b.is_essential else b.death_value}
+            for b in barcode.bars
+        ],
+        schema={"dimension": pl.String, "birth": pl.Float64, "death": pl.Float64},
     )
     barcode
     return bars, barcode
@@ -100,7 +105,7 @@ def _(edge_frame, edges, phlite, pl, points, simplices):
 
 @app.cell
 def _(alt, bars, pl):
-    _finite = bars.filter(pl.col("death").is_finite())
+    _finite = bars.filter(pl.col("death").is_not_null())
     _top = _finite["death"].max()
     _diagonal = alt.Chart(pl.DataFrame({"t": [0.0, _top]})).mark_line(color="grey", strokeWidth=1).encode(
         x="t:Q", y="t:Q"
@@ -201,8 +206,8 @@ def _(bars, edge_frame, mo, np, pl, points, triangles):
         """Bars as horizontal lines, those alive at `t` in colour, the rest faded, and a line at `t`."""
         ax.clear()
         for y, (dimension, birth, death) in enumerate(frame.iter_rows()):
-            end = death if np.isfinite(death) else top
-            alive = birth <= t < death
+            end = top if death is None else death
+            alive = birth <= t and (death is None or t < death)
             ax.plot([birth, end], [y, y], color=colours[dimension], lw=2.2, alpha=1.0 if alive else 0.15)
         ax.axvline(t, color="black", lw=1)
         ax.set_yticks([])
@@ -214,8 +219,10 @@ def _(bars, edge_frame, mo, np, pl, points, triangles):
     _triangle_values = np.array(
         [max(np.linalg.norm(points[a] - points[b]) for a, b in [(t[0], t[1]), (t[1], t[2]), (t[0], t[2])]) for t in triangles]
     )
-    _shown = bars.filter((pl.col("death") - pl.col("birth")) > 0.05).sort("dimension", "birth")
-    _top = float(_shown.filter(pl.col("death").is_finite())["death"].max()) * 1.1
+    _shown = bars.filter(pl.col("death").is_null() | ((pl.col("death") - pl.col("birth")) > 0.05)).sort(
+        "dimension", "birth"
+    )
+    _top = float(_shown["death"].max()) * 1.1
 
     def _draw(axes, t):
         ax = axes[0]

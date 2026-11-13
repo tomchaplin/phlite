@@ -54,7 +54,7 @@ def _(nx):
 def _(G, grpph, pl):
     barcode = grpph(G, representatives=True)
     pl.DataFrame(
-        [{"dimension": "H0", "birth": b, "death": float("inf")} for b in barcode.essential[0]]
+        [{"dimension": "H0", "birth": b, "death": None} for b in barcode.essential[0]]
         + [{"dimension": "H1", "birth": b, "death": d} for b, d in barcode.pairings[1]]
     )
     return (barcode,)

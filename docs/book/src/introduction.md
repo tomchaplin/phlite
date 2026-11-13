@@ -70,5 +70,5 @@ Measured on one thread against the specialised tools (see the [benchmarks](appen
   explain every algorithm and trick: how it works, why it helps, and when it doesn't.
 - [Inside phlite](internals/bookkeeping.md) covers the lower-level engineering, and where the time actually goes.
 - The [tutorial](tutorial/index.md) builds a filtration of your own in Rust, step by step.
-- The [Python chapters](python/index.md) document the three packages, with example notebooks. (Their API reference is a separate
-  Sphinx site, in `docs/python`.)
+- The [Python chapters](python/index.md) document the three packages, with example notebooks. (The [API reference](api/index.html)
+  is generated from their docstrings.)
