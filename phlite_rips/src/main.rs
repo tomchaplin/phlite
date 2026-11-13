@@ -3,9 +3,7 @@ use std::io;
 use ordered_float::NotNan;
 use phlite::{
     fields::Z2,
-    matrices::{
-        combinators::product, ColBasis, HasRowFiltration, HasSplitColBasis, MatrixOracle,
-    },
+    matrices::{combinators::product, ColBasis, HasRowFiltration, HasSplitColBasis, MatrixOracle},
     reduction::{Clearing, Reduction, ReductionAlgorithm},
 };
 use phlite_rips::cohomology::build_rips_coboundary_matrix;
