@@ -4,6 +4,7 @@ import itertools
 import math
 
 import numpy as np
+import pytest
 from gph import ripser_parallel
 from hypothesis import given, note
 from hypothesis import strategies as st
@@ -148,7 +149,6 @@ def test_input_types_agree(distances, max_dim):
 
 
 def test_input_validation():
-    import pytest
 
     for bad, message in [
         (np.zeros((2, 3)), "square"),
@@ -167,6 +167,9 @@ def test_default_columns():
     """Each package's presets use its own column representation and caching."""
     for algorithm in [phlite_rips.Algorithm.serial(), phlite_rips.Algorithm.parallel(), phlite_rips.Algorithm.standard()]:
         assert not algorithm.store_r
+        # This package's matrices give no row ranks, so pivot columns would merge: refused rather than silently
+        with pytest.raises(ValueError, match="'pivot' columns"):
+            algorithm.with_columns("pivot")
         assert (algorithm.columns, algorithm.cache) == ('heap', False)
 
 

@@ -61,8 +61,8 @@ then adjust it with the `with_*` methods, each of which returns a new `Algorithm
 
 | Method | Values | Default |
 |---|---|---|
-| `with_columns` | How the column being reduced is stored: `'merged'` (sorted columns, merged lazily, so never looking below the pivot), `'heap'` (every entry pushed onto one heap) or `'sorted'` (one sorted vector: fast when the columns added stay near the pivot, slow when they reach far below it). | `'merged'` (`'heap'` in `phlite_rips`) |
-| `with_cache` | Whether to cache the columns of the boundary matrix that get added, rather than recomputing them each time. Pays off when columns are expensive to compute, but holds them in memory until their dimension is done. | `True` (`False` in `phlite_rips`) |
+| `with_columns` | How the column being reduced is stored: `'merged'` (sorted columns, merged lazily, so never looking below the pivot), `'heap'` (every entry pushed onto one heap) or `'sorted'` (one sorted vector: fast when the columns added stay near the pivot, slow when they reach far below it). | `'merged'` (`'heap'` in `phlite_rips`; in `phlite`, `'pivot'` for serial clearing, see [its README](../phlite_py/README.md#choosing-an-algorithm)) |
+| `with_cache` | Whether to cache the columns of the boundary matrix that get added, rather than recomputing them each time. Pays off when columns are expensive to compute, but holds them in memory until their dimension is done. | `True` (`False` in `phlite_rips` and `phlite`) |
 | `with_store_r` | Keep each reduced column of R = D V and add it directly when cancelling a pivot (as PHAT does), rather than recompute it from V (serial clearing only). Pays off when columns need many additions, as in dense or cubical complexes, at the cost of memory. | `False` (`True` for serial clearing in `phlite`) |
 | `with_skip_zero_apparent_pairs` | Whether to leave zero-length apparent pairs out of the reduction's diagram (clearing only). They would be dropped from the barcode anyway, and recording them can dominate the time and memory. | `True` |
 | `with_dimension_order` | The order to reduce dimensions in (clearing only), or `None` to detect the efficient order from the matrix. | `None` |
@@ -77,6 +77,10 @@ Algorithm.clearing().with_columns("heap").with_skip_zero_apparent_pairs(False)
 ```
 
 Every algorithm gives the same barcode; only the time and memory differ.
+An `Algorithm` shows every option it resolves to, as a chain that rebuilds it: `repr(phlite_grpph.Algorithm.serial())` is
+`Algorithm.clearing().with_columns("merged").with_cache(True).with_store_r(False).with_skip_zero_apparent_pairs(True)`,
+and each option is also a property (`.columns`, `.cache`, `.store_r`, ...). `serial()` is the same as `clearing()`, and
+`parallel(threads)` as `parallel_clearing().with_threads(threads)`. `'pivot'` columns (see `phlite`) are refused here and in `phlite_rips`, whose matrices don't give the row ranks they need.
 Options that don't apply to an algorithm (such as `with_threads` on `Algorithm.serial()`) raise a `ValueError`.
 
 ### Migrating from 0.1

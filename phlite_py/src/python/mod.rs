@@ -681,6 +681,8 @@ fn phlite_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
             columns: Columns::Pivot,
             cache: false,
             store_r: true,
+            // The complex knows the position of every cell in the filtration
+            row_ranks: true,
         },
     )?;
     Ok(())

@@ -6,13 +6,17 @@ COLUMNS = ["merged", "heap", "sorted", "pivot"]
 
 
 def algorithm_grid(Algorithm, top=None, threads=2):
-    """Every combination of algorithm, column representation, caching, skipping zero-length apparent pairs and (if
+    """Every valid combination of algorithm, column representation, caching, skipping zero-length apparent pairs and (if
     `top`, the top dimension, is given) dimension order, plus storing R for serial clearing and the thread count and
     storage of parallel clearing."""
     bases = [Algorithm.standard(), Algorithm.clearing(), Algorithm.parallel_clearing()]
     orders = [None] if top is None else [None, list(range(top + 1)), list(range(top, -1, -1))]
     for base, columns, cache in itertools.product(bases, COLUMNS, [True, False]):
-        algorithm = base.with_columns(columns).with_cache(cache)
+        try:
+            algorithm = base.with_columns(columns).with_cache(cache)
+        except ValueError:
+            # 'pivot' columns: only for serial clearing, in packages whose matrices give row ranks
+            continue
         if base.name == "standard":
             yield algorithm
             continue

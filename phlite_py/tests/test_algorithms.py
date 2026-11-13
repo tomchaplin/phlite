@@ -26,6 +26,8 @@ def case(seed):
 def algorithms(top):
     bases = [Algorithm.standard(), Algorithm.clearing(), Algorithm.parallel_clearing()]
     for base, columns, cache in itertools.product(bases, ["merged", "heap", "sorted", "pivot"], [True, False]):
+        if columns == "pivot" and base.name != "clearing":
+            continue  # only serial clearing uses pivot columns (asking the others for them is an error)
         algorithm = base.with_columns(columns).with_cache(cache)
         if base.name == "standard":
             yield algorithm
@@ -57,14 +59,31 @@ def test_presets():
         assert (barcode.pairings, barcode.essential) == expected
     assert Algorithm.serial() == Algorithm.clearing() and Algorithm.serial().skip_zero_apparent_pairs
     assert Algorithm.parallel() == Algorithm.parallel_clearing() and Algorithm.parallel().storage == "locking"
-    assert repr(Algorithm.parallel(4)) == "Algorithm.parallel_clearing().with_threads(4)"
+    # The repr gives every option, resolved, so it means the same in every package
+    assert repr(Algorithm.parallel(4)) == (
+        'Algorithm.parallel_clearing().with_columns("merged").with_cache(False)'
+        '.with_skip_zero_apparent_pairs(True).with_storage("locking").with_threads(4)'
+    )
+    assert repr(Algorithm.serial()) == (
+        'Algorithm.clearing().with_columns("pivot").with_cache(False).with_store_r(True)'
+        ".with_skip_zero_apparent_pairs(True)"
+    )
+    assert repr(Algorithm.standard()) == 'Algorithm.standard().with_columns("merged").with_cache(False)'
+    for algorithm in [Algorithm.serial().with_dimension_order([2, 1, 0]), Algorithm.parallel(), Algorithm.standard()]:
+        assert eval(repr(algorithm), {"Algorithm": Algorithm}) == algorithm
     # phlite's defaults: pivot columns, uncached, storing R (serial clearing only)
     serial = Algorithm.serial()
     assert (serial.columns, serial.cache, serial.store_r) == ("pivot", False, True)
-    assert not Algorithm.parallel().store_r and Algorithm.parallel().columns == "pivot"
+    # Only serial clearing uses pivot columns, so the others' presets merge, and say so
+    assert not Algorithm.parallel().store_r and Algorithm.parallel().columns == "merged"
+    assert Algorithm.standard().columns == "merged"
+    for algorithm in [Algorithm.parallel(), Algorithm.standard()]:
+        with pytest.raises(ValueError, match="only used by serial clearing"):
+            algorithm.with_columns("pivot")
     assert Algorithm.serial().with_cache().cache
     assert repr(Algorithm.serial().with_columns("sorted").with_cache()) == (
-        'Algorithm.clearing().with_columns("sorted").with_cache(True)'
+        'Algorithm.clearing().with_columns("sorted").with_cache(True).with_store_r(True)'
+        ".with_skip_zero_apparent_pairs(True)"
     )
 
 
@@ -82,7 +101,7 @@ def test_bad_options():
         Algorithm.standard().with_store_r()
     # phlite's serial preset stores R; the other algorithms can't
     assert Algorithm.serial().store_r and not Algorithm.parallel().store_r and not Algorithm.standard().store_r
-    assert repr(Algorithm.serial().with_store_r(False)) == "Algorithm.clearing().with_store_r(False)"
+    assert "with_store_r(False)" in repr(Algorithm.serial().with_store_r(False))
     with pytest.raises(ValueError, match="Unknown columns"):
         Algorithm.serial().with_columns("vec")
     with pytest.raises(ValueError, match="threads must be positive"):

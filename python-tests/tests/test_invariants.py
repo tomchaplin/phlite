@@ -466,6 +466,7 @@ def test_larger_cubical_complexes(seed):
         for algorithm in [
             Algorithm.serial().with_columns(columns),
             Algorithm.serial().with_columns(columns).with_store_r(False).with_cache(True),
-            Algorithm.parallel(4).with_columns(columns),
+            # (Parallel clearing doesn't use pivot columns)
+            Algorithm.parallel(4).with_columns("merged" if columns == "pivot" else columns),
         ]:
             assert bars_of(filtered.persistence(method=method, algorithm=algorithm)) == want, f"{method} {algorithm!r}"

@@ -133,7 +133,10 @@ The `Barcode` is in terms of your cells (ints for `from_pairs`, `from_columns` a
 * `diagram(dim)`, `diagrams()`: `(k, 2)` numpy arrays of `(birth, death)` values, `inf` for essential bars.
 
 Representatives are lists of `(cell, coefficient)` pairs in decreasing filtration order, so the birth cell comes first.
-As with Ripser, `method="cohomology"` is usually much faster; it computes representatives by involution.
+As with Ripser, `method="cohomology"` is usually faster; it computes representatives by involution. It is the default
+because it never lost by much in the benchmarks: homology was about 7% faster on a cubical complex of random noise, but
+slower on the other cubical complexes and meshes, and about 3× slower on cell complexes. If your complexes are cubical,
+time both.
 
 By default the serial algorithm stores the reduced columns of R = DV, as PHAT does, and adds them directly when
 cancelling pivots. (`phlite_rips` and `phlite_grpph` store only V and recompute columns of R, like Ripser, which is
@@ -165,7 +168,7 @@ then adjust it with the `with_*` methods, each of which returns a new `Algorithm
 
 | Method | Values | Default |
 |---|---|---|
-| `with_columns` | How the column being reduced is stored: `'pivot'` (a dense array over every cell, with a tree of bitsets marking those present, as in PHAT: adding an entry flips a bit; serial clearing only, the others fall back to `'merged'`), `'merged'` (sorted columns, merged lazily, so never looking below the pivot), `'heap'` (every entry pushed onto one heap) or `'sorted'` (one sorted vector: fast when the columns added stay near the pivot, slow when they reach far below it). | `'pivot'` |
+| `with_columns` | How the column being reduced is stored: `'pivot'` (a dense array over every cell, with a tree of bitsets marking those present, as in PHAT: adding an entry flips a bit; serial clearing only, so the standard and parallel presets use `'merged'`, and asking them for `'pivot'` is an error), `'merged'` (sorted columns, merged lazily, so never looking below the pivot), `'heap'` (every entry pushed onto one heap) or `'sorted'` (one sorted vector: fast when the columns added stay near the pivot, slow when they reach far below it). | `'pivot'` (`'merged'` for standard and parallel) |
 | `with_cache` | Whether to cache the columns of the boundary matrix that get added, rather than recomputing them each time. Columns are stored sorted, so this only saves a copy, which here costs more than it saves. | `False` |
 | `with_store_r` | Keep each reduced column of R = D V and add it directly when cancelling a pivot (as PHAT does), rather than recompute it from V (serial clearing only). Pays off when columns need many additions, as in dense or cubical complexes, at the cost of memory. | `True` for serial clearing |
 | `with_skip_zero_apparent_pairs` | Whether to leave zero-length apparent pairs out of the reduction's diagram (clearing only). They would be dropped from the barcode anyway, and recording them can dominate the time and memory. | `True` |
@@ -181,6 +184,10 @@ Algorithm.clearing().with_columns("heap").with_skip_zero_apparent_pairs(False)
 ```
 
 Every algorithm gives the same barcode; only the time and memory differ.
+An `Algorithm` shows every option it resolves to, as a chain that rebuilds it: `repr(phlite.Algorithm.serial())` is
+`Algorithm.clearing().with_columns("pivot").with_cache(False).with_store_r(True).with_skip_zero_apparent_pairs(True)`,
+and each option is also a property (`.columns`, `.cache`, `.store_r`, ...). `serial()` is the same as `clearing()`, and
+`parallel(threads)` as `parallel_clearing().with_threads(threads)`.
 Options that don't apply to an algorithm (such as `with_threads` on `Algorithm.serial()`) raise a `ValueError`.
 
 ## Example: GrPPH

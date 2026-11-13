@@ -5,6 +5,7 @@ import math
 import random
 
 import networkx as nx
+import pytest
 from grpphati.pipelines.grounded import GrPPH
 from hypothesis import given, note
 from hypothesis import strategies as st
@@ -142,6 +143,9 @@ def test_default_columns():
     """Each package's presets use its own column representation and caching."""
     for algorithm in [phlite_grpph.Algorithm.serial(), phlite_grpph.Algorithm.parallel(), phlite_grpph.Algorithm.standard()]:
         assert not algorithm.store_r
+        # This package's matrices give no row ranks, so pivot columns would merge: refused rather than silently
+        with pytest.raises(ValueError, match="'pivot' columns"):
+            algorithm.with_columns("pivot")
         assert (algorithm.columns, algorithm.cache) == ('merged', True)
 
 

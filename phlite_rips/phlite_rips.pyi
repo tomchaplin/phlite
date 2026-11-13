@@ -71,13 +71,15 @@ class Algorithm:
     @staticmethod
     def serial() -> Algorithm:
         r"""
-        The recommended serial algorithm: clearing, skipping zero-length apparent pairs.
+        The recommended serial algorithm: clearing, skipping zero-length apparent pairs. The same as `clearing()`
+        (and shown as that).
         """
     @staticmethod
     def parallel(threads: typing.Optional[builtins.int] = None) -> Algorithm:
         r"""
         The recommended parallel algorithm: clearing with each dimension reduced in parallel, skipping zero-length
-        apparent pairs, on `threads` threads (default: all cores).
+        apparent pairs, on `threads` threads (default: all cores). The same as
+        `parallel_clearing().with_threads(threads)` (and shown as that).
         """
     @staticmethod
     def standard() -> Algorithm:
@@ -114,8 +116,8 @@ class Algorithm:
         * `'pivot'` keeps the column as a dense array over all rows, with a tree of bitsets marking which are present
           (as PHAT does): adding an entry flips a bit, and the pivot is found with a few bit-scans. The fastest when
           many columns are added to each, as for dense or cubical complexes, especially with `with_store_r()`. Needs a
-          matrix that knows the rank of every row in filtration order (`phlite`'s explicit complexes do); otherwise, and
-          in the parallel and standard algorithms, it behaves as `'merged'`.
+          matrix that knows the rank of every row in filtration order (`phlite`'s explicit complexes do, Vietoris–Rips
+          and GrPPH don't), and only serial clearing uses it: otherwise asking for it is an error.
         """
     def with_cache(self, cache: builtins.bool = True) -> Algorithm:
         r"""
@@ -166,6 +168,8 @@ class Algorithm:
     def __repr__(self) -> builtins.str:
         r"""
         The Python expression that builds this algorithm.
+        Every option, resolved: a chain of `with_*` calls that rebuilds this algorithm in any of the packages (whose
+        presets differ).
         """
 
 @typing.final

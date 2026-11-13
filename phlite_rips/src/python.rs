@@ -207,6 +207,7 @@ fn phlite_rips(m: &Bound<'_, PyModule>) -> PyResult<()> {
             columns: Columns::Heap,
             cache: false,
             store_r: false,
+            row_ranks: false,
         },
     )?;
     Ok(())

@@ -60,6 +60,10 @@ pub struct AlgorithmDefaults {
     pub cache: bool,
     /// Only applies to serial clearing (the other algorithms don't support it).
     pub store_r: bool,
+    /// Whether the module's matrices know the rank of every row
+    /// ([`row_ranks`](phlite::matrices::HasRowFiltration::row_ranks)), which [`Columns::Pivot`] needs: without
+    /// them, `with_columns('pivot')` is refused rather than silently merging.
+    pub row_ranks: bool,
 }
 
 impl Default for AlgorithmDefaults {
@@ -69,6 +73,7 @@ impl Default for AlgorithmDefaults {
             columns: Columns::Merged,
             cache: true,
             store_r: false,
+            row_ranks: false,
         }
     }
 }
@@ -142,10 +147,17 @@ impl AlgorithmConfig {
             columns,
             cache,
             store_r,
+            row_ranks: _,
         } = defaults();
         Self {
             kind,
-            columns,
+            // Only serial clearing uses pivot columns (the others make a fresh column per column, which merges), so
+            // the others' presets say what they really use
+            columns: if columns == Columns::Pivot && kind != Kind::Clearing {
+                Columns::Merged
+            } else {
+                columns
+            },
             cache,
             store_r: store_r && kind == Kind::Clearing,
             // The barcode omits zero-length bars anyway, so there's no point recording them
@@ -236,14 +248,16 @@ impl Default for AlgorithmConfig {
 #[gen_stub_pymethods]
 #[pymethods]
 impl AlgorithmConfig {
-    /// The recommended serial algorithm: clearing, skipping zero-length apparent pairs.
+    /// The recommended serial algorithm: clearing, skipping zero-length apparent pairs. The same as `clearing()`
+    /// (and shown as that).
     #[staticmethod]
     fn serial() -> Self {
         Self::base(Kind::Clearing)
     }
 
     /// The recommended parallel algorithm: clearing with each dimension reduced in parallel, skipping zero-length
-    /// apparent pairs, on `threads` threads (default: all cores).
+    /// apparent pairs, on `threads` threads (default: all cores). The same as
+    /// `parallel_clearing().with_threads(threads)` (and shown as that).
     #[staticmethod]
     #[pyo3(signature = (threads = None))]
     fn parallel(threads: Option<usize>) -> PyResult<Self> {
@@ -286,8 +300,8 @@ impl AlgorithmConfig {
     /// * `'pivot'` keeps the column as a dense array over all rows, with a tree of bitsets marking which are present
     ///   (as PHAT does): adding an entry flips a bit, and the pivot is found with a few bit-scans. The fastest when
     ///   many columns are added to each, as for dense or cubical complexes, especially with `with_store_r()`. Needs a
-    ///   matrix that knows the rank of every row in filtration order (`phlite`'s explicit complexes do); otherwise, and
-    ///   in the parallel and standard algorithms, it behaves as `'merged'`.
+    ///   matrix that knows the rank of every row in filtration order (`phlite`'s explicit complexes do, Vietoris–Rips
+    ///   and GrPPH don't), and only serial clearing uses it: otherwise asking for it is an error.
     fn with_columns(
         &self,
         #[gen_stub(override_type(type_repr = "typing.Literal['merged', 'heap', 'sorted', 'pivot']", imports = ("typing")))]
@@ -304,6 +318,21 @@ impl AlgorithmConfig {
                 )))
             }
         };
+        if columns == Columns::Pivot {
+            // Rather than silently behaving as 'merged'
+            if self.kind != Kind::Clearing {
+                return Err(PyValueError::new_err(format!(
+                    "'pivot' columns are only used by serial clearing, not the {} algorithm (it would merge them)",
+                    self.name()
+                )));
+            }
+            if !defaults().row_ranks {
+                return Err(PyValueError::new_err(
+                    "'pivot' columns need the rank of every row in filtration order, which this package's matrices \
+                     don't give (they would merge instead)",
+                ));
+            }
+        }
         Ok(Self {
             columns,
             ..self.clone()
@@ -475,46 +504,38 @@ impl AlgorithmConfig {
     }
 
     /// The Python expression that builds this algorithm.
+    /// Every option, resolved: a chain of `with_*` calls that rebuilds this algorithm in any of the packages (whose
+    /// presets differ).
     fn __repr__(&self) -> String {
+        let python_bool = |b: bool| if b { "True" } else { "False" };
         let mut out = format!(
-            "Algorithm.{}()",
+            "Algorithm.{}().with_columns({:?}).with_cache({})",
             match self.kind {
                 Kind::Standard => "standard",
                 Kind::Clearing => "clearing",
                 Kind::ParallelClearing => "parallel_clearing",
-            }
+            },
+            self.columns.name(),
+            python_bool(self.cache),
         );
-        let default = Self::base(self.kind);
-        if self.columns != default.columns {
-            out += &format!(".with_columns({:?})", self.columns.name());
+        if self.kind == Kind::Clearing {
+            out += &format!(".with_store_r({})", python_bool(self.store_r));
         }
-        if self.cache != default.cache {
-            out += &format!(".with_cache({})", if self.cache { "True" } else { "False" });
-        }
-        if self.store_r != default.store_r {
-            out += &format!(
-                ".with_store_r({})",
-                if self.store_r { "True" } else { "False" }
-            );
-        }
-        if self.skip_zero_apparent_pairs != default.skip_zero_apparent_pairs {
+        if self.kind != Kind::Standard {
             out += &format!(
                 ".with_skip_zero_apparent_pairs({})",
-                if self.skip_zero_apparent_pairs {
-                    "True"
-                } else {
-                    "False"
-                }
+                python_bool(self.skip_zero_apparent_pairs)
             );
+            if let Some(order) = &self.dimension_order {
+                out += &format!(".with_dimension_order({order:?})");
+            }
         }
-        if let Some(order) = &self.dimension_order {
-            out += &format!(".with_dimension_order({order:?})");
-        }
-        if self.storage != default.storage {
+        if self.kind == Kind::ParallelClearing {
             out += &format!(".with_storage({:?})", storage_name(self.storage));
-        }
-        if let Some(threads) = self.threads {
-            out += &format!(".with_threads({threads})");
+            out += &match self.threads {
+                Some(threads) => format!(".with_threads({threads})"),
+                None => ".with_threads(None)".to_string(),
+            };
         }
         out
     }
