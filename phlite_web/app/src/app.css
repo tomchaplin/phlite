@@ -7,6 +7,9 @@
   --line: #d9d9d4;
   --accent: #4c78a8;
   --danger: #c0392b;
+  --green: #287900;
+  --plane-light: #f7f7f7;
+  --plane-dark: #ebebeb;
   color-scheme: light;
 }
 @media (prefers-color-scheme: dark) {
@@ -19,6 +22,9 @@
     --line: #353a43;
     --accent: #7aa6d6;
     --danger: #ff7a6b;
+    --green: #6cc644;
+    --plane-light: #2a2e36;
+    --plane-dark: #353a43;
     color-scheme: dark;
   }
 }

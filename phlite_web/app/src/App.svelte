@@ -1,6 +1,7 @@
 <script lang="ts">
   import { engine } from './lib/engine.svelte';
   import BarsSpinner from './components/BarsSpinner.svelte';
+  import Logo from './components/Logo.svelte';
   import Points from './pipelines/points/Points.svelte';
   import Images from './pipelines/images/Images.svelte';
   import Networks from './pipelines/networks/Networks.svelte';
@@ -31,7 +32,7 @@
 </script>
 
 <header>
-  <a class="brand" href="../">phlite</a>
+  <a class="brand" href="../" title="phlite home"><Logo height={46} /></a>
   <span class="title">playground</span>
   <nav>
     <a href="../book/">Book</a>
@@ -72,8 +73,8 @@
 </main>
 
 <style>
-  header { display: flex; align-items: baseline; gap: 0.75rem; padding: 0.7rem 1.2rem; border-bottom: 1px solid var(--line); background: var(--panel); flex-wrap: wrap; }
-  .brand { font-weight: 800; font-size: 1.25rem; color: var(--fg); text-decoration: none; }
+  header { display: flex; align-items: center; gap: 0.75rem; padding: 0.7rem 1.2rem; border-bottom: 1px solid var(--line); background: var(--panel); flex-wrap: wrap; }
+  .brand { color: var(--fg); line-height: 0; }
   .title { color: var(--muted); }
   header nav { display: flex; gap: 0.9rem; margin-left: 1rem; }
   header nav a { text-decoration: none; }
