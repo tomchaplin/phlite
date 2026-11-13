@@ -6,9 +6,171 @@ import numpy
 import numpy.typing
 import typing
 __all__ = [
+    "Algorithm",
     "Barcode",
     "rips",
 ]
+
+@typing.final
+class Algorithm:
+    r"""
+    A reduction algorithm and its options.
+    
+    Start from a preset, `Algorithm.serial()` or `Algorithm.parallel()`, which are the recommended configurations,
+    or from one of the algorithms themselves, `Algorithm.standard()`, `Algorithm.clearing()` or
+    `Algorithm.parallel_clearing()`, then adjust it with the `with_*` methods (each returns a new `Algorithm`):
+    
+    ```python
+    Algorithm.parallel(threads=8)
+    Algorithm.clearing().with_columns("heap").with_skip_zero_apparent_pairs(False)
+    ```
+    
+    Pass the result as the `algorithm` argument. Every algorithm gives the same barcode; only the time and memory differ.
+    """
+    @property
+    def name(self) -> builtins.str:
+        r"""
+        `'standard'`, `'clearing'` or `'parallel-clearing'`.
+        """
+    @property
+    def columns(self) -> builtins.str:
+        r"""
+        `'merged'`, `'heap'`, `'sorted'` or `'pivot'`.
+        """
+    @property
+    def cache(self) -> builtins.bool:
+        r"""
+        Whether columns of the boundary matrix are cached.
+        """
+    @property
+    def store_r(self) -> builtins.bool:
+        r"""
+        Whether reduced columns of R are stored (serial clearing only).
+        """
+    @property
+    def skip_zero_apparent_pairs(self) -> builtins.bool:
+        r"""
+        Whether zero-length apparent pairs are skipped.
+        """
+    @property
+    def dimension_order(self) -> typing.Optional[builtins.list[builtins.int]]:
+        r"""
+        The order dimensions are reduced in, or `None` if detected.
+        """
+    @property
+    def storage(self) -> typing.Optional[builtins.str]:
+        r"""
+        `'locking'` or `'lock-free'` for the parallel algorithm, else `None`.
+        """
+    @property
+    def threads(self) -> typing.Optional[builtins.int]:
+        r"""
+        The number of threads for the parallel algorithm (`None`: all cores).
+        """
+    def __eq__(self, other: builtins.object, /) -> builtins.bool: ...
+    @staticmethod
+    def serial() -> Algorithm:
+        r"""
+        The recommended serial algorithm: clearing, skipping zero-length apparent pairs. The same as `clearing()`
+        (and shown as that).
+        """
+    @staticmethod
+    def parallel(threads: typing.Optional[builtins.int] = None) -> Algorithm:
+        r"""
+        The recommended parallel algorithm: clearing with each dimension reduced in parallel, skipping zero-length
+        apparent pairs, on `threads` threads (default: all cores). The same as
+        `parallel_clearing().with_threads(threads)` (and shown as that).
+        """
+    @staticmethod
+    def standard() -> Algorithm:
+        r"""
+        The standard algorithm, with no optimisations.
+        """
+    @staticmethod
+    def clearing() -> Algorithm:
+        r"""
+        The standard algorithm with the clearing optimisation. Skips zero-length apparent pairs by default.
+        """
+    @staticmethod
+    def parallel_clearing() -> Algorithm:
+        r"""
+        Clearing, with the columns of each dimension reduced in parallel.
+        Skips zero-length apparent pairs by default, and uses all cores and locking storage.
+        """
+    def with_columns(self, columns: typing.Literal['merged', 'heap', 'sorted', 'pivot']) -> Algorithm:
+        r"""
+        How the column being reduced is represented: `'merged'`, `'heap'`, `'sorted'` or `'pivot'`. The presets use
+        `'merged'` in `phlite_grpph`, `'heap'` in `phlite_rips` and `'pivot'` in `phlite`. Every choice gives the same
+        barcode; only time and memory differ.
+        
+        Reducing a column means repeatedly finding its pivot (largest entry) and adding other columns to cancel it.
+        
+        * `'merged'` never builds the column: it merges the columns added lazily, with one heap slot per column added,
+          so it never reads anything below the pivot. The safe choice, fast on every kind of matrix tried.
+        * `'heap'` pushes every entry of every column added onto one heap. No sorting, so it is good when the columns
+          added are short and few (e.g. Vietoris–Rips cohomology), but slows down when many entries are added.
+        * `'sorted'` keeps the column as one sorted vector and merges each batch of added columns into it. The fastest
+          when the columns added stay near the pivot (typically homology of simplicial or cell complexes, about 1.5×
+          faster than `'merged'`), but very slow when they reach far below it (15–35× slower on GrPPH or the cohomology
+          of cubical complexes). Measure before using it.
+        * `'pivot'` keeps the column as a dense array over all rows, with a tree of bitsets marking which are present
+          (as PHAT does): adding an entry flips a bit, and the pivot is found with a few bit-scans. The fastest when
+          many columns are added to each, as for dense or cubical complexes, especially with `with_store_r()`. Needs a
+          matrix that knows the rank of every row in filtration order (`phlite`'s explicit complexes do, Vietoris–Rips
+          and GrPPH don't), and only serial clearing uses it: otherwise asking for it is an error.
+        """
+    def with_cache(self, cache: builtins.bool = True) -> Algorithm:
+        r"""
+        Whether to cache the columns of the boundary matrix as they are added during the reduction. The presets
+        cache in `phlite_grpph`, but not in `phlite_rips`, whose columns are cheap to recompute, nor in `phlite`, whose
+        columns are stored sorted.
+        
+        Caching saves recomputing (and re-sorting) a column every time it is added, which pays off when columns are
+        expensive to compute (about 3× faster for GrPPH), but keeps every column needed in a dimension in memory
+        until that dimension is done (most of the memory for Vietoris–Rips). For `phlite.ChainComplex`, whose columns
+        are stored sorted, it only saves copying them, and with the default pivot columns and stored R it is slower:
+        about 20% on cell complexes and nearly 2× on cubical complexes.
+        """
+    def with_store_r(self, store: builtins.bool = True) -> Algorithm:
+        r"""
+        Whether to keep each reduced column of R = D V and add it directly when cancelling a pivot, rather than
+        recompute it from V (serial clearing only). The presets store R in `phlite`, but not in `phlite_rips` or
+        `phlite_grpph`, where almost every column is an apparent pair and needs no reduction.
+        
+        Only V is stored by default, so cancelling a pivot with an earlier column j adds one column of the boundary
+        matrix for every term of V_j. Storing R (as PHAT does) adds R_j as one column instead, which pays off when V_j
+        gets long, as in dense or cubical complexes, at the cost of memory for the stored columns. Vietoris–Rips
+        cohomology, where almost every pair needs no reduction, gains little.
+        """
+    def with_skip_zero_apparent_pairs(self, skip: builtins.bool = True) -> Algorithm:
+        r"""
+        Whether to leave zero-length apparent pairs out of the diagram (clearing algorithms only).
+        
+        Such pairs give zero-length bars, which the barcode omits anyway, but in many filtrations nearly every pair is
+        one, so recording them dominates the time and memory of the reduction.
+        """
+    def with_dimension_order(self, dimension_order: typing.Optional[typing.Sequence[builtins.int]]) -> Algorithm:
+        r"""
+        The order in which to reduce dimensions (clearing algorithms only), or `None` to detect it from the matrix.
+        
+        Clearing saves work when dimensions are reduced in the direction the matrix maps them (ascending for
+        cohomology, descending for homology), which is what is detected. Only the dimensions listed are reduced, so
+        list every dimension the barcode needs.
+        """
+    def with_storage(self, storage: typing.Literal['locking', 'lock-free']) -> Algorithm:
+        r"""
+        The concurrent data structures for the parallel algorithm: `'locking'` (the default) or `'lock-free'`.
+        """
+    def with_threads(self, threads: typing.Optional[builtins.int]) -> Algorithm:
+        r"""
+        The number of threads for the parallel algorithm, or `None` for all cores.
+        """
+    def __repr__(self) -> builtins.str:
+        r"""
+        The Python expression that builds this algorithm.
+        Every option, resolved: a chain of `with_*` calls that rebuilds this algorithm in any of the packages (whose
+        presets differ).
+        """
 
 @typing.final
 class Barcode:
@@ -46,7 +208,7 @@ class Barcode:
         """
     def __repr__(self) -> builtins.str: ...
 
-def rips(distance_matrix: typing.Union[numpy.typing.NDArray[numpy.floating], typing.Sequence[typing.Sequence[builtins.float]]], max_dim: builtins.int = 1, *, threshold: typing.Optional[builtins.float] = None, method: typing.Literal['cohomology', 'homology'] = "cohomology", algorithm: typing.Literal['standard', 'clearing', 'parallel', 'parallel-lock-free'] = "clearing", representatives: builtins.bool = False, threads: typing.Optional[builtins.int] = None) -> Barcode:
+def rips(distance_matrix: typing.Union[numpy.typing.NDArray[numpy.floating], typing.Sequence[typing.Sequence[builtins.float]]], max_dim: builtins.int = 1, *, threshold: typing.Optional[builtins.float] = None, method: typing.Literal['cohomology', 'homology'] = "cohomology", algorithm: typing.Optional[Algorithm] = None, representatives: builtins.bool = False) -> Barcode:
     r"""
     Compute the Vietoris-Rips persistent homology of a distance matrix, in dimensions `0, ..., max_dim`.
     
@@ -61,12 +223,10 @@ def rips(distance_matrix: typing.Union[numpy.typing.NDArray[numpy.floating], typ
             and nothing changes, so a larger threshold gives the same result as none.
         method: `'cohomology'` (the default) reduces the coboundary matrix, which is usually much faster.
             `'homology'` reduces the boundary matrix instead, which needs simplices up to dimension `max_dim + 1`.
-        algorithm: The reduction algorithm: `'standard'`, `'clearing'` (the default), `'parallel'`
-            (clearing, with each dimension reduced in parallel) or `'parallel-lock-free'`
-            (the same, using lock-free data structures).
+        algorithm: The reduction algorithm and its options, as an `Algorithm` (default: `Algorithm.serial()`).
+            For example `Algorithm.parallel(threads=8)`.
         representatives: Whether to also compute a representative cycle for every bar.
             With `method='cohomology'` these are computed via involution.
-        threads: The number of threads for the parallel algorithms (default: all cores).
     
     Returns:
         The barcode, with dimensions `0, ..., max_dim`.

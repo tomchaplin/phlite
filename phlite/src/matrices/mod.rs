@@ -37,13 +37,12 @@
 // Bases are handed out as by-value views, so nothing in this module (including its adaptors) needs `unsafe`.
 #![forbid(unsafe_code)]
 
-use std::cell::RefCell;
 use std::hash::Hash;
 use std::rc::Rc;
 use std::sync::Arc;
 use std::{cmp::Reverse, collections::HashMap};
 
-use adaptors::{Consolidator, WithCachedCols};
+use adaptors::Consolidator;
 use itertools::equal;
 use ordered_float::NotNan;
 
@@ -70,7 +69,31 @@ mod tests;
 /// Row and column indices must explicity implement this (see [`MatrixOracle`](MatrixOracle::ColT)).
 ///
 /// Ideally [`clone`](Clone::clone) should be *very* cheap as it is called regularly, [`Copy`] would be ideal.
-pub trait BasisElement: Ord + Clone {}
+///
+/// # Dense indices
+///
+/// If basis elements are numbered by small integers (as when the cells of a complex are `0, ..., n - 1`), set
+/// [`DENSE_INDEX`](Self::DENSE_INDEX) and implement [`dense_index`](Self::dense_index) and
+/// [`from_dense_index`](Self::from_dense_index). The reduction algorithms then keep their per-column state (pivot
+/// tables, pairs, reduction columns) in vectors indexed by these numbers instead of hash maps, see
+/// [`ElementMap`](crate::bookkeeping::ElementMap). Vectors are as long as the largest number used, so only do this
+/// when the numbers are dense.
+pub trait BasisElement: Ord + Clone {
+    /// Whether basis elements are densely numbered, see the [trait docs](Self). Off by default.
+    const DENSE_INDEX: bool = false;
+
+    /// The number of this basis element: injective, and small. Only called if [`DENSE_INDEX`](Self::DENSE_INDEX).
+    fn dense_index(&self) -> usize {
+        unimplemented!("dense_index is only called on types with DENSE_INDEX set")
+    }
+
+    /// The basis element numbered `index`, inverting [`dense_index`](Self::dense_index).
+    /// Only called if [`DENSE_INDEX`](Self::DENSE_INDEX).
+    fn from_dense_index(index: usize) -> Self {
+        let _ = index;
+        unimplemented!("from_dense_index is only called on types with DENSE_INDEX set")
+    }
+}
 /// Filtration types must explicity implement this (see [`HasRowFiltration`](HasRowFiltration::FiltrationT)).
 ///
 /// Ideally [`clone`](Clone::clone) should be *very* cheap as it is called regularly, [`Copy`] would be ideal.
@@ -86,11 +109,103 @@ impl BasisElement for isize {}
 impl FiltrationValue for NotNan<f32> {}
 impl FiltrationValue for NotNan<f64> {}
 impl FiltrationValue for usize {}
+impl FiltrationValue for u32 {}
+impl FiltrationValue for u64 {}
 impl FiltrationValue for isize {}
 impl FiltrationValue for () {}
 
-impl<T> BasisElement for Reverse<T> where T: BasisElement {}
+// Reversing the order doesn't change the numbering
+impl<T> BasisElement for Reverse<T>
+where
+    T: BasisElement,
+{
+    const DENSE_INDEX: bool = T::DENSE_INDEX;
+
+    #[inline]
+    fn dense_index(&self) -> usize {
+        self.0.dense_index()
+    }
+
+    #[inline]
+    fn from_dense_index(index: usize) -> Self {
+        Reverse(T::from_dense_index(index))
+    }
+}
 impl<T> FiltrationValue for Reverse<T> where T: FiltrationValue {}
+
+/// The position of every row in the order the reductions use (filtration value, then row index), as a dense
+/// number `0 <= rank < bound`, for rows whose [`dense_index`](BasisElement::dense_index) is known.
+///
+/// A matrix that can give this (see [`row_ranks`](HasRowFiltration::row_ranks)) lets
+/// [`PivotColumns`](crate::columns::PivotColumns) keep the column being reduced as a bitset over ranks, as PHAT does,
+/// rather than as a heap. The ranks are a shared table, cheap to clone, from the dense index of each row to its rank.
+#[derive(Clone, Debug)]
+pub struct RowRanks {
+    /// `table[row.dense_index()]` is the rank of `row` in increasing order, or `None` if that is the dense index itself
+    table: Option<std::sync::Arc<[u32]>>,
+    /// One more than the largest rank
+    bound: usize,
+    /// Whether the order is reversed, so that the rank is `bound - 1 - table[..]`
+    descending: bool,
+}
+
+impl RowRanks {
+    /// Ranks from a table: `table[i]` is the rank of the row with dense index `i`, where ranks must be distinct, less
+    /// than `table.len()`, and increase with the order on [`ColumnEntry`] (filtration value, then row index).
+    pub fn new(table: std::sync::Arc<[u32]>) -> Self {
+        Self {
+            bound: table.len(),
+            table: Some(table),
+            descending: false,
+        }
+    }
+
+    /// Ranks that are the dense indices `0..bound` themselves, for rows numbered in order (no table to look up).
+    pub fn identity(bound: usize) -> Self {
+        Self {
+            table: None,
+            bound,
+            descending: false,
+        }
+    }
+
+    /// The ranks for the same rows in the reverse order (as for a [`reverse`](MatrixOracle::reverse)d matrix).
+    #[must_use]
+    pub fn reversed(self) -> Self {
+        Self {
+            descending: !self.descending,
+            ..self
+        }
+    }
+
+    /// One more than the largest rank.
+    #[inline]
+    pub fn bound(&self) -> usize {
+        self.bound
+    }
+
+    /// The table from dense index to rank (`None` for the identity), and whether ranks are read descending
+    /// (`bound() - 1 - table[i]`), for loops that look up many ranks and want to branch on these once.
+    #[inline]
+    pub(crate) fn parts(&self) -> (Option<&[u32]>, bool) {
+        (self.table.as_deref(), self.descending)
+    }
+
+    /// The rank of `row`.
+    #[inline]
+    pub fn rank<R: BasisElement>(&self, row: &R) -> usize {
+        let index = row.dense_index();
+        let rank = match &self.table {
+            Some(table) => table[index] as usize,
+            None => index,
+        };
+        if self.descending {
+            self.bound - 1 - rank
+        } else {
+            rank
+        }
+    }
+}
 
 // ======== Abstract matrix oracle trait =======================
 
@@ -256,21 +371,6 @@ pub trait MatrixOracle {
     {
         Consolidator { oracle: self }
     }
-
-    /// Returns a wrapper around `self` which caches any calls to [`column`](MatrixOracle::column) in an internal [`HashMap`].
-    ///
-    /// This may be useful if your matrix is relatively small but expensive to re-compute on the fly.
-    /// This way your matrix can still be lazily evaluated, but each column is only computed once.
-    /// Implementations of [`HasColBasis`] and [`HasRowFiltration`] are passed through transparently.
-    fn cache_cols(self) -> WithCachedCols<Self>
-    where
-        Self: Sized,
-    {
-        WithCachedCols {
-            oracle: self,
-            cache: RefCell::new(Default::default()),
-        }
-    }
 }
 
 // ======== Square matrices ====================================
@@ -355,6 +455,16 @@ pub trait HasRowFiltration: MatrixOracle {
     type FiltrationT: FiltrationValue;
     /// Implementing the filtration function on the row basis.
     fn filtration_value(&self, row: Self::RowT) -> Self::FiltrationT;
+
+    /// Whether rows `a` and `b` have the same filtration value, so that a pair between them is a bar of length zero
+    /// (which the reductions can skip, see [`Clearing::skip_zero_apparent_pairs`](crate::reduction::Clearing)).
+    ///
+    /// By default this compares [`filtration_value`](Self::filtration_value)s. A matrix whose filtration values are
+    /// finer than its filtration (for example positions in it, which are cheaper to look up and compare) overrides
+    /// this to compare the real values.
+    fn same_filtration_value(&self, a: Self::RowT, b: Self::RowT) -> bool {
+        self.filtration_value(a) == self.filtration_value(b)
+    }
 
     /// Uses [`MatrixOracle::column`] and [`HasRowFiltration::filtration_value`] to provide an iterator over non-zero column entries, enriches with the row filtration value.
     ///
@@ -468,6 +578,36 @@ pub trait HasRowFiltration: MatrixOracle {
         }
     }
 
+    /// The entries of column `col` largest first (by filtration value, then [`RowT`](MatrixOracle::RowT)), with each row
+    /// at most once and no zero coefficients, if the matrix can give them in this order without sorting; otherwise
+    /// `None` (the default).
+    ///
+    /// The reduction algorithms repeatedly add columns of the matrix to the column being reduced, and with
+    /// [`MergedColumns`](crate::columns::MergedColumns) each must be sorted first. If your matrix stores its columns
+    /// sorted, implement this (and [`sorted_column_ascending`](HasRowFiltration::sorted_column_ascending)) to skip that.
+    /// If you implement it, the order must be right: entries out of order give wrong results.
+    fn sorted_column(
+        &self,
+        col: Self::ColT,
+    ) -> Option<
+        impl Iterator<Item = ColumnEntry<Self::FiltrationT, Self::RowT, Self::CoefficientField>>,
+    > {
+        let _ = col;
+        None::<std::iter::Empty<_>>
+    }
+
+    /// As [`sorted_column`](HasRowFiltration::sorted_column), but smallest first. Used for [`reverse`](MatrixOracle::reverse)d
+    /// matrices (and so for cohomology).
+    fn sorted_column_ascending(
+        &self,
+        col: Self::ColT,
+    ) -> Option<
+        impl Iterator<Item = ColumnEntry<Self::FiltrationT, Self::RowT, Self::CoefficientField>>,
+    > {
+        let _ = col;
+        None::<std::iter::Empty<_>>
+    }
+
     /// Of the columns with a non-zero entry in `row`, the first in the order on filtration value and then [`ColT`](MatrixOracle::ColT),
     /// or `None` if this is not known (the default).
     ///
@@ -483,6 +623,15 @@ pub trait HasRowFiltration: MatrixOracle {
 
     /// As [`first_column_in_row`](HasRowFiltration::first_column_in_row), but the last column. Used for [`reverse`](MatrixOracle::reverse)d matrices.
     fn last_column_in_row(&self, _row: Self::RowT) -> Option<Self::ColT> {
+        None
+    }
+
+    /// The rank of every row in the order on filtration value and then row index, if known (by default it is not).
+    /// Only meaningful when [`RowT`](MatrixOracle::RowT) has a [`dense_index`](BasisElement::dense_index).
+    ///
+    /// [`PivotColumns`](crate::columns::PivotColumns) uses it to keep the column being reduced as a bitset over ranks.
+    /// If you implement it, it must agree with the order: wrong ranks give wrong results.
+    fn row_ranks(&self) -> Option<RowRanks> {
         None
     }
 
@@ -516,6 +665,10 @@ where
         (*self).filtration_value(row)
     }
 
+    fn same_filtration_value(&self, a: Self::RowT, b: Self::RowT) -> bool {
+        (*self).same_filtration_value(a, b)
+    }
+
     fn column_pivot(
         &self,
         col: Self::ColT,
@@ -536,6 +689,28 @@ where
 
     fn last_column_in_row(&self, row: Self::RowT) -> Option<Self::ColT> {
         (*self).last_column_in_row(row)
+    }
+
+    fn sorted_column(
+        &self,
+        col: Self::ColT,
+    ) -> Option<
+        impl Iterator<Item = ColumnEntry<Self::FiltrationT, Self::RowT, Self::CoefficientField>>,
+    > {
+        (*self).sorted_column(col)
+    }
+
+    fn sorted_column_ascending(
+        &self,
+        col: Self::ColT,
+    ) -> Option<
+        impl Iterator<Item = ColumnEntry<Self::FiltrationT, Self::RowT, Self::CoefficientField>>,
+    > {
+        (*self).sorted_column_ascending(col)
+    }
+
+    fn row_ranks(&self) -> Option<RowRanks> {
+        (*self).row_ranks()
     }
     fn column_with_filtration(
         &self,

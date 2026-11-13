@@ -1,0 +1,67 @@
+# Build the documentation site (the book, the Python API reference and the example notebooks, which are re-run) and
+# deploy it to Netlify.
+#
+# * Pull requests: build only, so that a change that breaks a notebook or the book is caught (the site is kept as an
+#   artifact to look at).
+# * Pushes to main, and manual runs (Actions > Docs > Run workflow, on any branch): build and deploy to production.
+#
+# Deploying needs two repository secrets (Settings > Secrets and variables > Actions):
+# * NETLIFY_AUTH_TOKEN: a personal access token (Netlify: User settings > Applications > Personal access tokens);
+# * NETLIFY_SITE_ID: the site's ID (Netlify: Site configuration > General > Site details).
+# The Netlify site itself does no building: its builds should be stopped (Site configuration > Build & deploy).
+
+name: Docs
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: docs-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  docs:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      # The release builds of the three extension modules are most of the time; cache them
+      - uses: Swatinem/rust-cache@v2
+
+      # uv also fetches the two Pythons python-tests needs (3.11 and 3.13)
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          cache-dependency-glob: "python-tests/**/uv.lock"
+
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: just,mdbook@0.5.4
+
+      - name: Build the Python modules
+        run: just docs-modules
+
+      - name: Build the site (figures, book, API reference, notebooks)
+        run: just docs
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: site
+          path: docs/site
+          retention-days: 7
+
+      - name: Deploy to Netlify
+        if: github.event_name != 'pull_request'
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
+        run: npx --yes netlify-cli@17 deploy --dir docs/site --prod --message "${{ github.sha }}"

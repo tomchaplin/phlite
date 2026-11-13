@@ -2,17 +2,29 @@
 
 import itertools
 import math
+import random
 
 import networkx as nx
+import pytest
 from grpphati.pipelines.grounded import GrPPH
 from hypothesis import given, note
 from hypothesis import strategies as st
 
+from grid import algorithm_grid
 from mod2 import Span
+import phlite_grpph
 from phlite_grpph import grpph
 
 METHODS = ["cohomology", "homology"]
-ALGORITHMS = ["standard", "clearing", "parallel", "parallel-lock-free"]
+ALGORITHMS = [
+    phlite_grpph.Algorithm.standard(),
+    phlite_grpph.Algorithm.serial(),
+    phlite_grpph.Algorithm.parallel(),
+    phlite_grpph.Algorithm.parallel().with_storage("lock-free"),
+    phlite_grpph.Algorithm.clearing().with_store_r(),
+    # The other representation and caching from this package's default
+    phlite_grpph.Algorithm.serial().with_columns("heap").with_cache(False),
+]
 INF = math.inf
 
 
@@ -125,3 +137,39 @@ def test_networkx_input_matches_integer_input(graph, data):
     ]:
         relabelled = [[[tuple(nodes[v] for v in cell) for cell in rep] for rep in dim] for dim in reps_ints]
         assert reps_graph == relabelled
+
+
+def test_default_columns():
+    """Each package's presets use its own column representation and caching."""
+    for algorithm in [phlite_grpph.Algorithm.serial(), phlite_grpph.Algorithm.parallel(), phlite_grpph.Algorithm.standard()]:
+        assert not algorithm.store_r
+        # This package's matrices give no row ranks, so pivot columns would merge: refused rather than silently
+        with pytest.raises(ValueError, match="'pivot' columns"):
+            algorithm.with_columns("pivot")
+        assert (algorithm.columns, algorithm.cache) == ('merged', True)
+
+
+@given(graph=digraphs())
+def test_every_algorithm_agrees(graph):
+    """Every algorithm and option of the full grid (as for phlite_py) gives the default's barcode."""
+    n, edges = graph
+    expected = grpph(n, edges)
+    for method, algorithm in itertools.product(METHODS, algorithm_grid(phlite_grpph.Algorithm)):
+        note(f"method={method} algorithm={algorithm!r}")
+        barcode = grpph(n, edges, method=method, algorithm=algorithm)
+        assert (barcode.essential, barcode.pairings) == (expected.essential, expected.pairings)
+
+
+@given(graph=digraphs(), seed=st.integers(0, 2**32 - 1))
+def test_relabelling_and_scaling(graph, seed):
+    """Renaming the nodes changes nothing, and doubling every weight doubles every bar's values (path lengths are
+    sums of weights)."""
+    n, edges = graph
+    barcode = grpph(n, edges)
+    order = list(range(n))
+    random.Random(seed).shuffle(order)
+    renamed = grpph(n, [(order[i], order[j], w) for i, j, w in edges])
+    doubled = grpph(n, [(i, j, 2 * w) for i, j, w in edges])
+    for dim in range(2):
+        assert diagram(renamed, dim) == diagram(barcode, dim)
+        assert diagram(doubled, dim) == [(2 * b, 2 * d) for b, d in diagram(barcode, dim)]

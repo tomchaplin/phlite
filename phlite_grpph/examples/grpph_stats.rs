@@ -47,7 +47,11 @@ fn main() {
     let anti = (&with_t).reverse();
 
     let start = std::time::Instant::now();
-    let diagram = Clearing::new().reduce(&anti).diagram;
+    // Keep zero-length apparent pairs, since the classification below needs every pair
+    let diagram = Clearing::new()
+        .skip_zero_apparent_pairs(false)
+        .reduce(&anti)
+        .diagram;
     let reduce_time = start.elapsed();
     let final_pivot: FxHashMap<_, _> = diagram
         .pairings

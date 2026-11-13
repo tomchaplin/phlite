@@ -1,12 +1,19 @@
-//! Shared helpers for `phlite`'s Python bindings (`phlite_grpph` and `phlite_rips`).
+//! Shared helpers for `phlite`'s Python bindings (`phlite_grpph`, `phlite_rips` and `phlite_py`).
 //!
-//! * [`AlgorithmArg`] and [`parse_method`] turn the `algorithm`, `threads` and `method` arguments into a [`phlite::barcode::Algorithm`] and [`Method`].
+//! * [`AlgorithmConfig`] is the Python `Algorithm` class, a builder for every algorithm and option, with presets.
+//!   Take the `algorithm` argument as `Option<Bound<'_, AlgorithmConfig>>`, defaulting to
+//!   [`AlgorithmConfig::default`] (`Algorithm.serial()`), and call [`AlgorithmConfig::run`] with an
+//!   [`AlgorithmVisitor`] to run the configured [`phlite::barcode::Algorithm`]. Add the class to your module with
+//!   [`add_algorithm_class`], which also sets the module's default column representation and caching
+//!   ([`AlgorithmDefaults`]).
+//! * [`parse_method`] reads the `method` argument.
 //! * [`Barcode`] is the Python result type, built from a list of [`Bar`]s via [`SortedBars`].
 //!   Add it to your module with [`add_barcode_class`].
 
 use ordered_float::NotNan;
 use phlite::{
     barcode::{Algorithm, Bar, Method},
+    columns::{ColumnRepresentation, HeapColumns, MergedColumns, PivotColumns, SortedColumns},
     reduction::{Clearing, Standard, Storage},
 };
 use pyo3::{
@@ -16,78 +23,536 @@ use pyo3::{
 };
 use pyo3_stub_gen::derive::*;
 
-/// Python type of the `algorithm` argument, for `#[gen_stub(override_type(type_repr = ...))]`.
-/// Attribute arguments must be literals, so copy this rather than referencing it.
-pub const ALGORITHM_TYPE: &str =
-    "typing.Literal['standard', 'clearing', 'parallel', 'parallel-lock-free']";
 /// Python type of the `method` argument, for `#[gen_stub(override_type(type_repr = ...))]`.
 /// Attribute arguments must be literals, so copy this rather than referencing it.
 pub const METHOD_TYPE: &str = "typing.Literal['cohomology', 'homology']";
 
 // ====== Choosing an algorithm ============================================
 
-/// A reduction algorithm, as named from Python.
-///
-/// Use [`parse`](Self::parse) on the `algorithm` argument, then [`run`](Self::run) to get an [`Algorithm`] (and a thread pool, if needed).
-/// In the stubs, type the argument as [`ALGORITHM_TYPE`].
-#[derive(Debug, Clone, Copy)]
-pub enum AlgorithmArg {
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Kind {
     Standard,
     Clearing,
-    Parallel(Storage),
+    ParallelClearing,
 }
 
-impl AlgorithmArg {
-    /// Parse the name of an algorithm.
-    pub fn parse(name: &str) -> PyResult<Self> {
-        match name {
-            "standard" => Ok(Self::Standard),
-            "clearing" => Ok(Self::Clearing),
-            "parallel" => Ok(Self::Parallel(Storage::Locking)),
-            #[cfg(feature = "lock-free")]
-            "parallel-lock-free" => Ok(Self::Parallel(Storage::LockFree)),
-            #[cfg(not(feature = "lock-free"))]
-            "parallel-lock-free" => Err(PyValueError::new_err(
-                "phlite was built without the 'lock-free' feature",
-            )),
-            other => Err(PyValueError::new_err(format!(
-                "Unknown algorithm {other:?}, expected one of 'standard', 'clearing', 'parallel' or 'parallel-lock-free'"
-            ))),
+/// The column representations, see [`phlite::columns::ColumnRepresentation`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Columns {
+    /// [`MergedColumns`]
+    Merged,
+    /// [`HeapColumns`]
+    Heap,
+    /// [`SortedColumns`]
+    Sorted,
+    /// [`PivotColumns`]
+    Pivot,
+}
+
+/// The column representation, caching and storage of R that a module's presets use, given to
+/// [`add_algorithm_class`].
+///
+/// The best choice depends on the matrix (see the benchmarks): columns that are expensive to compute favour caching,
+/// cheap ones favour recomputing them and saving the memory, and storing R pays off when columns need many additions.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct AlgorithmDefaults {
+    pub columns: Columns,
+    pub cache: bool,
+    /// Only applies to serial clearing (the other algorithms don't support it).
+    pub store_r: bool,
+    /// Whether the module's matrices know the rank of every row
+    /// ([`row_ranks`](phlite::matrices::HasRowFiltration::row_ranks)), which [`Columns::Pivot`] needs: without
+    /// them, `with_columns('pivot')` is refused rather than silently merging.
+    pub row_ranks: bool,
+}
+
+impl Default for AlgorithmDefaults {
+    /// Merged columns, cached, not storing R: phlite's own default.
+    fn default() -> Self {
+        Self {
+            columns: Columns::Merged,
+            cache: true,
+            store_r: false,
+            row_ranks: false,
+        }
+    }
+}
+
+/// Set once per extension module by [`add_algorithm_class`]. Each extension module links its own copy of this crate,
+/// so each has its own defaults.
+static DEFAULTS: std::sync::OnceLock<AlgorithmDefaults> = std::sync::OnceLock::new();
+
+fn defaults() -> AlgorithmDefaults {
+    DEFAULTS.get().copied().unwrap_or_default()
+}
+
+impl Columns {
+    fn name(self) -> &'static str {
+        match self {
+            Self::Merged => "merged",
+            Self::Heap => "heap",
+            Self::Sorted => "sorted",
+            Self::Pivot => "pivot",
+        }
+    }
+}
+
+fn storage_name(storage: Storage) -> &'static str {
+    match storage {
+        #[cfg(feature = "lock-free")]
+        Storage::LockFree => "lock-free",
+        _ => "locking",
+    }
+}
+
+/// A reduction algorithm and its options.
+///
+/// Start from a preset, `Algorithm.serial()` or `Algorithm.parallel()`, which are the recommended configurations,
+/// or from one of the algorithms themselves, `Algorithm.standard()`, `Algorithm.clearing()` or
+/// `Algorithm.parallel_clearing()`, then adjust it with the `with_*` methods (each returns a new `Algorithm`):
+///
+/// ```python
+/// Algorithm.parallel(threads=8)
+/// Algorithm.clearing().with_columns("heap").with_skip_zero_apparent_pairs(False)
+/// ```
+///
+/// Pass the result as the `algorithm` argument. Every algorithm gives the same barcode; only the time and memory differ.
+#[gen_stub_pyclass]
+// The module is set when the class is added to a module, see `add_algorithm_class`
+#[pyclass(frozen, eq, name = "Algorithm")]
+#[derive(Debug, Clone, PartialEq)]
+pub struct AlgorithmConfig {
+    kind: Kind,
+    columns: Columns,
+    cache: bool,
+    store_r: bool,
+    skip_zero_apparent_pairs: bool,
+    dimension_order: Option<Vec<usize>>,
+    storage: Storage,
+    threads: Option<usize>,
+}
+
+/// What to do with an [`Algorithm`]: implement this to call your (generic) barcode function,
+/// then pass it to [`AlgorithmConfig::run`].
+///
+/// This is a trait rather than a closure since the column representation is a type parameter.
+pub trait AlgorithmVisitor: Send {
+    type Output: Send;
+    fn visit<R: ColumnRepresentation>(self, algorithm: Algorithm<'_, R>) -> Self::Output;
+}
+
+impl AlgorithmConfig {
+    fn base(kind: Kind) -> Self {
+        let AlgorithmDefaults {
+            columns,
+            cache,
+            store_r,
+            row_ranks: _,
+        } = defaults();
+        Self {
+            kind,
+            // Only serial clearing uses pivot columns (the others make a fresh column per column, which merges), so
+            // the others' presets say what they really use
+            columns: if columns == Columns::Pivot && kind != Kind::Clearing {
+                Columns::Merged
+            } else {
+                columns
+            },
+            cache,
+            store_r: store_r && kind == Kind::Clearing,
+            // The barcode omits zero-length bars anyway, so there's no point recording them
+            skip_zero_apparent_pairs: kind != Kind::Standard,
+            dimension_order: None,
+            storage: Storage::Locking,
+            threads: None,
         }
     }
 
-    /// Run `f` with the corresponding [`Algorithm`], on a pool of `threads` threads if given.
-    /// Errors if `threads` is given for a serial algorithm.
-    /// With `threads`, `f` itself runs on the pool, so any other rayon work it does (such as building a basis) uses it too.
-    pub fn run<T: Send>(
-        self,
-        threads: Option<usize>,
-        f: impl FnOnce(Algorithm<'_>) -> T + Send,
-    ) -> PyResult<T> {
-        let storage = match (self, threads) {
-            (Self::Standard, None) => return Ok(f(Algorithm::Standard(Standard::new()))),
-            (Self::Clearing, None) => return Ok(f(Algorithm::Clearing(Clearing::new()))),
-            (Self::Standard | Self::Clearing, Some(_)) => return Err(PyValueError::new_err(
-                "threads can only be set for the 'parallel' and 'parallel-lock-free' algorithms",
-            )),
-            (Self::Parallel(storage), _) => storage,
-        };
-        let algorithm = Clearing::new().parallel().storage(storage);
-        match threads {
-            None => Ok(f(Algorithm::ParallelClearing(algorithm))),
-            Some(0) => Err(PyValueError::new_err("threads must be positive")),
-            Some(n) => {
-                let pool = rayon::ThreadPoolBuilder::new()
-                    .num_threads(n)
-                    .build()
-                    .map_err(|e| {
-                        PyValueError::new_err(format!("Could not build thread pool: {e}"))
-                    })?;
-                let algorithm = algorithm.in_pool(&pool);
-                Ok(pool.install(|| f(Algorithm::ParallelClearing(algorithm))))
+    fn require(&self, kinds: &[Kind], option: &str) -> PyResult<()> {
+        if kinds.contains(&self.kind) {
+            Ok(())
+        } else {
+            Err(PyValueError::new_err(format!(
+                "{option} can't be set for the {} algorithm",
+                self.name()
+            )))
+        }
+    }
+
+    /// Run `visitor` with the configured [`Algorithm`], on a pool of `threads` threads if set.
+    /// With threads set, the visitor itself runs on the pool, so any other rayon work it does (such as building a basis)
+    /// uses it too.
+    pub fn run<V: AlgorithmVisitor>(&self, visitor: V) -> PyResult<V::Output> {
+        match self.columns {
+            Columns::Merged => self.run_with(MergedColumns, visitor),
+            Columns::Heap => self.run_with(HeapColumns, visitor),
+            Columns::Sorted => self.run_with(SortedColumns, visitor),
+            Columns::Pivot => self.run_with(PivotColumns, visitor),
+        }
+    }
+
+    fn build_clearing<R: ColumnRepresentation>(&self, columns: R) -> Clearing<R> {
+        let mut clearing = Clearing::new()
+            .with_columns(columns)
+            .cache_columns(self.cache)
+            .store_r(self.store_r);
+        // (`mut` for the dimension order)
+        if let Some(order) = &self.dimension_order {
+            clearing = clearing.with_dimension_order(order.iter().copied());
+        }
+        clearing.skip_zero_apparent_pairs(self.skip_zero_apparent_pairs)
+    }
+
+    fn run_with<R: ColumnRepresentation, V: AlgorithmVisitor>(
+        &self,
+        columns: R,
+        visitor: V,
+    ) -> PyResult<V::Output> {
+        match self.kind {
+            Kind::Standard => Ok(visitor.visit(Algorithm::Standard(
+                Standard::new()
+                    .with_columns(columns)
+                    .cache_columns(self.cache),
+            ))),
+            Kind::Clearing => Ok(visitor.visit(Algorithm::Clearing(self.build_clearing(columns)))),
+            Kind::ParallelClearing => {
+                let algorithm = self
+                    .build_clearing(columns)
+                    .parallel()
+                    .storage(self.storage);
+                match self.threads {
+                    None => Ok(visitor.visit(Algorithm::ParallelClearing(algorithm))),
+                    Some(n) => {
+                        let pool = rayon::ThreadPoolBuilder::new()
+                            .num_threads(n)
+                            .build()
+                            .map_err(|e| {
+                                PyValueError::new_err(format!("Could not build thread pool: {e}"))
+                            })?;
+                        let algorithm = algorithm.in_pool(&pool);
+                        Ok(pool.install(|| visitor.visit(Algorithm::ParallelClearing(algorithm))))
+                    }
+                }
             }
         }
     }
+}
+
+/// `Algorithm.serial()`, the default for an omitted `algorithm` argument.
+impl Default for AlgorithmConfig {
+    fn default() -> Self {
+        Self::serial()
+    }
+}
+
+#[gen_stub_pymethods]
+#[pymethods]
+impl AlgorithmConfig {
+    /// The recommended serial algorithm: clearing, skipping zero-length apparent pairs. The same as `clearing()`
+    /// (and shown as that).
+    #[staticmethod]
+    fn serial() -> Self {
+        Self::base(Kind::Clearing)
+    }
+
+    /// The recommended parallel algorithm: clearing with each dimension reduced in parallel, skipping zero-length
+    /// apparent pairs, on `threads` threads (default: all cores). The same as
+    /// `parallel_clearing().with_threads(threads)` (and shown as that).
+    #[staticmethod]
+    #[pyo3(signature = (threads = None))]
+    fn parallel(threads: Option<usize>) -> PyResult<Self> {
+        Self::base(Kind::ParallelClearing).with_threads(threads)
+    }
+
+    /// The standard algorithm, with no optimisations.
+    #[staticmethod]
+    fn standard() -> Self {
+        Self::base(Kind::Standard)
+    }
+
+    /// The standard algorithm with the clearing optimisation. Skips zero-length apparent pairs by default.
+    #[staticmethod]
+    fn clearing() -> Self {
+        Self::base(Kind::Clearing)
+    }
+
+    /// Clearing, with the columns of each dimension reduced in parallel.
+    /// Skips zero-length apparent pairs by default, and uses all cores and locking storage.
+    #[staticmethod]
+    fn parallel_clearing() -> Self {
+        Self::base(Kind::ParallelClearing)
+    }
+
+    /// How the column being reduced is represented: `'merged'`, `'heap'`, `'sorted'` or `'pivot'`. The presets use
+    /// `'merged'` in `phlite_grpph`, `'heap'` in `phlite_rips` and `'pivot'` in `phlite`. Every choice gives the same
+    /// barcode; only time and memory differ.
+    ///
+    /// Reducing a column means repeatedly finding its pivot (largest entry) and adding other columns to cancel it.
+    ///
+    /// * `'merged'` never builds the column: it merges the columns added lazily, with one heap slot per column added,
+    ///   so it never reads anything below the pivot. The safe choice, fast on every kind of matrix tried.
+    /// * `'heap'` pushes every entry of every column added onto one heap. No sorting, so it is good when the columns
+    ///   added are short and few (e.g. Vietoris–Rips cohomology), but slows down when many entries are added.
+    /// * `'sorted'` keeps the column as one sorted vector and merges each batch of added columns into it. The fastest
+    ///   when the columns added stay near the pivot (typically homology of simplicial or cell complexes, about 1.5×
+    ///   faster than `'merged'`), but very slow when they reach far below it (15–35× slower on GrPPH or the cohomology
+    ///   of cubical complexes). Measure before using it.
+    /// * `'pivot'` keeps the column as a dense array over all rows, with a tree of bitsets marking which are present
+    ///   (as PHAT does): adding an entry flips a bit, and the pivot is found with a few bit-scans. The fastest when
+    ///   many columns are added to each, as for dense or cubical complexes, especially with `with_store_r()`. Needs a
+    ///   matrix that knows the rank of every row in filtration order (`phlite`'s explicit complexes do, Vietoris–Rips
+    ///   and GrPPH don't), and only serial clearing uses it: otherwise asking for it is an error.
+    fn with_columns(
+        &self,
+        #[gen_stub(override_type(type_repr = "typing.Literal['merged', 'heap', 'sorted', 'pivot']", imports = ("typing")))]
+        columns: &str,
+    ) -> PyResult<Self> {
+        let columns = match columns {
+            "merged" => Columns::Merged,
+            "heap" => Columns::Heap,
+            "sorted" => Columns::Sorted,
+            "pivot" => Columns::Pivot,
+            other => {
+                return Err(PyValueError::new_err(format!(
+                    "Unknown columns {other:?}, expected 'merged', 'heap', 'sorted' or 'pivot'"
+                )))
+            }
+        };
+        if columns == Columns::Pivot {
+            // Rather than silently behaving as 'merged'
+            if self.kind != Kind::Clearing {
+                return Err(PyValueError::new_err(format!(
+                    "'pivot' columns are only used by serial clearing, not the {} algorithm (it would merge them)",
+                    self.name()
+                )));
+            }
+            if !defaults().row_ranks {
+                return Err(PyValueError::new_err(
+                    "'pivot' columns need the rank of every row in filtration order, which this package's matrices \
+                     don't give (they would merge instead)",
+                ));
+            }
+        }
+        Ok(Self {
+            columns,
+            ..self.clone()
+        })
+    }
+
+    /// Whether to cache the columns of the boundary matrix as they are added during the reduction. The presets
+    /// cache in `phlite_grpph`, but not in `phlite_rips`, whose columns are cheap to recompute, nor in `phlite`, whose
+    /// columns are stored sorted.
+    ///
+    /// Caching saves recomputing (and re-sorting) a column every time it is added, which pays off when columns are
+    /// expensive to compute (about 3× faster for GrPPH), but keeps every column needed in a dimension in memory
+    /// until that dimension is done (most of the memory for Vietoris–Rips). For `phlite.ChainComplex`, whose columns
+    /// are stored sorted, it only saves copying them, and with the default pivot columns and stored R it is slower:
+    /// about 20% on cell complexes and nearly 2× on cubical complexes.
+    #[pyo3(signature = (cache = true))]
+    fn with_cache(&self, cache: bool) -> Self {
+        Self {
+            cache,
+            ..self.clone()
+        }
+    }
+
+    /// Whether to keep each reduced column of R = D V and add it directly when cancelling a pivot, rather than
+    /// recompute it from V (serial clearing only). The presets store R in `phlite`, but not in `phlite_rips` or
+    /// `phlite_grpph`, where almost every column is an apparent pair and needs no reduction.
+    ///
+    /// Only V is stored by default, so cancelling a pivot with an earlier column j adds one column of the boundary
+    /// matrix for every term of V_j. Storing R (as PHAT does) adds R_j as one column instead, which pays off when V_j
+    /// gets long, as in dense or cubical complexes, at the cost of memory for the stored columns. Vietoris–Rips
+    /// cohomology, where almost every pair needs no reduction, gains little.
+    #[pyo3(signature = (store = true))]
+    fn with_store_r(&self, store: bool) -> PyResult<Self> {
+        if store {
+            self.require(&[Kind::Clearing], "store_r")?;
+        }
+        Ok(Self {
+            store_r: store,
+            ..self.clone()
+        })
+    }
+
+    /// Whether to leave zero-length apparent pairs out of the diagram (clearing algorithms only).
+    ///
+    /// Such pairs give zero-length bars, which the barcode omits anyway, but in many filtrations nearly every pair is
+    /// one, so recording them dominates the time and memory of the reduction.
+    #[pyo3(signature = (skip = true))]
+    fn with_skip_zero_apparent_pairs(&self, skip: bool) -> PyResult<Self> {
+        if skip {
+            self.require(
+                &[Kind::Clearing, Kind::ParallelClearing],
+                "skip_zero_apparent_pairs",
+            )?;
+        }
+        Ok(Self {
+            skip_zero_apparent_pairs: skip,
+            ..self.clone()
+        })
+    }
+
+    /// The order in which to reduce dimensions (clearing algorithms only), or `None` to detect it from the matrix.
+    ///
+    /// Clearing saves work when dimensions are reduced in the direction the matrix maps them (ascending for
+    /// cohomology, descending for homology), which is what is detected. Only the dimensions listed are reduced, so
+    /// list every dimension the barcode needs.
+    #[pyo3(signature = (dimension_order))]
+    fn with_dimension_order(&self, dimension_order: Option<Vec<usize>>) -> PyResult<Self> {
+        self.require(&[Kind::Clearing, Kind::ParallelClearing], "dimension_order")?;
+        Ok(Self {
+            dimension_order,
+            ..self.clone()
+        })
+    }
+
+    /// The concurrent data structures for the parallel algorithm: `'locking'` (the default) or `'lock-free'`.
+    fn with_storage(
+        &self,
+        #[gen_stub(override_type(type_repr = "typing.Literal['locking', 'lock-free']", imports = ("typing")))]
+        storage: &str,
+    ) -> PyResult<Self> {
+        self.require(&[Kind::ParallelClearing], "storage")?;
+        let storage = match storage {
+            "locking" => Storage::Locking,
+            #[cfg(feature = "lock-free")]
+            "lock-free" => Storage::LockFree,
+            #[cfg(not(feature = "lock-free"))]
+            "lock-free" => {
+                return Err(PyValueError::new_err(
+                    "phlite was built without the 'lock-free' feature",
+                ))
+            }
+            other => {
+                return Err(PyValueError::new_err(format!(
+                    "Unknown storage {other:?}, expected 'locking' or 'lock-free'"
+                )))
+            }
+        };
+        Ok(Self {
+            storage,
+            ..self.clone()
+        })
+    }
+
+    /// The number of threads for the parallel algorithm, or `None` for all cores.
+    #[pyo3(signature = (threads))]
+    fn with_threads(&self, threads: Option<usize>) -> PyResult<Self> {
+        if threads.is_some() {
+            self.require(&[Kind::ParallelClearing], "threads")?;
+        }
+        if threads == Some(0) {
+            return Err(PyValueError::new_err("threads must be positive"));
+        }
+        Ok(Self {
+            threads,
+            ..self.clone()
+        })
+    }
+
+    /// `'standard'`, `'clearing'` or `'parallel-clearing'`.
+    #[getter]
+    fn name(&self) -> &'static str {
+        match self.kind {
+            Kind::Standard => "standard",
+            Kind::Clearing => "clearing",
+            Kind::ParallelClearing => "parallel-clearing",
+        }
+    }
+
+    /// `'merged'`, `'heap'`, `'sorted'` or `'pivot'`.
+    #[getter]
+    fn columns(&self) -> &'static str {
+        self.columns.name()
+    }
+
+    /// Whether columns of the boundary matrix are cached.
+    #[getter]
+    fn cache(&self) -> bool {
+        self.cache
+    }
+
+    /// Whether reduced columns of R are stored (serial clearing only).
+    #[getter]
+    fn store_r(&self) -> bool {
+        self.store_r
+    }
+
+    /// Whether zero-length apparent pairs are skipped.
+    #[getter]
+    fn skip_zero_apparent_pairs(&self) -> bool {
+        self.skip_zero_apparent_pairs
+    }
+
+    /// The order dimensions are reduced in, or `None` if detected.
+    #[getter]
+    fn dimension_order(&self) -> Option<Vec<usize>> {
+        self.dimension_order.clone()
+    }
+
+    /// `'locking'` or `'lock-free'` for the parallel algorithm, else `None`.
+    #[getter]
+    fn storage(&self) -> Option<&'static str> {
+        (self.kind == Kind::ParallelClearing).then(|| storage_name(self.storage))
+    }
+
+    /// The number of threads for the parallel algorithm (`None`: all cores).
+    #[getter]
+    fn threads(&self) -> Option<usize> {
+        self.threads
+    }
+
+    /// The Python expression that builds this algorithm.
+    /// Every option, resolved: a chain of `with_*` calls that rebuilds this algorithm in any of the packages (whose
+    /// presets differ).
+    fn __repr__(&self) -> String {
+        let python_bool = |b: bool| if b { "True" } else { "False" };
+        let mut out = format!(
+            "Algorithm.{}().with_columns({:?}).with_cache({})",
+            match self.kind {
+                Kind::Standard => "standard",
+                Kind::Clearing => "clearing",
+                Kind::ParallelClearing => "parallel_clearing",
+            },
+            self.columns.name(),
+            python_bool(self.cache),
+        );
+        if self.kind == Kind::Clearing {
+            out += &format!(".with_store_r({})", python_bool(self.store_r));
+        }
+        if self.kind != Kind::Standard {
+            out += &format!(
+                ".with_skip_zero_apparent_pairs({})",
+                python_bool(self.skip_zero_apparent_pairs)
+            );
+            if let Some(order) = &self.dimension_order {
+                out += &format!(".with_dimension_order({order:?})");
+            }
+        }
+        if self.kind == Kind::ParallelClearing {
+            out += &format!(".with_storage({:?})", storage_name(self.storage));
+            out += &match self.threads {
+                Some(threads) => format!(".with_threads({threads})"),
+                None => ".with_threads(None)".to_string(),
+            };
+        }
+        out
+    }
+}
+
+/// Add the `Algorithm` class to your module, as `public_module.Algorithm`, whose presets use `defaults`.
+pub fn add_algorithm_class(
+    m: &Bound<'_, PyModule>,
+    public_module: &str,
+    defaults: AlgorithmDefaults,
+) -> PyResult<()> {
+    // Only the first call counts (a module is initialised once per process)
+    let _ = DEFAULTS.set(defaults);
+    m.add_class::<AlgorithmConfig>()?;
+    m.getattr("Algorithm")?
+        .setattr("__module__", public_module)?;
+    Ok(())
 }
 
 /// Parse the `method` argument. In the stubs, type it as [`METHOD_TYPE`].

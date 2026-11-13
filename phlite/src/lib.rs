@@ -45,6 +45,7 @@
 //! To see an example implementation of Vietoris-Rips persitent homology, with a step-by-step tutorial, have a look at the [`phlite_rips`](https://github.com/tomchaplin/phlite/tree/main/phlite_rips) crate.
 
 pub mod barcode;
+pub mod bookkeeping;
 pub mod columns;
 pub mod fields;
 mod hash;

@@ -1,0 +1,39 @@
+[project]
+name = "phlite-python-tests-latest"
+version = "0.0.0"
+description = "The newer environment of phlite's python-tests: phlite_py against PHAT and LoPHAT"
+# LoPHAT 0.14 needs Python >= 3.12, while the main python-tests environment is stuck on 3.11 (see ../pyproject.toml)
+requires-python = ">=3.12"
+dependencies = [
+    "maturin>=1.9,<2.0",
+    "pytest>=8",
+    "hypothesis>=6.100",
+    "numpy",
+    # PHAT is installed separately by `just install-phat`, since its PyPI metadata is broken
+    "lophat>=0.14",
+    # For phlite_py's own tests
+    "networkx",
+    "scipy",
+    "pytest-timeout>=2.3",
+]
+
+[tool.uv]
+# phlite_py is built into this environment by `maturin develop` (see ../justfile)
+package = false
+
+[dependency-groups]
+dev = [
+    "memray>=1.20.0",
+    "pytest-benchmark>=5.3.1",
+    "tadasets>=0.2.2",
+]
+docs = [
+    "altair>=5.4",
+    "furo>=2024.8",
+    "marimo>=0.9",
+    "myst-parser>=4",
+    "polars>=1.0",
+    "sphinx>=8",
+    "sphinx-autoapi>=3.3",
+    "vl-convert-python>=1.6",
+]

@@ -53,14 +53,13 @@ use std::sync::{Arc, RwLock};
 
 use dashmap::{mapref::entry::Entry, DashMap};
 use rayon::prelude::*;
-use rustc_hash::{FxHashMap, FxHashSet};
 
 use super::clearing::{ClearedReductionMatrix, ReductionColumn};
-use super::Diagram;
 use super::{Clearing, Reduction, ReductionAlgorithm};
+use super::{Diagram, DiagramBuilder};
 use crate::columns::{
-    BHCol, ColumnCoefficient, ColumnEntry, ColumnFiltration, ColumnRepresentation, ColumnRow,
-    MergedColumns, WorkingColumn,
+    BHCol, ColumnCache, ColumnCoefficient, ColumnEntry, ColumnFiltration, ColumnRepresentation,
+    ColumnRow, MergedColumns, WorkingColumn,
 };
 use crate::fields::{Invertible, NonZeroCoefficient};
 use crate::matrices::{ColBasis, HasRowFiltration, HasSplitColBasis, MatrixOracle, SquareMatrix};
@@ -71,6 +70,7 @@ const MAX_TASK_LEN: usize = 16;
 /// The fewest columns classified per task: classifying a column is cheap, so tasks must be big to amortise rayon's overhead
 const MIN_CLASSIFY_LEN: usize = 1024;
 
+use crate::bookkeeping::{ElementMap, ElementSet};
 use crate::hash::FxBuild;
 pub use crate::hash::MixedFx;
 
@@ -227,11 +227,11 @@ where
     /// The columns of this dimension that need reducing, in basis order. Position in this vec is the local index.
     cols: Vec<M::ColT>,
     /// The columns cleared in this dimension (keys), which own no pivots
-    cleared: &'a FxHashMap<M::RowT, M::ColT>,
+    cleared: &'a ElementMap<M::RowT, M::ColT>,
     state: S,
     columns: &'a C,
     /// Shared by all of the columns reduced in this dimension, across threads
-    cache: C::Cache<M::FiltrationT, M::RowT, M::CoefficientField>,
+    cache: ColumnCache<M::FiltrationT, M::RowT, M::CoefficientField>,
     _marker: PhantomData<M>,
 }
 
@@ -254,8 +254,9 @@ where
     fn new(
         boundary: &'a M,
         cols: Vec<M::ColT>,
-        cleared: &'a FxHashMap<M::RowT, M::ColT>,
+        cleared: &'a ElementMap<M::RowT, M::ColT>,
         columns: &'a C,
+        cache_columns: bool,
     ) -> Self {
         Self {
             boundary,
@@ -263,7 +264,7 @@ where
             cols,
             cleared,
             columns,
-            cache: Default::default(),
+            cache: ColumnCache::new(cache_columns),
             _marker: PhantomData,
         }
     }
@@ -511,8 +512,14 @@ impl<'p, C: ColumnRepresentation> ParallelClearing<'p, C> {
     }
 
     /// See [`Clearing::skip_zero_apparent_pairs`].
-    pub fn skip_zero_apparent_pairs(mut self) -> Self {
-        self.clearing = self.clearing.skip_zero_apparent_pairs();
+    pub fn skip_zero_apparent_pairs(mut self, skip: bool) -> Self {
+        self.clearing = self.clearing.skip_zero_apparent_pairs(skip);
+        self
+    }
+
+    /// See [`Clearing::cache_columns`].
+    pub fn cache_columns(mut self, cache: bool) -> Self {
+        self.clearing = self.clearing.cache_columns(cache);
         self
     }
 
@@ -546,6 +553,7 @@ where
         let dimension_order = self.clearing.dimension_order(&boundary);
         let skip_zero_apparent_pairs = self.clearing.skip_zero_apparent_pairs;
         let columns = self.clearing.columns;
+        let cache_columns = self.clearing.cache_columns;
         let run = move || {
             let (v, diagram) = match self.storage {
                 Storage::Locking => build_with_diagram_using::<M, LockingBackend<_, _>, C>(
@@ -553,6 +561,7 @@ where
                     dimension_order,
                     skip_zero_apparent_pairs,
                     &columns,
+                    cache_columns,
                 ),
                 #[cfg(feature = "lock-free")]
                 Storage::LockFree => build_with_diagram_using::<M, LockFreeBackend<_, _>, C>(
@@ -560,6 +569,7 @@ where
                     dimension_order,
                     skip_zero_apparent_pairs,
                     &columns,
+                    cache_columns,
                 ),
             };
             Reduction { v, diagram }
@@ -577,6 +587,7 @@ fn build_with_diagram_using<M, S, C>(
     dimension_order: Vec<usize>,
     skip_zero_apparent_pairs: bool,
     columns: &C,
+    cache_columns: bool,
 ) -> (ClearedReductionMatrix<'static, M>, Diagram<M::ColT>)
 where
     M: MatrixOracle + SquareMatrix + HasRowFiltration + HasSplitColBasis + Sync,
@@ -586,12 +597,14 @@ where
     S: Backend<M::RowT, M::CoefficientField>,
     C: ColumnRepresentation,
 {
-    let mut reduction_columns: FxHashMap<M::ColT, ReductionColumn<M::CoefficientField, M::ColT>> =
-        FxHashMap::default();
-    let mut essential = FxHashSet::default();
-    let mut pairings = FxHashSet::default();
+    let mut reduction_columns: ElementMap<M::ColT, ReductionColumn<M::CoefficientField, M::ColT>> =
+        ElementMap::new();
+    let mut diagram = DiagramBuilder::default();
     // The pairs `pivot row -> column` found in the previous dimension, whose rows are the columns to clear in this one
-    let mut previous_pairs: FxHashMap<M::RowT, M::ColT> = FxHashMap::default();
+    let mut previous_pairs: ElementMap<M::RowT, M::ColT> = ElementMap::new();
+    // Births of skipped (zero-persistence apparent) pairs that weren't cleared, and so may be wrongly marked essential.
+    // Only ever non-empty when dimensions are reduced against the direction of the matrix.
+    let mut skipped_births: ElementSet<M::RowT> = ElementSet::default();
     let n_dims = dimension_order.len();
 
     for (position, dim) in dimension_order.into_iter().enumerate() {
@@ -620,10 +633,11 @@ where
                             == Some(&col) =>
                     {
                         let record = !(skip_zero_apparent_pairs
-                            && boundary.filtration_value(entry.row_index.clone())
-                                == boundary.filtration_value(col.clone()));
-                        // Unrecorded pairs are still needed to clear the next dimension
-                        if record || !is_last {
+                            && boundary
+                                .same_filtration_value(entry.row_index.clone(), col.clone()));
+                        // Unrecorded pairs are still needed to clear the next dimension, and to un-mark their birth
+                        // as essential if its dimension was reduced earlier (against the direction of the matrix)
+                        if record || !is_last || diagram.essential.contains(&entry.row_index) {
                             acc.apparent.push((entry.row_index, col, record));
                         }
                     }
@@ -641,13 +655,17 @@ where
         for (col, birth) in cleared {
             reduction_columns.insert(col, ReductionColumn::Cleared(birth));
         }
-        essential.extend(zero);
+        for col in zero {
+            diagram.essential.insert(col);
+        }
         for (pivot_row, col, record) in apparent {
             if !is_last {
                 previous_pairs.insert(pivot_row.clone(), col.clone());
             }
             if record {
-                pairings.insert((pivot_row, col));
+                diagram.pairings.push((pivot_row, col));
+            } else {
+                diagram.essential.remove(&pivot_row);
             }
         }
 
@@ -657,11 +675,27 @@ where
             .into_iter()
             .map(|i| boundary.sub_basis(dim).element(i))
             .collect();
-        let reducer = DimensionReducer::<M, S, C>::new(&boundary, cols, &clearing, columns);
+        let reducer =
+            DimensionReducer::<M, S, C>::new(&boundary, cols, &clearing, columns, cache_columns);
         (0..reducer.cols.len())
             .into_par_iter()
             .with_max_len(MAX_TASK_LEN)
             .for_each(|j| reducer.reduce_column(j));
+
+        // Rows paired in the previous dimension that weren't columns of this one aren't needed for clearing.
+        // But if their pair was skipped, the row's column may be reduced in a later dimension and marked essential.
+        // (When dimensions are visited in the direction of the matrix there are no such rows.)
+        if skip_zero_apparent_pairs {
+            for (row, col) in clearing.iter() {
+                let was_cleared = matches!(
+                    reduction_columns.get(&row),
+                    Some(ReductionColumn::Cleared(_))
+                );
+                if !was_cleared && boundary.same_filtration_value(row.clone(), col.clone()) {
+                    skipped_births.insert(row);
+                }
+            }
+        }
 
         // 3. Read off the results
         for (j, label) in reducer.cols.iter().enumerate() {
@@ -673,9 +707,9 @@ where
                 if !is_last {
                     previous_pairs.insert(pivot_row.clone(), label.clone());
                 }
-                pairings.insert((pivot_row.clone(), label.clone()));
+                diagram.pairings.push((pivot_row.clone(), label.clone()));
             } else {
-                essential.insert(label.clone());
+                diagram.essential.insert(label.clone());
             }
             // We don't store the diagonal of V, nor V at all when it is trivial
             if !snapshot.v.is_empty() {
@@ -695,10 +729,5 @@ where
     }
 
     let v = ClearedReductionMatrix::build_from_owned(boundary, reduction_columns);
-    let mut diagram = Diagram {
-        essential,
-        pairings,
-    };
-    diagram.remove_births_from_essential();
-    (v, diagram)
+    (v, diagram.finish(Some(&skipped_births)))
 }

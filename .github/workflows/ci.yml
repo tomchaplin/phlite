@@ -1,0 +1,110 @@
+# Tests, a light fuzz and a light benchmark, on pull requests and pushes to main, reported on the pull request.
+#
+# One job, so that the extension modules and the reference implementations (PHAT is built from source) are built once:
+# 1. the full test suite: the Rust workspace (with cargo-nextest, for a JUnit report; doctests with cargo), then the
+#    Python tests against ripser, giotto-ph, grpphati, PHAT and LoPHAT;
+# 2. a light fuzz: 1000 cases per Rust property test and 1000 Hypothesis examples per Python test;
+# 3. a light benchmark of phlite's default serial and parallel algorithms on the quick cases, as multiples of the
+#    reference implementations' times in the same run, compared with the latest run on main (whose results it
+#    keeps as the next baseline). Shared CI machines are noisy, so it reports and never fails.
+# On a pull request, the test results and the benchmark are posted as two comments, updated on every push.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  # To comment on the pull request and publish the test report as a check
+  pull-requests: write
+  checks: write
+  # To download the baseline benchmark from the latest run on main
+  actions: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+
+      # uv also fetches the two Pythons python-tests needs (3.11 and 3.13)
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          cache-dependency-glob: "python-tests/**/uv.lock"
+
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: just,cargo-nextest
+
+      # ---- 1. Tests ----
+      - name: Rust tests
+        run: |
+          cargo nextest run --release --workspace --all-features --profile ci
+          cargo test --doc --workspace --all-features
+
+      - name: Python tests (against the references)
+        working-directory: python-tests
+        run: PHLITE_JUNIT_DIR="$GITHUB_WORKSPACE/test-results/python" just test
+
+      # ---- 2. A light fuzz ----
+      - name: Rust property tests, 1000 cases each
+        run: PROPTEST_CASES=1000 cargo nextest run --release --workspace --all-features --profile ci-fuzz
+
+      - name: Python fuzz, 1000 examples per test
+        working-directory: python-tests
+        run: PHLITE_JUNIT_DIR="$GITHUB_WORKSPACE/test-results/fuzz" just fuzz 1000
+
+      # ---- 3. A light benchmark ----
+      - name: Fetch the baseline benchmark (the latest run on main)
+        if: github.event_name == 'pull_request'
+        uses: dawidd6/action-download-artifact@v6
+        with:
+          workflow: ci.yml
+          branch: main
+          name: light-benchmark
+          path: light-baseline
+          if_no_artifact_found: warn
+
+      - name: Benchmark the default algorithms, lightly
+        working-directory: python-tests
+        run: |
+          LIGHT_BASELINE="$GITHUB_WORKSPACE/light-baseline" just bench-light
+          cat benchmarks/results/light/report.md >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: light-benchmark
+          path: python-tests/benchmarks/results/light
+          retention-days: 90
+
+      # ---- Reports ----
+      - name: Report the test results
+        if: always()
+        uses: EnricoMi/publish-unit-test-result-action@v2
+        with:
+          check_name: Test results
+          files: |
+            target/nextest/ci/junit.xml
+            target/nextest/ci-fuzz/junit.xml
+            test-results/**/*.xml
+
+      - name: Comment the benchmark on the pull request
+        if: github.event_name == 'pull_request'
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: light-benchmark
+          path: python-tests/benchmarks/results/light/report.md

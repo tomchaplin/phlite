@@ -79,6 +79,10 @@ where
         self.left.filtration_value(row)
     }
 
+    fn same_filtration_value(&self, a: Self::RowT, b: Self::RowT) -> bool {
+        self.left.same_filtration_value(a, b)
+    }
+
     // In case left has a more efficient column with filtration, we try to use it
     fn column_with_filtration(
         &self,

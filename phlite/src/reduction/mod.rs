@@ -23,8 +23,8 @@
 //!   [`with_transpose`](crate::matrices::MatrixOracle::with_transpose)), then *apparent pairs* are recognised:
 //!   a column `c` whose pivot `r` has `c` as the first column in its row is a persistence pair that needs no reduction.
 //!   Apparent pairs are never stored in pivot tables, since whenever another column hits pivot `r` the owner `c` can be recomputed.
-//!   So the column basis needn't even contain them; with
-//!   [`skip_zero_apparent_pairs`](Clearing::skip_zero_apparent_pairs) those of zero persistence are also left out of the diagram.
+//!   So the column basis needn't even contain them; those of zero persistence are also left out of the diagram, unless
+//!   you turn off [`skip_zero_apparent_pairs`](Clearing::skip_zero_apparent_pairs).
 //!
 //! [`Standard`] makes none of these optimisations: it builds every column and needs the full column basis.
 //!
@@ -63,24 +63,64 @@ pub use clearing::*;
 pub use parallel::{ParallelClearing, Storage};
 pub use standard::*;
 
-use crate::matrices::MatrixOracle;
-use rustc_hash::FxHashSet;
-// TODO: Should this be just a vec to make construction quicker?
+use crate::bookkeeping::ElementSet;
+use crate::matrices::{BasisElement, MatrixOracle};
+
 /// A persistence diagram, as obtained by one of the reduction algorithms.
-#[derive(Debug, Clone)]
+///
+/// Both lists are in no particular order, which may differ between algorithms; [`sorted`](Self::sorted) puts them in
+/// order, for example to compare diagrams.
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Diagram<T> {
     /// The unpaired or essential columns (infinite bars).
-    pub essential: FxHashSet<T>,
+    pub essential: Vec<T>,
     /// The paired columns (finite bars), stored as (birth, death) pairs.
-    pub pairings: FxHashSet<(T, T)>,
+    pub pairings: Vec<(T, T)>,
 }
 
-impl<T: std::hash::Hash + Eq + Clone> Diagram<T> {
-    /// A column that is the pivot of another column is the birth of a finite bar, so is not essential.
-    /// Algorithms that visit columns out of order call this once at the end.
-    pub(crate) fn remove_births_from_essential(&mut self) {
-        let births: FxHashSet<T> = self.pairings.iter().map(|(birth, _death)| birth.clone()).collect();
-        self.essential.retain(|elem| !births.contains(elem));
+impl<T: Ord> Diagram<T> {
+    /// The same diagram with both lists sorted, so that diagrams from different algorithms can be compared with `==`.
+    #[must_use]
+    pub fn sorted(mut self) -> Self {
+        self.essential.sort_unstable();
+        self.pairings.sort_unstable();
+        self
+    }
+}
+
+/// A [`Diagram`] being built by a reduction algorithm.
+pub(crate) struct DiagramBuilder<T: BasisElement + std::hash::Hash> {
+    /// The columns found to be zero so far. Some may turn out to be births, see [`finish`](Self::finish).
+    pub(crate) essential: ElementSet<T>,
+    pub(crate) pairings: Vec<(T, T)>,
+}
+
+impl<T: BasisElement + std::hash::Hash> Default for DiagramBuilder<T> {
+    fn default() -> Self {
+        Self {
+            essential: ElementSet::default(),
+            pairings: Vec::new(),
+        }
+    }
+}
+
+impl<T: BasisElement + std::hash::Hash> DiagramBuilder<T> {
+    /// The diagram, leaving out of the essential columns those that are births of finite bars (algorithms that visit
+    /// columns out of order may have marked them essential first), and those in `exclude`.
+    pub(crate) fn finish(self, exclude: Option<&ElementSet<T>>) -> Diagram<T> {
+        let mut births = ElementSet::default();
+        for (birth, _death) in &self.pairings {
+            births.insert(birth.clone());
+        }
+        let essential = self
+            .essential
+            .into_elements()
+            .filter(|elem| !births.contains(elem) && !exclude.is_some_and(|set| set.contains(elem)))
+            .collect();
+        Diagram {
+            essential,
+            pairings: self.pairings,
+        }
     }
 }
 
@@ -101,6 +141,17 @@ pub trait ReductionAlgorithm<M: MatrixOracle> {
     ///
     /// The matrix is consumed so you probably want to pass a reference to your matrix.
     fn reduce(self, boundary: M) -> Reduction<Self::V, M::ColT>;
+
+    /// Reduce `boundary`, returning only the persistence diagram.
+    ///
+    /// By default this is [`reduce`](Self::reduce) without `V`, but algorithms may do less work when `V` isn't
+    /// wanted: [`Clearing`] with [`store_r`](Clearing::store_r) doesn't track `V` at all.
+    fn diagram(self, boundary: M) -> Diagram<M::ColT>
+    where
+        Self: Sized,
+    {
+        self.reduce(boundary).diagram
+    }
 }
 
 #[cfg(test)]

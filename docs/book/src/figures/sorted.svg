@@ -1,0 +1,138 @@
+<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN"
+  "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg xmlns:xlink="http://www.w3.org/1999/xlink" width="592.951406pt" height="169.632pt" viewBox="0 0 592.951406 169.632" xmlns="http://www.w3.org/2000/svg" version="1.1">
+ <metadata>
+  <rdf:RDF xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:cc="http://creativecommons.org/ns#" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+   <cc:Work>
+    <dc:type rdf:resource="http://purl.org/dc/dcmitype/StillImage"/>
+    <dc:format>image/svg+xml</dc:format>
+    <dc:creator>
+     <cc:Agent>
+      <dc:title>Matplotlib v3.11.2, https://matplotlib.org/</dc:title>
+     </cc:Agent>
+    </dc:creator>
+   </cc:Work>
+  </rdf:RDF>
+ </metadata>
+ <defs>
+  <style type="text/css">*{stroke-linejoin: round; stroke-linecap: butt}</style>
+ </defs>
+ <g id="figure_1">
+  <g id="patch_1">
+   <path d="M 0 169.632 
+L 592.951406 169.632 
+L 592.951406 0 
+L 0 0 
+z
+" style="fill: #ffffff"/>
+  </g>
+  <g id="axes_1">
+   <g id="patch_2">
+    <path d="M 129.96 51.552 
+L 157.86 51.552 
+L 157.86 26.604 
+L 129.96 26.604 
+z
+" clip-path="url(#p983dc78e8e)" style="fill: #3b6fb6; opacity: 0.85"/>
+   </g>
+   <g id="patch_3">
+    <path d="M 163.44 51.552 
+L 191.34 51.552 
+L 191.34 26.604 
+L 163.44 26.604 
+z
+" clip-path="url(#p983dc78e8e)" style="fill: #3b6fb6; opacity: 0.85"/>
+   </g>
+   <g id="patch_4">
+    <path d="M 196.92 51.552 
+L 224.82 51.552 
+L 224.82 26.604 
+L 196.92 26.604 
+z
+" clip-path="url(#p983dc78e8e)" style="fill: #3b6fb6; opacity: 0.85"/>
+   </g>
+   <g id="patch_5">
+    <path d="M 230.4 51.552 
+L 258.3 51.552 
+L 258.3 26.604 
+L 230.4 26.604 
+z
+" clip-path="url(#p983dc78e8e)" style="fill: #3b6fb6; opacity: 0.85"/>
+   </g>
+   <g id="patch_6">
+    <path d="M 263.88 51.552 
+L 291.78 51.552 
+L 291.78 26.604 
+L 263.88 26.604 
+z
+" clip-path="url(#p983dc78e8e)" style="fill: #e07b39; opacity: 0.85"/>
+   </g>
+   <g id="patch_7">
+    <path d="M 297.36 51.552 
+L 325.26 51.552 
+L 325.26 26.604 
+L 297.36 26.604 
+z
+" clip-path="url(#p983dc78e8e)" style="fill: #e07b39; opacity: 0.85"/>
+   </g>
+   <g id="patch_8">
+    <path d="M 129.96 106.992 
+L 157.86 106.992 
+L 157.86 82.044 
+L 129.96 82.044 
+z
+" clip-path="url(#p983dc78e8e)" style="fill: #3a9d5d; opacity: 0.85"/>
+   </g>
+   <g id="patch_9">
+    <path d="M 163.44 106.992 
+L 191.34 106.992 
+L 191.34 82.044 
+L 163.44 82.044 
+z
+" clip-path="url(#p983dc78e8e)" style="fill: #3a9d5d; opacity: 0.85"/>
+   </g>
+   <g id="text_1">
+    <text style="font-size: 10px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #222222" x="12.78" y="37.692" transform="rotate(-0 12.78 37.692)">sorted (ascending)</text>
+   </g>
+   <g id="text_2">
+    <text style="font-weight: 700; font-size: 11px; font-family: 'DejaVu Sans'; text-anchor: middle; fill: #ffffff" x="143.91" y="42.212622" transform="rotate(-0 143.91 42.212622)">0</text>
+   </g>
+   <g id="text_3">
+    <text style="font-weight: 700; font-size: 11px; font-family: 'DejaVu Sans'; text-anchor: middle; fill: #ffffff" x="177.39" y="42.212622" transform="rotate(-0 177.39 42.212622)">1</text>
+   </g>
+   <g id="text_4">
+    <text style="font-weight: 700; font-size: 11px; font-family: 'DejaVu Sans'; text-anchor: middle; fill: #ffffff" x="210.87" y="42.212622" transform="rotate(-0 210.87 42.212622)">3</text>
+   </g>
+   <g id="text_5">
+    <text style="font-weight: 700; font-size: 11px; font-family: 'DejaVu Sans'; text-anchor: middle; fill: #ffffff" x="244.35" y="42.212622" transform="rotate(-0 244.35 42.212622)">4</text>
+   </g>
+   <g id="text_6">
+    <text style="font-weight: 700; font-size: 11px; font-family: 'DejaVu Sans'; text-anchor: middle; fill: #ffffff" x="277.83" y="42.212622" transform="rotate(-0 277.83 42.212622)">6</text>
+   </g>
+   <g id="text_7">
+    <text style="font-weight: 700; font-size: 11px; font-family: 'DejaVu Sans'; text-anchor: middle; fill: #ffffff" x="311.31" y="42.212622" transform="rotate(-0 311.31 42.212622)">9</text>
+   </g>
+   <g id="text_8">
+    <text style="font-size: 10px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #222222" x="12.78" y="93.132" transform="rotate(-0 12.78 93.132)">pending (unsorted)</text>
+   </g>
+   <g id="text_9">
+    <text style="font-weight: 700; font-size: 11px; font-family: 'DejaVu Sans'; text-anchor: middle; fill: #ffffff" x="143.91" y="97.652622" transform="rotate(-0 143.91 97.652622)">7</text>
+   </g>
+   <g id="text_10">
+    <text style="font-weight: 700; font-size: 11px; font-family: 'DejaVu Sans'; text-anchor: middle; fill: #ffffff" x="177.39" y="97.652622" transform="rotate(-0 177.39 97.652622)">5</text>
+   </g>
+   <g id="text_11">
+    <text style="font-size: 9.5px; font-family: 'DejaVu Sans'; fill: #222222" transform="translate(358.74 42.460248)">on the next pivot query, sort the pending terms</text>
+    <text style="font-size: 9.5px; font-family: 'DejaVu Sans'; fill: #222222" transform="translate(358.74 53.862846)">and merge them in from the smallest (5):</text>
+    <text style="font-size: 9.5px; font-family: 'DejaVu Sans'; fill: #222222" transform="translate(358.74 65.265443)">terms below it (blue) stay put, the rest are</text>
+    <text style="font-size: 9.5px; font-family: 'DejaVu Sans'; fill: #222222" transform="translate(358.74 76.668041)">rewritten (orange). The pivot is the last term.</text>
+   </g>
+  </g>
+ </g>
+ <defs>
+  <clipPath id="p983dc78e8e">
+   <rect x="7.2" y="7.2" width="558" height="155.232"/>
+  </clipPath>
+ </defs>
+</svg>

@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN"
+  "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg xmlns:xlink="http://www.w3.org/1999/xlink" width="577.033047pt" height="202.896pt" viewBox="0 0 577.033047 202.896" xmlns="http://www.w3.org/2000/svg" version="1.1">
+ <metadata>
+  <rdf:RDF xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:cc="http://creativecommons.org/ns#" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+   <cc:Work>
+    <dc:type rdf:resource="http://purl.org/dc/dcmitype/StillImage"/>
+    <dc:format>image/svg+xml</dc:format>
+    <dc:creator>
+     <cc:Agent>
+      <dc:title>Matplotlib v3.11.2, https://matplotlib.org/</dc:title>
+     </cc:Agent>
+    </dc:creator>
+   </cc:Work>
+  </rdf:RDF>
+ </metadata>
+ <defs>
+  <style type="text/css">*{stroke-linejoin: round; stroke-linecap: butt}</style>
+ </defs>
+ <g id="figure_1">
+  <g id="patch_1">
+   <path d="M 0 202.896 
+L 577.033047 202.896 
+L 577.033047 -0 
+L 0 -0 
+z
+" style="fill: #ffffff"/>
+  </g>
+  <g id="axes_1">
+   <g id="patch_2">
+    <path d="M 45.313047 162.432 
+L 70.423047 162.432 
+L 70.423047 73.728 
+L 45.313047 73.728 
+z
+" clip-path="url(#pfa6c6d7a49)" style="fill: #3b6fb6; opacity: 0.3; stroke: #3b6fb6; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_3">
+    <path d="M 89.953047 162.432 
+L 115.063047 162.432 
+L 115.063047 62.64 
+L 89.953047 62.64 
+z
+" clip-path="url(#pfa6c6d7a49)" style="fill: #3b6fb6; opacity: 0.3; stroke: #3b6fb6; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_4">
+    <path d="M 134.593047 162.432 
+L 159.703047 162.432 
+L 159.703047 73.728 
+L 134.593047 73.728 
+z
+" clip-path="url(#pfa6c6d7a49)" style="fill: #3b6fb6; opacity: 0.3; stroke: #3b6fb6; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_5">
+    <path d="M 179.233047 162.432 
+L 204.343047 162.432 
+L 204.343047 62.64 
+L 179.233047 62.64 
+z
+" clip-path="url(#pfa6c6d7a49)" style="fill: #3b6fb6; opacity: 0.3; stroke: #3b6fb6; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_6">
+    <path d="M 223.873047 162.432 
+L 248.983047 162.432 
+L 248.983047 73.728 
+L 223.873047 73.728 
+z
+" clip-path="url(#pfa6c6d7a49)" style="fill: #3b6fb6; opacity: 0.3; stroke: #3b6fb6; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_7">
+    <path d="M 421.963047 162.432 
+L 447.073047 162.432 
+L 447.073047 62.64 
+L 421.963047 62.64 
+z
+" clip-path="url(#pfa6c6d7a49)" style="fill: #e07b39; opacity: 0.45; stroke: #e07b39; stroke-linejoin: miter"/>
+   </g>
+   <g id="line2d_1">
+    <path d="M 296.413047 179.064 
+L 296.413047 18.288 
+" clip-path="url(#pfa6c6d7a49)" style="fill: none; stroke: #cccccc; stroke-linecap: square"/>
+   </g>
+   <g id="text_1">
+    <text style="font-weight: 700; font-size: 11px; font-family: 'DejaVu Sans'; text-anchor: middle; fill: #222222" x="145.753047" y="21.06" transform="rotate(-0 145.753047 21.06)">Store V (default): recompute R_j = D V_j</text>
+   </g>
+   <g id="text_2">
+    <text style="font-size: 10px; font-family: 'DejaVu Sans'; text-anchor: middle; fill: #222222" x="57.589047" y="176.292" transform="rotate(-0 57.589047 176.292)">D_1</text>
+   </g>
+   <g id="text_3">
+    <text style="font-size: 10px; font-family: 'DejaVu Sans'; text-anchor: middle; fill: #222222" x="102.229047" y="176.292" transform="rotate(-0 102.229047 176.292)">D_2</text>
+   </g>
+   <g id="text_4">
+    <text style="font-size: 14px; font-family: 'DejaVu Sans'; text-anchor: middle; fill: #222222" x="78.793047" y="118.08" transform="rotate(-0 78.793047 118.08)">+</text>
+   </g>
+   <g id="text_5">
+    <text style="font-size: 10px; font-family: 'DejaVu Sans'; text-anchor: middle; fill: #222222" x="146.869047" y="176.292" transform="rotate(-0 146.869047 176.292)">D_3</text>
+   </g>
+   <g id="text_6">
+    <text style="font-size: 14px; font-family: 'DejaVu Sans'; text-anchor: middle; fill: #222222" x="123.433047" y="118.08" transform="rotate(-0 123.433047 118.08)">+</text>
+   </g>
+   <g id="text_7">
+    <text style="font-size: 10px; font-family: 'DejaVu Sans'; text-anchor: middle; fill: #222222" x="191.509047" y="176.292" transform="rotate(-0 191.509047 176.292)">D_4</text>
+   </g>
+   <g id="text_8">
+    <text style="font-size: 14px; font-family: 'DejaVu Sans'; text-anchor: middle; fill: #222222" x="168.073047" y="118.08" transform="rotate(-0 168.073047 118.08)">+</text>
+   </g>
+   <g id="text_9">
+    <text style="font-size: 10px; font-family: 'DejaVu Sans'; text-anchor: middle; fill: #222222" x="236.149047" y="176.292" transform="rotate(-0 236.149047 176.292)">D_5</text>
+   </g>
+   <g id="text_10">
+    <text style="font-size: 14px; font-family: 'DejaVu Sans'; text-anchor: middle; fill: #222222" x="212.713047" y="118.08" transform="rotate(-0 212.713047 118.08)">+</text>
+   </g>
+   <g id="text_11">
+    <text style="font-size: 9.5px; font-family: 'DejaVu Sans'; text-anchor: middle; fill: #222222" x="145.753047" y="48.78" transform="rotate(-0 145.753047 48.78)">V_j = e_1 + e_2 + e_3 + e_4 + e_5: add five columns of D</text>
+   </g>
+   <g id="text_12">
+    <text style="font-weight: 700; font-size: 11px; font-family: 'DejaVu Sans'; text-anchor: middle; fill: #222222" x="435.913047" y="21.06" transform="rotate(-0 435.913047 21.06)">Store R (store_r): add R_j once</text>
+   </g>
+   <g id="text_13">
+    <text style="font-size: 10px; font-family: 'DejaVu Sans'; text-anchor: middle; fill: #222222" x="434.239047" y="176.292" transform="rotate(-0 434.239047 176.292)">R_j</text>
+   </g>
+   <g id="text_14">
+    <text style="font-size: 9.5px; font-family: 'DejaVu Sans'; text-anchor: middle; fill: #222222" x="435.913047" y="48.78" transform="rotate(-0 435.913047 48.78)">one column, kept from when j was reduced</text>
+   </g>
+  </g>
+ </g>
+ <defs>
+  <clipPath id="pfa6c6d7a49">
+   <rect x="11.833047" y="7.2" width="558" height="188.496"/>
+  </clipPath>
+ </defs>
+</svg>

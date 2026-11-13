@@ -11,7 +11,6 @@ use crate::columns::{BHCol, ColumnEntry};
 
 use super::{ColBasis, HasColBasis, HasSplitColBasis, SplitBasis, SplitByDimension};
 
-// TODO: Test column cacher
 
 #[test]
 fn test_matrix_product() {
@@ -282,4 +281,35 @@ fn column_pivot_and_min() {
         rev_row(reversed.build_bhcol(Reverse(0)).pop_pivot()),
         Some(2)
     );
+}
+
+/// Identity ranks (no table) agree with an explicit identity table, in both directions.
+#[test]
+fn identity_row_ranks() {
+    use super::RowRanks;
+    #[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Debug)]
+    struct Dense(usize);
+    impl super::BasisElement for Dense {
+        const DENSE_INDEX: bool = true;
+        fn dense_index(&self) -> usize {
+            self.0
+        }
+        fn from_dense_index(index: usize) -> Self {
+            Dense(index)
+        }
+    }
+    for bound in [1, 2, 63, 64, 65, 1000] {
+        let identity = RowRanks::identity(bound);
+        let table = RowRanks::new((0..bound as u32).collect::<Vec<_>>().into());
+        assert_eq!(identity.bound(), table.bound());
+        for i in 0..bound {
+            assert_eq!(identity.rank(&Dense(i)), i);
+            assert_eq!(identity.rank(&Dense(i)), table.rank(&Dense(i)));
+            assert_eq!(
+                identity.clone().reversed().rank(&Dense(i)),
+                table.clone().reversed().rank(&Dense(i))
+            );
+            assert_eq!(identity.clone().reversed().rank(&Dense(i)), bound - 1 - i);
+        }
+    }
 }

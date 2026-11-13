@@ -1,0 +1,19 @@
+/* Figures: centred, at most the text width, on a light card so that they read in dark themes too */
+img.figure {
+  display: block;
+  margin: 1.5em auto 0.5em auto;
+  max-width: 100%;
+  background: #fff;
+  border-radius: 6px;
+  padding: 6px;
+}
+p.caption {
+  text-align: center;
+  font-size: 0.9em;
+  opacity: 0.8;
+  margin-top: 0;
+}
+.mermaid {
+  text-align: center;
+  margin: 1.5em 0;
+}

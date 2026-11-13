@@ -1,102 +1,153 @@
-"""Benchmark phlite_grpph against grpphati on random weighted digraphs.
+"""Benchmark phlite_grpph against grpphati on weighted digraphs.
 
-Only dimension 1 is compared, since that is all grpphati computes.
+Grounded persistent path homology (dimension 1, all grpphati computes), with integer weights 1–5, of
+* random digraphs on `n` nodes, each edge present with probability 0.1;
+* `ring`: a directed cycle on `n` nodes with random forward chords, so one long bar (the cycle) among short ones;
+* `lattice`: an `n` x `n` grid with edges right and down, with rectangular holes, so a long bar around each hole.
 
-Examples:
-    just bench-grpph                                    # default sizes
-    just bench-grpph --sizes 50 100 --p 0.2
-    just bench-grpph --graph cycle --sizes 100 200
-    just bench-grpph --all --only phlite                # every phlite method/algorithm
+GrPPH works on the complete digraph of shortest-path distances, so the cost grows quickly with the number of nodes
+even when the digraph is sparse. `GrPPH_par_wedge` is grpphati's parallel pipeline over wedge components. Cases marked
+`quick` are the ones `just bench-check` uses. Cases marked `large` are timed once each, and only phlite runs on them
+(grpphati needs over 5 GB on random digraphs of 100 nodes, and minutes on the others), checked against phlite's default.
 """
 
-import numpy as np
-from harness import fingerprint, main
+import functools
 
-# Import everything up front, so that import costs are not counted in the time or peak memory of a run
-from phlite_grpph import grpph
+import numpy as np
+import pytest
+from common import THREADS, fingerprint, run
+
+# Import everything up front, so that import costs are not counted
 import networkx as nx
 from grpphati.pipelines import grounded
+from phlite_grpph import Algorithm, grpph
 
 INF = float("inf")
+REFERENCE = "grpphati (GrPPH)"
+P = 0.1
 
 
-def phlite(method="cohomology", algorithm="clearing", representatives=False, parallel=False):
-    def run(graph, case):
+def phlite(algorithm=Algorithm.serial, method="cohomology", representatives=False):
+    """`algorithm` builds the `Algorithm`."""
+
+    def compute(graph):
         n, edges = graph
-        threads = case["threads"] if parallel else None
-        barcode = grpph(
-            n,
-            edges,
-            method=method,
-            algorithm=algorithm,
-            representatives=representatives,
-            threads=threads,
-        )
-        return fingerprint([list(barcode.pairings[1]) + [(b, INF) for b in barcode.essential[1]]])
+        barcode = grpph(n, edges, method=method, algorithm=algorithm(), representatives=representatives)
+        return lambda: fingerprint([list(barcode.pairings[1]) + [(b, INF) for b in barcode.essential[1]]])
 
-    return run
+    return compute
 
 
 def grpphati(pipeline_name):
-    def run(graph, case):
+    def compute(graph):
         n, edges = graph
         g = nx.DiGraph()
         g.add_nodes_from(range(n))
         g.add_weighted_edges_from(edges)
         result = getattr(grounded, pipeline_name)(g)
-        return fingerprint([[(float(b), float(d)) for b, d in result.barcode]])
+        return lambda: fingerprint([[(float(b), float(d)) for b, d in result.barcode]])
 
-    return run
+    return compute
 
 
-# Names starting with '*' only run with --all
 IMPLEMENTATIONS = {
     "grpphati (GrPPH)": grpphati("GrPPH"),
     "grpphati (GrPPH_par_wedge)": grpphati("GrPPH_par_wedge"),
-    "phlite (clearing)": phlite(),
-    "phlite (parallel)": phlite(algorithm="parallel", parallel=True),
-    "phlite (clearing, reps)": phlite(representatives=True),
-    "*phlite (parallel-lock-free)": phlite(algorithm="parallel-lock-free", parallel=True),
-    "*phlite (standard)": phlite(algorithm="standard"),
-    "*phlite (homology, clearing)": phlite(method="homology"),
+    "phlite (serial)": phlite(),
+    "phlite (parallel)": phlite(lambda: Algorithm.parallel(THREADS)),
+    "phlite (serial, reps)": phlite(representatives=True),
+    # Every column representation, cached or not, named explicitly (the presets' choice differs between packages)
+    **{
+        f"phlite (serial, {columns}{'' if cache else ', uncached'})": phlite(
+            lambda columns=columns, cache=cache: Algorithm.serial().with_columns(columns).with_cache(cache)
+        )
+        for columns in ["merged", "heap", "sorted"]
+        for cache in [True, False]
+    },
+    "phlite (serial, store R)": phlite(lambda: Algorithm.serial().with_store_r()),
+    "phlite (parallel, lock-free)": phlite(lambda: Algorithm.parallel(THREADS).with_storage("lock-free")),
 }
 
+# (kind, n)
+CASES = [("random", 25), ("random", 50), ("random", 100), ("ring", 100), ("lattice", 15)]
+QUICK = [("random", 50)]
+LARGE = [("random", 200), ("ring", 400), ("lattice", 30)]
+# grpphati needs over 5 GB at 100 random nodes, so these are checked against phlite's default instead
+NO_GRPPHATI = LARGE
+LARGE_REFERENCE = "phlite (serial)"
 
-def make_input(case):
-    """A weighted digraph with integer weights in 1..5."""
-    rng = np.random.default_rng(case["seed"])
-    n = case["n"]
-    if case["graph"] == "random":
-        mask = rng.uniform(size=(n, n)) < case["p"]
+
+def reference_name(case):
+    return LARGE_REFERENCE if case in NO_GRPPHATI else REFERENCE
+
+
+def label(kind, n):
+    if kind == "random":
+        return f"grpph n={n} p={P}"
+    return f"grpph ring n={n}" if kind == "ring" else f"grpph lattice {n}x{n}"
+
+
+@functools.cache
+def graph(kind, n):
+    """A digraph of the given kind (see the module docs) with integer weights in 1..5, as (nodes, edges)."""
+    rng = np.random.default_rng(0)
+    if kind == "random":
+        mask = rng.uniform(size=(n, n)) < P
         np.fill_diagonal(mask, False)
         pairs = list(zip(*np.nonzero(mask)))
-    elif case["graph"] == "cycle":
-        pairs = [(i, (i + 1) % n) for i in range(n)]
-    elif case["graph"] == "complete":
-        pairs = [(i, j) for i in range(n) for j in range(n) if i != j]
+        weights = rng.integers(1, 6, size=len(pairs))
+        return n, [(int(i), int(j), float(w)) for (i, j), w in zip(pairs, weights)]
+    if kind == "ring":
+        edges = [(i, (i + 1) % n) for i in range(n)]
+        # Chords jumping 2 to 4 nodes ahead
+        edges += [(i, (i + int(rng.integers(2, 5))) % n) for i in range(n) if rng.uniform() < 0.5]
+        nodes = n
     else:
-        raise ValueError(case["graph"])
-    weights = rng.integers(1, 6, size=len(pairs))
-    return n, [(int(i), int(j), float(w)) for (i, j), w in zip(pairs, weights)]
+        # Holes: a few rectangles of nodes removed, each a quarter to a fifth of the side
+        hole = np.zeros((n, n), dtype=bool)
+        for _ in range(4):
+            h, w = (int(x) for x in rng.integers(n // 5, n // 4 + 1, size=2))
+            i, j = (int(x) for x in rng.integers(1, n - max(h, w) - 1, size=2))
+            hole[i : i + h, j : j + w] = True
+        node = lambda i, j: i * n + j  # noqa: E731
+        edges = []
+        for i in range(n):
+            for j in range(n):
+                if hole[i, j]:
+                    continue
+                if j + 1 < n and not hole[i, j + 1]:
+                    edges.append((node(i, j), node(i, j + 1)))
+                if i + 1 < n and not hole[i + 1, j]:
+                    edges.append((node(i, j), node(i + 1, j)))
+        nodes = n * n
+    weights = rng.integers(1, 6, size=len(edges))
+    return nodes, [(i, j, float(w)) for (i, j), w in zip(edges, weights)]
 
 
-def case_label(case):
-    p = f" p={case['p']}" if case["graph"] == "random" else ""
-    return f"{case['graph']} n={case['n']}{p}"
+@functools.cache
+def reference(case):
+    return IMPLEMENTATIONS[reference_name(case)](graph(*case))()
 
 
-def add_arguments(parser):
-    parser.add_argument("--graph", choices=["random", "cycle", "complete"], default="random")
-    parser.add_argument("--sizes", type=int, nargs="+", default=[25, 50, 100], help="numbers of nodes")
-    parser.add_argument("--p", type=float, default=0.1, help="edge probability for random graphs (default 0.1)")
-    parser.add_argument("--seed", type=int, default=0)
-    parser.add_argument("--all", action="store_true", help="also run the slower phlite variants")
+def params():
+    for case in CASES + LARGE:
+        kind, n = case
+        marks = [pytest.mark.quick] if case in QUICK else [pytest.mark.large] if case in LARGE else []
+        for implementation in IMPLEMENTATIONS:
+            if case in NO_GRPPHATI and not implementation.startswith("phlite"):
+                continue
+            id = f"{n}-{implementation}" if kind == "random" else f"{kind}-{n}-{implementation}"
+            yield pytest.param(kind, n, implementation, marks=marks, id=id)
 
 
-def cases_from_args(args):
-    for n in args.sizes:
-        yield {"graph": args.graph, "n": n, "p": args.p, "seed": args.seed}
-
-
-if __name__ == "__main__":
-    main(__doc__, IMPLEMENTATIONS, make_input, case_label, add_arguments, cases_from_args, reference="grpphati (GrPPH)")
+@pytest.mark.parametrize("kind, n, implementation", params())
+def test_grpph(benchmark, kind, n, implementation):
+    case = (kind, n)
+    run(
+        benchmark,
+        group=label(kind, n),
+        implementation=IMPLEMENTATIONS[implementation],
+        make_input=lambda: graph(kind, n),
+        reference=None if implementation == reference_name(case) else functools.partial(reference, case),
+        rounds=1 if case in LARGE else None,
+    )

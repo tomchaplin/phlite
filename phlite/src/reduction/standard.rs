@@ -5,8 +5,8 @@
 use std::hash::Hash;
 
 use crate::columns::{
-    ColumnCoefficient, ColumnFiltration, ColumnRepresentation, ColumnRow, MergedColumns,
-    WorkingColumn,
+    ColumnCache, ColumnCoefficient, ColumnFiltration, ColumnRepresentation, ColumnRow,
+    MergedColumns, WorkingColumn,
 };
 use crate::matrices::combinators::product;
 use crate::matrices::implementors::MapVecMatrix;
@@ -16,9 +16,9 @@ use crate::{
     matrices::{ColBasis, HasColBasis, HasRowFiltration, MatrixOracle},
 };
 
-use rustc_hash::{FxHashMap, FxHashSet};
+use rustc_hash::FxHashMap;
 
-use crate::reduction::{Diagram, Reduction, ReductionAlgorithm};
+use crate::reduction::{Diagram, DiagramBuilder, Reduction, ReductionAlgorithm};
 
 // TODO: Convert to a MapVecMatrix so that we can use a common diagram read off
 
@@ -37,13 +37,23 @@ pub type StandardReductionMatrix<CF, ColT> = MapVecMatrix<'static, CF, ColT, Col
 ///
 /// The algorithm is generic over how it represents the column being reduced, see [`ColumnRepresentation`];
 /// the default is [`MergedColumns`]. Choose another with [`with_columns`](Standard::with_columns).
-#[derive(Debug, Clone, Copy, Default)]
+#[derive(Debug, Clone, Copy)]
 pub struct Standard<C = MergedColumns> {
     columns: C,
+    cache_columns: bool,
+}
+
+impl<C: Default> Default for Standard<C> {
+    fn default() -> Self {
+        Self {
+            columns: C::default(),
+            cache_columns: true,
+        }
+    }
 }
 
 impl Standard {
-    /// The standard algorithm. The only option is the column representation.
+    /// The standard algorithm. The only options are the column representation and whether to cache columns.
     pub fn new() -> Self {
         Self::default()
     }
@@ -52,7 +62,17 @@ impl Standard {
 impl<C: ColumnRepresentation> Standard<C> {
     /// Represent the columns being reduced with `columns` instead, see [`ColumnRepresentation`].
     pub fn with_columns<C2: ColumnRepresentation>(self, columns: C2) -> Standard<C2> {
-        Standard { columns }
+        Standard {
+            columns,
+            cache_columns: self.cache_columns,
+        }
+    }
+
+    /// Whether to cache the columns of `D` added during the reduction, see
+    /// [`Clearing::cache_columns`](crate::reduction::Clearing::cache_columns). On by default.
+    pub fn cache_columns(mut self, cache: bool) -> Self {
+        self.cache_columns = cache;
+        self
     }
 }
 
@@ -67,7 +87,7 @@ where
     type V = StandardReductionMatrix<M::CoefficientField, M::ColT>;
 
     fn reduce(self, boundary: M) -> Reduction<Self::V, M::ColT> {
-        let v = standard_algo(&boundary, &self.columns);
+        let v = standard_algo(&boundary, &self.columns, self.cache_columns);
         let diagram = read_off_diagram(&boundary, &v);
         Reduction { v, diagram }
     }
@@ -76,6 +96,7 @@ where
 fn standard_algo<M, C>(
     boundary: M,
     columns: &C,
+    cache_columns: bool,
 ) -> StandardReductionMatrix<M::CoefficientField, M::ColT>
 where
     M: MatrixOracle + HasRowFiltration + HasColBasis + SquareMatrix,
@@ -85,7 +106,7 @@ where
     C: ColumnRepresentation,
 {
     // There is only one "dimension", so one cache for the whole reduction
-    let cache = C::Cache::default();
+    let cache = ColumnCache::new(cache_columns);
     // Each V_i, including its diagonal
     let mut v: VColumns<M::CoefficientField, M::ColT> = FxHashMap::default();
 
@@ -167,28 +188,17 @@ where
 {
     let r = product(&boundary, &reduction_matrix);
 
-    let mut essential = FxHashSet::default();
-    let mut pairings = FxHashSet::default();
-    let mut pivot_rows = FxHashSet::default();
-
+    let mut diagram = DiagramBuilder::default();
     let basis = boundary.basis();
     for i in 0..basis.size() {
         let basis_element = basis.element(i);
         match r.build_bhcol(basis_element.clone()).pop_pivot() {
             None => {
-                essential.insert(basis_element);
+                diagram.essential.insert(basis_element);
             }
-            Some(piv) => {
-                pivot_rows.insert(piv.row_index.clone());
-                pairings.insert((piv.row_index, basis_element));
-            }
+            Some(piv) => diagram.pairings.push((piv.row_index, basis_element)),
         }
     }
-    // A column that is the pivot of another is the birth of a finite bar
-    essential.retain(|elem| !pivot_rows.contains(elem));
-
-    Diagram {
-        essential,
-        pairings,
-    }
+    // A column that is the pivot of another is the birth of a finite bar, not essential
+    diagram.finish(None)
 }

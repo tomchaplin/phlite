@@ -1,1 +1,9 @@
 /target
+# The built documentation site (see `just docs`)
+/docs/site
+# marimo's session caches, and Python bytecode
+__marimo__/
+__pycache__/
+# The light CI benchmark (see python-tests/justfile)
+/python-tests/benchmarks/results/light
+/test-results

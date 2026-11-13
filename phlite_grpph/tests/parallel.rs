@@ -58,7 +58,9 @@ fn random_digraph(n: u16, p: f64, seed: u64) -> (VecDigraphFiltration, FxHashSet
     (filtration, edge_set)
 }
 
-fn assert_same_diagram<T: Eq + std::hash::Hash + std::fmt::Debug>(a: &Diagram<T>, b: &Diagram<T>) {
+/// Diagrams list their bars in no particular order, so compare them sorted
+fn assert_same_diagram<T: Ord + Clone + std::fmt::Debug>(a: &Diagram<T>, b: &Diagram<T>) {
+    let (a, b) = (a.clone().sorted(), b.clone().sorted());
     assert_eq!(a.essential, b.essential, "essential classes differ");
     assert_eq!(a.pairings, b.pairings, "pairings differ");
 }
@@ -93,8 +95,16 @@ where
     M::ColT: std::hash::Hash + std::fmt::Debug + Send + Sync + Copy + 'static,
     M::FiltrationT: Send + Sync,
 {
-    let serial = Clearing::new().reduce(d_rev).diagram;
-    let reduction = Clearing::new().parallel().storage(storage).reduce(d_rev);
+    // Keep every pair (including zero-persistence apparent ones), since we compare against the full pairing of R = D V
+    let serial = Clearing::new()
+        .skip_zero_apparent_pairs(false)
+        .reduce(d_rev)
+        .diagram;
+    let reduction = Clearing::new()
+        .skip_zero_apparent_pairs(false)
+        .parallel()
+        .storage(storage)
+        .reduce(d_rev);
     let (v_par, parallel) = (reduction.v, reduction.diagram);
     assert_same_diagram(&serial, &parallel);
 
@@ -126,12 +136,14 @@ where
         essential.remove(row);
     }
     let pairings: FxHashSet<_> = pivot_of_row.into_iter().collect();
+    let parallel_pairings: FxHashSet<_> = parallel.pairings.iter().copied().collect();
+    let parallel_essential: FxHashSet<_> = parallel.essential.iter().copied().collect();
     assert_eq!(
-        pairings, parallel.pairings,
+        pairings, parallel_pairings,
         "pairings read from R = D V differ"
     );
     assert_eq!(
-        essential, parallel.essential,
+        essential, parallel_essential,
         "essential classes read from R = D V differ"
     );
 }

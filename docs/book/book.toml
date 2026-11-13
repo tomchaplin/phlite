@@ -1,0 +1,22 @@
+[book]
+title = "The phlite book"
+description = "How phlite computes persistent homology: the algorithms, the optimisations, writing your own filtration in Rust, and the Python bindings"
+authors = ["Thomas Chaplin"]
+language = "en"
+src = "src"
+
+[build]
+# The whole documentation site: this book at the root, with the Python API reference in `api/` and the notebooks in
+# `notebooks/` (see `just docs`)
+build-dir = "../site"
+
+[output.html]
+git-repository-url = "https://github.com/tomchaplin/phlite"
+mathjax-support = true
+# Mermaid diagrams (```mermaid blocks) are rendered in the browser by this script, which loads mermaid itself
+additional-js = ["theme/mermaid-init.js"]
+additional-css = ["theme/figures.css"]
+
+[output.html.fold]
+enable = true
+level = 1

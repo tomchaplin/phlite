@@ -30,3 +30,6 @@ parallel = ["dep:rayon"]
 # Lock-free storage backend for the parallel reduction (see `reduction::parallel`)
 lock-free = ["parallel", "dep:papaya", "dep:arc-swap"]
 
+[dev-dependencies]
+proptest = "1.12.0"
+

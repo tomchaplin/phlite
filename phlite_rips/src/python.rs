@@ -4,7 +4,14 @@
 
 use numpy::{PyArray2, PyArrayMethods, PyUntypedArray, PyUntypedArrayMethods};
 use ordered_float::NotNan;
-use phlite_pyutils::{add_barcode_class, parse_method, AlgorithmArg, Barcode, SortedBars};
+use phlite::{
+    barcode::{Algorithm, Method},
+    columns::ColumnRepresentation,
+};
+use phlite_pyutils::{
+    add_algorithm_class, add_barcode_class, parse_method, AlgorithmConfig, AlgorithmDefaults,
+    AlgorithmVisitor, Barcode, Columns, SortedBars,
+};
 use pyo3::{exceptions::PyValueError, prelude::*};
 use pyo3_stub_gen::derive::*;
 
@@ -101,18 +108,16 @@ fn read_distances(distance_matrix: &Bound<'_, PyAny>) -> PyResult<Vec<Vec<NotNan
 ///         and nothing changes, so a larger threshold gives the same result as none.
 ///     method: `'cohomology'` (the default) reduces the coboundary matrix, which is usually much faster.
 ///         `'homology'` reduces the boundary matrix instead, which needs simplices up to dimension `max_dim + 1`.
-///     algorithm: The reduction algorithm: `'standard'`, `'clearing'` (the default), `'parallel'`
-///         (clearing, with each dimension reduced in parallel) or `'parallel-lock-free'`
-///         (the same, using lock-free data structures).
+///     algorithm: The reduction algorithm and its options, as an `Algorithm` (default: `Algorithm.serial()`).
+///         For example `Algorithm.parallel(threads=8)`.
 ///     representatives: Whether to also compute a representative cycle for every bar.
 ///         With `method='cohomology'` these are computed via involution.
-///     threads: The number of threads for the parallel algorithms (default: all cores).
 ///
 /// Returns:
 ///     The barcode, with dimensions `0, ..., max_dim`.
 #[gen_stub_pyfunction]
 #[pyfunction]
-#[pyo3(signature = (distance_matrix, max_dim = 1, *, threshold = None, method = "cohomology", algorithm = "clearing", representatives = false, threads = None))]
+#[pyo3(signature = (distance_matrix, max_dim = 1, *, threshold = None, method = "cohomology", algorithm = None, representatives = false))]
 #[allow(clippy::too_many_arguments)]
 fn rips(
     py: Python<'_>,
@@ -122,10 +127,8 @@ fn rips(
     threshold: Option<f64>,
     #[gen_stub(override_type(type_repr = "typing.Literal['cohomology', 'homology']", imports = ("typing")))]
     method: &str,
-    #[gen_stub(override_type(type_repr = "typing.Literal['standard', 'clearing', 'parallel', 'parallel-lock-free']", imports = ("typing")))]
-    algorithm: &str,
+    algorithm: Option<Bound<'_, AlgorithmConfig>>,
     representatives: bool,
-    threads: Option<usize>,
 ) -> PyResult<Barcode> {
     let distances = read_distances(distance_matrix)?;
     let threshold = match threshold {
@@ -135,7 +138,7 @@ fn rips(
         }
     };
     let method = parse_method(method)?;
-    let algorithm = AlgorithmArg::parse(algorithm)?;
+    let algorithm = algorithm.map(|a| a.get().clone()).unwrap_or_default();
     let n_points = distances.len();
     // Both methods need simplices of dimension max_dim + 1 (as cofacets, or the top of the boundary matrix)
     let top_dim = max_dim + 1;
@@ -146,25 +149,47 @@ fn rips(
     }
 
     let bars = py.detach(|| {
-        algorithm.run(threads, |algorithm| {
-            let bars = rips_barcode(
-                distances,
-                max_dim,
-                threshold,
-                method,
-                algorithm,
-                representatives,
-            );
-            SortedBars::new(bars, max_dim + 1, |simplex| {
-                let vertices = simplex.to_vec(n_points);
-                (
-                    vertices.len() - 1,
-                    vertices.into_iter().map(|v| v as u32).collect(),
-                )
-            })
+        algorithm.run(RipsRun {
+            distances,
+            max_dim,
+            threshold,
+            method,
+            representatives,
         })
     })?;
     bars.into_python(py, representatives, None)
+}
+
+/// Compute the Rips barcode with whichever algorithm is configured.
+struct RipsRun {
+    distances: Vec<Vec<NotNan<f64>>>,
+    max_dim: usize,
+    threshold: NotNan<f64>,
+    method: Method,
+    representatives: bool,
+}
+
+impl AlgorithmVisitor for RipsRun {
+    type Output = SortedBars;
+
+    fn visit<R: ColumnRepresentation>(self, algorithm: Algorithm<'_, R>) -> SortedBars {
+        let n_points = self.distances.len();
+        let bars = rips_barcode(
+            self.distances,
+            self.max_dim,
+            self.threshold,
+            self.method,
+            algorithm,
+            self.representatives,
+        );
+        SortedBars::new(bars, self.max_dim + 1, |simplex| {
+            let vertices = simplex.to_vec(n_points);
+            (
+                vertices.len() - 1,
+                vertices.into_iter().map(|v| v as u32).collect(),
+            )
+        })
+    }
 }
 
 /// Vietoris-Rips persistent homology, computed with `phlite`.
@@ -174,5 +199,16 @@ fn phlite_rips(m: &Bound<'_, PyModule>) -> PyResult<()> {
 
     m.add_function(wrap_pyfunction!(rips, m)?)?;
     add_barcode_class(m, "phlite_rips")?;
+    add_algorithm_class(
+        m,
+        "phlite_rips",
+        AlgorithmDefaults {
+            // Rips columns are cheap to recompute, and caching them dominates the memory used
+            columns: Columns::Heap,
+            cache: false,
+            store_r: false,
+            row_ranks: false,
+        },
+    )?;
     Ok(())
 }

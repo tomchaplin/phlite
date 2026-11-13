@@ -32,6 +32,21 @@ impl<T: BasisElement> SplitBasis<T> {
         Self { elems, offsets }
     }
 
+    /// Build from all the elements, dimension by dimension, and where each dimension starts:
+    /// `offsets[d]..offsets[d + 1]` is the range of dimension `d` within `elems`.
+    ///
+    /// # Panics
+    /// If `offsets` doesn't start at 0, decreases, or doesn't end at `elems.len()`.
+    pub fn from_parts(elems: Vec<T>, offsets: Vec<usize>) -> Self {
+        assert!(
+            offsets.first() == Some(&0)
+                && offsets.windows(2).all(|w| w[0] <= w[1])
+                && offsets.last() == Some(&elems.len()),
+            "offsets must go from 0 to the number of elements, not decreasing"
+        );
+        Self { elems, offsets }
+    }
+
     /// The number of dimensions in the basis.
     pub fn n_dimensions(&self) -> usize {
         self.offsets.len() - 1
