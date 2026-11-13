@@ -176,7 +176,8 @@ impl Barcode {
             PyAny,
         >,
     ) -> PyResult<Bar> {
-        Bar::from_record(py, self.find(birth)?, |i| self.cell(py, i))
+        let bar = self.find(birth)?;
+        Bar::from_record(py, bar, self.data.representative(bar), |i| self.cell(py, i))
     }
 
     /// A representative cycle for the bar born at `birth`, as a list of `(cell, coefficient)` pairs in decreasing
@@ -190,9 +191,8 @@ impl Barcode {
             PyAny,
         >,
     ) -> PyResult<Option<Bound<'py, PyList>>> {
-        self.find(birth)?
-            .representative
-            .as_ref()
+        self.data
+            .representative(self.find(birth)?)
             .map(|rep| chain(py, rep, |c| self.cell(py, c)))
             .transpose()
     }

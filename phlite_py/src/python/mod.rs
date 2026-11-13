@@ -402,24 +402,54 @@ pub(crate) fn read_columns(
 
 // ====== Bars =============================================================
 
-/// A bar, with the complex's data copied in so that the barcode is self-contained.
+/// A bar, with the complex's data copied in so that the barcode is self-contained. Small and `Copy` (the
+/// representative is kept in [`BarData`]), so that sorting bars is cheap.
+#[derive(Clone, Copy)]
 pub(crate) struct Record {
     birth: u32,
     death: Option<u32>,
-    dimension: usize,
+    dimension: u32,
+    /// The index of the representative in [`BarData::representatives`], or [`NO_REPRESENTATIVE`].
+    representative: u32,
     birth_value: f64,
     /// Infinite for essential bars.
     death_value: f64,
-    /// `(cell, coefficient)` pairs, in decreasing filtration order.
-    representative: Option<Vec<(u32, u64)>>,
 }
+
+const NO_REPRESENTATIVE: u32 = u32::MAX;
 
 /// The bars of a barcode, in terms of cell indices (the Python `Barcode` translates them to cells).
 pub(crate) struct BarData {
     /// Sorted by birth cell.
     pub(crate) bars: Vec<Record>,
+    /// Each bar's representative, as `(cell, coefficient)` pairs in decreasing filtration order (if requested).
+    representative_chains: Vec<Vec<(u32, u64)>>,
     pub(crate) n_dims: usize,
     pub(crate) representatives: bool,
+}
+
+/// Sort `keys` (pairs whose first elements are distinct) by first element: a radix sort, two 16-bit digits.
+fn radix_sort(keys: &mut Vec<(u32, u32)>) {
+    let mut scratch = vec![(0, 0); keys.len()];
+    for shift in [0, 16] {
+        let digit = |key: &(u32, u32)| ((key.0 >> shift) & 0xffff) as usize;
+        let mut counts = vec![0usize; 1 << 16];
+        for key in keys.iter() {
+            counts[digit(key)] += 1;
+        }
+        let mut next = 0;
+        for count in counts.iter_mut() {
+            let here = *count;
+            *count = next;
+            next += here;
+        }
+        for key in keys.iter() {
+            let d = digit(key);
+            scratch[counts[d]] = *key;
+            counts[d] += 1;
+        }
+        std::mem::swap(keys, &mut scratch);
+    }
 }
 
 impl BarData {
@@ -431,6 +461,7 @@ impl BarData {
         representatives: bool,
     ) -> Self {
         let n_dims = max_dim.or(complex.top_dimension()).map_or(0, |d| d + 1);
+        let mut representative_chains = vec![];
         let records: Vec<Record> = bars
             .into_iter()
             .filter_map(|bar| {
@@ -439,37 +470,41 @@ impl BarData {
                 if death.is_some_and(|(_, death_value, _)| death_value == birth_value) {
                     return None;
                 }
+                let representative = match bar.representative {
+                    None => NO_REPRESENTATIVE,
+                    Some(mut rep) => {
+                        // phlite gives no particular order; list in decreasing filtration order (so decreasing
+                        // rank), so the birth cell is first
+                        rep.sort_unstable_by(|(_, a), (_, b)| b.cmp(a));
+                        representative_chains.push(
+                            rep.into_iter()
+                                .map(|(coeff, rank)| (complex.cell(rank).0, coeff.to_int()))
+                                .collect(),
+                        );
+                        (representative_chains.len() - 1) as u32
+                    }
+                };
                 Some(Record {
                     birth: birth.0,
                     death: death.map(|(cell, _, _)| cell.0),
-                    dimension,
+                    dimension: dimension as u32,
+                    representative,
                     birth_value,
                     death_value: death.map_or(f64::INFINITY, |(_, value, _)| value),
-                    representative: bar.representative.map(|mut rep| {
-                        // phlite gives no particular order; list in decreasing filtration order (so decreasing rank),
-                        // so the birth cell is first
-                        rep.sort_unstable_by(|(_, a), (_, b)| b.cmp(a));
-                        rep.into_iter()
-                            .map(|(coeff, rank)| (complex.cell(rank).0, coeff.to_int()))
-                            .collect()
-                    }),
                 })
             })
             .collect();
-        // Sorted by birth cell: sort the (distinct) births with their positions, which is cheaper than moving records
+        // Sorted by birth cell: radix sort the (distinct) births with their positions, then gather
         let mut order: Vec<(u32, u32)> = records
             .iter()
             .enumerate()
             .map(|(i, record)| (record.birth, i as u32))
             .collect();
-        order.sort_unstable();
-        let mut records: Vec<Option<Record>> = records.into_iter().map(Some).collect();
-        let bars: Vec<Record> = order
-            .into_iter()
-            .map(|(_, i)| records[i as usize].take().expect("births are distinct"))
-            .collect();
+        radix_sort(&mut order);
+        let bars: Vec<Record> = order.into_iter().map(|(_, i)| records[i as usize]).collect();
         Self {
             bars,
+            representative_chains,
             n_dims,
             representatives,
         }
@@ -484,7 +519,7 @@ impl BarData {
             .bars
             .iter()
             // Nothing appears at time infinity, so classes born then never exist
-            .filter(|bar| bar.dimension == dim && bar.birth_value != f64::INFINITY)
+            .filter(|bar| bar.dimension as usize == dim && bar.birth_value != f64::INFINITY)
             .map(|bar| (bar.birth_value, bar.death_value))
             .collect();
         points.sort_by(|a, b| a.0.total_cmp(&b.0).then_with(|| a.1.total_cmp(&b.1)));
@@ -492,6 +527,12 @@ impl BarData {
         Array2::from_shape_vec((points.len(), 2), flat)
             .expect("two values per point")
             .into_pyarray(py)
+    }
+
+    /// The representative of `bar`, if representatives were computed.
+    pub(crate) fn representative(&self, bar: &Record) -> Option<&[(u32, u64)]> {
+        (bar.representative != NO_REPRESENTATIVE)
+            .then(|| &self.representative_chains[bar.representative as usize][..])
     }
 
     /// The bar born at cell `birth`, if any.
@@ -510,7 +551,7 @@ impl BarData {
     ) -> PyResult<Vec<Bar>> {
         self.bars
             .iter()
-            .map(|bar| Bar::from_record(py, bar, &cell))
+            .map(|bar| Bar::from_record(py, bar, self.representative(bar), &cell))
             .collect()
     }
 
@@ -523,7 +564,7 @@ impl BarData {
             } else {
                 &mut essential
             };
-            if let Some(count) = counts.get_mut(bar.dimension) {
+            if let Some(count) = counts.get_mut(bar.dimension as usize) {
                 *count += 1;
             }
         }
@@ -572,17 +613,16 @@ impl Bar {
     pub(crate) fn from_record<'py>(
         py: Python<'py>,
         bar: &Record,
+        representative: Option<&[(u32, u64)]>,
         cell: impl Fn(u32) -> PyResult<Bound<'py, PyAny>>,
     ) -> PyResult<Self> {
         Ok(Bar {
-            dimension: bar.dimension,
+            dimension: bar.dimension as usize,
             birth: cell(bar.birth)?.unbind(),
             death: bar.death.map(&cell).transpose()?.map(Bound::unbind),
             birth_value: bar.birth_value,
             death_value: bar.death_value,
-            representative: bar
-                .representative
-                .as_ref()
+            representative: representative
                 .map(|rep| chain(py, rep, &cell))
                 .transpose()?
                 .map(Bound::unbind),
