@@ -20,9 +20,18 @@ fuzz examples="5000":
     PROPTEST_CASES="$1" cargo test --release --workspace --all-features
     cd python-tests && just fuzz "$1"
 
+# Build the Python modules the docs' notebooks use, into python-tests' two environments (with their docs dependencies;
+# unlike `just build`, this doesn't need PHAT)
+docs-modules:
+    cd python-tests && uv sync --inexact --group docs && uv sync --inexact --project latest --group docs
+    cd python-tests && uv run --no-sync maturin develop --uv --release -m ../phlite_rips/Cargo.toml
+    cd python-tests && uv run --no-sync maturin develop --uv --release -m ../phlite_grpph/Cargo.toml
+    cd python-tests && uv run --no-sync --project latest maturin develop --uv --release -m ../phlite_py/Cargo.toml
+
 # Build the documentation site into docs/site: the book (docs/book, mdBook) at its root, the Python API reference
 # (docs/python, Sphinx) in docs/site/api, and the example notebooks (docs/notebooks, marimo) in docs/site/notebooks.
-# Needs `mdbook` on your PATH; the notebooks run in python-tests' two environments (`just venv` and `just build` first).
+# Needs `mdbook` on your PATH; the notebooks run in python-tests' two environments (`just docs-modules` first).
+# CI builds and deploys it to Netlify (.github/workflows/docs.yml).
 docs:
     cd python-tests && uv sync --inexact --group docs && uv sync --inexact --project latest --group docs
     cd python-tests && uv run --no-sync --project latest python ../docs/figures/make_figures.py
