@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "phlite-web": "file:../pkg",
+    "phlite-web-single": "file:../pkg-single",
     "three": "^0.187.0"
   },
   "devDependencies": {

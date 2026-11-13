@@ -709,6 +709,7 @@ version = "0.1.0"
 dependencies = [
  "alphalpha",
  "console_error_panic_hook",
+ "js-sys",
  "ordered-float",
  "parking_lot_core",
  "phlite",

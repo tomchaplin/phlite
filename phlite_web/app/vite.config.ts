@@ -17,6 +17,6 @@ export default defineConfig({
   preview: { headers: isolation },
   worker: { format: 'es' },
   // Pre-bundling would break the thread pool's `new URL(..., import.meta.url)`
-  optimizeDeps: { exclude: ['phlite-web'] },
+  optimizeDeps: { exclude: ['phlite-web', 'phlite-web-single'] },
   build: { target: 'es2022', chunkSizeWarningLimit: 1000 },
 });

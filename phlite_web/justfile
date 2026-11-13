@@ -1,6 +1,7 @@
 # The playground: phlite compiled to WebAssembly (with threads) and a Svelte app that runs it in a Web Worker.
 #
-#   just wasm      build the WebAssembly package into pkg/ (release, optimised)
+#   just wasm      build the WebAssembly packages (release, optimised): pkg/ with threads and pkg-single/ without,
+#                  for pages that can't share memory
 #   just dev       the app with hot reloading at http://localhost:5173 (after `just wasm`)
 #   just build     build everything into app/dist
 #
@@ -23,16 +24,25 @@ wasm: toolchain
         echo "Need wasm-bindgen {{wasm_bindgen_version}}: cargo install wasm-bindgen-cli --version {{wasm_bindgen_version}} --locked" >&2
         exit 1
     fi
+    # With threads: the shared-memory flags in .cargo/config.toml
     cargo build --release
-    rm -rf pkg
-    wasm-bindgen --target web --out-dir pkg target/wasm32-unknown-unknown/release/phlite_web.wasm
-    # The thread pool's workers import the package by its directory, so make it a package
-    printf '{\n  "name": "phlite-web",\n  "version": "0.1.0",\n  "type": "module",\n  "main": "phlite_web.js",\n  "types": "phlite_web.d.ts"\n}\n' > pkg/package.json
+    just _package target/wasm32-unknown-unknown/release/phlite_web.wasm pkg phlite-web
+    # Without: RUSTFLAGS replaces the config's flags (and its own target directory keeps both builds cached)
+    RUSTFLAGS="" cargo build --release --no-default-features --target-dir target/single
+    just _package target/single/wasm32-unknown-unknown/release/phlite_web.wasm pkg-single phlite-web-single
     just _npm-install
-    app/node_modules/.bin/wasm-opt -O3 --enable-threads --enable-bulk-memory --enable-mutable-globals \
-        --enable-nontrapping-float-to-int --enable-sign-ext --enable-reference-types --enable-multivalue \
-        --strip-debug pkg/phlite_web_bg.wasm -o pkg/phlite_web_bg.wasm
-    ls -la pkg/phlite_web_bg.wasm
+    for dir in pkg pkg-single; do
+        app/node_modules/.bin/wasm-opt -O3 --enable-threads --enable-bulk-memory --enable-mutable-globals \
+            --enable-nontrapping-float-to-int --enable-sign-ext --enable-reference-types --enable-multivalue \
+            --strip-debug $dir/phlite_web_bg.wasm -o $dir/phlite_web_bg.wasm
+    done
+    ls -la pkg/phlite_web_bg.wasm pkg-single/phlite_web_bg.wasm
+
+# Bindings for a built module, as an npm package (the thread pool's workers import the package by its directory)
+_package wasm dir name:
+    rm -rf {{dir}}
+    wasm-bindgen --target web --out-dir {{dir}} {{wasm}}
+    printf '{\n  "name": "{{name}}",\n  "version": "0.1.0",\n  "type": "module",\n  "main": "phlite_web.js",\n  "types": "phlite_web.d.ts"\n}\n' > {{dir}}/package.json
 
 _npm-install:
     cd app && ([ -d node_modules ] || npm ci)

@@ -48,7 +48,9 @@ export type Job =
       modulus: number;
       maxDim: number | null;
       options: AlgoOptions;
-    };
+    }
+  /** Crash on purpose, to test the recovery (`window.__phlite.run({pipeline: 'crash', how: 'pool'})`). */
+  | { pipeline: 'crash'; how: 'panic' | 'pool' | 'oom' };
 
 /** Colours of homology dimensions 0, 1, 2, 3 (Tableau 10, as in the book's figures). */
 export const DIM_COLOURS = ['#4c78a8', '#f58518', '#54a24b', '#e45756', '#b279a2'];

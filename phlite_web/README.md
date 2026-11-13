@@ -42,8 +42,35 @@ Cross-Origin-Opener-Policy: same-origin
 Cross-Origin-Embedder-Policy: require-corp
 ```
 
-The Vite dev server sends these, as do `docs/landing/_headers` (on Netlify) and `docs/serve.py` (locally). Without them
-the playground says so instead of starting.
+The Vite dev server sends these, as do `docs/landing/_headers` (on Netlify) and `docs/serve.py` (locally).
+
+Without them (or if the threaded module fails to start, say a phone refusing its memory), the playground falls back to
+a second build without threads (`pkg-single/`, the `threads` feature off, built with plain `RUSTFLAGS`), which the
+worker loads instead: everything works, on one thread, and parallel clearing is greyed out.
+
+## Crashes
+
+A panic or a failed allocation aborts the module, which can't be used again; worse, on a thread of the pool, the
+worker would wait for that thread forever. So the module's panic and allocation-error hooks (`set_crash_hooks`) first
+post a report on a `BroadcastChannel`, which works from any thread; the page then fails the job with a readable
+message ("ran out of memory", or the panic) and starts a fresh worker. To try it, in the console:
+`await __phlite.run({pipeline: 'crash', how: 'pool'})` (or `'panic'`, `'oom'`).
+
+## Serial or parallel
+
+Every pipeline defaults to parallel clearing (with threads); the **Parallel** switch in the top bar turns that off,
+making serial clearing (the Python packages' default) the default instead, remembered in the browser. Neither wins
+everywhere at the playground's sizes (8 threads, Chromium, median of 5):
+
+| | serial | parallel |
+|---|---|---|
+| Rips, 1000 points, H₁ | 466 ms | 267 ms |
+| Rips, 100 points on a sphere, H₂ | 63 ms | 38 ms |
+| GrPPH, 80 nodes, edge probability 0.6 | 773 ms | 268 ms |
+| image, 192² noise | 40 ms | 96 ms |
+| alpha, 10,000 points | 29 ms | 46 ms |
+
+Parallel clearing can't use pivot columns or store R, which is what makes serial clearing fast on explicit complexes.
 
 One more thing: `usize` is 32 bits in WebAssembly, so the playground indexes Rips simplices with `u64`
 (`phlite_rips::rips_barcode::<_, u64>`). With `usize` it could only handle 254 points for H₂.
