@@ -58,9 +58,9 @@ message ("ran out of memory", or the panic) and starts a fresh worker. To try it
 
 ## Serial or parallel
 
-Every pipeline defaults to serial clearing, as in the Python packages; the **Parallel** switch in the top bar makes
-parallel clearing the default instead (remembered in the browser). Neither wins everywhere at the playground's sizes
-(8 threads, Chromium, median of 5):
+Every pipeline defaults to parallel clearing (with threads); the **Parallel** switch in the top bar turns that off,
+making serial clearing (the Python packages' default) the default instead, remembered in the browser. Neither wins
+everywhere at the playground's sizes (8 threads, Chromium, median of 5):
 
 | | serial | parallel |
 |---|---|---|

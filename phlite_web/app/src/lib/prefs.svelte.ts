@@ -4,16 +4,16 @@ const KEY = 'phlite-playground-parallel';
 
 function load(): boolean {
   try {
-    return localStorage.getItem(KEY) === 'true';
+    return localStorage.getItem(KEY) !== 'false';
   } catch {
-    return false;
+    return true;
   }
 }
 
 class Prefs {
   #parallel = $state(load());
 
-  /** Whether the pipelines default to parallel clearing (serial clearing otherwise). */
+  /** Whether the pipelines default to parallel clearing (the default, given threads), or serial clearing. */
   get parallel() {
     return this.#parallel;
   }

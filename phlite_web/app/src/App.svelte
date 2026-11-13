@@ -53,9 +53,15 @@
     class:disabled={engine.single}
     title={engine.single
       ? 'Parallel clearing needs threads, which this page has not got'
-      : 'Default every pipeline to parallel clearing. Serial is faster on images and alpha complexes; parallel on large Rips complexes and networks.'}
+      : 'Default every pipeline to parallel clearing (off: serial clearing). Serial is faster on images and alpha complexes; parallel on large Rips complexes and networks.'}
   >
-    <input type="checkbox" role="switch" bind:checked={prefs.parallel} disabled={engine.single} /> Parallel
+    <input
+      type="checkbox"
+      role="switch"
+      checked={prefs.parallel && !engine.single}
+      disabled={engine.single}
+      onchange={(e) => (prefs.parallel = e.currentTarget.checked)}
+    /> Parallel
   </label>
 </header>
 
