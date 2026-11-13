@@ -51,6 +51,7 @@ html_title = "phlite for Python"
 # follows the system's preference, or its own toggle); code by the styles in _ext/catppuccin_style.py
 pygments_style = "catppuccin_style.LatteStyle"
 pygments_dark_style = "catppuccin_style.MacchiatoStyle"
+html_favicon = "../landing/favicon.svg"
 html_theme_options = {
     "light_css_variables": {
         "color-foreground-primary": "#4c4f69",

@@ -60,7 +60,7 @@ docs: docs-pages docs-playground
 docs-pages:
     mkdir -p docs/site
     find docs/site -mindepth 1 -maxdepth 1 ! -name playground -exec rm -rf {} +
-    cp docs/landing/index.html docs/landing/_headers docs/site/
+    cp docs/landing/index.html docs/landing/_headers docs/landing/favicon.svg docs/site/
     cd python-tests && uv sync --inexact --project latest --group docs
     cd python-tests && uv run --no-sync --project latest python ../docs/figures/make_figures.py
     mdbook build docs/book
