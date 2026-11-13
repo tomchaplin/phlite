@@ -174,7 +174,7 @@ impl AlgorithmVisitor for RipsRun {
 
     fn visit<R: ColumnRepresentation>(self, algorithm: Algorithm<'_, R>) -> SortedBars {
         let n_points = self.distances.len();
-        let bars = rips_barcode(
+        let bars = rips_barcode::<_, usize>(
             self.distances,
             self.max_dim,
             self.threshold,

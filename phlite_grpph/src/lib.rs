@@ -4,7 +4,7 @@
 //! The quickest way in is [`grpph_barcode`], which computes the barcode in dimensions 0 and 1 (optionally with representatives),
 //! by either cohomology or homology and with any of `phlite`'s reduction algorithms;
 //! build its inputs from a list of weighted edges with [`build_filtration`] and [`build_edge_set`].
-//! This crate also builds the `phlite_grpph` Python module.
+//! With the `python` feature this crate also builds the `phlite_grpph` Python module.
 //!
 //! # How it is put together
 //!
@@ -19,6 +19,7 @@
 
 pub mod boundary;
 pub mod coboundary;
+#[cfg(feature = "python")]
 mod python;
 
 use coboundary::{PathHomCell, VecDigraphFiltration};
@@ -164,6 +165,7 @@ fn to_vec<B: ColBasis>(basis: B) -> Vec<B::ElemT> {
 }
 
 // A function that gathers stub information
+#[cfg(feature = "python")]
 pyo3_stub_gen::define_stub_info_gatherer!(stub_info);
 
 #[cfg(test)]

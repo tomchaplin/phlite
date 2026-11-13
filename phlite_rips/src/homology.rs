@@ -1,5 +1,5 @@
 use super::RipsBasis;
-use crate::{build_rips_bases_with_threshold, cohomology::oldest_cofacet, RipsIndex};
+use crate::{build_rips_bases_with_threshold, cohomology::oldest_cofacet, RipsIndex, RipsInt};
 use ordered_float::NotNan;
 use phlite::{
     fields::{Invertible, NonZeroCoefficient},
@@ -16,14 +16,14 @@ use std::marker::PhantomData;
 // We add the phantom because we want to be generic over coefficient type
 // but they don't appear anywhere else in the struct so the compiler must be appeased.
 
-pub struct RipsBoundary<CF: NonZeroCoefficient + Invertible> {
+pub struct RipsBoundary<CF: NonZeroCoefficient + Invertible, I: RipsInt = usize> {
     distances: Vec<Vec<NotNan<f64>>>,
     /// Simplices with a larger diameter are not in the complex (only matters for finding cofacets)
     threshold: NotNan<f64>,
-    phantom: PhantomData<CF>,
+    phantom: PhantomData<(CF, I)>,
 }
 
-impl<CF: NonZeroCoefficient + Invertible> RipsBoundary<CF> {
+impl<CF: NonZeroCoefficient + Invertible, I: RipsInt> RipsBoundary<CF, I> {
     /// The boundary oracle on its own, without a column basis attached (see [`build_rips_boundary_matrix`]).
     pub fn new(distances: Vec<Vec<NotNan<f64>>>) -> Self {
         Self {
@@ -48,18 +48,19 @@ impl<CF: NonZeroCoefficient + Invertible> RipsBoundary<CF> {
 // Now we implement `MatrixOracle` - this is where we implicity describe the boundary matrix.
 // We have to choose:
 // * The coefficient type - we are generic over this;
-// * The index type for rows and columns - we use `RipsIndex` for both.
+// * The index type for rows and columns - we use `RipsIndex` for both
+//   (generic over the integer it is stored in, `usize` by default).
 //
 // Finally, we have to describe each column by providing an iterator over its non-zero entries.
 // An entry is described by the row index and the value of the coefficient.
 // There is no requirement on the order in which the entries are produced.
 
-impl<CF: NonZeroCoefficient + Invertible> MatrixOracle for RipsBoundary<CF> {
+impl<CF: NonZeroCoefficient + Invertible, I: RipsInt> MatrixOracle for RipsBoundary<CF, I> {
     type CoefficientField = CF;
 
-    type ColT = RipsIndex;
+    type ColT = RipsIndex<I>;
 
-    type RowT = RipsIndex;
+    type RowT = RipsIndex<I>;
 
     fn column(
         &self,
@@ -67,12 +68,12 @@ impl<CF: NonZeroCoefficient + Invertible> MatrixOracle for RipsBoundary<CF> {
     ) -> impl Iterator<Item = (Self::CoefficientField, Self::RowT)> {
         // Removing the vertex in position i (i.e. the i-th base-(n + 1) digit of the index) gives a facet with sign (-1)^i.
         // We compute each facet's index arithmetically rather than decoding and re-encoding the vertices.
-        let radix = self.n_points() + 1;
+        let radix = I::from_usize(self.n_points() + 1);
         let index = col.0;
         let n_vertices = col.dimension(self.n_points()) + 1;
         // A vertex has an empty boundary (removing its only vertex leaves nothing)
         let n_facets = if n_vertices > 1 { n_vertices } else { 0 };
-        (0..n_facets).scan(1usize, move |place, i| {
+        (0..n_facets).scan(I::ONE, move |place, i| {
             // place = radix^i
             let low = index % *place;
             let high = index / *place / radix;
@@ -95,7 +96,7 @@ impl<CF: NonZeroCoefficient + Invertible> MatrixOracle for RipsBoundary<CF> {
 // then wrap it in an additional struct that has the filtration information.
 // In these cases, consider using `phlite::matricies::MatrixRef::with_filtration`.
 
-impl<CF: NonZeroCoefficient + Invertible> HasRowFiltration for RipsBoundary<CF> {
+impl<CF: NonZeroCoefficient + Invertible, I: RipsInt> HasRowFiltration for RipsBoundary<CF, I> {
     type FiltrationT = NotNan<f64>;
 
     fn filtration_value(&self, row: Self::RowT) -> Self::FiltrationT {
@@ -104,7 +105,7 @@ impl<CF: NonZeroCoefficient + Invertible> HasRowFiltration for RipsBoundary<CF> 
 
     // Row sigma has entries in the columns of its cofacets, so the first is its oldest cofacet
     fn first_column_in_row(&self, row: Self::RowT) -> Option<Self::ColT> {
-        oldest_cofacet::<CF>(&self.distances, self.threshold, row).map(|entry| entry.row_index)
+        oldest_cofacet::<CF, I>(&self.distances, self.threshold, row).map(|entry| entry.row_index)
     }
 
     // TODO:Can we override column with filtration to compute more efficiently?
@@ -115,7 +116,7 @@ impl<CF: NonZeroCoefficient + Invertible> HasRowFiltration for RipsBoundary<CF> 
 // For this we use `MatrixWithBasis` which is provided by `phltie`.
 // We also provide a helper function for constructing such a thing directly from a distance matrix.
 
-pub type RipsBoundaryAllDims<CF> = MatrixWithBasis<RipsBoundary<CF>, RipsBasis>;
+pub type RipsBoundaryAllDims<CF, I = usize> = MatrixWithBasis<RipsBoundary<CF, I>, RipsBasis<I>>;
 
 pub fn build_rips_boundary_matrix<CF: Invertible>(
     distances: Vec<Vec<NotNan<f64>>>,

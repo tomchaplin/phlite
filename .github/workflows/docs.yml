@@ -1,5 +1,5 @@
-# Build the documentation site (the book, the Python API reference and the example notebooks, which are re-run) and
-# deploy it to Netlify.
+# Build the documentation site (the landing page, the book, the Python API reference, the example notebooks, which are
+# re-run, and the playground: phlite compiled to WebAssembly with a Svelte app) and deploy it to Netlify.
 #
 # * Pull requests: build only, so that a change that breaks a notebook or the book is caught (the site is kept as an
 #   artifact to look at).
@@ -9,6 +9,7 @@
 # * NETLIFY_AUTH_TOKEN: a personal access token (Netlify: User settings > Applications > Personal access tokens);
 # * NETLIFY_SITE_ID: the site's ID (Netlify: Site configuration > General > Site details).
 # The Netlify site itself does no building: its builds should be stopped (Site configuration > Build & deploy).
+# docs/landing/_headers (copied to the site's root) makes the playground cross-origin isolated, which its threads need.
 
 name: Docs
 
@@ -34,8 +35,22 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@stable
 
-      # The release builds of the three extension modules are most of the time; cache them
+      # The release builds of the three extension modules and of the WebAssembly are most of the time; cache them
+      # (phlite_web is outside the workspace, with its own target directory and nightly toolchain)
       - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            . -> target
+            phlite_web -> target
+
+      - name: Install the playground's nightly toolchain (phlite_web/rust-toolchain.toml)
+        run: cd phlite_web && rustup toolchain install
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: phlite_web/app/package-lock.json
 
       # uv also fetches the two Pythons python-tests needs (3.11 and 3.13)
       - uses: astral-sh/setup-uv@v6
@@ -45,13 +60,16 @@ jobs:
 
       - uses: taiki-e/install-action@v2
         with:
-          tool: just,mdbook@0.5.4
+          tool: just,mdbook@0.5.4,wasm-bindgen@0.2.130
 
       - name: Build the Python modules
         run: just docs-modules
 
-      - name: Build the site (figures, book, API reference, notebooks)
+      - name: Build the site (figures, book, API reference, notebooks, playground)
         run: just docs
+
+      - name: Type-check the playground
+        run: just phlite_web/check
 
       - uses: actions/upload-artifact@v4
         with:

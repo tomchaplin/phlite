@@ -21,7 +21,7 @@ barcode.diagram(0)    # array([[0., inf], [1., 2.]])
 ```
 
 These pages are the API reference, generated from the packages' docstrings. For guides, worked examples (with
-notebooks) and how everything works inside, see **<a href="../index.html">the phlite book</a>**.
+notebooks) and how everything works inside, see **<a href="../book/index.html">the phlite book</a>**.
 
 ```{toctree}
 :maxdepth: 2
