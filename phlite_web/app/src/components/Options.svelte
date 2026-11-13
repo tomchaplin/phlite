@@ -1,6 +1,7 @@
 <script lang="ts">
+  import { untrack } from 'svelte';
   import { engine } from '../lib/engine.svelte';
-  import { defaultsFor, isDefault, type PipelineDefaults } from '../lib/options';
+  import { defaultAlgorithm, defaultsFor, isDefault, isPreset, type PipelineDefaults } from '../lib/options';
   import type { AlgoOptions } from '../lib/types';
 
   let {
@@ -18,6 +19,17 @@
     options = { ...preset, method: options.method, representatives: options.representatives };
   }
 
+  // When the default algorithm changes (the parallel switch, or a fallback to one thread), options that were the old
+  // default's preset follow it
+  let previous = defaultAlgorithm();
+  $effect(() => {
+    const algorithm = defaultAlgorithm();
+    untrack(() => {
+      if (algorithm !== previous && isPreset(defaults, options, previous)) setAlgorithm(algorithm);
+      previous = algorithm;
+    });
+  });
+
   const columnsHelp: Record<string, string> = {
     merged: 'merges the added columns lazily: the safe choice',
     heap: 'one heap of every entry added: good when few, short columns are added',
@@ -32,7 +44,7 @@
     <label for="algo">Algorithm</label>
     <select id="algo" value={options.algorithm} onchange={(e) => setAlgorithm(e.currentTarget.value as AlgoOptions['algorithm'])}>
       <option value="clearing">Clearing (serial)</option>
-      <option value="parallel">Parallel clearing</option>
+      <option value="parallel" disabled={engine.single}>Parallel clearing{engine.single ? ' (no threads here)' : ''}</option>
       <option value="standard">Standard (no optimisations)</option>
     </select>
   </div>

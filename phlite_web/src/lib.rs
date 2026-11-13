@@ -1,3 +1,4 @@
+#![feature(alloc_error_hook)]
 //! phlite compiled to WebAssembly for the browser playground.
 //!
 //! Four pipelines, each taking plain arrays and an [`Options`] object and returning a [`Barcode`]:
@@ -10,8 +11,14 @@
 //!   `phlite_py`'s explicit complexes;
 //! * [`complex`]: persistence of an explicit filtered chain complex over Z/2, Z/3, Z/5 or Z/7, by `phlite_py`.
 //!
-//! The parallel algorithm runs on the global rayon pool, which [`init_thread_pool`] starts on Web Workers
-//! (`wasm-bindgen-rayon`): the page must be cross-origin isolated (COOP/COEP headers) for shared memory.
+//! With the `threads` feature (the default), the parallel algorithm runs on the global rayon pool, which
+//! [`init_thread_pool`] starts on Web Workers (`wasm-bindgen-rayon`): the page must be cross-origin isolated (COOP/COEP
+//! headers) for shared memory. Without it (the fallback build, for pages that can't share memory), rayon runs
+//! everything on the calling thread.
+//!
+//! A panic or a failed allocation aborts, which leaves the module unusable and, on a thread of the pool, would leave
+//! the calling thread waiting forever. So [`set_crash_hooks`] first reports the crash on a `BroadcastChannel`, which the
+//! page listens to and answers by restarting the worker.
 
 use ordered_float::NotNan;
 use phlite::{
@@ -25,20 +32,83 @@ use phlite_py::{
     field::IntField,
 };
 use serde::{Deserialize, Serialize};
+use std::sync::OnceLock;
 use wasm_bindgen::prelude::*;
 
+#[cfg(feature = "threads")]
 pub use wasm_bindgen_rayon::init_thread_pool;
 
-/// Log panics to the console (call once, at start-up).
+/// Whether this build has threads (shared memory and a pool started by `initThreadPool`).
 #[wasm_bindgen]
-pub fn set_panic_hook() {
-    console_error_panic_hook::set_once();
+pub fn threaded() -> bool {
+    cfg!(feature = "threads")
+}
+
+// Posting to a BroadcastChannel works from any thread, including one of the pool whose caller is blocked waiting
+// for it, and the message is sent even though the thread aborts straight after.
+#[wasm_bindgen(inline_js = "
+export function report_crash(channel, message) {
+  try { const c = new BroadcastChannel(channel); c.postMessage(message); c.close(); } catch (e) {}
+}")]
+extern "C" {
+    fn report_crash(channel: &str, message: JsValue);
+}
+
+/// The channel crashes are reported on (in shared memory, so every thread of the pool sees it).
+static CRASH_CHANNEL: OnceLock<String> = OnceLock::new();
+
+/// Log panics to the console and report panics and failed allocations on the `BroadcastChannel` named `channel`, as
+/// `{kind: "panic", message}` or `{kind: "oom", bytes}` (call once, at start-up).
+#[wasm_bindgen]
+pub fn set_crash_hooks(channel: String) {
+    if CRASH_CHANNEL.set(channel).is_err() {
+        return;
+    }
+    std::panic::set_hook(Box::new(|info| {
+        console_error_panic_hook::hook(info);
+        let message = js_sys_object(&[("kind", "panic".into()), ("message", info.to_string().into())]);
+        report_crash(CRASH_CHANNEL.get().unwrap(), message);
+    }));
+    // Allocate as little as possible here: the heap is probably full
+    std::alloc::set_alloc_error_hook(|layout| {
+        let message = js_sys_object(&[("kind", "oom".into()), ("bytes", (layout.size() as f64).into())]);
+        report_crash(CRASH_CHANNEL.get().unwrap(), message);
+    });
+}
+
+/// A plain JavaScript object with the given properties.
+fn js_sys_object(properties: &[(&str, JsValue)]) -> JsValue {
+    let object = js_sys::Object::new();
+    for (key, value) in properties {
+        let _ = js_sys::Reflect::set(&object, &JsValue::from_str(key), value);
+    }
+    object.into()
 }
 
 /// The number of threads in the global pool.
 #[wasm_bindgen]
 pub fn n_threads() -> usize {
     rayon::current_num_threads()
+}
+
+/// Crash on purpose, to test how the page recovers: `"panic"` (on this thread), `"pool"` (a panic on a thread of the
+/// pool, while this thread waits for it) or `"oom"` (run out of memory).
+#[wasm_bindgen]
+pub fn crash_for_testing(how: &str) {
+    match how {
+        "panic" => panic!("a test panic"),
+        "pool" => {
+            // The pool runs the first closure on one of its threads, while this one waits
+            rayon::join(|| panic!("a test panic on a pool thread"), || ());
+        }
+        "oom" => {
+            let mut blocks: Vec<Vec<u8>> = vec![];
+            loop {
+                blocks.push(vec![1u8; 1 << 28]);
+            }
+        }
+        _ => {}
+    }
 }
 
 // ---- Options ----
@@ -317,12 +387,15 @@ fn describe(config: &Config) -> String {
     }
     if config.kind == Kind::Parallel {
         s += &format!(
-            ", {} storage on {} threads",
+            ", {} storage on {}",
             match config.storage {
                 Storage::LockFree => "lock-free",
                 _ => "locking",
             },
-            rayon::current_num_threads()
+            match rayon::current_num_threads() {
+                1 => "1 thread".to_string(),
+                n => format!("{n} threads"),
+            }
         );
     }
     s

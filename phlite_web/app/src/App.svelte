@@ -1,5 +1,6 @@
 <script lang="ts">
   import { engine } from './lib/engine.svelte';
+  import { prefs } from './lib/prefs.svelte';
   import BarsSpinner from './components/BarsSpinner.svelte';
   import Logo from './components/Logo.svelte';
   import Points from './pipelines/points/Points.svelte';
@@ -42,13 +43,26 @@
   <span class="status" class:err={engine.status === 'error'}>
     {#if engine.status === 'loading'}<BarsSpinner size={14} /> starting phlite…
     {:else if engine.status === 'error'}phlite failed to start
-    {:else}{#if engine.status === 'busy'}<BarsSpinner size={14} /> {/if}phlite · WebAssembly · {engine.threads} thread{engine.threads === 1 ? '' : 's'}
+    {:else}{#if engine.status === 'busy'}<BarsSpinner size={14} /> {/if}phlite · WebAssembly · {engine.single
+        ? 'no threads'
+        : `${engine.threads} thread${engine.threads === 1 ? '' : 's'}`}
     {/if}
   </span>
+  <label
+    class="switch"
+    class:disabled={engine.single}
+    title={engine.single
+      ? 'Parallel clearing needs threads, which this page has not got'
+      : 'Default every pipeline to parallel clearing. Serial is faster on images and alpha complexes; parallel on large Rips complexes and networks.'}
+  >
+    <input type="checkbox" role="switch" bind:checked={prefs.parallel} disabled={engine.single} /> Parallel
+  </label>
 </header>
 
 {#if engine.error}
   <div class="banner error">{engine.error}</div>
+{:else if engine.single && engine.status !== 'loading'}
+  <div class="banner">Running on one thread: {engine.singleReason}. Everything works, but parallel clearing is off.</div>
 {/if}
 
 <nav class="pipelines">
@@ -80,7 +94,10 @@
   header nav a { text-decoration: none; }
   .status { margin-left: auto; font-size: 0.85rem; color: var(--muted); }
   .status.err { color: var(--danger); }
-  .banner { margin: 0.8rem 1.2rem 0; padding: 0.7rem 0.9rem; border: 1px solid var(--danger); border-radius: 8px; }
+  .switch { display: flex; align-items: center; gap: 0.35rem; font-size: 0.85rem; cursor: pointer; }
+  .switch.disabled { opacity: 0.5; cursor: default; }
+  .banner { margin: 0.8rem 1.2rem 0; padding: 0.7rem 0.9rem; border: 1px solid var(--line); border-radius: 8px; font-size: 0.9rem; color: var(--muted); }
+  .banner.error { border-color: var(--danger); color: var(--fg); }
   .pipelines { display: flex; gap: 0.5rem; padding: 0.8rem 1.2rem 0; flex-wrap: wrap; }
   .pipelines button { display: flex; flex-direction: column; align-items: flex-start; padding: 0.45rem 0.9rem; background: var(--panel); }
   .pipelines button span { font-size: 0.78rem; color: var(--muted); }
