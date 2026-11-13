@@ -9,7 +9,6 @@ use numpy::{
     ndarray::Array2, IntoPyArray, PyArray1, PyArray2, PyArrayMethods, PyUntypedArray,
     PyUntypedArrayMethods,
 };
-use ordered_float::NotNan;
 use phlite::columns::ColumnRepresentation;
 use phlite::{
     barcode::Bar as PhliteBar,

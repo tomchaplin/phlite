@@ -461,7 +461,7 @@ impl AlgorithmConfig {
         }
     }
 
-    /// `'merged'`, `'heap'` or `'sorted'`.
+    /// `'merged'`, `'heap'`, `'sorted'` or `'pivot'`.
     #[getter]
     fn columns(&self) -> &'static str {
         self.columns.name()

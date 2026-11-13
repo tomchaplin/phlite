@@ -1,0 +1,238 @@
+<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN"
+  "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg xmlns:xlink="http://www.w3.org/1999/xlink" width="577.961875pt" height="225.072pt" viewBox="0 0 577.961875 225.072" xmlns="http://www.w3.org/2000/svg" version="1.1">
+ <metadata>
+  <rdf:RDF xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:cc="http://creativecommons.org/ns#" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+   <cc:Work>
+    <dc:type rdf:resource="http://purl.org/dc/dcmitype/StillImage"/>
+    <dc:date>2026-11-13T05:11:26.237389</dc:date>
+    <dc:format>image/svg+xml</dc:format>
+    <dc:creator>
+     <cc:Agent>
+      <dc:title>Matplotlib v3.11.2, https://matplotlib.org/</dc:title>
+     </cc:Agent>
+    </dc:creator>
+   </cc:Work>
+  </rdf:RDF>
+ </metadata>
+ <defs>
+  <style type="text/css">*{stroke-linejoin: round; stroke-linecap: butt}</style>
+ </defs>
+ <g id="figure_1">
+  <g id="patch_1">
+   <path d="M 0 225.072 
+L 577.961875 225.072 
+L 577.961875 -0 
+L 0 -0 
+z
+" style="fill: #ffffff"/>
+  </g>
+  <g id="axes_1">
+   <g id="patch_2">
+    <path d="M 18.36 73.728 
+L 40.68 73.728 
+L 40.68 51.552 
+L 18.36 51.552 
+z
+" clip-path="url(#p6712a5a1de)" style="fill: #eeeeee"/>
+   </g>
+   <g id="patch_3">
+    <path d="M 43.47 73.728 
+L 65.79 73.728 
+L 65.79 51.552 
+L 43.47 51.552 
+z
+" clip-path="url(#p6712a5a1de)" style="fill: #3b6fb6"/>
+   </g>
+   <g id="patch_4">
+    <path d="M 68.58 73.728 
+L 90.9 73.728 
+L 90.9 51.552 
+L 68.58 51.552 
+z
+" clip-path="url(#p6712a5a1de)" style="fill: #eeeeee"/>
+   </g>
+   <g id="patch_5">
+    <path d="M 93.69 73.728 
+L 116.01 73.728 
+L 116.01 51.552 
+L 93.69 51.552 
+z
+" clip-path="url(#p6712a5a1de)" style="fill: #eeeeee"/>
+   </g>
+   <g id="patch_6">
+    <path d="M 118.8 73.728 
+L 141.12 73.728 
+L 141.12 51.552 
+L 118.8 51.552 
+z
+" clip-path="url(#p6712a5a1de)" style="fill: #3b6fb6"/>
+   </g>
+   <g id="patch_7">
+    <path d="M 143.91 73.728 
+L 166.23 73.728 
+L 166.23 51.552 
+L 143.91 51.552 
+z
+" clip-path="url(#p6712a5a1de)" style="fill: #eeeeee"/>
+   </g>
+   <g id="patch_8">
+    <path d="M 202.5 73.728 
+L 224.82 73.728 
+L 224.82 51.552 
+L 202.5 51.552 
+z
+" clip-path="url(#p6712a5a1de)" style="fill: #3b6fb6"/>
+   </g>
+   <g id="patch_9">
+    <path d="M 227.61 73.728 
+L 249.93 73.728 
+L 249.93 51.552 
+L 227.61 51.552 
+z
+" clip-path="url(#p6712a5a1de)" style="fill: #eeeeee"/>
+   </g>
+   <g id="patch_10">
+    <path d="M 252.72 73.728 
+L 275.04 73.728 
+L 275.04 51.552 
+L 252.72 51.552 
+z
+" clip-path="url(#p6712a5a1de)" style="fill: #eeeeee"/>
+   </g>
+   <g id="patch_11">
+    <path d="M 277.83 73.728 
+L 300.15 73.728 
+L 300.15 51.552 
+L 277.83 51.552 
+z
+" clip-path="url(#p6712a5a1de)" style="fill: #3b6fb6"/>
+   </g>
+   <g id="patch_12">
+    <path d="M 302.94 73.728 
+L 325.26 73.728 
+L 325.26 51.552 
+L 302.94 51.552 
+z
+" clip-path="url(#p6712a5a1de)" style="fill: #eeeeee"/>
+   </g>
+   <g id="patch_13">
+    <path d="M 328.05 73.728 
+L 350.37 73.728 
+L 350.37 51.552 
+L 328.05 51.552 
+z
+" clip-path="url(#p6712a5a1de)" style="fill: #eeeeee"/>
+   </g>
+   <g id="patch_14">
+    <path d="M 202.5 129.168 
+L 247.14 129.168 
+L 247.14 106.992 
+L 202.5 106.992 
+z
+" clip-path="url(#p6712a5a1de)" style="fill: #e07b39"/>
+   </g>
+   <g id="patch_15">
+    <path d="M 252.72 129.168 
+L 297.36 129.168 
+L 297.36 106.992 
+L 252.72 106.992 
+z
+" clip-path="url(#p6712a5a1de)" style="fill: #e07b39"/>
+   </g>
+   <g id="patch_16">
+    <path d="M 386.64 73.728 
+L 408.96 73.728 
+L 408.96 51.552 
+L 386.64 51.552 
+z
+" clip-path="url(#p6712a5a1de)" style="fill: #e07b39"/>
+   </g>
+   <g id="patch_17">
+    <path d="M 411.75 73.728 
+L 434.07 73.728 
+L 434.07 51.552 
+L 411.75 51.552 
+z
+" clip-path="url(#p6712a5a1de)" style="fill: #eeeeee"/>
+   </g>
+   <g id="patch_18">
+    <path d="M 436.86 73.728 
+L 459.18 73.728 
+L 459.18 51.552 
+L 436.86 51.552 
+z
+" clip-path="url(#p6712a5a1de)" style="fill: #eeeeee"/>
+   </g>
+   <g id="patch_19">
+    <path d="M 461.97 73.728 
+L 484.29 73.728 
+L 484.29 51.552 
+L 461.97 51.552 
+z
+" clip-path="url(#p6712a5a1de)" style="fill: #e07b39"/>
+   </g>
+   <g id="patch_20">
+    <path d="M 487.08 73.728 
+L 509.4 73.728 
+L 509.4 51.552 
+L 487.08 51.552 
+z
+" clip-path="url(#p6712a5a1de)" style="fill: #eeeeee"/>
+   </g>
+   <g id="patch_21">
+    <path d="M 512.19 73.728 
+L 534.51 73.728 
+L 534.51 51.552 
+L 512.19 51.552 
+z
+" clip-path="url(#p6712a5a1de)" style="fill: #eeeeee"/>
+   </g>
+   <g id="text_1">
+    <text style="font-weight: 700; font-size: 10px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #222222" x="18.36" y="26.604" transform="rotate(-0 18.36 26.604)">hashed (sparse keys, e.g. simplices)</text>
+   </g>
+   <g id="text_2">
+    <text style="font-weight: 700; font-size: 10px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #222222" x="202.5" y="26.604" transform="rotate(-0 202.5 26.604)">slotted (dense keys, big values)</text>
+   </g>
+   <g id="text_3">
+    <text style="font-weight: 700; font-size: 10px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #222222" x="386.64" y="26.604" transform="rotate(-0 386.64 26.604)">inline (dense keys, small values)</text>
+   </g>
+   <g id="text_4">
+    <text style="font-size: 9px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #222222" x="18.36" y="95.904" transform="rotate(-0 18.36 95.904)">hash the key, probe a table</text>
+   </g>
+   <g id="patch_22">
+    <path d="M 214.337065 76.720352 
+Q 219.240064 90.360178 223.764864 102.947879 
+" style="fill: none; stroke: #222222; stroke-linecap: round"/>
+    <path d="M 224.346778 98.063068 
+L 223.764864 102.947879 
+L 220.206163 99.551462 
+" style="fill: none; stroke: #222222; stroke-linecap: round"/>
+   </g>
+   <g id="patch_23">
+    <path d="M 288.170914 76.659715 
+Q 282.014997 90.360007 276.31731 103.040484 
+" style="fill: none; stroke: #222222; stroke-linecap: round"/>
+    <path d="M 280.127402 99.928699 
+L 276.31731 103.040484 
+L 276.113938 98.12534 
+" style="fill: none; stroke: #222222; stroke-linecap: round"/>
+   </g>
+   <g id="text_5">
+    <text style="font-size: 9px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #222222" x="202.5" y="151.344" transform="rotate(-0 202.5 151.344)">slots[key] -&gt; entries: two accesses</text>
+   </g>
+   <g id="text_6">
+    <text style="font-size: 9px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #222222" x="386.64" y="95.904" transform="rotate(-0 386.64 95.904)">values[key]: one access</text>
+   </g>
+   <g id="text_7">
+    <text style="font-size: 9.5px; font-family: 'DejaVu Sans'; text-anchor: middle; fill: #222222" x="286.2" y="195.696" transform="rotate(-0 286.2 195.696)">phlite picks the storage from the key type (DENSE_INDEX) and the value's size, at compile time</text>
+   </g>
+  </g>
+ </g>
+ <defs>
+  <clipPath id="p6712a5a1de">
+   <rect x="7.2" y="7.2" width="558" height="210.672"/>
+  </clipPath>
+ </defs>
+</svg>

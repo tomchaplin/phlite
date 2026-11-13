@@ -1,1 +1,6 @@
 /target
+# The built book, and the notebooks exported into it (see `just docs`)
+/docs/book/book
+/docs/book/src/notebooks
+/docs/.tools
+/docs/python/_build

@@ -35,3 +35,9 @@ dev = [
     "pytest-benchmark>=5.3.1",
     "tadasets>=0.2.2",
 ]
+docs = [
+    "altair>=5.4",
+    "marimo>=0.9",
+    "polars>=1.0",
+    "vl-convert-python>=1.6",
+]

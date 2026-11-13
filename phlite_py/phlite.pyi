@@ -37,7 +37,7 @@ class Algorithm:
     @property
     def columns(self) -> builtins.str:
         r"""
-        `'merged'`, `'heap'` or `'sorted'`.
+        `'merged'`, `'heap'`, `'sorted'` or `'pivot'`.
         """
     @property
     def cache(self) -> builtins.bool:
