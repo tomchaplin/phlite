@@ -38,5 +38,5 @@ When only the diagram is wanted (no representatives), and \\(R\\) is stored, not
 | | default |
 |---|---|
 | `phlite` (Rust) | store V |
-| `phlite_rips`, `phlite_grpph` | store V |
+| `phlite.cloud.rips`, `phlite.network.grpph` | store V |
 | `phlite` (Python, explicit complexes) | store R (serial clearing) |

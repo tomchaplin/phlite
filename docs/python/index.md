@@ -1,15 +1,17 @@
 # phlite for Python
 
-Persistent homology from Rust, in three Python packages:
+Persistent homology from Rust, in one Python package with a submodule per kind of data:
 
-| Package | Computes | Reference |
+| Module | Computes | Reference |
 |---|---|---|
 | `phlite` | persistence of any filtered chain complex you build: from integer columns, CSC arrays, or your own Python objects as cells | {doc}`api/phlite/index` |
-| `phlite_rips` | Vietoris–Rips persistence of a distance matrix | {doc}`api/phlite_rips/index` |
-| `phlite_grpph` | grounded persistent path homology of a weighted digraph | {doc}`api/phlite_grpph/index` |
+| `phlite.cloud` | persistence of point clouds and distance matrices: Vietoris–Rips | {doc}`api/phlite/cloud/index` |
+| `phlite.network` | persistence of networks: grounded persistent path homology of a weighted digraph | {doc}`api/phlite/network/index` |
+| `phlite.image` | persistence of images (nothing yet) | {doc}`api/phlite/image/index` |
 
-All three return barcodes with optional representative cycles, compute by cohomology (default) or homology, release
-the GIL while they work, and share one `Algorithm` class for choosing how the reduction is done.
+Every pipeline returns a barcode with optional representative cycles, computes by cohomology (default) or homology,
+releases the GIL while it works, and takes the one `Algorithm` class for choosing how the reduction is done
+(`phlite.defaults()` lists each pipeline's defaults).
 
 ```python
 import phlite
@@ -28,6 +30,4 @@ notebooks) and how everything works inside, see **<a href="../book/index.html">t
 :caption: API reference
 
 api/phlite/index
-api/phlite_rips/index
-api/phlite_grpph/index
 ```

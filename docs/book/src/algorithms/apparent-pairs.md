@@ -35,7 +35,7 @@ them would dominate the time and memory.
 ### Leaving them out of the basis
 
 Better still, a cell in a zero-length apparent pair can be left out of the **column basis** entirely, as long as the
-matrix can still find it as an owner. `phlite_rips` does this (`build_reduction_bases`), and since nearly every Rips pair is a
+matrix can still find it as an owner. `phlite_cloud::rips` does this (`build_reduction_bases`), and since nearly every Rips pair is a
 zero-length apparent pair, it keeps only a small fraction of the edges and triangles. The [standard algorithm](standard.md) can't recompute owners,
 so it needs the full basis.
 

@@ -4,11 +4,14 @@ The full, regenerated results are in
 [`python-tests/BENCHMARKS.md`](https://github.com/tomchaplin/phlite/blob/main/python-tests/BENCHMARKS.md), with time
 and peak memory for every configuration. The suites:
 
-| Suite | phlite package | Against | Inputs |
+| Suite | Pipeline | Against | Inputs |
 |---|---|---|---|
-| `bench_rips.py` | `phlite_rips` | ripser, giotto-ph | random points in a cube; noisy torus, sphere, wedges of circles and spheres |
-| `bench_grpph.py` | `phlite_grpph` | grpphati | random digraphs; rings and lattices |
-| `bench_sparse.py` | `phlite` | PHAT, LoPHAT | Rips complexes, cubical complexes of noise and of an image of rings, a meshed torus, sparse and dense cell complexes |
+| `bench_cloud_rips.py` | `phlite.cloud.rips` | ripser, giotto-ph | random points in a cube; noisy torus, sphere, wedges of circles and spheres |
+| `bench_network_grpph.py` | `phlite.network.grpph` | grpphati | random digraphs; rings and lattices |
+| `bench_sparse.py` | `phlite` (explicit complexes) | PHAT, LoPHAT | Rips complexes, cubical complexes of noise and of an image of rings, a meshed torus, sparse and dense cell complexes |
+
+Each submodule's pipelines get a suite `bench_<module>_<pipeline>.py` (and fuzz tests `test_<module>_<pipeline>.py`),
+which the justfile and the report pick up without other changes (see `python-tests/README.md`).
 
 Each benchmark checks its barcode against the reference before timing, records peak memory (with memray, so Rust
 allocations are counted), and runs its first round in a forked process with a time limit, so one pathological

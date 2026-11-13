@@ -1,12 +1,12 @@
-# phlite_grpph: path homology of digraphs
+# Grounded persistent path homology (`phlite.network.grpph`)
 
 *Grounded persistent path homology* (Chaplin, Harrington and Tillmann) is a persistence theory for weighted digraphs
-that sees directed cycles: a directed square, a long directed loop, a bidirected edge. `phlite_grpph` computes it, with
+that sees directed cycles: a directed square, a long directed loop, a bidirected edge. `phlite.network.grpph` computes it, with
 representatives, much faster than the reference implementation grpphati.
 
 ```python
 import networkx as nx
-from phlite_grpph import grpph
+from phlite.network import grpph
 
 G = nx.DiGraph()
 G.add_weighted_edges_from([("a", "b", 1.0), ("b", "c", 1.0), ("c", "d", 1.0), ("d", "a", 1.0)])
@@ -24,7 +24,7 @@ or with integer nodes: `grpph(4, [(0, 1, 1.0), (1, 2, 1.0), (2, 3, 1.0), (3, 0, 
 | `graph`, `edges` | a networkx `DiGraph` / `MultiDiGraph`, or a node count and `(source, target, weight)` edges | |
 | `weight` | the edge attribute holding weights (missing means 1) | `"weight"` |
 | `method` | `"cohomology"` or `"homology"` (homology needs every 2-cell up front: far more memory) | `"cohomology"` |
-| `algorithm` | an [`Algorithm`](algorithms.md) | `Algorithm.serial()` (merged columns, cached) |
+| `algorithm` | an [`Algorithm`](../algorithms.md) | `Algorithm.serial()` (merged columns, cached) |
 | `representatives` | a cycle for every bar, as a list of nodes (H0) or edges (H1) | `False` |
 
 ## What it does
@@ -40,4 +40,7 @@ path, which is relatively expensive, so:
 The cost grows with the number of *nodes* (the shortest-path digraph is complete), so keep graphs to a few hundred
 nodes; edges are cheap.
 
-See the [notebooks](notebooks.md) for a worked example with directed cycles.
+See the [notebooks](../notebooks.md) for a worked example with directed cycles.
+
+The Rust implementation is the `grpph` module of the `phlite_network` crate (`phlite_network/src/grpph`); until the
+packages merged into one, these were the `phlite_grpph` crate and Python package.

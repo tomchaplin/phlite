@@ -38,5 +38,5 @@ in step 3. With at most six cofaces per column, stopping the search early saves 
 simplex can have thousands of cofacets, emergent pairs are what make cohomology fast.) What the hooks do buy is cheap,
 exact apparent pairs, which the next step builds on.
 
-Heap columns, uncached, as in `phlite_rips`: our columns are short and cheap to recompute, so there is nothing to
+Heap columns, uncached, as in `phlite.cloud.rips`: our columns are short and cheap to recompute, so there is nothing to
 gain from sorting or keeping them (see [choosing a representation](../columns/choosing.md)).

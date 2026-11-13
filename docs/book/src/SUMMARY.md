@@ -50,10 +50,21 @@
 
 # Python
 
-- [The three packages](python/index.md)
-- [phlite: explicit complexes](python/phlite.md)
-- [phlite_rips: Vietoris–Rips](python/rips.md)
-- [phlite_grpph: path homology of digraphs](python/grpph.md)
+- [The phlite package](python/index.md)
+- [Explicit complexes](python/phlite.md)
+- [phlite.cloud: point clouds](python/cloud.md)
+  - [Vietoris–Rips](python/cloud/rips.md)
+  - [Alpha complexes]()
+  - [Sparse and distance-matrix Rips]()
+  - [Weighted and Čech-like filtrations]()
+- [phlite.network: networks](python/network.md)
+  - [Grounded path homology](python/network/grpph.md)
+  - [Path homology]()
+  - [Directed flag complexes]()
+  - [Dowker complexes]()
+  - [Directed Rips]()
+- [phlite.image: images](python/image.md)
+  - [Cubical complexes]()
 - [Choosing an algorithm](python/algorithms.md)
 - [Example notebooks](python/notebooks.md)
 

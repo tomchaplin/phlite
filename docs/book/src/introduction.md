@@ -2,7 +2,7 @@
 
 `phlite` is a Rust library for computing **persistent homology** of filtered chain complexes, with Python bindings
 for three kinds of input. It began as a way to compute *grounded persistent path homology* of digraphs
-([GrPPH](python/grpph.md)), and grew into a general framework in which the same reduction algorithms run on any
+([GrPPH](python/network/grpph.md)), and grew into a general framework in which the same reduction algorithms run on any
 filtered chain complex you can describe, whether or not it fits in memory.
 
 ## The idea: matrices you never store
@@ -44,13 +44,14 @@ The [tutorial](tutorial/index.md) walks through these one at a time on a concret
 - **`phlite`**: the core library: the matrix traits and adaptors, the reduction algorithms (standard, clearing, and a
   lock-free parallel clearing after Morozov and Nigmetov), four representations of the column being reduced, a
   column cache, and helpers that turn a reduction into a barcode with representatives, by homology or cohomology.
-- **`phlite_rips`**: Vietoris–Rips persistence, with Ripser's and giotto-ph's optimisations, as a Rust crate, a CLI
-  and the `phlite_rips` Python package.
-- **`phlite_grpph`**: grounded persistent path homology of weighted digraphs, as a crate and the `phlite_grpph`
-  Python package.
-- **`phlite_py`**: the `phlite` Python package, for explicit filtered chain complexes you build yourself: from
-  integer columns, CSC arrays, or your own Python objects as cells. It is a drop-in alternative to PHAT and LoPHAT
-  that also gives representatives and works over Z/p.
+- **`phlite_cloud`**: point clouds. So far Vietoris–Rips persistence, with Ripser's and giotto-ph's optimisations, as
+  a Rust module and a CLI.
+- **`phlite_network`**: networks. So far grounded persistent path homology of weighted digraphs.
+- **`phlite_image`**: images (cubical complexes); nothing yet.
+- **`phlite_py`**: the `phlite` Python package. At its top level, explicit filtered chain complexes you build
+  yourself: from integer columns, CSC arrays, or your own Python objects as cells, a drop-in alternative to PHAT and
+  LoPHAT that also gives representatives and works over Z/p. Its submodules `phlite.cloud`, `phlite.network` and
+  `phlite.image` are the bindings of the three crates above.
 
 ## How fast?
 

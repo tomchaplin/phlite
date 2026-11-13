@@ -1,8 +1,9 @@
-# phlite_rips: Vietoris–Rips
+# Vietoris–Rips (`phlite.cloud.rips`)
 
 ```python
 import numpy as np
-from phlite_rips import rips, Algorithm
+from phlite import Algorithm
+from phlite.cloud import rips
 
 points = np.random.default_rng(0).normal(size=(100, 2))
 distances = np.linalg.norm(points[:, None] - points[None], axis=-1)
@@ -19,7 +20,7 @@ barcode.pairing_representatives[1]   # a cycle (a list of edges (a, b)) for each
 | `max_dim` | the highest homology dimension | `1` |
 | `threshold` | only build simplices up to this diameter (bars alive then become essential) | `None` |
 | `method` | `"cohomology"` or `"homology"` | `"cohomology"` |
-| `algorithm` | an [`Algorithm`](algorithms.md) | `Algorithm.serial()` (heap columns, uncached) |
+| `algorithm` | an [`Algorithm`](../algorithms.md) | `Algorithm.serial()` (heap columns, uncached) |
 | `representatives` | compute a cycle for every bar | `False` |
 
 ## What it does
@@ -39,4 +40,7 @@ It implements the optimisations of Ripser and giotto-ph on `phlite`'s oracles:
   (`Algorithm.serial().with_columns("merged").with_cache(True)`) are up to 1.9× faster at about twice the memory.
   Avoid `'sorted'` columns on such inputs: they can take hours.
 
-See the [notebooks](notebooks.md) for a circle, a torus and representatives drawn on the points.
+See the [notebooks](../notebooks.md) for a circle, a torus and representatives drawn on the points.
+
+The Rust implementation is the `rips` module of the `phlite_cloud` crate (`phlite_cloud/src/rips`); until the
+packages merged into one, these were the `phlite_rips` crate and Python package.
