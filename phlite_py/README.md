@@ -152,6 +152,8 @@ reduction:
 | dense boundaries (cells with hundreds of faces) | level | |
 
 See [`python-tests/BENCHMARKS.md`](../python-tests/BENCHMARKS.md) for these and comparisons with LoPHAT.
+(Measured before the latest optimisations to phlite_py, which made it a little faster; they will be updated at the
+next full benchmark run.)
 
 **Zero-length bars are omitted** (birth and death at the same filtration value), as everywhere in `phlite`. With the
 default index filtration no bar has length zero, so you get every pair, as with PHAT.
