@@ -47,7 +47,7 @@
 //! without it.
 //! * Good when many columns are added to each, as for explicit dense or cubical complexes, especially with
 //!   [`store_r`](crate::reduction::Clearing::store_r): on those it is 1.4–5× faster than [`MergedColumns`], and it is
-//!   the default for explicit complexes in `phlite_py`.
+//!   the default for explicit complexes in `phlite_complexes`.
 //! * Every entry added is visited (none are skipped lazily below the pivot), and the column costs a slot per row of the
 //!   matrix, allocated once per reduction. Only the serial clearing algorithm reuses one column, so the parallel and
 //!   standard algorithms fall back to [`MergedColumns`].
@@ -64,7 +64,7 @@
 //!   done, which for Vietoris–Rips is most of the memory the reduction uses (23 MB rather than 5 MB for 400 points),
 //!   and looking a column up costs about as much as recomputing it.
 //! * Less useful when the matrix stores its columns sorted and says so, via
-//!   [`sorted_column`](crate::matrices::HasRowFiltration::sorted_column) (as for explicit matrices in `phlite_py`):
+//!   [`sorted_column`](crate::matrices::HasRowFiltration::sorted_column) (as for explicit matrices in `phlite_complexes`):
 //!   columns are then never sorted, only copied into the working column, and the cache saves just that copy. That
 //!   helps when columns are long (about 10% on cell complexes) and costs a little when they are short (about 20% on
 //!   cubical complexes, where looking a column up costs more than copying it).
@@ -1292,7 +1292,7 @@ impl<FilT: FiltrationValue, RowT: BasisElement, CF: NonZeroCoefficient>
 
 /// Represent the column being reduced as a dense column over the rows, with a 64-ary tree of bitsets saying which rows
 /// are present, as PHAT's default `bit_tree_pivot_column` does. Needs the matrix to give the rank of every row in
-/// filtration order ([`row_ranks`](HasRowFiltration::row_ranks), as explicit matrices in `phlite_py` do); for other
+/// filtration order ([`row_ranks`](HasRowFiltration::row_ranks), as explicit matrices in `phlite_complexes` do); for other
 /// matrices it falls back to [`MergedColumns`].
 ///
 /// Adding a term is a lookup of its rank and a bit flip, cancelling terms vanish at once, and finding the pivot is a

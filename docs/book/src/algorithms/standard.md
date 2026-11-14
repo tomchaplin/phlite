@@ -29,4 +29,4 @@ let reduction = Standard::new().reduce(&matrix);
 - **When the basis can't be split by dimension**, since clearing needs that.
 
 It is slow on anything large: it reduces every column, including the many that clearing would skip, and it can't
-use apparent pairs, so it needs every cell in the basis (`phlite_cloud::rips` gives it the full basis for that reason).
+use apparent pairs, so it needs every cell in the basis (`phlite_clouds::rips` gives it the full basis for that reason).

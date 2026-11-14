@@ -55,11 +55,11 @@ sparse cell complexes it is level or faster.
 
 ## Measuring
 
-`phlite_py/examples/reduce_file.rs` reduces a complex dumped from the benchmark cache, in pure Rust, so you can profile
+`phlite_complexes/examples/reduce_file.rs` reduces a complex dumped from the benchmark cache, in pure Rust, so you can profile
 without Python:
 
 ```sh
-RUSTFLAGS="-C force-frame-pointers=yes" cargo build --release -p phlite_py --example reduce_file
+RUSTFLAGS="-C force-frame-pointers=yes" cargo build --release -p phlite_complexes --example reduce_file
 perf record -g target/release/examples/reduce_file grid1000.bin 5
 ```
 

@@ -1,0 +1,46 @@
+[package]
+name = "phlite_networks"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Persistent homology of networks (grounded persistent path homology of weighted digraphs, ...) with phlite, and the phlite.networks Python package"
+
+[lib]
+# cdylib for the `phlite.networks` extension module (feature `python`), rlib for Rust users
+crate-type = ["cdylib", "rlib"]
+
+[[bin]]
+name = "phlite_networks_grpph"
+path = "src/bin/grpph.rs"
+
+[[bin]]
+name = "phlite_networks_stub_gen"
+path = "src/bin/stub_gen.rs"
+doc = false
+required-features = ["python"]
+
+[dependencies]
+log = "0.4.35"
+ordered-float = "5.5.1"
+petgraph = "0.8.3"
+phlite = { version = "0.1.0", default-features = false, path = "../phlite", features = ["parallel"] }
+rustc-hash = "2.1.3"
+pyo3 = { version = "0.30.1", optional = true }
+pyo3-log = { version = "0.13.5", optional = true }
+pyo3-stub-gen = { version = "0.23.2", optional = true }
+phlite_bindings = { path = "../phlite_bindings", optional = true }
+
+[features]
+default = ["lock-free"]
+# The lock-free backend of the parallel reduction
+lock-free = ["phlite/lock-free"]
+# The `phlite.networks` Python extension module, built with maturin as `phlite-networks` (see pyproject.toml)
+python = ["dep:pyo3", "dep:pyo3-log", "dep:pyo3-stub-gen", "dep:phlite_bindings", "lock-free"]
+
+[dev-dependencies]
+criterion = "0.8.2"
+rayon = "1.12.0"
+
+[[bench]]
+name = "reduction"
+harness = false

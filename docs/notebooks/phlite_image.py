@@ -26,10 +26,10 @@ def _():
 
     import altair as alt
     import numpy as np
-    import phlite
+    from phlite import complexes
     import polars as pl
 
-    return alt, itertools, np, phlite, pl
+    return alt, complexes, itertools, np, pl
 
 
 @app.cell
@@ -91,7 +91,7 @@ def _(mo):
 
 
 @app.cell
-def _(itertools, phlite, size):
+def _(complexes, itertools, size):
     side = 2 * size - 1
 
     def dimension(cell):
@@ -107,7 +107,7 @@ def _(itertools, phlite, size):
         return faces
 
     cells = sorted(itertools.product(range(side), range(side)), key=dimension)
-    chain = phlite.ChainComplex.from_cells(cells, dimension=dimension, boundary=boundary)
+    chain = complexes.ChainComplex.from_cells(cells, dimension=dimension, boundary=boundary)
     chain
     return (chain,)
 

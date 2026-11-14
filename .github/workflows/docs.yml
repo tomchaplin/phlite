@@ -35,7 +35,7 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@stable
 
-      # The release build of the `phlite` extension module and of the WebAssembly are most of the time; cache them
+      # The release builds of the Python packages and of the WebAssembly are most of the time; cache them
       # (phlite_web is outside the workspace, with its own target directory and nightly toolchain)
       - uses: Swatinem/rust-cache@v2
         with:
@@ -62,7 +62,7 @@ jobs:
         with:
           tool: just,mdbook@0.5.4,wasm-bindgen@0.2.130
 
-      - name: Build the Python package
+      - name: Build the Python packages
         run: just docs-modules
 
       - name: Build the site (figures, book, API reference, notebooks, playground)

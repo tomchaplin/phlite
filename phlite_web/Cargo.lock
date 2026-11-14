@@ -422,7 +422,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "phlite_cloud"
+name = "phlite_clouds"
 version = "0.1.0"
 dependencies = [
  "csv",
@@ -432,7 +432,15 @@ dependencies = [
 ]
 
 [[package]]
-name = "phlite_network"
+name = "phlite_complexes"
+version = "0.1.0"
+dependencies = [
+ "ordered-float",
+ "phlite",
+]
+
+[[package]]
+name = "phlite_networks"
 version = "0.1.0"
 dependencies = [
  "log",
@@ -440,15 +448,6 @@ dependencies = [
  "petgraph",
  "phlite",
  "rustc-hash",
-]
-
-[[package]]
-name = "phlite_py"
-version = "0.1.0"
-dependencies = [
- "ordered-float",
- "phlite",
- "rayon",
 ]
 
 [[package]]
@@ -461,9 +460,9 @@ dependencies = [
  "ordered-float",
  "parking_lot_core",
  "phlite",
- "phlite_cloud",
- "phlite_network",
- "phlite_py",
+ "phlite_clouds",
+ "phlite_complexes",
+ "phlite_networks",
  "rayon",
  "serde",
  "serde-wasm-bindgen",

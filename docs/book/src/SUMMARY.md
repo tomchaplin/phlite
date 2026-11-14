@@ -34,7 +34,7 @@
 # Inside phlite
 
 - [Bookkeeping: pivot tables and maps](internals/bookkeeping.md)
-- [Explicit complexes (phlite_py)](internals/explicit.md)
+- [Explicit complexes (phlite_complexes)](internals/explicit.md)
 - [Where the time goes](internals/performance.md)
 
 # Tutorial: your own filtration in Rust
@@ -50,20 +50,20 @@
 
 # Python
 
-- [The phlite package](python/index.md)
-- [Explicit complexes](python/phlite.md)
-- [phlite.cloud: point clouds](python/cloud.md)
-  - [Vietoris–Rips](python/cloud/rips.md)
+- [The Python packages](python/index.md)
+- [phlite.complexes: explicit complexes](python/complexes.md)
+- [phlite.clouds: point clouds](python/clouds.md)
+  - [Vietoris–Rips](python/clouds/rips.md)
   - [Alpha complexes]()
   - [Sparse and distance-matrix Rips]()
   - [Weighted and Čech-like filtrations]()
-- [phlite.network: networks](python/network.md)
-  - [Grounded path homology](python/network/grpph.md)
+- [phlite.networks: networks](python/networks.md)
+  - [Grounded path homology](python/networks/grpph.md)
   - [Path homology]()
   - [Directed flag complexes]()
   - [Dowker complexes]()
   - [Directed Rips]()
-- [phlite.image: images](python/image.md)
+- [phlite.images: images](python/images.md)
   - [Cubical complexes]()
 - [Choosing an algorithm](python/algorithms.md)
 - [Example notebooks](python/notebooks.md)

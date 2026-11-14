@@ -891,27 +891,61 @@ dependencies = [
 ]
 
 [[package]]
-name = "phlite_cloud"
+name = "phlite_bindings"
+version = "0.1.0"
+dependencies = [
+ "ordered-float",
+ "phlite",
+ "pyo3",
+ "pyo3-stub-gen",
+ "rayon",
+]
+
+[[package]]
+name = "phlite_clouds"
 version = "0.1.0"
 dependencies = [
  "criterion",
  "csv",
+ "numpy",
  "ordered-float",
  "phlite",
+ "phlite_bindings",
+ "pyo3",
+ "pyo3-log",
+ "pyo3-stub-gen",
  "rayon",
  "rustc-hash 2.1.3",
 ]
 
 [[package]]
-name = "phlite_image"
+name = "phlite_complexes"
+version = "0.1.0"
+dependencies = [
+ "numpy",
+ "ordered-float",
+ "phlite",
+ "phlite_bindings",
+ "proptest",
+ "pyo3",
+ "pyo3-log",
+ "pyo3-stub-gen",
+]
+
+[[package]]
+name = "phlite_images"
 version = "0.1.0"
 dependencies = [
  "ordered-float",
  "phlite",
+ "phlite_bindings",
+ "pyo3",
+ "pyo3-log",
+ "pyo3-stub-gen",
 ]
 
 [[package]]
-name = "phlite_network"
+name = "phlite_networks"
 version = "0.1.0"
 dependencies = [
  "criterion",
@@ -919,25 +953,12 @@ dependencies = [
  "ordered-float",
  "petgraph",
  "phlite",
- "rayon",
- "rustc-hash 2.1.3",
-]
-
-[[package]]
-name = "phlite_py"
-version = "0.1.0"
-dependencies = [
- "numpy",
- "ordered-float",
- "phlite",
- "phlite_cloud",
- "phlite_image",
- "phlite_network",
- "proptest",
+ "phlite_bindings",
  "pyo3",
  "pyo3-log",
  "pyo3-stub-gen",
  "rayon",
+ "rustc-hash 2.1.3",
 ]
 
 [[package]]

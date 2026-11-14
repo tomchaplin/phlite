@@ -28,7 +28,7 @@ cohomology, clearing, reduction basis                 2020.2 ms
 ```
 
 The basis is 18× smaller, the reduction 1.5× faster, and peak memory a quarter. Building the basis is now the
-largest cost, and it is embarrassingly parallel (`phlite_cloud::rips` builds its basis on all cores).
+largest cost, and it is embarrassingly parallel (`phlite_clouds::rips` builds its basis on all cores).
 
 For comparison, storing this complex explicitly, as PHAT or the `phlite` Python package do, takes about 36 bytes per
 cell and 8 per boundary entry, roughly 400 MB here, before any reduction.

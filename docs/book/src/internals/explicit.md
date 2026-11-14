@@ -1,4 +1,4 @@
-# Explicit complexes (phlite_py)
+# Explicit complexes (phlite_complexes)
 
 The `phlite` Python package reduces complexes you give it explicitly, like PHAT and LoPHAT. Under the hood it is an
 ordinary `phlite` oracle over stored matrices, but laid out so that the reduction runs at PHAT's speed.

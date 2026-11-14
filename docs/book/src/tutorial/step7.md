@@ -40,5 +40,5 @@ which applies them all.
 
 ## Next
 
-The same ideas, applied to Vietoris–Rips with much more care over enumerating cofacets, are `phlite_cloud::rips`; its source
-(`phlite_cloud/src/rips/mod.rs` onwards, comments marked `TUTORIAL`) is a good next read.
+The same ideas, applied to Vietoris–Rips with much more care over enumerating cofacets, are `phlite_clouds::rips`; its source
+(`phlite_clouds/src/rips/mod.rs` onwards, comments marked `TUTORIAL`) is a good next read.

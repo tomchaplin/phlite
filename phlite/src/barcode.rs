@@ -27,7 +27,7 @@
 //! The clearing algorithms also [skip zero-persistence apparent pairs](crate::reduction::Clearing::skip_zero_apparent_pairs)
 //! by default, since those pairs would only become zero-length bars.
 //! This means your column basis needn't contain the cells of zero-persistence apparent pairs at all,
-//! which in many filtrations (such as Vietoris-Rips) are nearly all of them (see `phlite_cloud::rips::build_reduction_bases`).
+//! which in many filtrations (such as Vietoris-Rips) are nearly all of them (see `phlite_clouds::rips::build_reduction_bases`).
 //! The [`Standard`] algorithm doesn't look for apparent pairs, so needs the full basis.
 
 use std::{cmp::Reverse, fmt::Debug, hash::Hash};
@@ -73,7 +73,7 @@ impl Default for Algorithm<'_> {
 /// Whether to compute a barcode by reducing the coboundary or the boundary matrix.
 ///
 /// The functions in this module take matrices rather than a [`Method`], since the two methods need different matrices.
-/// This is for applications that build the right matrix for you (such as `phlite_cloud::rips` and `phlite_network::grpph`).
+/// This is for applications that build the right matrix for you (such as `phlite_clouds::rips` and `phlite_networks::grpph`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum Method {
     /// Reduce the anti-transposed coboundary matrix (see [`cohomology`]), computing representatives by involution.

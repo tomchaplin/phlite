@@ -1,6 +1,6 @@
 # Tests, a light fuzz and a light benchmark, on pull requests and pushes to main, reported on the pull request.
 #
-# One job, so that the `phlite` package and the reference implementations (PHAT is built from source) are built once:
+# One job, so that the phlite packages and the reference implementations (PHAT is built from source) are built once:
 # 1. the full test suite: the Rust workspace (with cargo-nextest, for a JUnit report; doctests with cargo), then the
 #    Python tests against ripser, giotto-ph, grpphati, PHAT and LoPHAT (and gudhi, pyflagser and cripser);
 # 2. a light fuzz: 1000 cases per Rust property test and 1000 Hypothesis examples per Python test;
@@ -55,6 +55,10 @@ jobs:
         run: |
           cargo nextest run --release --workspace --all-features --profile ci
           cargo test --doc --workspace --all-features
+
+      # `pip install phlite`: no files, only the other packages' pins (which `cargo test -p phlite_bindings` checks)
+      - name: Build the metapackage
+        run: uv build --out-dir dist phlite_meta
 
       - name: Python tests (against the references)
         working-directory: python-tests

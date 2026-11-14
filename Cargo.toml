@@ -3,24 +3,26 @@ resolver = "2"
 
 members = [
   "phlite",
-  "phlite_py",
-  "phlite_cloud",
-  "phlite_network",
-  "phlite_image",
+  "phlite_bindings",
+  "phlite_complexes",
+  "phlite_clouds",
+  "phlite_networks",
+  "phlite_images",
 ]
 # The browser build (WebAssembly with threads) has its own toolchain and target, see phlite_web/README.md
 exclude = ["phlite_web"]
 
-# Every crate is released in lockstep on this version, as is the `phlite` Python package (built from phlite_py, whose
-# version maturin takes from here): bump it here, then build and release everything.
+# Every crate and every Python package is released in lockstep on this version (maturin takes the wheels' versions
+# from here): bump it here and in phlite_meta/pyproject.toml (whose pins phlite_bindings' tests check), then build and
+# release everything.
 [workspace.package]
 version = "0.1.0"
 edition = "2021"
 license = "MIT"
 repository = "https://github.com/tomchaplin/phlite"
 
-# The `phlite` extension module calls into phlite_cloud and phlite_network from phlite_py, a different crate, so their
-# non-generic hot code (simplex and path arithmetic) can only be inlined across crates with LTO: without it, Rips and
-# GrPPH run about 1.5-2x slower than when each had its own extension module.
+# Each extension module's hot code is generic code from phlite instantiated with its own types, plus non-generic
+# helpers from other crates, which only LTO can inline across crates (it was worth 1.5-2x for Rips and GrPPH when their
+# bindings were in another crate).
 [profile.release]
 lto = "thin"

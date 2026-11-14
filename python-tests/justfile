@@ -1,21 +1,21 @@
-# Fuzz tests and benchmarks for phlite's Python bindings against reference implementations.
+# Fuzz tests and benchmarks for phlite's Python packages against reference implementations.
 # Requires `just` and `uv`. There are two uv environments, since the references need different Pythons:
-#   .        Python 3.11: phlite.cloud, phlite.network and phlite.image, against ripser, giotto-ph, grpphati, gudhi,
+#   .        Python 3.11: phlite.clouds, phlite.networks and phlite.images, against ripser, giotto-ph, grpphati, gudhi,
 #            pyflagser and cripser
-#   latest/  Python 3.13: phlite's explicit complexes, against PHAT and LoPHAT (and phlite_py's own tests)
-# Both get the same `phlite` package, built from phlite_py.
+#   latest/  Python 3.13: phlite.complexes, against PHAT and LoPHAT (and phlite_complexes' own tests)
+# Both get every phlite package (phlite-core first, since the others depend on it).
 
 set shell := ["bash", "-euo", "pipefail", "-c"]
 # Pass recipe arguments on as "$@", keeping their quoting
 set positional-arguments
 
 # The test files for each environment; tests/conftest.py and tests/mod2.py are shared.
-# Each submodule's tests are `tests/test_<submodule>_<pipeline>.py` (e.g. test_cloud_rips.py), all picked up here, so
-# a new pipeline's tests need no change to this file. test_algorithm.py checks the `Algorithm` class and the registry
-# of pipelines' defaults (against the book). phlite_py's test against grpphati's own columns needs grpphati, so runs in
-# the main environment (and skips in latest).
-main_tests := `shopt -s nullglob; echo tests/test_algorithm.py tests/test_{cloud,network,image}*.py` + " ../phlite_py/tests/test_cells.py::test_real_grpphati"
-latest_tests := "tests/test_sparse.py tests/test_invariants.py ../phlite_py/tests"
+# Each package's tests are `tests/test_<package>_<pipeline>.py` (e.g. test_clouds_rips.py), all picked up here, so a
+# new pipeline's tests need no change to this file. test_core.py checks phlite.core: `Algorithm`, the namespace
+# package, and the registry of pipelines' defaults (against the docstrings and the book). phlite_complexes' test
+# against grpphati's own columns needs grpphati, so runs in the main environment (and skips in latest).
+main_tests := `shopt -s nullglob; echo tests/test_core.py tests/test_{clouds,networks,images}*.py` + " ../phlite_complexes/tests/test_cells.py::test_real_grpphati"
+latest_tests := `shopt -s nullglob; echo tests/test_complexes*.py` + " ../phlite_complexes/tests"
 latest := "uv run --no-sync --project latest"
 
 # PHAT's only PyPI release is an sdist whose metadata doesn't match its version, which uv and pip refuse to install,
@@ -46,10 +46,14 @@ install-phat:
     uv pip install "pybind11<3" setuptools
     uv pip install --no-build-isolation "$dir"/phat-*/
 
-# Build the `phlite` package (release mode) into both environments
+# Every phlite package's crate, phlite_bindings (phlite-core) first: the others depend on it, and maturin would look for
+# it on PyPI if it weren't installed already
+packages := "phlite_bindings phlite_complexes phlite_clouds phlite_networks phlite_images"
+
+# Build every phlite package (release mode) into both environments
 build: venv
-    uv run --no-sync maturin develop --uv --release -m ../phlite_py/Cargo.toml
-    {{latest}} maturin develop --uv --release -m ../phlite_py/Cargo.toml
+    for crate in {{packages}}; do uv run --no-sync maturin develop --uv --release -m ../$crate/Cargo.toml; done
+    for crate in {{packages}}; do {{latest}} maturin develop --uv --release -m ../$crate/Cargo.toml; done
 
 # Run every Python test, fuzzing briefly (100 examples per test)
 test *pytest_args: build
@@ -65,10 +69,10 @@ _pytest *pytest_args:
     {{latest}} pytest {{latest_tests}} ${PHLITE_JUNIT_DIR:+--junitxml="$PHLITE_JUNIT_DIR/latest.xml"} "$@"
 
 # The pytest-benchmark suites for each environment, and where the quick baselines are saved. As for the tests, each
-# submodule's suites are `benchmarks/bench_<submodule>_<pipeline>.py` (e.g. bench_cloud_rips.py), all picked up here;
+# submodule's suites are `benchmarks/bench_<submodule>_<pipeline>.py` (e.g. bench_clouds_rips.py), all picked up here;
 # each describes itself for the reports in a `SUITE` dict (see benchmarks/suites.py).
-main_benches := `shopt -s nullglob; echo benchmarks/bench_{cloud,network,image}*.py`
-latest_benches := "benchmarks/bench_sparse.py"
+main_benches := `shopt -s nullglob; echo benchmarks/bench_{clouds,networks,images}*.py`
+latest_benches := `shopt -s nullglob; echo benchmarks/bench_complexes*.py`
 storage := "--benchmark-storage=file://benchmarks/baselines"
 
 # Run the Python benchmarks in both environments, with pytest options, e.g. `just bench -m quick` or `just bench -k grid`

@@ -1,10 +1,10 @@
 # Choosing an algorithm
 
-Every pipeline (`FilteredComplex.persistence`, `phlite.cloud.rips`, `phlite.network.grpph`, ...) takes an
-`algorithm`, a `phlite.Algorithm`:
+Every pipeline (`phlite.complexes.FilteredComplex.persistence`, `phlite.clouds.rips`, `phlite.networks.grpph`, ...)
+takes an `algorithm`, a `phlite.core.Algorithm`:
 
 ```python
-from phlite import Algorithm
+from phlite.core import Algorithm
 
 Algorithm.serial()                          # the default
 Algorithm.parallel(threads=8)
@@ -41,16 +41,17 @@ The column representation, caching and storing R are best chosen per kind of inp
 <!-- defaults:start -->
 | Pipeline | Function | Columns (serial) | Cache (serial) | Store R (serial) | Columns (parallel) | Cache (parallel) |
 |---|---|---|---|---|---|---|
-| `complex` | `FilteredComplex.persistence` | `'pivot'` | `False` | `True` | `'merged'` | `False` |
-| `cloud.rips` | `phlite.cloud.rips` | `'heap'` | `False` | `False` | `'heap'` | `False` |
-| `network.grpph` | `phlite.network.grpph` | `'merged'` | `True` | `False` | `'merged'` | `True` |
+| `complexes` | `phlite.complexes.FilteredComplex.persistence` | `'pivot'` | `False` | `True` | `'merged'` | `False` |
+| `clouds.rips` | `phlite.clouds.rips` | `'heap'` | `False` | `False` | `'heap'` | `False` |
+| `networks.grpph` | `phlite.networks.grpph` | `'merged'` | `True` | `False` | `'merged'` | `True` |
 <!-- defaults:end -->
 
-(`python-tests/tests/test_algorithm.py` checks this table, and each function's docstring, against the pipelines
-themselves; a new pipeline needs a row.) The same, from Python:
+(`python-tests/tests/test_core.py` checks this table, and each function's docstring, against the pipelines
+themselves; a new pipeline needs a row. Pipelines of packages that aren't installed are left out of `defaults()`.)
+The same, from Python:
 
 ```python
->>> phlite.defaults()["cloud.rips"]
+>>> phlite.core.defaults()["clouds.rips"]
 {'serial': Algorithm('clearing', columns='heap', cache=False, store_r=False, skip_zero_apparent_pairs=True, dimension_order=None),
  'parallel': Algorithm('parallel-clearing', columns='heap', cache=False, skip_zero_apparent_pairs=True, dimension_order=None, storage='locking', threads=None)}
 ```
@@ -61,9 +62,9 @@ one, and every barcode records the algorithm that computed it:
 ```python
 >>> Algorithm.serial()
 Algorithm('clearing', columns=<pipeline default>, cache=<pipeline default>, store_r=<pipeline default>, skip_zero_apparent_pairs=True, dimension_order=None)
->>> Algorithm.serial().resolve("complex")
+>>> Algorithm.serial().resolve("complexes")
 Algorithm('clearing', columns='pivot', cache=False, store_r=True, skip_zero_apparent_pairs=True, dimension_order=None)
->>> phlite.cloud.rips(distances).algorithm
+>>> phlite.clouds.rips(distances).algorithm
 Algorithm('clearing', columns='heap', cache=False, store_r=False, skip_zero_apparent_pairs=True, dimension_order=None)
 ```
 

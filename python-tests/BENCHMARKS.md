@@ -14,7 +14,7 @@ In the Python tables each time is the fastest of several runs (one run for the l
 
 Full results are in `python-tests/benchmarks/results/` (pytest-benchmark JSON; compare runs with `pytest-benchmark compare`). See [python-tests/README.md](README.md#benchmarks) for how to run them and check for regressions.
 
-## Rips: `phlite.cloud.rips` vs ripser and giotto-ph
+## Rips: `phlite.clouds.rips` vs ripser and giotto-ph
 
 Vietoris–Rips persistence in dimensions up to `dim` of `n` points, from a distance matrix: uniformly random in the unit cube (unlabelled; every bar is short), or noisy samples (by tadasets) of a torus in R³ (two long H1 bars and one long H2 bar), a 2-sphere (one long H2 bar), a wedge of two 2-spheres (two) or a wedge of three circles in the plane (three long H1 bars). giotto-ph is ripser with parallelism. The cases with 1000 or more points are timed once each, and at 1000 points in dimension 2 ripser runs out of memory (over 7 GB), so isn't run.
 
@@ -72,7 +72,7 @@ How phlite compares on one thread, per case: the fastest other implementation, p
 
 </details>
 
-## GrPPH: `phlite.network.grpph` vs grpphati
+## GrPPH: `phlite.networks.grpph` vs grpphati
 
 Grounded persistent path homology (dimension 1) of digraphs with integer weights 1–5: random digraphs on `n` nodes, each edge present with probability `p`; a directed `ring` of `n` nodes with random short chords (one long bar, around the ring); and a `lattice` of `n`×`n` nodes, with edges right and down, and four rectangular holes (a long bar around each). `GrPPH_par_wedge` is grpphati's parallel pipeline over wedge components. The largest case of each kind is timed once, and only phlite runs on it (grpphati needs over 5 GB on random digraphs of 100 nodes, and minutes on the others); its barcodes are checked against phlite's default. grpphati splits some digraphs (the lattices) into parts that joblib reduces in worker processes, whose memory isn't counted.
 
@@ -209,7 +209,7 @@ How phlite compares on one thread, per case: the fastest other implementation, p
 
 ## Rust: the clearing reduction
 
-The core reduction alone, from criterion (`cargo bench`), on the Rips coboundary matrix of random points in the unit cube (`phlite_cloud/benches/reduction.rs`) and the GrPPH coboundary matrix of random digraphs (`phlite_network/benches/reduction.rs`). Median time per reduction; `parallel …/N` uses N threads.
+The core reduction alone, from criterion (`cargo bench`), on the Rips coboundary matrix of random points in the unit cube (`phlite_clouds/benches/reduction.rs`) and the GrPPH coboundary matrix of random digraphs (`phlite_networks/benches/reduction.rs`). Median time per reduction; `parallel …/N` uses N threads.
 
 | case | serial merged cached | serial merged uncached | serial heap cached | serial heap uncached | serial sorted cached | serial sorted uncached | serial merged store-r | parallel locking/1 | parallel locking/2 | parallel locking/4 | parallel lock-free/1 | parallel lock-free/2 | parallel lock-free/4 |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|

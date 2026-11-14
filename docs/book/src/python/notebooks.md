@@ -10,27 +10,27 @@ cd python-tests
 uv run --project latest --group docs marimo edit ../docs/notebooks/phlite_image.py
 ```
 
-## An image (`phlite`)
+## An image (`phlite.complexes`)
 
 The cubical complex of a 64 × 64 image with three dark rings, built from Python tuples, with the lower-star filtration
 from pixel values (`extend=True`). The representatives of the three longest H1 bars trace the rings.
 
 **[Open the notebook →](../../notebooks/phlite_image.html)**
 
-## A Delaunay complex (`phlite`)
+## A Delaunay complex (`phlite.complexes`)
 
 Two noisy circles, their Delaunay triangulation filtered by edge length, over Z/3: a few hundred simplices instead of
 the Rips complex's millions, and the same two loops.
 
 **[Open the notebook →](../../notebooks/phlite_delaunay.html)**
 
-## Vietoris–Rips (`phlite.cloud`)
+## Vietoris–Rips (`phlite.clouds`)
 
 A noisy figure eight: its two loops, drawn from their representatives, and a few algorithm configurations timed.
 
 **[Open the notebook →](../../notebooks/rips_points.html)**
 
-## A digraph (`phlite.network`)
+## A digraph (`phlite.networks`)
 
 Directed cycles of different lengths, two parallel paths and a bidirected edge: grounded persistent path homology tells
 them apart, and each representative is highlighted on the graph.

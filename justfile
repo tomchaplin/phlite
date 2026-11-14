@@ -9,7 +9,7 @@ set positional-arguments
 default:
     @just --list
 
-# Run every test: the Rust workspace, then the Python fuzz tests and phlite_py's tests
+# Run every test: the Rust workspace, then the Python fuzz tests and phlite_complexes' tests
 test:
     cargo test --workspace --all-features
     cd python-tests && just test
@@ -20,11 +20,21 @@ fuzz examples="5000":
     PROPTEST_CASES="$1" cargo test --release --workspace --all-features
     cd python-tests && just fuzz "$1"
 
-# Build the `phlite` package the docs' notebooks use, into python-tests' latest environment (with its docs
+# Every phlite Python package's crate, phlite_bindings (phlite-core) first: the others depend on it
+packages := "phlite_bindings phlite_complexes phlite_clouds phlite_networks phlite_images"
+
+# Build the phlite packages the docs' notebooks use, into python-tests' latest environment (with its docs
 # dependencies; unlike `just build` there, this doesn't need PHAT)
 docs-modules:
     cd python-tests && uv sync --inexact --project latest --group docs
-    cd python-tests && uv run --no-sync --project latest maturin develop --uv --release -m ../phlite_py/Cargo.toml
+    cd python-tests && for crate in {{packages}}; do \
+        uv run --no-sync --project latest maturin develop --uv --release -m ../$crate/Cargo.toml; done
+
+# Regenerate every package's type stubs (<crate>/python/phlite/<module>/__init__.pyi)
+stubs:
+    cargo run -p phlite_bindings --features extension --bin phlite_bindings_stub_gen
+    for crate in phlite_complexes phlite_clouds phlite_networks phlite_images; do \
+        cargo run -p $crate --features python --bin ${crate}_stub_gen; done
 
 # Build the documentation site into docs/site:
 # * the landing page (docs/landing) at its root;
@@ -65,8 +75,8 @@ docs-playground:
 docs-serve:
     python3 docs/serve.py 8000
 
-# The criterion benchmarks of the Rust reduction (in phlite_cloud and phlite_network)
-cargo_bench := "cargo bench -p phlite_cloud -p phlite_network --features phlite_cloud/lock-free --bench reduction"
+# The criterion benchmarks of the Rust reduction (in phlite_clouds and phlite_networks)
+cargo_bench := "cargo bench -p phlite_clouds -p phlite_networks --features phlite_clouds/lock-free --bench reduction"
 
 # Run every benchmark: Rust (criterion), then Python (pytest-benchmark)
 bench: bench-rust bench-py
@@ -97,10 +107,12 @@ bench-docs:
 # Everything a change should pass: all tests, then the regression check
 check: test bench-check
 
-# Releases: every crate and the `phlite` Python package share one version, `[workspace.package] version` in
-# Cargo.toml. Bump it there, then build everything: the `phlite` wheels (all of them, in CI: push a tag `vX.Y.Z`, see
-# .github/workflows/release.yml), and publish the crates.
+# Releases: every crate and every Python package share one version, `[workspace.package] version` in Cargo.toml. Bump
+# it there and in phlite_meta/pyproject.toml (its version and pins, and the `phlite-core==` pin in each package's
+# pyproject.toml: `cargo test -p phlite_bindings` checks them all), then build everything: in CI, push a tag `vX.Y.Z`
+# (.github/workflows/release.yml builds every wheel and the metapackage and publishes them), and publish the crates.
 #
-# Build a release wheel of the `phlite` package into phlite_py/dist (the version is the workspace's)
-wheel:
-    cd phlite_py && just wheel
+# Build a release wheel of every package, and the metapackage `phlite`, into dist/ (for this machine's Python)
+wheels:
+    for crate in {{packages}}; do (cd $crate && uvx maturin build --release --out ../dist); done
+    uv build --wheel --out-dir dist phlite_meta

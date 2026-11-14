@@ -41,7 +41,7 @@ there is recomputed through the transpose (two dependent lookups in the transpos
 When the table is inline it has a slot for every row anyway, so storing apparent pairs too is free, and then the table
 alone answers "who owns this pivot?" in one access. But that is only correct if **every column of the dimension is in
 the basis**: an apparent pair whose column isn't visited is never recorded. So it is an explicit promise,
-`Clearing::full_basis(true)`, which phlite_py makes (its basis is every cell up to some dimension) and the
+`Clearing::full_basis(true)`, which phlite_complexes makes (its basis is every cell up to some dimension) and the
 [involution](../algorithms/involution.md), whose basis is restricted, must not.
 
 ```mermaid

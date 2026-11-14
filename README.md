@@ -66,10 +66,10 @@ Most of `phlite`'s performance comes from optimisations we have adapted from Rip
 
 `phlite`'s contribution is making these available for any filtration, behind generic traits, rather than just Vietoris-Rips.
 
-With these, `phlite.cloud.rips` is several times faster than Ripser and uses a fraction of its memory. Against giotto-ph
+With these, `phlite.clouds.rips` is several times faster than Ripser and uses a fraction of its memory. Against giotto-ph
 [[9]](#9), it depends on the data. On random points it is up to 1.8× as fast in dimension 2, with about the same
 memory, though giotto-ph is faster in dimension 1 alone. On points sampled from shapes with long bars, the two are
-level on one thread, except on the torus, where `phlite.cloud.rips` keeps its lead.
+level on one thread, except on the torus, where `phlite.clouds.rips` keeps its lead.
 
 **Test cases:** $n$ points, with Euclidean distances (rounded to `float32`, so every implementation sees identical
 input), computing persistent homology in dimensions up to $d$ over $\mathbb{Z}/2$ by cohomology. The points are either
@@ -81,8 +81,8 @@ with long bars:
 * a wedge of two unit 2-spheres: two long $H_2$ bars;
 * a wedge of three unit circles in the plane: three long $H_1$ bars.
 
-We compare `phlite.cloud.rips` (`Algorithm.serial()`) with [ripser.py](https://github.com/scikit-tda/ripser.py) and giotto-ph
-on one thread, and `phlite.cloud.rips` (`Algorithm.parallel(threads=4)`) with giotto-ph (`n_threads=4`).
+We compare `phlite.clouds.rips` (`Algorithm.serial()`) with [ripser.py](https://github.com/scikit-tda/ripser.py) and giotto-ph
+on one thread, and `phlite.clouds.rips` (`Algorithm.parallel(threads=4)`) with giotto-ph (`n_threads=4`).
 Times are the best of 3 runs (one run for 1000 points or more), and peak memory is the most heap memory allocated at
 once during the computation (measured with [memray](https://bloomberg.github.io/memray/), including native
 allocations), on one 8-core Linux machine; all implementations produced the same barcodes. Ripser runs out of memory
@@ -90,7 +90,7 @@ allocations), on one 8-core Linux machine; all implementations produced the same
 
 Random points in the unit cube:
 
-| $n$ | $d$ | Ripser | giotto-ph (1 thread) | `phlite.cloud.rips` (serial) | giotto-ph (4 threads) | `phlite.cloud.rips` (4 threads) |
+| $n$ | $d$ | Ripser | giotto-ph (1 thread) | `phlite.clouds.rips` (serial) | giotto-ph (4 threads) | `phlite.clouds.rips` (4 threads) |
 |---|---|---|---|---|---|---|
 | 200 | 2 | 0.38s / 66 MB | 0.11s / 2.3 MB | 0.091s / 1.5 MB | 0.038s / 1.3 MB | 0.033s / 1.4 MB |
 | 300 | 2 | 1.61s / 260 MB | 0.39s / 4.8 MB | 0.32s / 4.5 MB | 0.14s / 4.8 MB | 0.13s / 4.5 MB |
@@ -101,7 +101,7 @@ Random points in the unit cube:
 
 Noisy samples of shapes:
 
-| shape | $n$ | $d$ | Ripser | giotto-ph (1 thread) | `phlite.cloud.rips` (serial) | giotto-ph (4 threads) | `phlite.cloud.rips` (4 threads) |
+| shape | $n$ | $d$ | Ripser | giotto-ph (1 thread) | `phlite.clouds.rips` (serial) | giotto-ph (4 threads) | `phlite.clouds.rips` (4 threads) |
 |---|---|---|---|---|---|---|---|
 | torus | 400 | 2 | 2.65s / 333 MB | 0.86s / 15 MB | 0.56s / 12 MB | 0.30s / 15 MB | 0.26s / 12 MB |
 | torus | 1000 | 2 | not run | 15.6s / 220 MB | 9.93s / 290 MB | 6.81s / 287 MB | 4.69s / 294 MB |
@@ -111,7 +111,7 @@ Noisy samples of shapes:
 | wedge of circles | 2000 | 1 | 20.3s / 1070 MB | 15.3s / 878 MB | 16.1s / 604 MB | 11.2s / 1415 MB | 10.3s / 1140 MB |
 
 Long bars make a filtration much harder for every implementation (400 points on a sphere take over ten times as long
-as 400 random points), since many more columns need reducing. On these, `phlite.cloud.rips` with merged, cached columns
+as 400 random points), since many more columns need reducing. On these, `phlite.clouds.rips` with merged, cached columns
 (`Algorithm.serial().with_columns("merged").with_cache(True)`) is up to 1.9× faster than its default, at about twice
 the memory; the default favours memory.
 
@@ -127,18 +127,21 @@ If you need support implementing `phlite` traits for your specific application, 
 ## Crates
 
 * `phlite` - Core library, matrix oracle traits, reduction algorithms, barcodes with representatives.
-* `phlite_cloud` - Point clouds: so far the VR filtration, à la Ripser (`phlite_cloud::rips`). Rust library + basic CLI.
-* `phlite_network` - Networks: so far GrPPH [[7]](#7) (`phlite_network::grpph`). Rust library + basic CLI.
-* `phlite_image` - Images (cubical complexes). A placeholder for now.
-* `phlite_py` - The `phlite` Python package (via PyO3): explicit sparse filtered chain complexes, à la PHAT/LoPHAT, at
-  its top level, and the bindings of the crates above as its submodules `phlite.cloud`, `phlite.network` and
-  `phlite.image`, which share one `Algorithm` class.
+Each of these is a Rust library and, with its `python` feature, a Python package (via PyO3); `pip install phlite`
+installs every Python package. They share the namespace `phlite` (`from phlite.clouds import rips`):
 
-Every crate and the Python package are released together, on one version (`[workspace.package]` in `Cargo.toml`).
-`phlite.cloud` and `phlite.network` were the separate Python packages `phlite_rips` and `phlite_grpph` (and their crates
-had those names); there are no aliases for the old names.
+* `phlite_complexes` (`phlite.complexes`) - Explicit sparse filtered chain complexes, à la PHAT/LoPHAT.
+* `phlite_clouds` (`phlite.clouds`) - Point clouds: so far the VR filtration, à la Ripser (`rips`). Also a basic CLI.
+* `phlite_networks` (`phlite.networks`) - Networks: so far GrPPH [[7]](#7) (`grpph`). Also a basic CLI.
+* `phlite_images` (`phlite.images`) - Images (cubical complexes). A placeholder for now.
+* `phlite_bindings` (`phlite.core`) - What the Python packages share: the `Algorithm` and `Barcode` classes, and the
+  helpers their bindings use to reach them.
 
-The `python-tests` folder holds fuzz tests and benchmarks of the Python package against ripser, giotto-ph, grpphati, PHAT and LoPHAT.
+Every crate and Python package is released together, on one version (`[workspace.package]` in `Cargo.toml`).
+`phlite.clouds` and `phlite.networks` were the Python packages `phlite_rips` and `phlite_grpph` (and their crates had
+those names), and the explicit complexes were the package `phlite` itself; there are no aliases for the old names.
+
+The `python-tests` folder holds fuzz tests and benchmarks of the Python packages against ripser, giotto-ph, grpphati, PHAT and LoPHAT.
 
 ## TODO
 

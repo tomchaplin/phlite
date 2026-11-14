@@ -1,0 +1,31 @@
+# `pip install phlite`: every phlite package. This is a metapackage with no files of its own (so nothing that could
+# shadow the namespace package `phlite` the others share): just their pins, on the version every phlite package is
+# released on (the workspace's, in Cargo.toml; phlite_bindings' tests check these lines match it).
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "phlite"
+version = "0.1.0"
+description = "Persistent homology that's light on memory usage: every phlite package"
+requires-python = ">=3.9"
+license = "MIT"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Topic :: Scientific/Engineering :: Mathematics",
+]
+dependencies = [
+    "phlite-core==0.1.0",
+    "phlite-complexes==0.1.0",
+    "phlite-clouds==0.1.0",
+    "phlite-networks==0.1.0",
+    "phlite-images==0.1.0",
+]
+
+[project.urls]
+Repository = "https://github.com/tomchaplin/phlite"
+
+[tool.hatch.build.targets.wheel]
+# A wheel with no files, only the dependencies above
+bypass-selection = true

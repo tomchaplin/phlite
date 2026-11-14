@@ -13,11 +13,11 @@ dependencies = [
     "ripser",
     "giotto-ph",
     "grpphati",
-    # For phlite.cloud (alpha, Čech, ...) and phlite.image (cubical)
+    # For phlite.clouds (alpha, Čech, ...) and phlite.images (cubical)
     "gudhi",
-    # For phlite.network (directed flag complexes)
+    # For phlite.networks (directed flag complexes)
     "pyflagser",
-    # For phlite.image (cubical)
+    # For phlite.images (cubical)
     "cripser",
     "pytest-timeout>=2.3",
 ]

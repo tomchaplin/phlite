@@ -7,3 +7,6 @@ __pycache__/
 # The light CI benchmark (see python-tests/justfile)
 /python-tests/benchmarks/results/light
 /test-results
+# Python extension modules built in place by `maturin develop` (in each crate's python/ folder)
+*.so
+/dist

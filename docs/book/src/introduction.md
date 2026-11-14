@@ -44,14 +44,17 @@ The [tutorial](tutorial/index.md) walks through these one at a time on a concret
 - **`phlite`**: the core library: the matrix traits and adaptors, the reduction algorithms (standard, clearing, and a
   lock-free parallel clearing after Morozov and Nigmetov), four representations of the column being reduced, a
   column cache, and helpers that turn a reduction into a barcode with representatives, by homology or cohomology.
-- **`phlite_cloud`**: point clouds. So far Vietoris–Rips persistence, with Ripser's and giotto-ph's optimisations, as
+- **`phlite_complexes`**: explicit filtered chain complexes you build yourself: from integer columns, CSC arrays, or
+  your own Python objects as cells, a drop-in alternative to PHAT and LoPHAT that also gives representatives and works
+  over Z/p.
+- **`phlite_clouds`**: point clouds. So far Vietoris–Rips persistence, with Ripser's and giotto-ph's optimisations, as
   a Rust module and a CLI.
-- **`phlite_network`**: networks. So far grounded persistent path homology of weighted digraphs.
-- **`phlite_image`**: images (cubical complexes); nothing yet.
-- **`phlite_py`**: the `phlite` Python package. At its top level, explicit filtered chain complexes you build
-  yourself: from integer columns, CSC arrays, or your own Python objects as cells, a drop-in alternative to PHAT and
-  LoPHAT that also gives representatives and works over Z/p. Its submodules `phlite.cloud`, `phlite.network` and
-  `phlite.image` are the bindings of the three crates above.
+- **`phlite_networks`**: networks. So far grounded persistent path homology of weighted digraphs.
+- **`phlite_images`**: images (cubical complexes); nothing yet.
+
+Each of the last four is also a [Python package](python/index.md) (`phlite.complexes`, `phlite.clouds`,
+`phlite.networks`, `phlite.images`), sharing `phlite.core` (built from **`phlite_bindings`**); `pip install phlite`
+installs them all.
 
 ## How fast?
 

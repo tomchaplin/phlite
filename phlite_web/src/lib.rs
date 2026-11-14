@@ -3,13 +3,13 @@
 //!
 //! Four pipelines, each taking plain arrays and an [`Options`] object and returning a [`Barcode`]:
 //!
-//! * [`rips`]: Vietoris–Rips persistence of a point cloud (any dimension) or a distance matrix, by `phlite_cloud`;
-//! * [`grpph`]: grounded persistent path homology of a weighted digraph, by `phlite_network`;
+//! * [`rips`]: Vietoris–Rips persistence of a point cloud (any dimension) or a distance matrix, by `phlite_clouds`;
+//! * [`grpph`]: grounded persistent path homology of a weighted digraph, by `phlite_networks`;
 //! * [`image`]: persistence of a greyscale image (its cubical complex, pixels as vertices, sublevel or superlevel
-//!   sets), by `phlite_py`'s explicit complexes;
+//!   sets), by `phlite_complexes`'s explicit complexes;
 //! * [`alpha`]: alpha persistence of points in the plane (the Delaunay triangulation filtered by `alphalpha`), by
-//!   `phlite_py`'s explicit complexes;
-//! * [`complex`]: persistence of an explicit filtered chain complex over Z/2, Z/3, Z/5 or Z/7, by `phlite_py`.
+//!   `phlite_complexes`'s explicit complexes;
+//! * [`complex`]: persistence of an explicit filtered chain complex over Z/2, Z/3, Z/5 or Z/7, by `phlite_complexes`.
 //!
 //! With the `threads` feature (the default), the parallel algorithm runs on the global rayon pool, which
 //! [`init_thread_pool`] starts on Web Workers (`wasm-bindgen-rayon`): the page must be cross-origin isolated (COOP/COEP
@@ -27,7 +27,7 @@ use phlite::{
     fields::{Z2, Z3, Z5, Z7},
     reduction::{Clearing, Standard, Storage},
 };
-use phlite_py::{
+use phlite_complexes::{
     complex::{Chain, Complex, RawChain},
     field::IntField,
 };
@@ -148,7 +148,7 @@ enum Columns {
     Pivot,
 }
 
-/// A pipeline's defaults, as in Python (`phlite.defaults()`).
+/// A pipeline's defaults, as in Python (`phlite.core.defaults()`).
 #[derive(Debug, Clone, Copy)]
 struct Defaults {
     columns: Columns,
@@ -457,7 +457,7 @@ pub fn rips(
         });
     }
     // usize is 32 bits here, so index simplices by u64: up to 65 534 points for H₂ rather than 254
-    if !phlite_cloud::rips::RipsIndex::<u64>::fits(n, max_dim + 1) {
+    if !phlite_clouds::rips::RipsIndex::<u64>::fits(n, max_dim + 1) {
         return Err(err(format!(
             "Too many points ({n}) for simplices of dimension {}",
             max_dim + 1
@@ -473,9 +473,9 @@ pub fn rips(
         representatives: bool,
     }
     impl Visitor for V {
-        type Output = Vec<phlite_cloud::rips::RipsBar<u64>>;
+        type Output = Vec<phlite_clouds::rips::RipsBar<u64>>;
         fn visit<R: ColumnRepresentation>(self, algorithm: Algorithm<'_, R>) -> Self::Output {
-            phlite_cloud::rips::rips_barcode::<_, u64>(
+            phlite_clouds::rips::rips_barcode::<_, u64>(
                 self.distances,
                 self.max_dim,
                 self.threshold,
@@ -544,20 +544,20 @@ pub fn grpph(
         }
         edges.push((s, t, w));
     }
-    let filtration = phlite_network::grpph::build_filtration(n_vertices, &edges);
-    let edge_set = phlite_network::grpph::build_edge_set(&edges);
+    let filtration = phlite_networks::grpph::build_filtration(n_vertices, &edges);
+    let edge_set = phlite_networks::grpph::build_edge_set(&edges);
 
     struct V<'a> {
-        filtration: &'a phlite_network::grpph::coboundary::VecDigraphFiltration,
-        edge_set: &'a phlite_network::grpph::coboundary::DigraphEdgeSet,
+        filtration: &'a phlite_networks::grpph::coboundary::VecDigraphFiltration,
+        edge_set: &'a phlite_networks::grpph::coboundary::DigraphEdgeSet,
         n: u16,
         method: Method,
         representatives: bool,
     }
     impl Visitor for V<'_> {
-        type Output = Vec<phlite_network::grpph::GrPPHBar>;
+        type Output = Vec<phlite_networks::grpph::GrPPHBar>;
         fn visit<R: ColumnRepresentation>(self, algorithm: Algorithm<'_, R>) -> Self::Output {
-            phlite_network::grpph::grpph_barcode(
+            phlite_networks::grpph::grpph_barcode(
                 self.filtration,
                 self.edge_set,
                 self.n,
@@ -574,7 +574,7 @@ pub fn grpph(
         method: config.method,
         representatives: config.representatives,
     });
-    use phlite_network::grpph::coboundary::{PathHom2Cell, PathHomCell};
+    use phlite_networks::grpph::coboundary::{PathHom2Cell, PathHomCell};
     let bars = translate::<_, Z2>(
         bars,
         |c: PathHomCell| c.dimension(),
@@ -635,7 +635,7 @@ fn complex_bars<CF: IntField + Send + Sync + 'static>(
         representatives: bool,
     }
     impl<CF: IntField + Send + Sync + 'static> Visitor for V<'_, CF> {
-        type Output = Vec<Bar<phlite_py::complex::Cell, NotNan<f64>, CF>>;
+        type Output = Vec<Bar<phlite_complexes::complex::Cell, NotNan<f64>, CF>>;
         fn visit<R: ColumnRepresentation>(self, algorithm: Algorithm<'_, R>) -> Self::Output {
             self.complex
                 .barcode(self.max_dim, self.method, algorithm, self.representatives)

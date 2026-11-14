@@ -15,9 +15,9 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 phlite = { path = "../phlite", features = ["parallel", "lock-free"] }
-phlite_cloud = { path = "../phlite_cloud", features = ["lock-free"] }
-phlite_network = { path = "../phlite_network" }
-phlite_py = { path = "../phlite_py", features = ["lock-free"] }
+phlite_clouds = { path = "../phlite_clouds", features = ["lock-free"] }
+phlite_networks = { path = "../phlite_networks" }
+phlite_complexes = { path = "../phlite_complexes", features = ["lock-free"] }
 ordered-float = "5.5.1"
 # The alpha filtration of points in the plane (Delaunay triangulation by spade)
 alphalpha = { version = "0.1.0", default-features = false }

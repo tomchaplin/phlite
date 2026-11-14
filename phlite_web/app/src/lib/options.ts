@@ -3,7 +3,7 @@ import { engine } from './engine.svelte';
 import { prefs } from './prefs.svelte';
 
 /**
- * A pipeline's defaults, mirroring its Python pipeline's presets (`phlite.defaults()`) (and `phlite_web`'s `Defaults`): those of
+ * A pipeline's defaults, mirroring its Python pipeline's presets (`phlite.core.defaults()`) (and `phlite_web`'s `Defaults`): those of
  * `Algorithm.serial()`, or of `Algorithm.parallel()` if the algorithm is parallel clearing.
  */
 export interface PipelineDefaults {

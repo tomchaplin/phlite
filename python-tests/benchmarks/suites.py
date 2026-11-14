@@ -1,6 +1,6 @@
 """The benchmark suites, for report.py and light_report.py.
 
-Each suite is a file `benchmarks/bench_<suite>.py`, named for what it benchmarks: `bench_cloud_rips.py` is the suite
+Each suite is a file `benchmarks/bench_<suite>.py`, named for what it benchmarks: `bench_clouds_rips.py` is the suite
 `clouds_rips`. A suite describes itself in a module-level `SUITE` dict of plain literals, read here without importing
 the module (whose imports need the references installed):
 

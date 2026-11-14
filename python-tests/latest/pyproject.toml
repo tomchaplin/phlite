@@ -11,7 +11,7 @@ dependencies = [
     "numpy",
     # PHAT is installed separately by `just install-phat`, since its PyPI metadata is broken
     "lophat>=0.14",
-    # For phlite_py's own tests
+    # For phlite_complexes' own tests
     "networkx",
     "scipy",
     "pytest-timeout>=2.3",

@@ -1,4 +1,4 @@
-"""Every algorithm and option of `phlite.Algorithm`, shared by the fuzz tests of every pipeline."""
+"""Every algorithm and option of `phlite.core.Algorithm`, shared by the fuzz tests of every pipeline."""
 
 import itertools
 

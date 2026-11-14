@@ -10,7 +10,7 @@ def _():
 
     mo.md(
         r"""
-        # Vietoris–Rips persistence with `phlite.cloud`
+        # Vietoris–Rips persistence with `phlite.clouds`
 
         A point cloud sampled from a noisy figure eight has two loops. We compute its Vietoris–Rips barcode up to
         dimension 1, with representatives, draw the loops on the points, and watch the filtration grow.
@@ -26,8 +26,8 @@ def _():
     import altair as alt
     import numpy as np
     import polars as pl
-    from phlite import Algorithm
-    from phlite.cloud import rips
+    from phlite.core import Algorithm
+    from phlite.clouds import rips
 
     return Algorithm, alt, np, pl, rips, time
 

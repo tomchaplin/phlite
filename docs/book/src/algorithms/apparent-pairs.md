@@ -35,7 +35,7 @@ them would dominate the time and memory.
 ### Leaving them out of the basis
 
 Better still, a cell in a zero-length apparent pair can be left out of the **column basis** entirely, as long as the
-matrix can still find it as an owner. `phlite_cloud::rips` does this (`build_reduction_bases`), and since nearly every Rips pair is a
+matrix can still find it as an owner. `phlite_clouds::rips` does this (`build_reduction_bases`), and since nearly every Rips pair is a
 zero-length apparent pair, it keeps only a small fraction of the edges and triangles. The [standard algorithm](standard.md) can't recompute owners,
 so it needs the full basis.
 
@@ -58,5 +58,5 @@ step or two. Bauer calls these pairs *emergent*.
 | Emergent pairs | `column_pivot` can stop early (enumerating in order with a bound) | the pivot can only be found by scanning (then the default does exactly that) |
 
 For explicit complexes (the `phlite` Python package) the transpose is stored, so apparent pairs cost two array
-lookups, and phlite_py goes one step further: since every cell is in the basis, the pivot table stores apparent pairs
+lookups, and phlite_complexes goes one step further: since every cell is in the basis, the pivot table stores apparent pairs
 too, so that finding an owner is one lookup (see [bookkeeping](../internals/bookkeeping.md#full-basis)).

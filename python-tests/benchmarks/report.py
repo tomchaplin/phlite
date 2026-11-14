@@ -14,13 +14,13 @@ from suites import load_suite, suite_name
 
 REPO = Path(__file__).resolve().parent.parent.parent
 
-# Each pytest-benchmark suite is a file `benchmarks/bench_<suite>.py` (e.g. `bench_cloud_rips.py`), presented as one
+# Each pytest-benchmark suite is a file `benchmarks/bench_<suite>.py` (e.g. `bench_clouds_rips.py`), presented as one
 # section, as its `SUITE` dict says (see `suites.py`)
 CRITERION = {
     "title": "Rust: the clearing reduction",
     "description": "The core reduction alone, from criterion (`cargo bench`), on the Rips coboundary matrix of random "
-    "points in the unit cube (`phlite_cloud/benches/reduction.rs`) and the GrPPH coboundary matrix of random digraphs "
-    "(`phlite_network/benches/reduction.rs`). Median time per reduction; `parallel …/N` uses N threads.",
+    "points in the unit cube (`phlite_clouds/benches/reduction.rs`) and the GrPPH coboundary matrix of random digraphs "
+    "(`phlite_networks/benches/reduction.rs`). Median time per reduction; `parallel …/N` uses N threads.",
 }
 
 
