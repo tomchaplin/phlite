@@ -54,10 +54,27 @@ to a few thousand.
 3. **Reduction** of the filtered complex as an explicit complex, by `phlite.complexes`' machinery: cells numbered by
    dimension (so a face enters before a coface with the same value), with its defaults (pivot columns, storing R).
 
-The only differences from GUDHI's exact computation are bars shorter than the rounding of the values (an ulp or
-two), which may round to length zero or not; coordinates below \\(2^{-90}\\) of the largest, taken as zero; and,
-for cospherical points, which of the equally valid Delaunay triangulations is used (the same barcode, but the
-representatives may use different simplices).
+How close this comes to GUDHI's exact computation is set out [below](#precision-compared-with-gudhi).
+
+## Precision, compared with GUDHI
+
+Triangulations and in-sphere tests are exact, as in GUDHI. What remains:
+
+- **Values to an ulp or two.** phlite's radii are within an ulp or two of the exact values, not correctly rounded, so
+  a bar shorter than that (exactly) may come out with length zero or a few ulps. GUDHI's `precision="exact"` is no
+  closer: it computes exactly but converts to a double only to within an ulp. Against exact rational arithmetic, on
+  400 random simplices, its values were the nearest double for 198, one ulp below for 103 and one ulp above for 99.
+  So no implementation matches GUDHI bit for bit, and comparisons with it (as in the tests) allow an ulp or two.
+  Correctly rounding every value (double-double arithmetic, with an exact fallback near ties, for every radius,
+  perhaps 10–20% slower) would make phlite's values exactly invariant under relabelling, quarter turns and scaling
+  by powers of two, with a bar of zero length exactly when its two exact values round to the same double. It isn't
+  done (yet).
+- **Coordinates below \\(2^{-90}\\) of the largest are taken as zero.** The exact predicates need every non-zero
+  coordinate within a bounded range of exponents (axiolid accepts magnitudes from \\(2^{-100}\\) to
+  \\(2^{100}\\)), and no scaling or translation can fit points whose differences span more than that. GUDHI
+  accepts any doubles. Raising an error for such inputs instead would keep results exact or refused.
+- **Cospherical points** (any grid) have several Delaunay triangulations, and phlite and GUDHI may pick different
+  ones. The barcode is the same; only the representatives may use different simplices.
 
 ## Checked against
 
