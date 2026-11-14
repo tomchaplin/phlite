@@ -1,4 +1,5 @@
-//! `phlite.clouds.alpha`: alpha persistence of points in the plane or in space, by [`crate::alpha`].
+//! `phlite.clouds.alpha` and `phlite.clouds.delaunay_cech`: persistence of filtrations of the Delaunay triangulation
+//! of points in the plane or in space (and the filtered complexes themselves), by [`crate::alpha`].
 
 use phlite::{
     barcode::{Algorithm, Method},
@@ -12,7 +13,7 @@ use phlite_bindings::{
 };
 
 use super::rips::read_rows;
-use crate::alpha::{alpha_barcode, vertices};
+use crate::alpha::{delaunay_barcode, filtered_delaunay, vertices, DelaunayFiltration};
 
 /// The pipeline `'clouds.alpha'`: reduced as an explicit complex, so with `phlite.complexes`' defaults.
 pub(crate) const DEFAULTS: AlgorithmDefaults = AlgorithmDefaults {
@@ -22,6 +23,12 @@ pub(crate) const DEFAULTS: AlgorithmDefaults = AlgorithmDefaults {
     store_r: true,
     // The complex knows the position of every cell in the filtration
     row_ranks: true,
+};
+
+/// The pipeline `'clouds.delaunay_cech'`: reduced as an explicit complex, as alpha complexes are.
+pub(crate) const CECH_DEFAULTS: AlgorithmDefaults = AlgorithmDefaults {
+    pipeline: "clouds.delaunay_cech",
+    ..DEFAULTS
 };
 
 /// Compute the alpha persistent homology of points in the plane or in space, in dimensions `0, ..., max_dim`.
@@ -71,8 +78,9 @@ fn alpha<'py>(
     let method = parse_method(method)?;
     let algorithm = algorithm_from_py(algorithm.as_ref(), &DEFAULTS)?;
     let bars = py.detach(|| {
-        algorithm.run(AlphaRun {
+        algorithm.run(DelaunayRun {
             points,
+            filtration: DelaunayFiltration::Alpha,
             max_dim,
             squared,
             method,
@@ -83,21 +91,80 @@ fn alpha<'py>(
         .into_python(py, &algorithm, representatives, None)
 }
 
-/// Compute the alpha barcode with whichever algorithm is configured.
-struct AlphaRun {
+/// Compute the Delaunay–Čech persistent homology of points in the plane or in space, in dimensions
+/// `0, ..., max_dim`.
+///
+/// The Delaunay–Čech filtration puts each simplex of the Delaunay triangulation at the radius of its minimal
+/// enclosing ball, the radius at which the balls about its vertices first all meet (as GUDHI's `DelaunayCechComplex`):
+/// as small as an alpha complex, and with the same barcode as the Čech filtration (Bauer and Edelsbrunner), but with
+/// simplices entering at Čech times. Triangulated as for `alpha`.
+///
+/// Args:
+///     points: The points, one per row, with 2 or 3 finite coordinates each: a 2D array or a sequence of sequences.
+///     max_dim: The maximum homology dimension to compute (default: one less than the number of coordinates, the
+///         highest that can be non-zero).
+///     squared: Report squared radii, as GUDHI does, rather than radii (the default).
+///     method: `'cohomology'` (the default) or `'homology'`.
+///     algorithm: The reduction algorithm and its options, as a `phlite.core.Algorithm` (default:
+///         `Algorithm.serial()`).
+///         Pipeline defaults (`'clouds.delaunay_cech'`): columns='pivot', cache=False, store_r=True.
+///     representatives: Whether to also compute a representative cycle for every bar.
+///
+/// Returns:
+///     The barcode, with dimensions `0, ..., max_dim`. Cells (births, deaths and representatives) are simplices of the
+///     Delaunay triangulation, as tuples of point indices (a repeated point is the first of its copies).
+#[gen_stub_pyfunction(module = "phlite.clouds")]
+#[gen_stub(override_return_type(type_repr = "core.Barcode", imports = ("phlite.core")))]
+#[pyfunction]
+#[pyo3(signature = (points, max_dim = None, *, squared = false, method = "cohomology", algorithm = None, representatives = false))]
+fn delaunay_cech<'py>(
+    py: Python<'py>,
+    #[gen_stub(override_type(type_repr = "typing.Union[numpy.typing.NDArray[numpy.floating], typing.Sequence[typing.Sequence[builtins.float]]]", imports = ("builtins", "numpy", "numpy.typing", "typing")))]
+    points: &Bound<'_, PyAny>,
+    max_dim: Option<usize>,
+    squared: bool,
+    #[gen_stub(override_type(type_repr = "typing.Literal['cohomology', 'homology']", imports = ("typing")))]
+    method: &str,
+    #[gen_stub(override_type(type_repr = "typing.Optional[core.Algorithm]", imports = ("typing", "phlite.core")))]
+    algorithm: Option<Bound<'_, PyAny>>,
+    representatives: bool,
+) -> PyResult<Bound<'py, PyAny>> {
+    let points = read_rows(points, "points")?;
+    let n_coordinates = points.first().map_or(2, Vec::len);
+    let max_dim = max_dim.unwrap_or(n_coordinates.saturating_sub(1));
+    let method = parse_method(method)?;
+    let algorithm = algorithm_from_py(algorithm.as_ref(), &CECH_DEFAULTS)?;
+    let bars = py.detach(|| {
+        algorithm.run(DelaunayRun {
+            points,
+            filtration: DelaunayFiltration::DelaunayCech,
+            max_dim,
+            squared,
+            method,
+            representatives,
+        })
+    })?;
+    bars.map_err(PyValueError::new_err)?
+        .into_python(py, &algorithm, representatives, None)
+}
+
+/// Compute the barcode of a filtration of the Delaunay triangulation with whichever algorithm is configured.
+struct DelaunayRun {
     points: Vec<Vec<f64>>,
+    filtration: DelaunayFiltration,
     max_dim: usize,
     squared: bool,
     method: Method,
     representatives: bool,
 }
 
-impl AlgorithmVisitor for AlphaRun {
+impl AlgorithmVisitor for DelaunayRun {
     type Output = Result<SortedBars, String>;
 
     fn visit<R: ColumnRepresentation>(self, algorithm: Algorithm<'_, R>) -> Self::Output {
-        let (complex, bars) = alpha_barcode(
+        let (complex, bars) = delaunay_barcode(
             &self.points,
+            self.filtration,
             Some(self.max_dim),
             self.squared,
             self.method,
@@ -132,9 +199,43 @@ fn alpha_complex<'py>(
     points: &Bound<'_, PyAny>,
     squared: bool,
 ) -> PyResult<Vec<(Bound<'py, pyo3::types::PyTuple>, f64)>> {
+    filtration_list(py, points, squared, DelaunayFiltration::Alpha)
+}
+
+/// The Delaunay–Čech complex of points in the plane or in space: every simplex of their Delaunay triangulation, with
+/// the radius (or with `squared`, the squared radius) of its minimal enclosing ball, in filtration order (by value,
+/// then dimension). The complex `delaunay_cech` computes the persistence of.
+///
+/// Args:
+///     points: The points, as for `delaunay_cech`.
+///     squared: Squared radii, as GUDHI's, rather than radii (the default).
+///
+/// Returns:
+///     A list of `(simplex, value)` pairs, each simplex a tuple of point indices in increasing order (a repeated point
+///     is the first of its copies).
+#[gen_stub_pyfunction(module = "phlite.clouds")]
+#[gen_stub(override_return_type(type_repr = "builtins.list[tuple[tuple[builtins.int, ...], builtins.float]]", imports = ("builtins")))]
+#[pyfunction]
+#[pyo3(signature = (points, *, squared = false))]
+fn delaunay_cech_complex<'py>(
+    py: Python<'py>,
+    #[gen_stub(override_type(type_repr = "typing.Union[numpy.typing.NDArray[numpy.floating], typing.Sequence[typing.Sequence[builtins.float]]]", imports = ("builtins", "numpy", "numpy.typing", "typing")))]
+    points: &Bound<'_, PyAny>,
+    squared: bool,
+) -> PyResult<Vec<(Bound<'py, pyo3::types::PyTuple>, f64)>> {
+    filtration_list(py, points, squared, DelaunayFiltration::DelaunayCech)
+}
+
+/// Every simplex of the filtration, with its value, in filtration order.
+fn filtration_list<'py>(
+    py: Python<'py>,
+    points: &Bound<'_, PyAny>,
+    squared: bool,
+    filtration: DelaunayFiltration,
+) -> PyResult<Vec<(Bound<'py, pyo3::types::PyTuple>, f64)>> {
     let points = read_rows(points, "points")?;
     let complex = py
-        .detach(|| crate::alpha::alpha_complex(&points))
+        .detach(|| filtered_delaunay(&points, filtration))
         .map_err(PyValueError::new_err)?;
     let mut cells: Vec<(f64, usize, &crate::alpha::Simplex)> = complex
         .simplices
@@ -157,5 +258,7 @@ fn alpha_complex<'py>(
 
 pub(crate) fn register(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(alpha, m)?)?;
-    m.add_function(wrap_pyfunction!(alpha_complex, m)?)
+    m.add_function(wrap_pyfunction!(alpha_complex, m)?)?;
+    m.add_function(wrap_pyfunction!(delaunay_cech, m)?)?;
+    m.add_function(wrap_pyfunction!(delaunay_cech_complex, m)?)
 }

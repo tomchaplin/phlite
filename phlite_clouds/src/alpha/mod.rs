@@ -695,10 +695,11 @@ impl Circumsphere {
         (points, least)
     }
 
-    /// Whether `q` is strictly inside the sphere, decided exactly: in floating point, or double-double, when the
-    /// rounding error (bounded by evaluating the same formula on magnitudes) can't change the answer, else with big
-    /// integers.
-    fn contains(&self, q: &[f64]) -> bool {
+    /// Which side of the sphere `q` is on: `Greater` strictly inside, `Equal` on it, `Less` strictly outside. Decided
+    /// exactly: in floating point, or double-double, when the rounding error (bounded by evaluating the same formula
+    /// on magnitudes) can't change the answer, else with big integers.
+    fn side(&self, q: &[f64]) -> std::cmp::Ordering {
+        use std::cmp::Ordering;
         let mut q3 = [0.0; 3];
         q3[..q.len()].copy_from_slice(q);
         let (bounds, q_bound) = self.relative::<Magnitude>(Some(&q3));
@@ -707,26 +708,47 @@ impl Circumsphere {
         let (points, q_rel) = self.relative::<f64>(Some(&q3));
         let (lhs, rhs) = insphere_sides(&points, &q_rel.unwrap());
         if (lhs - rhs).abs() > FLOAT_ERROR * magnitude {
-            return lhs > rhs;
+            return if lhs > rhs { Ordering::Greater } else { Ordering::Less };
         }
         let (points, q_rel) = self.relative::<DoubleDouble>(Some(&q3));
         let (lhs, rhs) = insphere_sides(&points, &q_rel.unwrap());
         let difference = (lhs - rhs).to_f64();
         if difference.abs() > DOUBLE_DOUBLE_ERROR * magnitude {
-            return difference > 0.0;
+            return if difference > 0.0 { Ordering::Greater } else { Ordering::Less };
         }
         // Exactly: every coordinate as an integer, times a common power of two (which scales both sides alike)
         let (mut points, _) = self.exact_points(&q3);
         let q = points.pop().unwrap();
         let (lhs, rhs) = insphere_sides(&points, &q);
-        lhs > rhs
+        lhs.cmp(&rhs)
+    }
+
+    /// Whether `q` is strictly inside the sphere (exactly).
+    fn contains(&self, q: &[f64]) -> bool {
+        self.side(q) == std::cmp::Ordering::Greater
+    }
+
+    /// Whether `q` is inside the sphere or on it (exactly).
+    fn encloses(&self, q: &[f64]) -> bool {
+        self.side(q) != std::cmp::Ordering::Less
     }
 }
 
-// ====== The alpha filtration ==============================================
+// ====== Filtrations of the Delaunay triangulation ===========================
 
-/// The alpha filtration of a set of points: every simplex of their Delaunay triangulation, by dimension, with the
-/// squared radius at which it appears.
+/// A filtration of the Delaunay triangulation, by the squared radius of a ball for each simplex.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DelaunayFiltration {
+    /// The alpha filtration: a simplex appears when the balls about its vertices, each cut down to its Voronoi cell,
+    /// first meet (the radius of its smallest empty circumsphere, see [`alpha_complex`]).
+    Alpha,
+    /// The Delaunay–Čech filtration: a simplex appears when the balls about its vertices first meet (the radius of
+    /// its minimal enclosing ball), as GUDHI's `DelaunayCechComplex`.
+    DelaunayCech,
+}
+
+/// A filtration of the Delaunay triangulation of a set of points (alpha or Delaunay–Čech): every simplex, by
+/// dimension, with the squared radius at which it appears.
 #[derive(Debug, Clone)]
 pub struct AlphaComplex {
     /// The simplices of each dimension, sorted (by vertices).
@@ -744,6 +766,20 @@ pub struct AlphaComplex {
 
 /// The alpha filtration of `points` (each a slice of 2 or 3 coordinates).
 pub fn alpha_complex(points: &[Vec<f64>]) -> Result<AlphaComplex, String> {
+    filtered_delaunay(points, DelaunayFiltration::Alpha)
+}
+
+/// The Delaunay–Čech filtration of `points` (each a slice of 2 or 3 coordinates): each simplex of the Delaunay
+/// triangulation at the squared radius of its minimal enclosing ball.
+pub fn delaunay_cech_complex(points: &[Vec<f64>]) -> Result<AlphaComplex, String> {
+    filtered_delaunay(points, DelaunayFiltration::DelaunayCech)
+}
+
+/// The Delaunay triangulation of `points`, filtered by `filtration`.
+pub fn filtered_delaunay(
+    points: &[Vec<f64>],
+    filtration: DelaunayFiltration,
+) -> Result<AlphaComplex, String> {
     // Coordinates negligible next to the largest are zero, for the triangulation and the values alike
     let triangulation = delaunay(points)?;
     let flushed = flush(points);
@@ -780,12 +816,34 @@ pub fn alpha_complex(points: &[Vec<f64>]) -> Result<AlphaComplex, String> {
             })
             .collect();
     }
-    // Alpha values, from the top dimension down
-    let coords = |v: u32| points[v as usize].as_slice();
-    let sphere = |s: &Simplex| {
-        let vs: Vec<&[f64]> = vertices(s).iter().map(|&v| coords(v)).collect();
-        Circumsphere::new(&vs)
+    let values = match filtration {
+        DelaunayFiltration::Alpha => alpha_values(points, &simplices, &facets),
+        DelaunayFiltration::DelaunayCech => cech_values(points, &simplices, &facets),
     };
+    let mut offsets = vec![0];
+    for dim in &simplices {
+        offsets.push(offsets.last().unwrap() + dim.len());
+    }
+    Ok(AlphaComplex {
+        simplices,
+        values,
+        facets,
+        vertex_of: triangulation.vertex_of,
+        offsets,
+    })
+}
+
+/// The smallest circumsphere of a simplex of `points`.
+fn sphere_of(points: &[Vec<f64>], simplex: &Simplex) -> Circumsphere {
+    let vs: Vec<&[f64]> = vertices(simplex).iter().map(|&v| points[v as usize].as_slice()).collect();
+    Circumsphere::new(&vs)
+}
+
+/// Alpha values, from the top dimension down.
+fn alpha_values(points: &[Vec<f64>], simplices: &[Vec<Simplex>], facets: &[Vec<[u32; 4]>]) -> Vec<Vec<f64>> {
+    let top = simplices.len() - 1;
+    let coords = |v: u32| points[v as usize].as_slice();
+    let sphere = |s: &Simplex| sphere_of(points, s);
     let mut values: Vec<Vec<f64>> = vec![vec![]; top + 1];
     // Every value is the squared radius of some simplex's smallest circumsphere: which (dimension and index), so that
     // a tie between a simplex's own radius and that inherited from a cofacet can be decided exactly
@@ -849,17 +907,54 @@ pub fn alpha_complex(points: &[Vec<f64>]) -> Result<AlphaComplex, String> {
         values[dim] = dim_values;
         sources[dim] = dim_sources;
     }
-    let mut offsets = vec![0];
-    for dim in &simplices {
-        offsets.push(offsets.last().unwrap() + dim.len());
+    values
+}
+
+/// Delaunay–Čech values: the squared radius of each simplex's minimal enclosing ball. For at most four points, that
+/// is the smallest circumsphere of some subset of them which encloses them all (exactly; and of all such, the
+/// smallest).
+fn cech_values(points: &[Vec<f64>], simplices: &[Vec<Simplex>], facets: &[Vec<[u32; 4]>]) -> Vec<Vec<f64>> {
+    let top = simplices.len() - 1;
+    let coords = |v: u32| points[v as usize].as_slice();
+    let mut values: Vec<Vec<f64>> = simplices
+        .iter()
+        .enumerate()
+        .map(|(dim, simplices)| {
+            if dim == 0 {
+                return vec![0.0; simplices.len()];
+            }
+            simplices
+                .iter()
+                .map(|s| {
+                    let vs = vertices(s);
+                    let k = vs.len();
+                    (1u32..(1 << k))
+                        .filter(|subset| subset.count_ones() >= 2)
+                        .filter_map(|subset| {
+                            let chosen: Vec<&[f64]> =
+                                (0..k).filter(|i| subset >> i & 1 == 1).map(|i| coords(vs[i])).collect();
+                            let ball = Circumsphere::new(&chosen);
+                            (0..k)
+                                .filter(|i| subset >> i & 1 == 0)
+                                .all(|i| ball.encloses(coords(vs[i])))
+                                .then(|| ball.squared_radius())
+                        })
+                        .fold(f64::INFINITY, f64::min)
+                })
+                .collect()
+        })
+        .collect();
+    // Exactly, a face's ball is never larger than its cofacets'; keep it so through rounding
+    for dim in (1..=top).rev() {
+        for (cofacet, f) in facets[dim].iter().enumerate() {
+            let value = values[dim][cofacet];
+            for &face in &f[..dim + 1] {
+                let face_value = &mut values[dim - 1][face as usize];
+                *face_value = face_value.min(value);
+            }
+        }
     }
-    Ok(AlphaComplex {
-        simplices,
-        values,
-        facets,
-        vertex_of: triangulation.vertex_of,
-        offsets,
-    })
+    values
 }
 
 impl AlphaComplex {
@@ -928,7 +1023,29 @@ pub fn alpha_barcode<R: ColumnRepresentation>(
     algorithm: Algorithm<'_, R>,
     representatives: bool,
 ) -> Result<(AlphaComplex, Vec<AlphaBar>), String> {
-    let complex = alpha_complex(points)?;
+    delaunay_barcode(
+        points,
+        DelaunayFiltration::Alpha,
+        max_dim,
+        squared,
+        method,
+        algorithm,
+        representatives,
+    )
+}
+
+/// As [`alpha_barcode`], for either filtration of the Delaunay triangulation.
+#[allow(clippy::too_many_arguments)]
+pub fn delaunay_barcode<R: ColumnRepresentation>(
+    points: &[Vec<f64>],
+    filtration: DelaunayFiltration,
+    max_dim: Option<usize>,
+    squared: bool,
+    method: Method,
+    algorithm: Algorithm<'_, R>,
+    representatives: bool,
+) -> Result<(AlphaComplex, Vec<AlphaBar>), String> {
+    let complex = filtered_delaunay(points, filtration)?;
     let max_dim = max_dim.unwrap_or(complex.dimension().saturating_sub(1));
     let filtered = complex.filtered(squared);
     let bars = if max_dim > complex.dimension() {

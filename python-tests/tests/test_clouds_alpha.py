@@ -1,6 +1,7 @@
 """Fuzz phlite.clouds.alpha against GUDHI's alpha complexes (exact), and check its representatives from first
 principles."""
 
+import bisect
 import itertools
 import math
 
@@ -77,16 +78,32 @@ def gudhi_diagram(tree, dim, tolerance):
 
 
 def same(ours, theirs, tolerance):
-    return len(ours) == len(theirs) and all(
-        abs(a - c) <= tolerance and (b == d or abs(b - d) <= tolerance) for (a, b), (c, d) in zip(ours, theirs)
-    )
+    """Whether the two diagrams match bar for bar, up to `tolerance` (as multisets: values an ulp apart can sort
+    differently, so each of ours is matched to an unmatched bar of theirs with nearby values)."""
+    if len(ours) != len(theirs):
+        return False
+    theirs = sorted(theirs)
+    births = [b for b, _ in theirs]
+    used = [False] * len(theirs)
+    for b, d in sorted(ours):
+        start = bisect.bisect_left(births, b - tolerance)
+        for i in range(start, len(theirs)):
+            c, e = theirs[i]
+            if c > b + tolerance:
+                return False
+            if not used[i] and (d == e or abs(d - e) <= tolerance):
+                used[i] = True
+                break
+        else:
+            return False
+    return True
 
 
-def check_representatives(points, barcode, max_dim, tolerance):
+def check_representatives(points, barcode, max_dim, tolerance, complex=alpha_complex):
     """Each representative is a cycle of simplices of the alpha complex, born at its birth, and a boundary at its death
     but not before (over Z/2). Checked against phlite's own complex (`alpha_complex`), since with cospherical points
     GUDHI may triangulate differently (with the same barcode)."""
-    value = dict(alpha_complex(points, squared=True))
+    value = dict(complex(points, squared=True))
     for dim in range(max_dim + 1):
         cofaces = [(f, s) for s, f in value.items() if len(s) == dim + 2]
 

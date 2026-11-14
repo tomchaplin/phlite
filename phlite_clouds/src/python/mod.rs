@@ -9,12 +9,12 @@ use pyo3::prelude::*;
 mod alpha;
 mod rips;
 
-const DOC: &str = "Persistent homology of point clouds and distance matrices: `rips` (Vietoris–Rips) and `alpha` \
-                   (alpha complexes in the plane and in space).";
+const DOC: &str = "Persistent homology of point clouds and distance matrices: `rips` (Vietoris–Rips), `alpha` (alpha \
+                   complexes in the plane and in space) and `delaunay_cech` (Delaunay–Čech complexes).";
 pyo3_stub_gen::module_doc!("phlite.clouds", "{}", DOC);
 
 /// This package's pipelines, registered with `phlite.core` on import.
-const PIPELINES: &[AlgorithmDefaults] = &[rips::DEFAULTS, alpha::DEFAULTS];
+const PIPELINES: &[AlgorithmDefaults] = &[rips::DEFAULTS, alpha::DEFAULTS, alpha::CECH_DEFAULTS];
 
 #[pymodule(gil_used = false)]
 fn _clouds(m: &Bound<'_, PyModule>) -> PyResult<()> {
