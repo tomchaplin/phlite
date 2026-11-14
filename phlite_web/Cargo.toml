@@ -19,9 +19,6 @@ phlite_clouds = { path = "../phlite_clouds", features = ["lock-free"] }
 phlite_networks = { path = "../phlite_networks" }
 phlite_complexes = { path = "../phlite_complexes", features = ["lock-free"] }
 ordered-float = "5.5.1"
-# The alpha filtration of points in the plane (Delaunay triangulation by spade)
-alphalpha = { version = "0.1.0", default-features = false }
-spade = "2.2.0"
 rayon = "1.12.0"
 serde = { version = "1.0.229", features = ["derive"] }
 serde-wasm-bindgen = "0.6.5"

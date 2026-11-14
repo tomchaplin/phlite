@@ -9,15 +9,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "683d7910e743518b0e34f1186f92494becacb047c7b6bf616c96772180fef923"
 
 [[package]]
-name = "alphalpha"
-version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a0907d618de533c642b9f5cc9f665f58431f7009d296d5d5372350fafa7438af"
-dependencies = [
- "spade",
-]
-
-[[package]]
 name = "arc-swap"
 version = "1.9.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -31,6 +22,42 @@ name = "autocfg"
 version = "1.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f2032f911046de80f0a198e0901378627c33f59ea0ac00e363d481118bd70a53"
+
+[[package]]
+name = "axiolid-core"
+version = "0.3.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "95307b3fbb4e33d73bc3c1de078f328242535933ce1f778dfeaed923c3465a56"
+dependencies = [
+ "glam",
+]
+
+[[package]]
+name = "axiolid-guarantees"
+version = "0.3.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cb144a733e4399040857fbb95f72d9bbc59e6a47b0eca9647a280ba060f46d65"
+
+[[package]]
+name = "axiolid-predicates"
+version = "0.3.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "45093ccd9c212e21730d45a6561637f81a39020d7168af71e537d6134a3e0af0"
+dependencies = [
+ "axiolid-core",
+ "axiolid-guarantees",
+]
+
+[[package]]
+name = "axiolid-tetrahedralize"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f554de8065cc59919f5230aa7e34b2a0bdd90b02d9262630dc0dc40c24ec2109"
+dependencies = [
+ "axiolid-core",
+ "axiolid-guarantees",
+ "axiolid-predicates",
+]
 
 [[package]]
 name = "bitflags"
@@ -188,6 +215,12 @@ dependencies = [
  "pin-project-lite",
  "slab",
 ]
+
+[[package]]
+name = "glam"
+version = "0.29.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8babf46d4c1c9d92deac9f7be466f76dfc4482b6452fc5024b5e8daf6ffeb3ee"
 
 [[package]]
 name = "hashbrown"
@@ -425,10 +458,17 @@ dependencies = [
 name = "phlite_clouds"
 version = "0.1.0"
 dependencies = [
+ "axiolid-tetrahedralize",
  "csv",
+ "glam",
+ "num-bigint",
+ "num-traits",
  "ordered-float",
  "phlite",
+ "phlite_complexes",
  "rayon",
+ "robust",
+ "spade",
 ]
 
 [[package]]
@@ -454,7 +494,6 @@ dependencies = [
 name = "phlite_web"
 version = "0.1.0"
 dependencies = [
- "alphalpha",
  "console_error_panic_hook",
  "js-sys",
  "ordered-float",
@@ -466,7 +505,6 @@ dependencies = [
  "rayon",
  "serde",
  "serde-wasm-bindgen",
- "spade",
  "wasm-bindgen",
  "wasm-bindgen-rayon",
 ]

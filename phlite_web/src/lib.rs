@@ -606,6 +606,33 @@ pub fn grpph(
 // ---- Explicit complexes ----
 
 /// The barcode of `chain` filtered by `values` (with `NaN` for a value to fill in from the cell's faces).
+/// The barcode of a filtered complex with whichever algorithm `config` chose.
+fn complex_barcode<CF: IntField + Send + Sync + 'static>(
+    complex: &Complex<CF>,
+    max_dim: Option<usize>,
+    config: &Config,
+) -> Vec<Bar<phlite_complexes::complex::Cell, NotNan<f64>, CF>> {
+    struct V<'a, CF> {
+        complex: &'a Complex<CF>,
+        max_dim: Option<usize>,
+        method: Method,
+        representatives: bool,
+    }
+    impl<CF: IntField + Send + Sync + 'static> Visitor for V<'_, CF> {
+        type Output = Vec<Bar<phlite_complexes::complex::Cell, NotNan<f64>, CF>>;
+        fn visit<R: ColumnRepresentation>(self, algorithm: Algorithm<'_, R>) -> Self::Output {
+            self.complex
+                .barcode(self.max_dim, self.method, algorithm, self.representatives)
+        }
+    }
+    config.run(V {
+        complex,
+        max_dim,
+        method: config.method,
+        representatives: config.representatives,
+    })
+}
+
 fn complex_bars<CF: IntField + Send + Sync + 'static>(
     raw: RawChain,
     values: Option<Vec<f64>>,
@@ -627,26 +654,7 @@ fn complex_bars<CF: IntField + Send + Sync + 'static>(
         ),
     };
     let complex = chain.filter(values).map_err(|e| err(e.to_string()))?;
-
-    struct V<'a, CF> {
-        complex: &'a Complex<CF>,
-        max_dim: Option<usize>,
-        method: Method,
-        representatives: bool,
-    }
-    impl<CF: IntField + Send + Sync + 'static> Visitor for V<'_, CF> {
-        type Output = Vec<Bar<phlite_complexes::complex::Cell, NotNan<f64>, CF>>;
-        fn visit<R: ColumnRepresentation>(self, algorithm: Algorithm<'_, R>) -> Self::Output {
-            self.complex
-                .barcode(self.max_dim, self.method, algorithm, self.representatives)
-        }
-    }
-    let bars = config.run(V {
-        complex: &complex,
-        max_dim,
-        method: config.method,
-        representatives: config.representatives,
-    });
+    let bars = complex_barcode(&complex, max_dim, config);
     let bars = translate(bars, |c| complex.dimension(c), |c| vec![c.0], |v| v);
     let summary = format!(
         "{} cells, {} boundary entries",
@@ -704,102 +712,32 @@ pub fn complex(
 
 // ---- Alpha ----
 
-/// Alpha persistence of points in the plane (`coords` as `x0, y0, x1, y1, ...`): the Delaunay triangulation filtered
-/// by the alpha filtration, with values the radii (not squared radii) at which cells appear. Cells are given by their
-/// vertices (input point indices); repeated points are merged into the first.
+/// Alpha persistence of points in the plane (`coords` as `x0, y0, x1, y1, ...`), by `phlite_clouds::alpha`: the
+/// (exact) Delaunay triangulation filtered by the alpha filtration, with values the radii (not squared radii) at which
+/// cells appear. Cells are given by their vertices (input point indices); repeated points are merged into the first.
 #[wasm_bindgen]
 pub fn alpha(coords: &[f64], options: JsValue) -> Result<JsValue, JsError> {
-    use spade::{Point2, Triangulation};
-    use std::collections::HashMap;
+    use phlite_clouds::alpha::{alpha_complex, vertices};
     let config = Config::resolve(options, COMPLEX_DEFAULTS)?;
     if coords.len() % 2 != 0 {
         return Err(err("Alpha persistence needs points in the plane"));
     }
-    if coords.iter().any(|c| !c.is_finite()) {
-        return Err(err("Coordinates must be finite"));
-    }
     let n = coords.len() / 2;
-    if n < 3 {
-        return Err(err("Alpha persistence needs at least three points"));
-    }
-    let points: Vec<Point2<f64>> = coords.chunks(2).map(|p| Point2::new(p[0], p[1])).collect();
-    // spade numbers vertices its own way (and merges repeats), so find each one's input point by position
-    let mut by_position: HashMap<(u64, u64), u32> = HashMap::new();
-    for (i, p) in points.iter().enumerate() {
-        by_position
-            .entry((p.x.to_bits(), p.y.to_bits()))
-            .or_insert(i as u32);
-    }
-    let filtration = alphalpha::alpha_filtration(points);
-    let input_index = |v: spade::handles::FixedVertexHandle| {
-        let p = filtration.vertex(v).position();
-        by_position[&(p.x.to_bits(), p.y.to_bits())]
-    };
-
-    // The complex: vertices, then edges, then triangles, each cell's vertices kept for the output
-    let mut cells: Vec<Vec<u32>> = vec![];
-    let mut raw = RawChain {
-        indptr: vec![0],
-        ..RawChain::default()
-    };
-    let mut values = vec![];
-    let mut vertex_cell = HashMap::new();
-    for v in filtration.fixed_vertices() {
-        vertex_cell.insert(v, cells.len() as i64);
-        cells.push(vec![input_index(v)]);
-        raw.dimensions.push(0);
-        raw.indptr.push(raw.indices.len() as i64);
-        values.push(0.0);
-    }
-    let mut edge_cell = HashMap::new();
-    for e in filtration.fixed_undirected_edges() {
-        let edge = filtration.undirected_edge(e);
-        let [a, b] = edge.vertices().map(|v| v.fix());
-        edge_cell.insert(e, cells.len() as i64);
-        let mut vs = vec![input_index(a), input_index(b)];
-        vs.sort_unstable();
-        cells.push(vs);
-        raw.dimensions.push(1);
-        raw.indices.extend([vertex_cell[&a], vertex_cell[&b]]);
-        raw.indptr.push(raw.indices.len() as i64);
-        values.push(edge.data().filtration.max(0.0).sqrt());
-    }
-    for f in filtration.fixed_inner_faces() {
-        let face = filtration.face(f);
-        let mut vs: Vec<u32> = face
-            .vertices()
-            .iter()
-            .map(|v| input_index(v.fix()))
-            .collect();
-        vs.sort_unstable();
-        cells.push(vs);
-        raw.dimensions.push(2);
-        raw.indices.extend(
-            face.adjacent_edges()
-                .iter()
-                .map(|e| edge_cell[&e.as_undirected().fix()]),
-        );
-        raw.indptr.push(raw.indices.len() as i64);
-        values.push(face.data().filtration.max(0.0).sqrt());
-    }
-    let n_cells = cells.len();
-    let (mut bars, _) = complex_bars::<Z2>(raw, Some(values), Some(1), &config)?;
-    let vertices = |c: &mut Vec<u32>| *c = cells[c[0] as usize].clone();
-    for bar in &mut bars {
-        vertices(&mut bar.birth_cell);
-        if let Some(c) = &mut bar.death_cell {
-            vertices(c);
-        }
-        if let Some(rep) = &mut bar.rep {
-            for (_, c) in rep {
-                vertices(c);
-            }
-        }
-    }
+    let points: Vec<Vec<f64>> = coords.chunks(2).map(|p| p.to_vec()).collect();
+    let complex = alpha_complex(&points).map_err(err)?;
+    let filtered = complex.filtered(false);
+    let bars = complex_barcode(&filtered, Some(1), &config);
+    let bars = translate(
+        bars,
+        |c| complex.cell(c).0,
+        |c| vertices(complex.cell(c).1).to_vec(),
+        |v| v,
+    );
     to_js(Barcode {
         bars,
         summary: format!(
-            "{n} points, Delaunay triangulation of {n_cells} cells, dimensions 0–1, alpha radii; {}",
+            "{n} points, Delaunay triangulation of {} cells, dimensions 0–1, alpha radii; {}",
+            complex.n_simplices(),
             describe(&config)
         ),
     })
