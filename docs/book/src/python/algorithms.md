@@ -46,6 +46,10 @@ The column representation, caching and storing R are best chosen per kind of inp
 | `clouds.alpha` | `phlite.clouds.alpha` | `'pivot'` | `False` | `True` | `'merged'` | `False` |
 | `clouds.delaunay_cech` | `phlite.clouds.delaunay_cech` | `'pivot'` | `False` | `True` | `'merged'` | `False` |
 | `networks.grpph` | `phlite.networks.grpph` | `'merged'` | `True` | `False` | `'merged'` | `True` |
+| `networks.pph` | `phlite.networks.pph` | `'merged'` | `True` | `False` | `'merged'` | `True` |
+| `networks.directed_flag` | `phlite.networks.directed_flag` | `'merged'` | `True` | `False` | `'merged'` | `True` |
+| `networks.ordered_tuples` | `phlite.networks.ordered_tuples` | `'merged'` | `True` | `False` | `'merged'` | `True` |
+| `networks.dowker` | `phlite.networks.dowker` | `'merged'` | `True` | `False` | `'merged'` | `True` |
 <!-- defaults:end -->
 
 (`python-tests/tests/test_core.py` checks this table, and each function's docstring, against the pipelines
