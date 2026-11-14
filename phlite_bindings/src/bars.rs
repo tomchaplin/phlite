@@ -50,20 +50,43 @@ impl SortedBars {
                 Some(death) => pairings[dim].push(((birth, death), rep)),
             }
         }
-        for dim in essential.iter_mut() {
+        let mut bars = Self {
+            essential,
+            pairings,
+        };
+        bars.sort();
+        bars
+    }
+
+    fn sort(&mut self) {
+        for dim in self.essential.iter_mut() {
             dim.sort_by(|a, b| a.0.total_cmp(&b.0).then_with(|| a.1.cmp(&b.1)));
         }
-        for dim in pairings.iter_mut() {
+        for dim in self.pairings.iter_mut() {
             dim.sort_by(|a, b| {
                 (a.0 .0.total_cmp(&b.0 .0))
                     .then_with(|| a.0 .1.total_cmp(&b.0 .1))
                     .then_with(|| a.1.cmp(&b.1))
             });
         }
-        Self {
-            essential,
-            pairings,
+    }
+
+    /// Negate every birth and death, for a filtration by decreasing values computed as the sublevel filtration of
+    /// the negated values. Build with [`new`](Self::new) from the negated values (so that a class born at `+inf`
+    /// there, which never exists, is left out, but one born at `-inf`, which becomes `+inf`, is kept), then negate.
+    pub fn negate(mut self) -> Self {
+        for dim in self.essential.iter_mut() {
+            for (birth, _) in dim.iter_mut() {
+                *birth = -*birth;
+            }
         }
+        for dim in self.pairings.iter_mut() {
+            for ((birth, death), _) in dim.iter_mut() {
+                (*birth, *death) = (-*birth, -*death);
+            }
+        }
+        self.sort();
+        self
     }
 
     /// Convert to a `phlite.core.Barcode` (through its private constructor, `Barcode._from_parts`), recording

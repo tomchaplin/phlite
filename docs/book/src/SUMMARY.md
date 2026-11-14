@@ -63,6 +63,7 @@
   - [Dowker complexes](python/networks/dowker.md)
   - [Directed Rips (ordered tuples)](python/networks/ordered_tuples.md)
 - [phlite.images: images](python/images.md)
+  - [Cubical complexes](python/images/cubical.md)
   - [Cubical complexes]()
 - [Choosing an algorithm](python/algorithms.md)
 - [Example notebooks](python/notebooks.md)

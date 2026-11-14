@@ -137,7 +137,8 @@ installs every Python package. They share the namespace `phlite` (`from phlite.c
 * `phlite_networks` (`phlite.networks`) - Networks (weighted digraphs): GrPPH [[7]](#7) (`grpph`) and PPH (`pph`), directed flag
   complexes as flagser, grounded or not (`directed_flag`), ordered tuples (`ordered_tuples`) and Dowker complexes
   (`dowker`). Also a basic CLI.
-* `phlite_images` (`phlite.images`) - Images (cubical complexes). A placeholder for now.
+* `phlite_images` (`phlite.images`) - Images: cubical complexes of images and volumes (`cubical`), in the T- and
+  V-constructions, for sublevel and superlevel sets.
 * `phlite_bindings` (`phlite.core`) - What the Python packages share: the `Algorithm` and `Barcode` classes, and the
   helpers their bindings use to reach them.
 

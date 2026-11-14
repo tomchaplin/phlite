@@ -1018,12 +1018,14 @@ dependencies = [
 name = "phlite_images"
 version = "0.1.0"
 dependencies = [
+ "numpy",
  "ordered-float",
  "phlite",
  "phlite_bindings",
  "pyo3",
  "pyo3-log",
  "pyo3-stub-gen",
+ "rayon",
 ]
 
 [[package]]

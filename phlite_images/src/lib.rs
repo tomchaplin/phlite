@@ -1,12 +1,12 @@
-//! Persistent homology of images, implemented with [`phlite`]: the cubical complex of a 2D or 3D grid of values.
+//! Persistent homology of images, implemented with [`phlite`]: the cubical complex of a 2D image or 3D volume (or of a
+//! grid with any number of axes up to [`cubical::MAX_AXES`]).
 //!
-//! Nothing here yet. The plan is a dedicated cubical matrix oracle (cells indexed arithmetically, as
-//! `phlite_clouds::rips` indexes simplices), with both the V-construction (values on the top cells) and the
-//! T-construction (values on the vertices), in 2D and 3D. With the feature `python`, this crate is also the Python
-//! package `phlite-images`, `phlite.images` (its bindings are in `src/python`, one file per pipeline).
-//!
-//! Until then, `phlite.complexes` computes cubical persistence from an explicit boundary matrix: see the image
-//! notebook (`docs/notebooks/phlite_image.py`).
+//! See [`cubical`]: a dedicated cubical matrix oracle, with cells numbered arithmetically (as `phlite_clouds::rips`
+//! numbers simplices), and both the V-construction (pixels as vertices) and the T-construction (pixels as top cells),
+//! for sublevel and superlevel filtrations. With the feature `python`, this crate is also the Python package
+//! `phlite-images`, `phlite.images` (its bindings are in `src/python`).
+
+pub mod cubical;
 
 #[cfg(feature = "python")]
 mod python;
