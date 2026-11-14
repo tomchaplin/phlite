@@ -32,6 +32,18 @@ def point_clouds(draw, max_points=12):
     repeated, collinear, coplanar and cospherical points)."""
     dim = draw(st.sampled_from([2, 3]))
     n = draw(st.integers(1, max_points))
+    if dim == 3 and draw(st.integers(0, 3)) == 0:
+        # On a plane or a line in space (exactly: small integers), so triangulated in their own span
+        small = st.integers(-2, 2)
+        if draw(st.booleans()):
+            a, b, c = draw(small), draw(small), draw(small)
+            uv = draw(st.lists(st.tuples(small, small), min_size=n, max_size=n))
+            points = [[u, v, a * u + b * v + c] for u, v in uv]
+        else:
+            direction = draw(st.tuples(small, small, small))
+            ts = draw(st.lists(small, min_size=n, max_size=n))
+            points = [[t * direction[0], t * direction[1] + 1, t * direction[2] - 1] for t in ts]
+        return np.array(points, dtype=np.float64)
     if draw(st.booleans()):
         coord = st.floats(-10, 10, allow_nan=False, width=32)
     else:

@@ -12,13 +12,16 @@
 //! * [`delaunay`] triangulates the points: by [`spade`] in the plane, and in space by [`axiolid_tetrahedralize`],
 //!   which decides every orientation and in-sphere test exactly and breaks ties (cospherical points) by a symbolic
 //!   perturbation. Repeated points are merged, and points spanning fewer dimensions than they have coordinates
-//!   (collinear, or coplanar in space) are triangulated in their own affine hull.
+//!   are triangulated exactly in their own span: collinear points as a path, and coplanar points in space by adding
+//!   an apex off their plane and keeping the triangles opposite it.
 //! * Every face of the triangulation gets its *alpha value*, the squared radius at which it appears (as in
 //!   Edelsbrunner's definition and GUDHI's implementation), from the top dimension down: a simplex appears at the
 //!   squared radius of its smallest circumsphere, if that sphere has no other vertex of the triangulation strictly
 //!   inside it (it is *Gabriel*; checking the vertices opposite it in its cofacets is enough), and otherwise when its
-//!   first cofacet appears. The test of whether a vertex is inside a smallest circumsphere is written without division,
-//!   so it is exact for integer coordinates (where ties are common), and accurate to a few rounding errors otherwise.
+//!   first cofacet appears. The test of whether a vertex is inside a smallest circumsphere is exact (written without
+//!   division, and evaluated in floating point, double-double or big integers, as a bound on its rounding error
+//!   requires); radii are accurate to an ulp or two the same way; and a face whose radius exactly equals that
+//!   inherited from a cofacet gets exactly that value, so a bar between them has length zero.
 //! * The filtered complex is reduced as an explicit complex by [`phlite_complexes`], with its cells numbered by
 //!   dimension, so that a face always enters before a coface with the same value.
 
@@ -77,26 +80,6 @@ pub struct Delaunay {
     pub vertex_of: Vec<u32>,
 }
 
-fn sub(a: &[f64], b: &[f64]) -> [f64; 3] {
-    let mut out = [0.0; 3];
-    for (k, (x, y)) in a.iter().zip(b).enumerate() {
-        out[k] = x - y;
-    }
-    out
-}
-
-fn dot(a: &[f64; 3], b: &[f64; 3]) -> f64 {
-    a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
-}
-
-fn cross(a: &[f64; 3], b: &[f64; 3]) -> [f64; 3] {
-    [
-        a[1] * b[2] - a[2] * b[1],
-        a[2] * b[0] - a[0] * b[2],
-        a[0] * b[1] - a[1] * b[0],
-    ]
-}
-
 /// Triangulate points in the plane (given by their coordinates, labelled `labels`) with spade.
 fn delaunay_2d(coords: &[[f64; 2]], labels: &[u32]) -> Result<(usize, Vec<Simplex>), String> {
     use spade::{DelaunayTriangulation, Point2, Triangulation};
@@ -129,15 +112,17 @@ fn delaunay_2d(coords: &[[f64; 2]], labels: &[u32]) -> Result<(usize, Vec<Simple
     Ok((1, edges))
 }
 
-/// Triangulate points (given by their coordinates, labelled `labels`) with collinear points: a path, in order along
-/// their line.
+/// The "triangulation" of collinear points (given by their coordinates, labelled `labels`): a path, in order along
+/// their line, which for collinear points is their order by coordinates (so exact).
 fn path(coords: &[Vec<f64>], labels: &[u32]) -> (usize, Vec<Simplex>) {
-    let direction = sub(&coords[1], &coords[0]);
     let mut order: Vec<usize> = (0..coords.len()).collect();
     order.sort_by(|&i, &j| {
-        let a = dot(&sub(&coords[i], &coords[0]), &direction);
-        let b = dot(&sub(&coords[j], &coords[0]), &direction);
-        a.total_cmp(&b)
+        coords[i]
+            .iter()
+            .zip(&coords[j])
+            .map(|(a, b)| a.total_cmp(b))
+            .find(|o| o.is_ne())
+            .unwrap_or(std::cmp::Ordering::Equal)
     });
     let edges = order
         .windows(2)
@@ -147,6 +132,32 @@ fn path(coords: &[Vec<f64>], labels: &[u32]) -> (usize, Vec<Simplex>) {
         })
         .collect();
     (1, edges)
+}
+
+fn coord3(p: &[f64]) -> robust::Coord3D<f64> {
+    robust::Coord3D {
+        x: p[0],
+        y: p[1],
+        z: p.get(2).copied().unwrap_or(0.0),
+    }
+}
+
+/// Whether `a`, `b` and `p` are collinear, decided exactly: the three projections onto coordinate planes are all
+/// collinear.
+fn collinear(a: &[f64], b: &[f64], p: &[f64]) -> bool {
+    let (a, b, p) = (coord3(a), coord3(b), coord3(p));
+    let project = |c: robust::Coord3D<f64>, i: usize, j: usize| {
+        let c = [c.x, c.y, c.z];
+        robust::Coord { x: c[i], y: c[j] }
+    };
+    [(0, 1), (1, 2), (0, 2)]
+        .iter()
+        .all(|&(i, j)| robust::orient2d(project(a, i, j), project(b, i, j), project(p, i, j)) == 0.0)
+}
+
+/// A point off the line through the first two points (distinct), if there is one.
+fn off_the_line(coords: &[Vec<f64>]) -> Option<usize> {
+    (2..coords.len()).find(|&k| !collinear(&coords[0], &coords[1], &coords[k]))
 }
 
 /// Coordinates the triangulators accept, with the same Delaunay triangulation: scaled by a power of two (exactly) so
@@ -235,6 +246,8 @@ pub fn delaunay(points: &[Vec<f64>]) -> Result<Delaunay, String> {
         .collect();
     let (dimension, simplices) = if distinct.len() == 1 {
         (0, vec![[distinct[0], PAD, PAD, PAD]])
+    } else if off_the_line(&coords).is_none() {
+        path(&coords, &distinct)
     } else if dim == 2 {
         let planar: Vec<[f64; 2]> = coords.iter().map(|p| [p[0], p[1]]).collect();
         delaunay_2d(&planar, &distinct)?
@@ -248,61 +261,49 @@ pub fn delaunay(points: &[Vec<f64>]) -> Result<Delaunay, String> {
     })
 }
 
-/// Triangulate points in space (distinct, at least two), falling back to their plane or line if they span less.
+/// Triangulate points in space (distinct, not all collinear), falling back to their plane if they are coplanar.
 fn delaunay_3d(coords: &[Vec<f64>], labels: &[u32]) -> Result<(usize, Vec<Simplex>), String> {
     use axiolid_tetrahedralize::{Delaunay3, Delaunay3Error};
     use glam::DVec3;
-    let points: Vec<DVec3> = coords.iter().map(|p| DVec3::new(p[0], p[1], p[2])).collect();
+    let mut points: Vec<DVec3> = coords.iter().map(|p| DVec3::new(p[0], p[1], p[2])).collect();
+    let sorted = |tet: [usize; 4]| {
+        let mut vs = tet.map(|i| labels[i]);
+        vs.sort_unstable();
+        vs
+    };
     match Delaunay3::from_points(&points) {
-        Ok(triangulation) => {
-            let simplices = triangulation
+        Ok(triangulation) => Ok((3, triangulation.tetrahedra().tetrahedra.into_iter().map(sorted).collect())),
+        Err(Delaunay3Error::NotFullDimensional { .. }) => {
+            // Coplanar. Add an apex off their plane and triangulate in space: every tetrahedron then has the apex as
+            // a vertex, and its sphere meets the plane in exactly the circumcircle of the opposite triangle, so these
+            // triangles are the points' Delaunay triangulation in their plane, decided exactly (ties broken by the
+            // same symbolic perturbation) rather than in rounded coordinates on the plane
+            let (a, b) = (coord3(&coords[0]), coord3(&coords[1]));
+            let c = coord3(&coords[off_the_line(coords).expect("not collinear")]);
+            // The coordinates are normalised to at most 2 in magnitude, so a unit step is well within range; one of
+            // the three axes leaves the plane, exactly
+            let apex = [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]
+                .iter()
+                .map(|e| DVec3::new(a.x + e[0], a.y + e[1], a.z + e[2]))
+                .find(|p| robust::orient3d(a, b, c, robust::Coord3D { x: p.x, y: p.y, z: p.z }) != 0.0)
+                .expect("some axis leaves a plane");
+            let apex_index = points.len();
+            points.push(apex);
+            let triangulation = Delaunay3::from_points(&points)
+                .map_err(|e| format!("Could not triangulate the points: {e:?}"))?;
+            let triangles = triangulation
                 .tetrahedra()
                 .tetrahedra
-                .iter()
-                .map(|tet| {
-                    let mut vs = tet.map(|i| labels[i]);
-                    vs.sort_unstable();
-                    vs
+                .into_iter()
+                .filter_map(|tet| {
+                    let mut vs: Vec<u32> = tet.iter().filter(|&&i| i != apex_index).map(|&i| labels[i]).collect();
+                    (vs.len() == 3).then(|| {
+                        vs.sort_unstable();
+                        [vs[0], vs[1], vs[2], PAD]
+                    })
                 })
                 .collect();
-            Ok((3, simplices))
-        }
-        Err(Delaunay3Error::NotFullDimensional { .. }) => {
-            // Coplanar or collinear: find the plane through the first point, the farthest from it, and the point
-            // farthest from their line
-            let origin = &coords[0];
-            let far = (1..coords.len())
-                .max_by(|&i, &j| {
-                    let a = sub(&coords[i], origin);
-                    let b = sub(&coords[j], origin);
-                    dot(&a, &a).total_cmp(&dot(&b, &b))
-                })
-                .unwrap();
-            let u = sub(&coords[far], origin);
-            let normal_of = |i: usize| cross(&u, &sub(&coords[i], origin));
-            let side = (1..coords.len()).max_by(|&i, &j| {
-                let (a, b) = (normal_of(i), normal_of(j));
-                dot(&a, &a).total_cmp(&dot(&b, &b))
-            });
-            let normal = side.map(normal_of).unwrap_or([0.0; 3]);
-            if dot(&normal, &normal) == 0.0 {
-                return Ok(path(coords, labels));
-            }
-            // Coordinates in an orthonormal basis of the plane (distances are kept, up to rounding)
-            let unit = |v: [f64; 3]| {
-                let length = dot(&v, &v).sqrt();
-                [v[0] / length, v[1] / length, v[2] / length]
-            };
-            let e1 = unit(u);
-            let e2 = unit(cross(&normal, &u));
-            let planar: Vec<[f64; 2]> = coords
-                .iter()
-                .map(|p| {
-                    let w = sub(p, origin);
-                    [dot(&w, &e1), dot(&w, &e2)]
-                })
-                .collect();
-            delaunay_2d(&planar, labels)
+            Ok((2, triangles))
         }
         Err(e) => Err(format!("Could not triangulate the points: {e:?}")),
     }
@@ -347,6 +348,8 @@ impl std::ops::Add for Magnitude {
 
 impl std::ops::Sub for Magnitude {
     type Output = Self;
+    // The magnitude of a difference is at most the sum of the magnitudes
+    #[allow(clippy::suspicious_arithmetic_impl)]
     fn sub(self, other: Self) -> Self {
         Magnitude(self.0 + other.0)
     }
@@ -671,23 +674,6 @@ impl Circumsphere {
         mantissa * 2f64.powi(scale.clamp(i32::MIN as i64, i32::MAX as i64) as i32)
     }
 
-    /// Whether the simplex is flat (its vertices affinely dependent: its Gram determinant is zero), decided exactly.
-    fn is_flat(&self) -> bool {
-        if self.points.len() < 2 {
-            return false;
-        }
-        let (bounds, _) = self.relative::<Magnitude>(None);
-        let (_, _, bound) = sphere_terms(&bounds);
-        let (points, _) = self.relative::<f64>(None);
-        let (_, _, det) = sphere_terms(&points);
-        if det.abs() > FLOAT_ERROR * bound.0 {
-            return false;
-        }
-        let (points, _) = self.exact_points(&[]);
-        let (_, _, det) = sphere_terms(&points);
-        det.sign() == num_bigint::Sign::NoSign
-    }
-
     /// The vertices and then `extra`'s coordinates as integers times a common `2^least` (exactly), and `least`.
     fn exact_points(&self, extra: &[f64]) -> (Vec<[num_bigint::BigInt; 3]>, i32) {
         let all: Vec<(i64, i32)> = self
@@ -768,15 +754,6 @@ pub fn alpha_complex(points: &[Vec<f64>]) -> Result<AlphaComplex, String> {
     simplices[top] = triangulation.simplices;
     simplices[top].sort_unstable();
     simplices[top].dedup();
-    // Points spanning fewer dimensions than they have coordinates are triangulated in rounded coordinates on their
-    // span, which can add flat slivers along the boundary (three points exactly in line): not part of the true
-    // triangulation, so drop them, and with them their long edge
-    if top >= 2 {
-        simplices[top].retain(|s| {
-            let vs: Vec<&[f64]> = vertices(s).iter().map(|&v| points[v as usize].as_slice()).collect();
-            !Circumsphere::new(&vs).is_flat()
-        });
-    }
     for dim in (1..=top).rev() {
         let k = dim + 1;
         let mut faces: Vec<Simplex> = simplices[dim]

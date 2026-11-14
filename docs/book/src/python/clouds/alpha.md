@@ -36,21 +36,28 @@ to a few thousand.
 1. **Delaunay triangulation**, exactly. In the plane by [spade](https://github.com/Stoeoef/spade), and in space by
    [axiolid-tetrahedralize](https://axiolid.github.io/kernel/), whose orientation and in-sphere tests are exact, with
    ties (cospherical points, as in any grid) broken by a symbolic perturbation that doesn't depend on the order of the
-   points. Repeated points are merged into the first; points spanning fewer dimensions than they have coordinates
-   (collinear points, or coplanar points in space) are triangulated within their own span.
+   points. Repeated points are merged into the first. Points spanning fewer dimensions than they have coordinates
+   are triangulated exactly within their own span (as GUDHI does too): collinear points (decided by exact orientation
+   tests) as a path in order along their line, and coplanar points in space by adding an apex off their plane and
+   triangulating in space: the sphere through the apex and a triangle meets the plane in that triangle's
+   circumcircle, so the triangles opposite the apex are exactly the points' Delaunay triangulation in their plane.
+   Coordinates negligible next to the largest (below \\(2^{-90}\\) of it) are taken as zero, since the exact
+   predicates need a bounded range of exponents.
 2. **Alpha values** (as Edelsbrunner defines them, and GUDHI computes them), from the top dimension down: a simplex
    appears at the squared radius of its smallest circumsphere if no vertex of the triangulation is strictly inside
    that sphere (it is *Gabriel*: checking the vertices opposite it in its cofacets is enough), and otherwise when its
-   first cofacet does. The in-sphere test is exact: floating point when a bound on its rounding error allows, big
-   integers otherwise. Radii are accurate to a few units in the last place, computed exactly for thin simplices whose
-   floating point formula would cancel badly, and a simplex whose radius exactly equals its cofacet's (a right angle)
-   gets exactly the same value, so the bar between them has length zero, as it should.
+   first cofacet does. The in-sphere test is exact: floating point when a bound on its rounding error allows, then
+   double-double (about 32 digits), then big integers. Radii are accurate to an ulp or two, the same way (very thin
+   simplices, whose floating point formulas cancel badly, get the more precise arithmetic), and a simplex whose
+   radius exactly equals its cofacet's (a right angle) gets exactly the same value, so the bar between them has
+   length zero, as it should.
 3. **Reduction** of the filtered complex as an explicit complex, by `phlite.complexes`' machinery: cells numbered by
    dimension (so a face enters before a coface with the same value), with its defaults (pivot columns, storing R).
 
-The only differences from GUDHI's exact computation are bars shorter than the rounding of the values (a few units in
-the last place), which may round to length zero or not, and, for cospherical points, which of the equally valid
-Delaunay triangulations is used (the same barcode, but the representatives may use different simplices).
+The only differences from GUDHI's exact computation are bars shorter than the rounding of the values (an ulp or
+two), which may round to length zero or not; coordinates below \\(2^{-90}\\) of the largest, taken as zero; and,
+for cospherical points, which of the equally valid Delaunay triangulations is used (the same barcode, but the
+representatives may use different simplices).
 
 ## Checked against
 

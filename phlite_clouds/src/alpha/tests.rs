@@ -84,14 +84,26 @@ fn triangulations_of_degenerate_points() {
         .collect();
     let d = delaunay(&grid).unwrap();
     assert_eq!((d.dimension, d.simplices.len()), (3, 4 * 4 * 4 * 6));
-    // Coplanar points in space, a square grid: triangulated in their plane. (Coordinates in the plane are rounded,
-    // so the boundary's collinear points may gain slivers, which only appear together with their long edge.)
+    // Coplanar points in space, a square grid: triangulated exactly in their plane (two triangles per square)
     let plane: Vec<Vec<f64>> = (0..4)
         .flat_map(|x| (0..4).map(move |y| vec![x as f64, y as f64, x as f64 + y as f64]))
         .collect();
     let d = delaunay(&plane).unwrap();
-    assert_eq!(d.dimension, 2);
-    assert!(d.simplices.len() >= 3 * 3 * 2);
+    assert_eq!((d.dimension, d.simplices.len()), (2, 3 * 3 * 2));
+    // Exactly collinear points in space (along a direction no coordinate plane contains), out of order: a path in
+    // order along the line
+    let line: Vec<Vec<f64>> = [3, 0, 4, 1, 2]
+        .iter()
+        .map(|&i| vec![0.5 * i as f64, 0.25 * i as f64 + 1.0, 0.125 * i as f64])
+        .collect();
+    let d = delaunay(&line).unwrap();
+    assert_eq!(d.dimension, 1);
+    let mut edges: Vec<[u32; 2]> = d.simplices.iter().map(|s| [s[0], s[1]]).collect();
+    edges.sort();
+    assert_eq!(edges, vec![[0, 2], [0, 4], [1, 3], [3, 4]]);
+    // Nearly but not exactly collinear: a (very thin) triangle
+    let thin = vec![vec![0.0, 0.0, 0.0], vec![1.0, 1.0, 1.0], vec![2.0, 2.0, 2.0 + 1e-15]];
+    assert_eq!(delaunay(&thin).unwrap().dimension, 2);
     // The same barcode as the same points given in the plane (one loop per square of the grid)
     let summary = |points: &[Vec<f64>]| {
         let algorithm = Algorithm::Clearing(Clearing::new().with_columns(PivotColumns));
