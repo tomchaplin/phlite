@@ -54,7 +54,7 @@
 - [phlite.complexes: explicit complexes](python/complexes.md)
 - [phlite.clouds: point clouds](python/clouds.md)
   - [Vietoris–Rips](python/clouds/rips.md)
-  - [Alpha complexes]()
+  - [Alpha complexes](python/clouds/alpha.md)
   - [Sparse and distance-matrix Rips]()
   - [Weighted and Čech-like filtrations]()
 - [phlite.networks: networks](python/networks.md)

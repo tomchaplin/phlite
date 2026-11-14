@@ -43,6 +43,7 @@ The column representation, caching and storing R are best chosen per kind of inp
 |---|---|---|---|---|---|---|
 | `complexes` | `phlite.complexes.FilteredComplex.persistence` | `'pivot'` | `False` | `True` | `'merged'` | `False` |
 | `clouds.rips` | `phlite.clouds.rips` | `'heap'` | `False` | `False` | `'heap'` | `False` |
+| `clouds.alpha` | `phlite.clouds.alpha` | `'pivot'` | `False` | `True` | `'merged'` | `False` |
 | `networks.grpph` | `phlite.networks.grpph` | `'merged'` | `True` | `False` | `'merged'` | `True` |
 <!-- defaults:end -->
 

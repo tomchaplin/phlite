@@ -87,7 +87,7 @@ fn is_numpy(object: &Bound<'_, PyAny>) -> bool {
 
 /// Read a 2D array of floats: a float64 or float32 numpy array directly, anything else (lists, other dtypes) as a
 /// sequence of sequences. Returns its rows.
-fn read_rows(object: &Bound<'_, PyAny>, name: &str) -> PyResult<Vec<Vec<f64>>> {
+pub(super) fn read_rows(object: &Bound<'_, PyAny>, name: &str) -> PyResult<Vec<Vec<f64>>> {
     if is_numpy(object) {
         if let Ok(array) = object.cast::<PyArray2<f64>>() {
             let array = array.readonly();

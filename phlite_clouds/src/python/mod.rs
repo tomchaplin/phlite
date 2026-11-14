@@ -6,13 +6,15 @@
 use phlite_bindings::AlgorithmDefaults;
 use pyo3::prelude::*;
 
+mod alpha;
 mod rips;
 
-const DOC: &str = "Persistent homology of point clouds and distance matrices: `rips` (Vietoris–Rips).";
+const DOC: &str = "Persistent homology of point clouds and distance matrices: `rips` (Vietoris–Rips) and `alpha` \
+                   (alpha complexes in the plane and in space).";
 pyo3_stub_gen::module_doc!("phlite.clouds", "{}", DOC);
 
 /// This package's pipelines, registered with `phlite.core` on import.
-const PIPELINES: &[AlgorithmDefaults] = &[rips::DEFAULTS];
+const PIPELINES: &[AlgorithmDefaults] = &[rips::DEFAULTS, alpha::DEFAULTS];
 
 #[pymodule(gil_used = false)]
 fn _clouds(m: &Bound<'_, PyModule>) -> PyResult<()> {
@@ -21,6 +23,7 @@ fn _clouds(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.setattr("__doc__", DOC)?;
     phlite_bindings::add_functions(m, "phlite.clouds", |m| {
         rips::register(m)?;
+        alpha::register(m)?;
         Ok(())
     })?;
     Ok(())

@@ -131,7 +131,8 @@ Each of these is a Rust library and, with its `python` feature, a Python package
 installs every Python package. They share the namespace `phlite` (`from phlite.clouds import rips`):
 
 * `phlite_complexes` (`phlite.complexes`) - Explicit sparse filtered chain complexes, à la PHAT/LoPHAT.
-* `phlite_clouds` (`phlite.clouds`) - Point clouds: so far the VR filtration, à la Ripser (`rips`). Also a basic CLI.
+* `phlite_clouds` (`phlite.clouds`) - Point clouds: the VR filtration of dense or sparse distance matrices or points, à
+  la Ripser (`rips`), and alpha complexes in the plane and in space (`alpha`). Also a basic CLI.
 * `phlite_networks` (`phlite.networks`) - Networks: so far GrPPH [[7]](#7) (`grpph`). Also a basic CLI.
 * `phlite_images` (`phlite.images`) - Images (cubical complexes). A placeholder for now.
 * `phlite_bindings` (`phlite.core`) - What the Python packages share: the `Algorithm` and `Barcode` classes, and the

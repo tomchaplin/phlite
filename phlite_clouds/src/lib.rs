@@ -1,6 +1,8 @@
 //! Persistent homology of point clouds and distance matrices, implemented with [`phlite`].
 //!
-//! * [`rips`]: the Vietoris–Rips filtration of a distance matrix, à la Ripser.
+//! * [`rips`]: the Vietoris–Rips filtration of a distance matrix (dense or sparse) or points, à la Ripser.
+//! * [`alpha`]: the alpha filtration of points in the plane or in space (as in GUDHI), from their Delaunay
+//!   triangulation.
 //!
 //! With the feature `python`, this crate is also the Python package `phlite-clouds`, `phlite.clouds` (its bindings
 //! are in `src/python`, one file per pipeline; see `phlite_bindings` for how to add one). The `phlite_clouds_rips`
@@ -9,6 +11,7 @@
 //! This crate was called `phlite_rips` (and its Python package the same) before it gathered every point-cloud
 //! filtration.
 
+pub mod alpha;
 pub mod rips;
 #[cfg(feature = "python")]
 mod python;

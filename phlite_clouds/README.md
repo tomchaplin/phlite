@@ -2,6 +2,9 @@
 
 Persistent homology of point clouds and distance matrices with `phlite`. So far one filtration:
 
+* `phlite_clouds::alpha`: alpha complexes of points in the plane or in space, from their (exact) Delaunay
+  triangulation, as GUDHI computes them, and with `alpha_barcode` their persistence. In Python,
+  `phlite.clouds.alpha(points)` (and `alpha_complex(points)` for the filtered complex itself).
 * `phlite_clouds::rips`: the Vietoris-Rips filtration, à la Ripser. It is also a familiar example for those new to
   `phlite`, and a tutorial (see below).
 
