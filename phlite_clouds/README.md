@@ -2,11 +2,13 @@
 
 Persistent homology of point clouds and distance matrices with `phlite`. So far one filtration:
 
-* `phlite_clouds::alpha`: alpha complexes of points in the plane or in space, from their (exact) Delaunay
-  triangulation, as GUDHI computes them, and with `alpha_barcode` their persistence. In Python,
-  `phlite.clouds.alpha(points)` (and `alpha_complex(points)` for the filtered complex itself).
-* `phlite_clouds::rips`: the Vietoris-Rips filtration, à la Ripser. It is also a familiar example for those new to
-  `phlite`, and a tutorial (see below).
+* `phlite_clouds::alpha`: filtrations of the (exact) Delaunay triangulation of points in the plane or in space, as
+  GUDHI computes them: alpha complexes, and Delaunay–Čech complexes (each simplex at the radius of its minimal
+  enclosing ball), with `delaunay_barcode` their persistence. In Python, `phlite.clouds.alpha(points)` and
+  `delaunay_cech(points)` (and `alpha_complex` and `delaunay_cech_complex` for the filtered complexes themselves).
+* `phlite_clouds::rips`: the Vietoris-Rips filtration, à la Ripser, of dense or sparse distance matrices or points,
+  optionally weighted (`rips::Weighted`, as GUDHI's weighted Rips, and with `rips::distance_to_measure` DTM-Rips).
+  It is also a familiar example for those new to `phlite`, and a tutorial (see below).
 
 With the feature `python`, this crate is also the Python package `phlite-clouds`, `phlite.clouds` (its bindings live
 in `src/python`, one file per pipeline). It was called `phlite_rips` (crate and Python package).

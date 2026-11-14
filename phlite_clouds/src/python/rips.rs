@@ -16,7 +16,9 @@ use phlite_bindings::{
     algorithm_from_py, parse_method, AlgorithmDefaults, AlgorithmVisitor, Columns, SortedBars,
 };
 
-use crate::rips::{rips_barcode, rips_index_fits, Distances, Metric, SparseDistances};
+use crate::rips::{
+    distance_to_measure, rips_barcode, rips_index_fits, Distances, Metric, SparseDistances, Weighted,
+};
 
 /// The pipeline `'clouds.rips'`: Rips columns are cheap to recompute, and caching them dominates the memory used.
 pub(crate) const DEFAULTS: AlgorithmDefaults = AlgorithmDefaults {
@@ -206,6 +208,7 @@ fn read_points(points: &Bound<'_, PyAny>, metric: Metric, threshold: NotNan<f64>
 /// rips(scipy.sparse.coo_matrix(...))              # a sparse one: missing entries never appear
 /// rips(points=X, max_dim=2)                       # points (one per row), Euclidean distances
 /// rips(points=X, metric="chebyshev", threshold=1.5)
+/// rips(points=X, weights=dtm(points=X, k=10))     # DTM-Rips: weighted, by the distance to measure
 /// ```
 ///
 /// Args:
@@ -222,6 +225,10 @@ fn read_points(points: &Bound<'_, PyAny>, metric: Metric, threshold: NotNan<f64>
 ///         to it are kept (as a sparse matrix), else every distance is (as a dense matrix).
 ///     metric: How to measure the distance between `points`: `'euclidean'` (the default), `'manhattan'` (or
 ///         `'cityblock'`) or `'chebyshev'`.
+///     weights: A weight for each point, for weighted Rips (as GUDHI's `WeightedRipsComplex`): point `i` appears at
+///         `2 w_i`, and the edge between `i` and `j` at `max(2 w_i, 2 w_j, d(i, j) + w_i + w_j)` (the weighted Rips
+///         filtration of Anai et al.'s DTM-filtrations with p = 1, doubled like Rips). With `dtm` as the weights, this
+///         is DTM-Rips. Weights must be finite.
 ///     threshold: Only build the Rips complex up to this diameter (default: no limit).
 ///         Bars still alive at the threshold are reported as essential.
 ///         Simplices above the enclosing radius are always skipped, since by then the complex is contractible
@@ -240,7 +247,7 @@ fn read_points(points: &Bound<'_, PyAny>, metric: Metric, threshold: NotNan<f64>
 #[gen_stub_pyfunction(module = "phlite.clouds")]
 #[gen_stub(override_return_type(type_repr = "core.Barcode", imports = ("phlite.core")))]
 #[pyfunction]
-#[pyo3(signature = (distance_matrix = None, max_dim = 1, *, points = None, metric = "euclidean", threshold = None, method = "cohomology", algorithm = None, representatives = false))]
+#[pyo3(signature = (distance_matrix = None, max_dim = 1, *, points = None, metric = "euclidean", weights = None, threshold = None, method = "cohomology", algorithm = None, representatives = false))]
 #[allow(clippy::too_many_arguments)]
 fn rips<'py>(
     py: Python<'py>,
@@ -251,6 +258,8 @@ fn rips<'py>(
     points: Option<&Bound<'_, PyAny>>,
     #[gen_stub(override_type(type_repr = "typing.Literal['euclidean', 'manhattan', 'cityblock', 'chebyshev']", imports = ("typing")))]
     metric: &str,
+    #[gen_stub(override_type(type_repr = "typing.Optional[typing.Union[numpy.typing.NDArray[numpy.floating], typing.Sequence[builtins.float]]]", imports = ("builtins", "numpy", "numpy.typing", "typing")))]
+    weights: Option<Vec<f64>>,
     threshold: Option<f64>,
     #[gen_stub(override_type(type_repr = "typing.Literal['cohomology', 'homology']", imports = ("typing")))]
     method: &str,
@@ -283,6 +292,20 @@ fn rips<'py>(
     let method = parse_method(method)?;
     let algorithm = algorithm_from_py(algorithm.as_ref(), &DEFAULTS)?;
     let n_points = input.n_points();
+    if let Some(weights) = &weights {
+        if weights.len() != n_points {
+            return Err(PyValueError::new_err(format!(
+                "There are {} weights for {n_points} points",
+                weights.len()
+            )));
+        }
+        if let Some(i) = weights.iter().position(|w| !w.is_finite()) {
+            return Err(PyValueError::new_err(format!(
+                "Weights must be finite, but weight {i} is {}",
+                weights[i]
+            )));
+        }
+    }
     // Both methods need simplices of dimension max_dim + 1 (as cofacets, or the top of the boundary matrix)
     let top_dim = max_dim + 1;
     if !rips_index_fits(n_points, top_dim) {
@@ -294,6 +317,7 @@ fn rips<'py>(
     let bars = py.detach(|| {
         algorithm.run(RipsRun {
             input,
+            weights,
             max_dim,
             threshold,
             method,
@@ -306,6 +330,7 @@ fn rips<'py>(
 /// Compute the Rips barcode with whichever algorithm is configured.
 struct RipsRun {
     input: Input,
+    weights: Option<Vec<f64>>,
     max_dim: usize,
     threshold: NotNan<f64>,
     method: Method,
@@ -317,23 +342,24 @@ impl AlgorithmVisitor for RipsRun {
 
     fn visit<R: ColumnRepresentation>(self, algorithm: Algorithm<'_, R>) -> SortedBars {
         let n_points = self.input.n_points();
-        let bars = match self.input {
-            Input::Dense(distances) => rips_barcode::<_, usize, _>(
-                distances,
-                self.max_dim,
-                self.threshold,
-                self.method,
-                algorithm,
-                self.representatives,
-            ),
-            Input::Sparse(distances) => rips_barcode::<_, usize, _>(
-                distances,
-                self.max_dim,
-                self.threshold,
-                self.method,
-                algorithm,
-                self.representatives,
-            ),
+        macro_rules! run {
+            ($distances:expr) => {
+                rips_barcode::<_, usize, _>(
+                    $distances,
+                    self.max_dim,
+                    self.threshold,
+                    self.method,
+                    algorithm,
+                    self.representatives,
+                )
+            };
+        }
+        // (The weights were checked when read)
+        let bars = match (self.input, self.weights) {
+            (Input::Dense(distances), None) => run!(distances),
+            (Input::Sparse(distances), None) => run!(distances),
+            (Input::Dense(distances), Some(weights)) => run!(Weighted::new(distances, &weights).unwrap()),
+            (Input::Sparse(distances), Some(weights)) => run!(Weighted::new(distances, &weights).unwrap()),
         };
         SortedBars::new(bars, self.max_dim + 1, |simplex| {
             let vertices = simplex.to_vec(n_points);
@@ -345,6 +371,72 @@ impl AlgorithmVisitor for RipsRun {
     }
 }
 
+/// The distance to measure of each point (Chazal, Cohen-Steiner and Mérigot), as GUDHI's `DistanceToMeasure`: the
+/// `q`-mean of its distances to its `k` nearest points, itself included,
+/// `((d_1^q + ... + d_k^q) / k)^(1/q)`. Small where points are dense, large for outliers: as the `weights` of `rips`,
+/// it gives DTM-Rips, which is robust to outliers.
+///
+/// Args:
+///     distance_matrix: A dense distance matrix (as for `rips`), or give `points`.
+///     k: How many nearest points to average over (itself included, so `k = 1` gives zeros: plain Rips).
+///     points: Instead of a distance matrix, the points, with distances measured by `metric` (as for `rips`; without
+///         storing every distance).
+///     metric: As for `rips`.
+///     q: The exponent of the mean (default 2).
+///
+/// Returns:
+///     The distance to measure of each point, as a list.
+#[gen_stub_pyfunction(module = "phlite.clouds")]
+#[pyfunction]
+#[pyo3(signature = (distance_matrix = None, *, k, points = None, metric = "euclidean", q = 2.0))]
+fn dtm(
+    py: Python<'_>,
+    #[gen_stub(override_type(type_repr = "typing.Optional[typing.Union[numpy.typing.NDArray[numpy.floating], typing.Sequence[typing.Sequence[builtins.float]]]]", imports = ("builtins", "numpy", "numpy.typing", "typing")))]
+    distance_matrix: Option<&Bound<'_, PyAny>>,
+    k: usize,
+    #[gen_stub(override_type(type_repr = "typing.Optional[typing.Union[numpy.typing.NDArray[numpy.floating], typing.Sequence[typing.Sequence[builtins.float]]]]", imports = ("builtins", "numpy", "numpy.typing", "typing")))]
+    points: Option<&Bound<'_, PyAny>>,
+    #[gen_stub(override_type(type_repr = "typing.Literal['euclidean', 'manhattan', 'cityblock', 'chebyshev']", imports = ("typing")))]
+    metric: &str,
+    q: f64,
+) -> PyResult<Vec<f64>> {
+    let metric = parse_metric(metric)?;
+    match (distance_matrix, points) {
+        (Some(matrix), None) => {
+            if is_scipy_sparse(matrix) {
+                return Err(PyValueError::new_err(
+                    "dtm needs every distance: give a dense distance matrix, or points",
+                ));
+            }
+            let distances = read_dense(matrix)?;
+            let n = distances.len();
+            py.detach(|| {
+                distance_to_measure(n, |i| distances[i].iter().map(|d| d.into_inner()).collect(), k, q)
+            })
+            .map_err(PyValueError::new_err)
+        }
+        (None, Some(points)) => {
+            let points = read_rows(points, "points")?;
+            if points.iter().flatten().any(|x| !x.is_finite()) {
+                return Err(PyValueError::new_err("Every coordinate of points must be finite"));
+            }
+            let n = points.len();
+            py.detach(|| {
+                distance_to_measure(
+                    n,
+                    |i| points.iter().map(|p| metric.distance(&points[i], p).into_inner()).collect(),
+                    k,
+                    q,
+                )
+            })
+            .map_err(PyValueError::new_err)
+        }
+        (Some(_), Some(_)) => Err(PyValueError::new_err("Give either a distance matrix or points, not both")),
+        (None, None) => Err(PyValueError::new_err("Give a distance matrix (the first argument) or points")),
+    }
+}
+
 pub(crate) fn register(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_function(wrap_pyfunction!(rips, m)?)
+    m.add_function(wrap_pyfunction!(rips, m)?)?;
+    m.add_function(wrap_pyfunction!(dtm, m)?)
 }

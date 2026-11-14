@@ -5,7 +5,8 @@ Persistent homology of point clouds and distance matrices: the `phlite-clouds` p
 
 | Function | Filtration | Chapter |
 |---|---|---|
-| `phlite.clouds.rips` | Vietoris–Rips of a distance matrix (dense or sparse) or points | [Vietoris–Rips](clouds/rips.md) |
+| `phlite.clouds.rips` | Vietoris–Rips of a distance matrix (dense or sparse) or points; weighted with `weights` | [Vietoris–Rips](clouds/rips.md), [weighted](clouds/weighted.md) |
+| `phlite.clouds.dtm` | the distance to measure, the weights of DTM-Rips | [Weighted and Čech-like](clouds/weighted.md) |
 | `phlite.clouds.alpha` | alpha complexes of points in the plane or in space (and `alpha_complex`, the filtered complex) | [Alpha complexes](clouds/alpha.md) |
 | `phlite.clouds.delaunay_cech` | Delaunay–Čech complexes (and `delaunay_cech_complex`) | [Weighted and Čech-like](clouds/weighted.md) |
 

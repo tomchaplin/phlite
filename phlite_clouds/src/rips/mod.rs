@@ -34,7 +34,7 @@ pub mod cohomology;
 pub mod distances;
 pub mod homology;
 
-pub use distances::{Distances, Metric, SparseDistances};
+pub use distances::{distance_to_measure, Distances, Metric, SparseDistances, Weighted};
 
 use ordered_float::NotNan;
 use phlite::{
@@ -286,7 +286,10 @@ fn add_cofacets<I: RipsInt, D: Distances + ?Sized>(
             .map(|w| distances.distance(*w, v))
             .max()
             .unwrap();
-        let new_filtration_value = new_filtration_value.max(fil_value);
+        let mut new_filtration_value = new_filtration_value.max(fil_value);
+        if D::HAS_BIRTHS {
+            new_filtration_value = new_filtration_value.max(distances.birth(v));
+        }
         // Cofaces only get bigger, so skip the whole subtree
         if new_filtration_value > threshold {
             continue;
@@ -330,15 +333,20 @@ pub fn build_rips_bases_with_threshold<I: RipsInt, D: Distances + ?Sized>(
 
     // Build up the basis
     for v in 0..(distances.n_points()) {
+        let birth = distances.birth(v);
+        // Points born after the threshold never appear (but, as in ripser, every point born at 0 does)
+        if birth > threshold && birth > NotNan::new(0.0).unwrap() {
+            continue;
+        }
         let mut simplex = vec![v];
         let vertex = RipsIndex(I::from_usize(v + 1));
-        bases[0].push((NotNan::new(0.0_f64).unwrap(), vertex));
+        bases[0].push((birth, vertex));
         if max_dim > 0 {
             add_cofacets(
                 &mut bases,
                 &mut simplex,
                 vertex,
-                NotNan::new(0 as f64).unwrap(),
+                birth,
                 distances,
                 max_dim,
                 threshold,
@@ -388,7 +396,17 @@ fn youngest_facet_given<I: RipsInt, D: Distances + ?Sized>(
     let mut place = I::ONE;
     for removed in 0..vertices.len() {
         let facet = RipsIndex(index % place + index / place / radix * place);
-        let mut facet_diameter = NotNan::new(0.0).unwrap();
+        let mut facet_diameter = if D::HAS_BIRTHS {
+            vertices
+                .iter()
+                .enumerate()
+                .filter(|&(i, _)| i != removed)
+                .map(|(_, &v)| distances.birth(v))
+                .max()
+                .unwrap_or(NotNan::new(0.0).unwrap())
+        } else {
+            NotNan::new(0.0).unwrap()
+        };
         for (i, &v) in vertices.iter().enumerate() {
             if i == removed {
                 continue;
@@ -492,6 +510,11 @@ fn cofacets_above<I: RipsInt, D: Distances + ?Sized>(
             .max()
             .unwrap_or(diameter)
             .max(diameter);
+        let cofacet_diameter = if D::HAS_BIRTHS {
+            cofacet_diameter.max(distances.birth(v))
+        } else {
+            cofacet_diameter
+        };
         (cofacet_diameter <= threshold).then(|| {
             (
                 cofacet_diameter,
@@ -523,7 +546,6 @@ pub fn build_reduction_bases<I: RipsInt, D: Distances + ?Sized>(
     parallel: bool,
 ) -> RipsBasis<I> {
     use rayon::prelude::*;
-    let zero = NotNan::new(0.0).unwrap();
     let keep = |dim: usize| {
         let check_cofacets = dim < max_dim || check_top_cofacets;
         move |&(_, simplex): &(NotNan<f64>, RipsIndex<I>)| {
@@ -544,7 +566,9 @@ pub fn build_reduction_bases<I: RipsInt, D: Distances + ?Sized>(
 
     // All the simplices of the current dimension (needed to generate the next), then those we keep
     let mut all: Vec<(NotNan<f64>, RipsIndex<I>)> = (0..distances.n_points())
-        .map(|v| (zero, RipsIndex(I::from_usize(v + 1))))
+        .map(|v| (distances.birth(v), RipsIndex(I::from_usize(v + 1))))
+        // Points born after the threshold never appear (but, as in ripser, every point born at 0 does)
+        .filter(|&(birth, _)| birth <= threshold || birth <= NotNan::new(0.0).unwrap())
         .collect();
     let mut dims = vec![];
     for dim in 0..=max_dim {
@@ -591,7 +615,15 @@ pub(crate) fn max_pairwise_distance<D: Distances + ?Sized>(
     vertices: &[usize],
     distances: &D,
 ) -> NotNan<f64> {
-    let mut max = NotNan::new(0.0).unwrap();
+    let mut max = if D::HAS_BIRTHS {
+        vertices
+            .iter()
+            .map(|&v| distances.birth(v))
+            .max()
+            .unwrap_or(NotNan::new(0.0).unwrap())
+    } else {
+        NotNan::new(0.0).unwrap()
+    };
     for (i, &v) in vertices.iter().enumerate() {
         for &w in &vertices[i + 1..] {
             max = max.max(distances.distance(v, w));

@@ -19,6 +19,17 @@ pub trait Distances: Sync {
     /// The distance between the points `i` and `j` (with `i != j`).
     fn distance(&self, i: usize, j: usize) -> NotNan<f64>;
 
+    /// Whether any point may appear after 0 (see [`birth`](Self::birth)): if not, births are left out of every
+    /// computation.
+    const HAS_BIRTHS: bool = false;
+
+    /// When point `v` appears: 0 unless the points are weighted (see [`Weighted`]). The distance between two points
+    /// must be at least both their births.
+    #[inline(always)]
+    fn birth(&self, _v: usize) -> NotNan<f64> {
+        NotNan::new(0.0).unwrap()
+    }
+
     /// Every vertex `w >= from` (other than `v`) whose distance to `v` might be finite, in increasing order (it may
     /// also list `v` itself, and vertices at infinite distance).
     fn neighbours(&self, v: usize, from: usize) -> impl Iterator<Item = usize> + Clone + Send + '_;
@@ -161,6 +172,8 @@ impl Distances for Vec<Vec<NotNan<f64>>> {
 
 /// So that a boundary and a coboundary oracle can share one matrix.
 impl<D: Distances + ?Sized> Distances for &D {
+    const HAS_BIRTHS: bool = D::HAS_BIRTHS;
+
     #[inline(always)]
     fn n_points(&self) -> usize {
         (**self).n_points()
@@ -169,6 +182,11 @@ impl<D: Distances + ?Sized> Distances for &D {
     #[inline(always)]
     fn distance(&self, i: usize, j: usize) -> NotNan<f64> {
         (**self).distance(i, j)
+    }
+
+    #[inline(always)]
+    fn birth(&self, v: usize) -> NotNan<f64> {
+        (**self).birth(v)
     }
 
     #[inline(always)]
@@ -363,6 +381,135 @@ impl Distances for SparseDistances {
             .min()
             .unwrap_or(NotNan::new(f64::INFINITY).unwrap())
     }
+}
+
+// ====== Weighted points ===================================================
+
+/// Weighted Rips, as GUDHI's `WeightedRipsComplex` (the weighted Rips filtration of Anai et al.'s DTM-filtrations,
+/// with p = 1, doubled like Rips): point `i` with weight `w_i` appears at `2 w_i`, and the edge between `i` and `j` at
+/// `max(2 w_i, 2 w_j, d(i, j) + w_i + w_j)`. Missing (infinite) distances stay missing. With the distance to measure
+/// as the weights, this is DTM-Rips.
+#[derive(Debug, Clone)]
+pub struct Weighted<D> {
+    distances: D,
+    /// Twice the weights: the births
+    births: Vec<NotNan<f64>>,
+    weights: Vec<NotNan<f64>>,
+}
+
+impl<D: Distances> Weighted<D> {
+    /// `distances` with a finite weight for every point.
+    pub fn new(distances: D, weights: &[f64]) -> Result<Self, String> {
+        let n = distances.n_points();
+        if weights.len() != n {
+            return Err(format!("There are {} weights for {n} points", weights.len()));
+        }
+        if let Some(i) = weights.iter().position(|w| !w.is_finite()) {
+            return Err(format!("Weights must be finite, but weight {i} is {}", weights[i]));
+        }
+        Ok(Self {
+            distances,
+            births: weights.iter().map(|&w| NotNan::new(2.0 * w).unwrap()).collect(),
+            weights: weights.iter().map(|&w| NotNan::new(w).unwrap()).collect(),
+        })
+    }
+}
+
+impl<D: Distances> Distances for Weighted<D> {
+    const HAS_BIRTHS: bool = true;
+
+    #[inline(always)]
+    fn n_points(&self) -> usize {
+        self.distances.n_points()
+    }
+
+    #[inline(always)]
+    fn distance(&self, i: usize, j: usize) -> NotNan<f64> {
+        let d = self.distances.distance(i, j);
+        if d.is_infinite() {
+            return d;
+        }
+        // Add in the same order whichever way round the edge is asked for: floating point addition isn't associative,
+        // and an edge whose length depended on the order could be in the complex from one end but not the other.
+        // (NaN only from inf + -inf, impossible with finite weights.)
+        let (lo, hi) = (i.min(j), i.max(j));
+        // (The larger index's weight first, as GUDHI adds them, so that the values agree to the last bit)
+        let sum = NotNan::new(*d + *self.weights[hi] + *self.weights[lo]).unwrap();
+        sum.max(self.births[i]).max(self.births[j])
+    }
+
+    #[inline(always)]
+    fn birth(&self, v: usize) -> NotNan<f64> {
+        self.births[v]
+    }
+
+    #[inline(always)]
+    fn neighbours(&self, v: usize, from: usize) -> impl Iterator<Item = usize> + Clone + Send + '_ {
+        self.distances.neighbours(v, from)
+    }
+
+    #[inline(always)]
+    fn degree(&self, v: usize) -> usize {
+        self.distances.degree(v)
+    }
+
+    #[inline(always)]
+    fn sparsest(&self, vertices: &[usize]) -> Option<usize> {
+        self.distances.sparsest(vertices)
+    }
+
+    #[inline(always)]
+    fn cofacet_candidates(
+        &self,
+        sparsest: Option<usize>,
+        from: usize,
+    ) -> impl Iterator<Item = usize> + Clone + Send + '_ {
+        self.distances.cofacet_candidates(sparsest, from)
+    }
+
+    /// The enclosing radius of the weighted distances (a point joined to every other within it is a cone point, and
+    /// has appeared, since each edge appears after its ends), looking only at each point's neighbours.
+    fn enclosing_radius(&self) -> NotNan<f64> {
+        let n = self.n_points();
+        let infinity = NotNan::new(f64::INFINITY).unwrap();
+        (0..n)
+            .map(|i| {
+                let mut others = 0;
+                let mut farthest = self.birth(i);
+                for j in self.neighbours(i, 0).filter(|&j| j != i) {
+                    others += 1;
+                    farthest = farthest.max(self.distance(i, j));
+                }
+                if others == n - 1 {
+                    farthest
+                } else {
+                    infinity
+                }
+            })
+            .min()
+            .unwrap_or(infinity)
+    }
+}
+
+/// The distance to measure of each point (Chazal, Cohen-Steiner and Mérigot), as GUDHI's `DistanceToMeasure`:
+/// `(sum of d^q over its k nearest points, itself included) / k)^(1/q)`, from each point's distances to every point
+/// (`row(i)` gives point `i`'s, its own included). With `k = 1` every weight is 0.
+pub fn distance_to_measure(n: usize, row: impl Fn(usize) -> Vec<f64>, k: usize, q: f64) -> Result<Vec<f64>, String> {
+    if k == 0 || k > n {
+        return Err(format!("k must be between 1 and the number of points ({n}), not {k}"));
+    }
+    if !(q.is_finite() && q > 0.0) {
+        return Err(format!("q must be positive and finite, not {q}"));
+    }
+    Ok((0..n)
+        .map(|i| {
+            let mut distances = row(i);
+            distances[i] = 0.0;
+            distances.select_nth_unstable_by(k - 1, f64::total_cmp);
+            let sum: f64 = distances[..k].iter().map(|d| d.powf(q)).sum();
+            (sum / k as f64).powf(1.0 / q)
+        })
+        .collect())
 }
 
 // ====== Points ============================================================

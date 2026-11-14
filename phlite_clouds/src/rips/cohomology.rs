@@ -175,7 +175,10 @@ impl<CF: NonZeroCoefficient + Invertible, I: RipsInt, D: Distances> HasRowFiltra
                 .max()
                 .unwrap();
 
-            let filtration_value = max_pd_amongst_col.max(max_to_inserted);
+            let mut filtration_value = max_pd_amongst_col.max(max_to_inserted);
+            if D::HAS_BIRTHS {
+                filtration_value = filtration_value.max(self.distances.birth(inserted_vertex));
+            }
 
             (filtration_value <= self.threshold).then_some(ColumnEntry {
                 filtration_value,
@@ -235,6 +238,11 @@ pub(crate) fn oldest_cofacet_given<CF: NonZeroCoefficient, I: RipsInt, D: Distan
             .max()
             .unwrap()
             .max(diameter);
+        let filtration_value = if D::HAS_BIRTHS {
+            filtration_value.max(distances.birth(inserted_vertex))
+        } else {
+            filtration_value
+        };
         if filtration_value > threshold {
             continue;
         }

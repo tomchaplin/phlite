@@ -29,6 +29,7 @@ rips(points=points, threshold=0.5)                # only the edges up to 0.5, ne
 | `max_dim` | the highest homology dimension | `1` |
 | `points` | instead of a distance matrix, one point per row | `None` |
 | `metric` | for `points`: `"euclidean"`, `"manhattan"` (or `"cityblock"`) or `"chebyshev"` | `"euclidean"` |
+| `weights` | a weight per point, for [weighted Rips](weighted.md) (with `dtm(...)`, DTM-Rips) | `None` |
 | `threshold` | only build simplices up to this diameter (bars alive then become essential) | `None` |
 | `method` | `"cohomology"` or `"homology"` | `"cohomology"` |
 | `algorithm` | an [`Algorithm`](../algorithms.md) | `Algorithm.serial()` (heap columns, uncached) |

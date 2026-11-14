@@ -14,6 +14,7 @@ __all__ = [
     "alpha_complex",
     "delaunay_cech",
     "delaunay_cech_complex",
+    "dtm",
     "rips",
 ]
 
@@ -102,7 +103,26 @@ def delaunay_cech_complex(points: typing.Union[numpy.typing.NDArray[numpy.floati
         is the first of its copies).
     """
 
-def rips(distance_matrix: typing.Optional[typing.Union[numpy.typing.NDArray[numpy.floating], typing.Sequence[typing.Sequence[builtins.float]], typing.Any]] = None, max_dim: builtins.int = 1, *, points: typing.Optional[typing.Union[numpy.typing.NDArray[numpy.floating], typing.Sequence[typing.Sequence[builtins.float]]]] = None, metric: typing.Literal['euclidean', 'manhattan', 'cityblock', 'chebyshev'] = "euclidean", threshold: typing.Optional[builtins.float] = None, method: typing.Literal['cohomology', 'homology'] = "cohomology", algorithm: typing.Optional[core.Algorithm] = None, representatives: builtins.bool = False) -> core.Barcode:
+def dtm(distance_matrix: typing.Optional[typing.Union[numpy.typing.NDArray[numpy.floating], typing.Sequence[typing.Sequence[builtins.float]]]] = None, *, k: builtins.int, points: typing.Optional[typing.Union[numpy.typing.NDArray[numpy.floating], typing.Sequence[typing.Sequence[builtins.float]]]] = None, metric: typing.Literal['euclidean', 'manhattan', 'cityblock', 'chebyshev'] = "euclidean", q: builtins.float = 2.0) -> builtins.list[builtins.float]:
+    r"""
+    The distance to measure of each point (Chazal, Cohen-Steiner and Mérigot), as GUDHI's `DistanceToMeasure`: the
+    `q`-mean of its distances to its `k` nearest points, itself included,
+    `((d_1^q + ... + d_k^q) / k)^(1/q)`. Small where points are dense, large for outliers: as the `weights` of `rips`,
+    it gives DTM-Rips, which is robust to outliers.
+    
+    Args:
+        distance_matrix: A dense distance matrix (as for `rips`), or give `points`.
+        k: How many nearest points to average over (itself included, so `k = 1` gives zeros: plain Rips).
+        points: Instead of a distance matrix, the points, with distances measured by `metric` (as for `rips`; without
+            storing every distance).
+        metric: As for `rips`.
+        q: The exponent of the mean (default 2).
+    
+    Returns:
+        The distance to measure of each point, as a list.
+    """
+
+def rips(distance_matrix: typing.Optional[typing.Union[numpy.typing.NDArray[numpy.floating], typing.Sequence[typing.Sequence[builtins.float]], typing.Any]] = None, max_dim: builtins.int = 1, *, points: typing.Optional[typing.Union[numpy.typing.NDArray[numpy.floating], typing.Sequence[typing.Sequence[builtins.float]]]] = None, metric: typing.Literal['euclidean', 'manhattan', 'cityblock', 'chebyshev'] = "euclidean", weights: typing.Optional[typing.Union[numpy.typing.NDArray[numpy.floating], typing.Sequence[builtins.float]]] = None, threshold: typing.Optional[builtins.float] = None, method: typing.Literal['cohomology', 'homology'] = "cohomology", algorithm: typing.Optional[core.Algorithm] = None, representatives: builtins.bool = False) -> core.Barcode:
     r"""
     Compute the Vietoris-Rips persistent homology of a distance matrix or a point cloud, in dimensions
     `0, ..., max_dim`.
@@ -114,6 +134,7 @@ def rips(distance_matrix: typing.Optional[typing.Union[numpy.typing.NDArray[nump
     rips(scipy.sparse.coo_matrix(...))              # a sparse one: missing entries never appear
     rips(points=X, max_dim=2)                       # points (one per row), Euclidean distances
     rips(points=X, metric="chebyshev", threshold=1.5)
+    rips(points=X, weights=dtm(points=X, k=10))     # DTM-Rips: weighted, by the distance to measure
     ```
     
     Args:
@@ -130,6 +151,10 @@ def rips(distance_matrix: typing.Optional[typing.Union[numpy.typing.NDArray[nump
             to it are kept (as a sparse matrix), else every distance is (as a dense matrix).
         metric: How to measure the distance between `points`: `'euclidean'` (the default), `'manhattan'` (or
             `'cityblock'`) or `'chebyshev'`.
+        weights: A weight for each point, for weighted Rips (as GUDHI's `WeightedRipsComplex`): point `i` appears at
+            `2 w_i`, and the edge between `i` and `j` at `max(2 w_i, 2 w_j, d(i, j) + w_i + w_j)` (the weighted Rips
+            filtration of Anai et al.'s DTM-filtrations with p = 1, doubled like Rips). With `dtm` as the weights, this
+            is DTM-Rips. Weights must be finite.
         threshold: Only build the Rips complex up to this diameter (default: no limit).
             Bars still alive at the threshold are reported as essential.
             Simplices above the enclosing radius are always skipped, since by then the complex is contractible
