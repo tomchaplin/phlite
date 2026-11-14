@@ -13,15 +13,34 @@ __all__ = [
     "rips",
 ]
 
-def rips(distance_matrix: typing.Union[numpy.typing.NDArray[numpy.floating], typing.Sequence[typing.Sequence[builtins.float]]], max_dim: builtins.int = 1, *, threshold: typing.Optional[builtins.float] = None, method: typing.Literal['cohomology', 'homology'] = "cohomology", algorithm: typing.Optional[core.Algorithm] = None, representatives: builtins.bool = False) -> core.Barcode:
+def rips(distance_matrix: typing.Optional[typing.Union[numpy.typing.NDArray[numpy.floating], typing.Sequence[typing.Sequence[builtins.float]], typing.Any]] = None, max_dim: builtins.int = 1, *, points: typing.Optional[typing.Union[numpy.typing.NDArray[numpy.floating], typing.Sequence[typing.Sequence[builtins.float]]]] = None, metric: typing.Literal['euclidean', 'manhattan', 'cityblock', 'chebyshev'] = "euclidean", threshold: typing.Optional[builtins.float] = None, method: typing.Literal['cohomology', 'homology'] = "cohomology", algorithm: typing.Optional[core.Algorithm] = None, representatives: builtins.bool = False) -> core.Barcode:
     r"""
-    Compute the Vietoris-Rips persistent homology of a distance matrix, in dimensions `0, ..., max_dim`.
+    Compute the Vietoris-Rips persistent homology of a distance matrix or a point cloud, in dimensions
+    `0, ..., max_dim`.
+    
+    Give either a distance matrix (dense or sparse), as the first argument, or `points`:
+    
+    ```python
+    rips(distances)                                 # a dense distance matrix
+    rips(scipy.sparse.coo_matrix(...))              # a sparse one: missing entries never appear
+    rips(points=X, max_dim=2)                       # points (one per row), Euclidean distances
+    rips(points=X, metric="chebyshev", threshold=1.5)
+    ```
     
     Args:
         distance_matrix: A symmetric matrix of pairwise distances: a 2D numpy array (float64 and float32 arrays are read
-            directly, without converting each entry through Python), or a sequence of sequences of floats.
-            Distances must be non-negative. An infinite distance means the edge never appears. The diagonal is ignored.
+            directly, without converting each entry through Python), a sequence of sequences of floats, or a scipy
+            sparse matrix or array (any format), whose missing entries are edges that never appear, so that memory
+            and time grow with the number of edges rather than the square of the number of points. A sparse matrix
+            may give each edge once (either way round) or both ways round with the same distance.
+            Distances must be non-negative. An infinite distance means the edge never appears. The diagonal is ignored
+            (every point enters at 0).
         max_dim: The maximum homology dimension to compute.
+        points: Instead of a distance matrix, the points (a 2D array or sequence of sequences, one point per row, with
+            finite coordinates), whose distances are measured with `metric`. With a `threshold` only the distances up
+            to it are kept (as a sparse matrix), else every distance is (as a dense matrix).
+        metric: How to measure the distance between `points`: `'euclidean'` (the default), `'manhattan'` (or
+            `'cityblock'`) or `'chebyshev'`.
         threshold: Only build the Rips complex up to this diameter (default: no limit).
             Bars still alive at the threshold are reported as essential.
             Simplices above the enclosing radius are always skipped, since by then the complex is contractible

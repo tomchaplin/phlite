@@ -5,6 +5,7 @@ import math
 
 import numpy as np
 import pytest
+import scipy.sparse
 from gph import ripser_parallel
 from hypothesis import given, note
 from hypothesis import strategies as st
@@ -182,6 +183,131 @@ def test_every_algorithm_agrees(distances, max_dim):
         note(f"method={method} algorithm={algorithm!r}")
         barcode = rips(distances, max_dim, method=method, algorithm=algorithm)
         assert (barcode.essential, barcode.pairings) == (expected.essential, expected.pairings)
+
+
+# ====== Sparse distance matrices and points ================================
+
+
+def sparse_matrix(distances, threshold, data):
+    """The edges of `distances` up to `threshold` as a scipy sparse matrix: in COO, CSR or CSC format, each edge given
+    once (either way round) or both ways round, keeping zero-length edges as explicit entries."""
+    n = len(distances)
+    rows, cols, values = [], [], []
+    for i, j in itertools.combinations(range(n), 2):
+        d = distances[i, j]
+        if d == INF or d > threshold:
+            continue
+        how = data.draw(st.sampled_from(["upper", "lower", "both"]))
+        if how in ("upper", "both"):
+            rows.append(i), cols.append(j), values.append(d)
+        if how in ("lower", "both"):
+            rows.append(j), cols.append(i), values.append(d)
+    matrix = scipy.sparse.coo_matrix((values, (rows, cols)), shape=(n, n))
+    return {"coo": matrix, "csr": matrix.tocsr(), "csc": matrix.tocsc()}[data.draw(st.sampled_from(["coo", "csr", "csc"]))]
+
+
+@given(distances=distance_matrices(), max_dim=st.integers(0, 2), data=st.data())
+def test_sparse_matches_references(distances, max_dim, data):
+    """A sparse matrix of the edges up to a threshold gives ripser's barcode for it (missing entries never appear), and
+    phlite's own for the dense matrix with that threshold, with every algorithm, and valid representatives."""
+    finite = sorted({float(d) for d in distances.flat if d != INF})
+    threshold = data.draw(st.sampled_from(finite + [INF]))
+    matrix = sparse_matrix(distances, threshold, data)
+    note(f"threshold={threshold} format={matrix.format} nnz={matrix.nnz}")
+    # ripser reads only the upper triangle of a sparse matrix (and its diagonal as the vertices' births: there is none
+    # here, so every vertex enters at 0), so give it each edge once that way round
+    coo = matrix.tocoo()
+    upper = scipy.sparse.coo_matrix(
+        (coo.data, (np.minimum(coo.row, coo.col), np.maximum(coo.row, coo.col))), shape=coo.shape
+    )
+    upper.sum_duplicates()
+    upper.data = np.array([distances[i, j] for i, j in zip(upper.row, upper.col)])
+    expected = ripser(upper, distance_matrix=True, maxdim=max_dim)["dgms"]
+    truncated = np.where(distances <= threshold, distances, INF)
+    for method, algorithm in itertools.product(METHODS, ALGORITHMS):
+        note(f"method={method} algorithm={algorithm}")
+        barcode = rips(matrix, max_dim, method=method, algorithm=algorithm, representatives=True)
+        for dim in range(max_dim + 1):
+            assert diagram(barcode, dim) == reference_diagram(expected, dim), f"dim {dim}"
+        dense = rips(distances, max_dim, threshold=threshold, method=method, algorithm=algorithm)
+        assert (barcode.essential, barcode.pairings) == (dense.essential, dense.pairings)
+        check_representatives(truncated, barcode, max_dim)
+
+
+METRICS = {
+    "euclidean": lambda diffs: np.sqrt((diffs**2).sum(axis=-1)),
+    "manhattan": lambda diffs: np.abs(diffs).sum(axis=-1),
+    "chebyshev": lambda diffs: np.abs(diffs).max(axis=-1, initial=0.0),
+}
+
+
+@given(
+    points=st.integers(1, 9).flatmap(
+        lambda n: st.integers(1, 3).flatmap(
+            lambda dim: st.lists(
+                st.lists(st.floats(-10, 10, allow_nan=False, width=32), min_size=dim, max_size=dim),
+                min_size=n,
+                max_size=n,
+            )
+        )
+    ),
+    metric=st.sampled_from(sorted(METRICS)),
+    max_dim=st.integers(0, 2),
+    data=st.data(),
+)
+def test_points_match_their_distance_matrix(points, metric, max_dim, data):
+    """Points give the barcode of their distance matrix under the metric (with a threshold, built sparse)."""
+    points = np.array(points)
+    distances = METRICS[metric](points[:, None] - points[None])
+    threshold = data.draw(st.sampled_from(sorted({float(d) for d in distances.flat}) + [INF]))
+    for method in METHODS:
+        barcode = rips(points=points, metric=metric, threshold=threshold, max_dim=max_dim, method=method)
+        expected = rips(distances, max_dim, threshold=threshold, method=method)
+        assert (barcode.essential, barcode.pairings) == (expected.essential, expected.pairings)
+    # Lists of points are read too
+    from_list = rips(points=points.tolist(), metric=metric, max_dim=max_dim)
+    assert from_list.pairings == rips(distances, max_dim).pairings
+
+
+def _rips_of_points(_):
+    points = np.random.default_rng(1).uniform(size=(200, 2))
+    return rips(points=points, threshold=0.2).pairings
+
+
+def test_fork_after_use():
+    """Every path (points with and without a threshold, the parallel algorithm) still works in a process forked after
+    using it: no thread pool may be left behind half-copied."""
+    import multiprocessing
+
+    points = np.random.default_rng(1).uniform(size=(200, 2))
+    expected = rips(points=points, threshold=0.2).pairings
+    rips(points=points)
+    rips(points=points, algorithm=Algorithm.parallel(2))
+    with multiprocessing.get_context("fork").Pool(1) as pool:
+        result = pool.map_async(_rips_of_points, [0])
+        assert result.get(timeout=60) == [expected]
+
+
+def test_sparse_and_points_validation():
+    for bad, message in [
+        (scipy.sparse.coo_matrix(np.zeros((2, 3))), "square"),
+        (scipy.sparse.coo_matrix(([1.0, 2.0], ([0, 1], [1, 0])), shape=(2, 2)), "both 1 and 2"),
+        (scipy.sparse.coo_matrix(([-1.0], ([0], [1])), shape=(2, 2)), "non-negative"),
+    ]:
+        with pytest.raises(ValueError, match=message):
+            rips(bad, 1)
+    for kwargs, message in [
+        ({}, "distance matrix"),
+        ({"distance_matrix": np.zeros((2, 2)), "points": np.zeros((2, 2))}, "not both"),
+        ({"points": np.array([[0.0], [np.nan]])}, "finite"),
+        ({"points": [[0.0, 1.0], [1.0]]}, "same length"),
+        ({"points": np.zeros((2, 2)), "metric": "cosine"}, "Unknown metric"),
+    ]:
+        with pytest.raises(ValueError, match=message):
+            rips(**kwargs)
+    # The diagonal of a sparse matrix is ignored, and an edge may be given both ways round
+    both_ways = scipy.sparse.coo_matrix(([5.0, 1.0, 1.0], ([0, 0, 1], [0, 1, 0])), shape=(2, 2))
+    assert rips(both_ways, 0).pairings == [[(0.0, 1.0)]]
 
 
 # ====== Invariants (no reference library needed) ===========================

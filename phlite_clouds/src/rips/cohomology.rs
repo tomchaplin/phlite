@@ -2,7 +2,9 @@ use std::marker::PhantomData;
 
 use ordered_float::NotNan;
 
-use crate::rips::{build_rips_bases_with_threshold, youngest_facet, RipsIndex, RipsInt, Vertices};
+use crate::rips::{
+    build_rips_bases_with_threshold, youngest_facet, Distances, RipsIndex, RipsInt, Vertices,
+};
 use phlite::{
     columns::ColumnEntry,
     fields::{Invertible, NonZeroCoefficient},
@@ -11,19 +13,22 @@ use phlite::{
 
 use super::RipsBasis;
 
-// TODO: distances only needs to be a reference
-
-/// The Rips coboundary oracle, with simplices indexed by `RipsIndex<I>` (see [`RipsInt`]).
-pub struct RipsCoboundary<CF: NonZeroCoefficient + Invertible, I: RipsInt = usize> {
-    distances: Vec<Vec<NotNan<f64>>>,
+/// The Rips coboundary oracle, with simplices indexed by `RipsIndex<I>` (see [`RipsInt`]), and distances from `D`: a
+/// dense matrix by default, or a [`SparseDistances`](super::SparseDistances), or a reference to either.
+pub struct RipsCoboundary<
+    CF: NonZeroCoefficient + Invertible,
+    I: RipsInt = usize,
+    D: Distances = Vec<Vec<NotNan<f64>>>,
+> {
+    distances: D,
     /// Cofacets with a larger diameter are not in the complex
     threshold: NotNan<f64>,
     phantom: PhantomData<(CF, I)>,
 }
 
-impl<CF: NonZeroCoefficient + Invertible, I: RipsInt> RipsCoboundary<CF, I> {
+impl<CF: NonZeroCoefficient + Invertible, I: RipsInt, D: Distances> RipsCoboundary<CF, I, D> {
     /// The coboundary oracle on its own, without a column basis attached (see [`build_rips_coboundary_matrix`]).
-    pub fn new(distances: Vec<Vec<NotNan<f64>>>) -> Self {
+    pub fn new(distances: D) -> Self {
         Self {
             distances,
             threshold: NotNan::new(f64::INFINITY).unwrap(),
@@ -38,19 +43,20 @@ impl<CF: NonZeroCoefficient + Invertible, I: RipsInt> RipsCoboundary<CF, I> {
     }
 
     fn n_points(&self) -> usize {
-        self.distances.len()
+        self.distances.n_points()
     }
 }
 
 /// Iterates over the cofacets of a simplex, in increasing order of [`RipsIndex`] (equivalently, of the inserted vertex).
 ///
+/// The vertices to try inserting come from `candidates`, in increasing order (every point for a dense matrix, or the
+/// neighbours of one of the simplex's vertices for a sparse one); those already in the simplex are skipped.
 /// A cofacet's index is the simplex's index with one extra base-(n + 1) digit inserted, so rather than decoding and re-encoding
 /// we track the digits below the insertion position (`low`) and above it (`high`) as the insertion position moves up.
-struct CoboundaryIterator<CF: NonZeroCoefficient, I: RipsInt> {
+struct CoboundaryIterator<CF: NonZeroCoefficient, I: RipsInt, C> {
     base: Vertices,
     radix: I,
-    next_vertex: usize,
-    max_vertex: usize,
+    candidates: C,
     insertion_position: usize,
     /// The value of the digits of the simplex's index below `insertion_position`
     low: I,
@@ -61,18 +67,13 @@ struct CoboundaryIterator<CF: NonZeroCoefficient, I: RipsInt> {
     phantom: PhantomData<CF>,
 }
 
-impl<CF: NonZeroCoefficient, I: RipsInt> CoboundaryIterator<CF, I> {
-    fn new(simplex: RipsIndex<I>, n_points: usize) -> Self {
-        Self::from_vertices(simplex, simplex.vertices(n_points), n_points)
-    }
-
-    /// As [`new`](Self::new), when the vertices of `simplex` are already known
-    fn from_vertices(simplex: RipsIndex<I>, vertices: Vertices, n_points: usize) -> Self {
+impl<CF: NonZeroCoefficient, I: RipsInt, C: Iterator<Item = usize>> CoboundaryIterator<CF, I, C> {
+    /// The cofacets of `simplex` (whose vertices are `vertices`) adding a vertex from `candidates`
+    fn new(simplex: RipsIndex<I>, vertices: Vertices, n_points: usize, candidates: C) -> Self {
         Self {
             base: vertices,
             radix: I::from_usize(n_points + 1),
-            next_vertex: 0,
-            max_vertex: n_points - 1,
+            candidates,
             insertion_position: 0,
             low: I::ZERO,
             high: simplex.0,
@@ -82,62 +83,49 @@ impl<CF: NonZeroCoefficient, I: RipsInt> CoboundaryIterator<CF, I> {
     }
 }
 
-impl<CF: NonZeroCoefficient, I: RipsInt> Iterator for CoboundaryIterator<CF, I> {
+impl<CF: NonZeroCoefficient, I: RipsInt, C: Iterator<Item = usize>> Iterator
+    for CoboundaryIterator<CF, I, C>
+{
     // Coefficient, RipsIndex, inserted vertex
     type Item = (CF, RipsIndex<I>, usize);
 
     fn next(&mut self) -> Option<Self::Item> {
-        // By the end of this loop self.next_vertex and self.insertion_position
-        // will be setup correctly so that the next simplex
-        // can be obtained by inserting self.next_vertex into index self.insertion_position (which may be the end fo self.base)
         loop {
-            if self.next_vertex > self.max_vertex {
-                // Ran out of vertices to try and insert
-                return None;
-            }
-            let Some(&vertex_at_insert_pos) = self.base.get(self.insertion_position) else {
-                // The vertex will have to go at the end
-                break;
-            };
-
-            match vertex_at_insert_pos.cmp(&self.next_vertex) {
-                std::cmp::Ordering::Less => {
-                    // next_vertex has to go afterwards, so this digit moves from high to low
-                    self.low += I::from_usize(vertex_at_insert_pos + 1) * self.place;
-                    self.high /= self.radix;
-                    self.insertion_position += 1;
-                    self.place *= self.radix;
-                }
-                std::cmp::Ordering::Equal => {
-                    // Vertex already appears in simplex, try and insert next vertex
-                    self.next_vertex += 1;
-                }
-                std::cmp::Ordering::Greater => {
-                    // We have found the correct insertion position
+            let next_vertex = self.candidates.next()?;
+            // Move the insertion position past the simplex's vertices below next_vertex: each such digit moves from
+            // high to low (candidates increase, so the position only ever moves up)
+            while let Some(&vertex_at_insert_pos) = self.base.get(self.insertion_position) {
+                if vertex_at_insert_pos >= next_vertex {
                     break;
                 }
+                self.low += I::from_usize(vertex_at_insert_pos + 1) * self.place;
+                self.high /= self.radix;
+                self.insertion_position += 1;
+                self.place *= self.radix;
             }
+            if self.base.get(self.insertion_position) == Some(&next_vertex) {
+                // Vertex already appears in simplex, try the next
+                continue;
+            }
+
+            // Insert the digit for next_vertex at insertion_position, shifting the higher digits up by one
+            let index = RipsIndex(
+                self.low + ((self.high * self.radix) + I::from_usize(next_vertex + 1)) * self.place,
+            );
+            let coeff = if self.insertion_position % 2 == 0 {
+                CF::one()
+            } else {
+                CF::one().additive_inverse()
+            };
+            return Some((coeff, index, next_vertex));
         }
-
-        // Insert the digit for next_vertex at insertion_position, shifting the higher digits up by one
-        let index = RipsIndex(
-            self.low
-                + ((self.high * self.radix) + I::from_usize(self.next_vertex + 1)) * self.place,
-        );
-        let coeff = if self.insertion_position % 2 == 0 {
-            CF::one()
-        } else {
-            CF::one().additive_inverse()
-        };
-
-        let inserted_vertex = self.next_vertex;
-        self.next_vertex += 1;
-        Some((coeff, index, inserted_vertex))
     }
 }
 
 // Rips boundary matrix, anti-transposed
-impl<CF: NonZeroCoefficient + Invertible, I: RipsInt> MatrixOracle for RipsCoboundary<CF, I> {
+impl<CF: NonZeroCoefficient + Invertible, I: RipsInt, D: Distances> MatrixOracle
+    for RipsCoboundary<CF, I, D>
+{
     type CoefficientField = CF;
 
     // NOTE: We do NOT reverse the order of rips indices but only the order of filtration values
@@ -156,7 +144,9 @@ impl<CF: NonZeroCoefficient + Invertible, I: RipsInt> MatrixOracle for RipsCobou
     }
 }
 
-impl<CF: NonZeroCoefficient + Invertible, I: RipsInt> HasRowFiltration for RipsCoboundary<CF, I> {
+impl<CF: NonZeroCoefficient + Invertible, I: RipsInt, D: Distances> HasRowFiltration
+    for RipsCoboundary<CF, I, D>
+{
     // Reverse filtration to anti-transpose
     type FiltrationT = NotNan<f64>;
 
@@ -171,14 +161,17 @@ impl<CF: NonZeroCoefficient + Invertible, I: RipsInt> HasRowFiltration for RipsC
     ) -> impl Iterator<Item = ColumnEntry<Self::FiltrationT, Self::RowT, Self::CoefficientField>>
     {
         let n_points = self.n_points();
-        let coboundary_iterator = CoboundaryIterator::new(col, n_points);
         let col_vertices = col.vertices(n_points);
+        let candidates = self
+            .distances
+            .cofacet_candidates(self.distances.sparsest(&col_vertices), 0);
+        let coboundary_iterator = CoboundaryIterator::new(col, col_vertices, n_points, candidates);
         let max_pd_amongst_col = col_vertices.diameter(&self.distances);
 
         coboundary_iterator.filter_map(move |(coeff, row_index, inserted_vertex)| {
             let max_to_inserted = col_vertices
                 .iter()
-                .map(|v| self.distances[*v][inserted_vertex])
+                .map(|v| self.distances.distance(*v, inserted_vertex))
                 .max()
                 .unwrap();
 
@@ -212,32 +205,33 @@ impl<CF: NonZeroCoefficient + Invertible, I: RipsInt> HasRowFiltration for RipsC
 /// Cofacets are produced in increasing index order and none can appear before the simplex itself,
 /// so the first cofacet with the same diameter as the simplex is the oldest and we can stop there.
 /// In Rips filtrations most pairs have zero persistence, so this usually stops early.
-pub(crate) fn oldest_cofacet<CF: NonZeroCoefficient, I: RipsInt>(
-    distances: &[Vec<NotNan<f64>>],
+pub(crate) fn oldest_cofacet<CF: NonZeroCoefficient, I: RipsInt, D: Distances + ?Sized>(
+    distances: &D,
     threshold: NotNan<f64>,
     simplex: RipsIndex<I>,
 ) -> Option<ColumnEntry<NotNan<f64>, RipsIndex<I>, CF>> {
-    let vertices = simplex.vertices(distances.len());
+    let vertices = simplex.vertices(distances.n_points());
     let diameter = vertices.diameter(distances);
     oldest_cofacet_given(distances, threshold, simplex, vertices, diameter)
 }
 
 /// As [`oldest_cofacet`], when the vertices and diameter of `simplex` are already known
-pub(crate) fn oldest_cofacet_given<CF: NonZeroCoefficient, I: RipsInt>(
-    distances: &[Vec<NotNan<f64>>],
+pub(crate) fn oldest_cofacet_given<CF: NonZeroCoefficient, I: RipsInt, D: Distances + ?Sized>(
+    distances: &D,
     threshold: NotNan<f64>,
     simplex: RipsIndex<I>,
     vertices: Vertices,
     diameter: NotNan<f64>,
 ) -> Option<ColumnEntry<NotNan<f64>, RipsIndex<I>, CF>> {
-    let n_points = distances.len();
+    let n_points = distances.n_points();
+    let candidates = distances.cofacet_candidates(distances.sparsest(&vertices), 0);
     let mut best: Option<ColumnEntry<NotNan<f64>, RipsIndex<I>, CF>> = None;
     for (coeff, row_index, inserted_vertex) in
-        CoboundaryIterator::<CF, I>::from_vertices(simplex, vertices, n_points)
+        CoboundaryIterator::<CF, I, _>::new(simplex, vertices, n_points, candidates)
     {
         let filtration_value = vertices
             .iter()
-            .map(|v| distances[*v][inserted_vertex])
+            .map(|v| distances.distance(*v, inserted_vertex))
             .max()
             .unwrap()
             .max(diameter);
@@ -262,8 +256,8 @@ pub(crate) fn oldest_cofacet_given<CF: NonZeroCoefficient, I: RipsInt>(
     best
 }
 
-pub type RipsCoboundaryAllDims<CF, I = usize> =
-    MatrixWithBasis<RipsCoboundary<CF, I>, RipsBasis<I>>;
+pub type RipsCoboundaryAllDims<CF, I = usize, D = Vec<Vec<NotNan<f64>>>> =
+    MatrixWithBasis<RipsCoboundary<CF, I, D>, RipsBasis<I>>;
 
 pub fn build_rips_coboundary_matrix<CF: Invertible>(
     distances: Vec<Vec<NotNan<f64>>>,
@@ -276,12 +270,13 @@ pub fn build_rips_coboundary_matrix<CF: Invertible>(
     )
 }
 
-/// As [`build_rips_coboundary_matrix`], but only the simplices with diameter at most `threshold`.
-pub fn build_rips_coboundary_matrix_with_threshold<CF: Invertible>(
-    distances: Vec<Vec<NotNan<f64>>>,
+/// As [`build_rips_coboundary_matrix`], but only the simplices with diameter at most `threshold`, from any
+/// [`Distances`].
+pub fn build_rips_coboundary_matrix_with_threshold<CF: Invertible, D: Distances>(
+    distances: D,
     max_dim: usize,
     threshold: NotNan<f64>,
-) -> RipsCoboundaryAllDims<CF> {
+) -> RipsCoboundaryAllDims<CF, usize, D> {
     // Pass in the Reverse functor to revere filtration order on columns in basis
     let basis = build_rips_bases_with_threshold(&distances, max_dim, threshold);
     RipsCoboundaryAllDims {
@@ -503,7 +498,7 @@ mod tests {
         for dists in [ties, distance_matrix()] {
             for threshold in [f64::INFINITY, 2.0] {
                 let threshold = NotNan::new(threshold).unwrap();
-                let coboundary = super::build_rips_coboundary_matrix_with_threshold::<Z2>(
+                let coboundary = super::build_rips_coboundary_matrix_with_threshold::<Z2, _>(
                     dists.clone(),
                     3,
                     threshold,

@@ -31,7 +31,10 @@
 //! [`rips_barcode`] shows the optimised version.
 
 pub mod cohomology;
+pub mod distances;
 pub mod homology;
+
+pub use distances::{Distances, Metric, SparseDistances};
 
 use ordered_float::NotNan;
 use phlite::{
@@ -224,7 +227,8 @@ impl std::ops::Deref for Vertices {
 
 impl Vertices {
     /// The diameter of the simplex: the largest distance between two of its vertices (0 for a vertex).
-    pub(crate) fn diameter(&self, distances: &[Vec<NotNan<f64>>]) -> NotNan<f64> {
+    #[inline]
+    pub(crate) fn diameter<D: Distances + ?Sized>(&self, distances: &D) -> NotNan<f64> {
         max_pairwise_distance(self, distances)
     }
 }
@@ -256,30 +260,30 @@ pub type RipsBasis<I = usize> = SplitBasis<RipsIndex<I>>;
 type SimplicesWithFilt<I> = Vec<(NotNan<f64>, RipsIndex<I>)>;
 
 #[allow(clippy::too_many_arguments)]
-fn add_cofacets<I: RipsInt>(
+fn add_cofacets<I: RipsInt, D: Distances + ?Sized>(
     bases: &mut [SimplicesWithFilt<I>],
     simplex_as_vec: &mut Vec<usize>,
     index: RipsIndex<I>,
     fil_value: NotNan<f64>,
-    distances: &Vec<Vec<NotNan<f64>>>,
+    distances: &D,
     max_dim: usize,
     threshold: NotNan<f64>,
 ) {
-    let n_vertices = distances.len();
-    let max_element = simplex_as_vec.last().unwrap();
+    let n_vertices = distances.n_points();
+    let max_element = *simplex_as_vec.last().unwrap();
     let prev_dimension = simplex_as_vec.len() - 1;
     let new_dimension = prev_dimension + 1;
-    if *max_element == n_vertices - 1 {
+    if max_element == n_vertices - 1 {
         // Cannot extend
         return;
     }
     // The new vertex is the largest, so it is the most significant digit of the cofacet's index
     let top_digit = I::from_usize(n_vertices + 1).pow(new_dimension as u32);
-    for v in (max_element + 1)..n_vertices {
+    for v in distances.cofacet_candidates(distances.sparsest(simplex_as_vec), max_element + 1) {
         // Compute filtration value
         let new_filtration_value = simplex_as_vec
             .iter()
-            .map(|w| distances[*w][v])
+            .map(|w| distances.distance(*w, v))
             .max()
             .unwrap();
         let new_filtration_value = new_filtration_value.max(fil_value);
@@ -309,23 +313,23 @@ fn add_cofacets<I: RipsInt>(
     }
 }
 
-pub fn build_rips_bases<I: RipsInt>(
-    distances: &Vec<Vec<NotNan<f64>>>,
+pub fn build_rips_bases<I: RipsInt, D: Distances + ?Sized>(
+    distances: &D,
     max_dim: usize,
 ) -> RipsBasis<I> {
     build_rips_bases_with_threshold(distances, max_dim, NotNan::new(f64::INFINITY).unwrap())
 }
 
 /// As [`build_rips_bases`], but only the simplices with diameter at most `threshold`.
-pub fn build_rips_bases_with_threshold<I: RipsInt>(
-    distances: &Vec<Vec<NotNan<f64>>>,
+pub fn build_rips_bases_with_threshold<I: RipsInt, D: Distances + ?Sized>(
+    distances: &D,
     max_dim: usize,
     threshold: NotNan<f64>,
 ) -> RipsBasis<I> {
     let mut bases: Vec<SimplicesWithFilt<I>> = vec![vec![]; max_dim + 1];
 
     // Build up the basis
-    for v in 0..(distances.len()) {
+    for v in 0..(distances.n_points()) {
         let mut simplex = vec![v];
         let vertex = RipsIndex(I::from_usize(v + 1));
         bases[0].push((NotNan::new(0.0_f64).unwrap(), vertex));
@@ -359,23 +363,23 @@ pub fn build_rips_bases_with_threshold<I: RipsInt>(
 /// Removing each vertex in turn (smallest first) gives the facets in decreasing index order.
 /// No facet is bigger than the simplex, so the first with the same diameter is the youngest and we can stop there;
 /// for a simplex with at least three vertices that happens as soon as we keep its longest edge, so almost immediately.
-pub(crate) fn youngest_facet<I: RipsInt>(
+pub(crate) fn youngest_facet<I: RipsInt, D: Distances + ?Sized>(
     simplex: RipsIndex<I>,
-    distances: &[Vec<NotNan<f64>>],
+    distances: &D,
 ) -> Option<(NotNan<f64>, RipsIndex<I>)> {
-    let vertices = simplex.vertices(distances.len());
+    let vertices = simplex.vertices(distances.n_points());
     let diameter = vertices.diameter(distances);
     youngest_facet_given(simplex, &vertices, diameter, distances)
 }
 
 /// As [`youngest_facet`], when the vertices and diameter of `simplex` are already known
-fn youngest_facet_given<I: RipsInt>(
+fn youngest_facet_given<I: RipsInt, D: Distances + ?Sized>(
     simplex: RipsIndex<I>,
     vertices: &Vertices,
     diameter: NotNan<f64>,
-    distances: &[Vec<NotNan<f64>>],
+    distances: &D,
 ) -> Option<(NotNan<f64>, RipsIndex<I>)> {
-    let radix = I::from_usize(distances.len() + 1);
+    let radix = I::from_usize(distances.n_points() + 1);
     if vertices.len() < 2 {
         return None;
     }
@@ -391,7 +395,7 @@ fn youngest_facet_given<I: RipsInt>(
             }
             for (j, &w) in vertices.iter().enumerate().skip(i + 1) {
                 if j != removed {
-                    facet_diameter = facet_diameter.max(distances[v][w]);
+                    facet_diameter = facet_diameter.max(distances.distance(v, w));
                 }
             }
         }
@@ -409,21 +413,9 @@ fn youngest_facet_given<I: RipsInt>(
 
 /// The enclosing radius `min_i max_j d(i, j)`: at this diameter the Rips complex is a cone on some point,
 /// so all homology (apart from one component) has died and nothing changes afterwards.
-/// Infinite if there are no points.
-pub fn enclosing_radius(distances: &[Vec<NotNan<f64>>]) -> NotNan<f64> {
-    distances
-        .iter()
-        .enumerate()
-        .map(|(i, row)| {
-            row.iter()
-                .enumerate()
-                .filter(|(j, _)| *j != i)
-                .map(|(_, d)| *d)
-                .max()
-                .unwrap_or(NotNan::new(0.0).unwrap())
-        })
-        .min()
-        .unwrap_or(NotNan::new(f64::INFINITY).unwrap())
+/// Infinite if there are no points, or if no point is joined to every other.
+pub fn enclosing_radius<D: Distances + ?Sized>(distances: &D) -> NotNan<f64> {
+    distances.enclosing_radius()
 }
 
 /// Whether `simplex` is in a zero-persistence apparent pair (on either side), with respect to the complex of simplices
@@ -432,19 +424,19 @@ pub fn enclosing_radius(distances: &[Vec<NotNan<f64>>]) -> NotNan<f64> {
 /// Such simplices need no reduction and only give zero-length bars, so [`build_reduction_bases`] omits them.
 /// If `check_cofacets` is false then we only check whether `simplex` is the *death* of such a pair,
 /// which avoids looking at cofacets (e.g. if they might not fit in a [`RipsIndex`]).
-pub fn in_zero_apparent_pair<I: RipsInt>(
+pub fn in_zero_apparent_pair<I: RipsInt, D: Distances + ?Sized>(
     simplex: RipsIndex<I>,
-    distances: &[Vec<NotNan<f64>>],
+    distances: &D,
     threshold: NotNan<f64>,
     check_cofacets: bool,
 ) -> bool {
     // Decode each simplex and compute its diameter only once
-    let n_points = distances.len();
+    let n_points = distances.n_points();
     let vertices = simplex.vertices(n_points);
     let diameter = vertices.diameter(distances);
     // The birth: its oldest cofacet has the same diameter, and it is that cofacet's youngest facet
     if check_cofacets {
-        let cofacet = cohomology::oldest_cofacet_given::<Z2, I>(
+        let cofacet = cohomology::oldest_cofacet_given::<Z2, I, _>(
             distances, threshold, simplex, vertices, diameter,
         );
         if let Some(cofacet) = cofacet {
@@ -464,7 +456,7 @@ pub fn in_zero_apparent_pair<I: RipsInt>(
     {
         if facet_diameter == diameter {
             let facet_vertices = facet.vertices(n_points);
-            let oldest = cohomology::oldest_cofacet_given::<Z2, I>(
+            let oldest = cohomology::oldest_cofacet_given::<Z2, I, _>(
                 distances,
                 threshold,
                 facet,
@@ -481,21 +473,22 @@ pub fn in_zero_apparent_pair<I: RipsInt>(
 
 /// The cofacets of `simplex` (with diameter `diameter`) obtained by adding a vertex larger than all of its own,
 /// with diameter at most `threshold`. Every simplex is such a cofacet of exactly one facet.
-fn cofacets_above<I: RipsInt>(
+fn cofacets_above<I: RipsInt, D: Distances + ?Sized>(
     simplex: RipsIndex<I>,
     diameter: NotNan<f64>,
-    distances: &[Vec<NotNan<f64>>],
+    distances: &D,
     threshold: NotNan<f64>,
 ) -> impl Iterator<Item = (NotNan<f64>, RipsIndex<I>)> + '_ {
-    let n_points = distances.len();
+    let n_points = distances.n_points();
     let vertices = simplex.vertices(n_points);
     // The new vertex is the largest, so it is the most significant digit of the cofacet's index
     let top_digit = I::from_usize(n_points + 1).pow(vertices.len() as u32);
     let first = vertices.last().map_or(0, |v| v + 1);
-    (first..n_points).filter_map(move |v| {
+    let candidates = distances.cofacet_candidates(distances.sparsest(&vertices), first);
+    candidates.filter_map(move |v| {
         let cofacet_diameter = vertices
             .iter()
-            .map(|w| distances[*w][v])
+            .map(|w| distances.distance(*w, v))
             .max()
             .unwrap_or(diameter)
             .max(diameter);
@@ -522,8 +515,8 @@ fn cofacets_above<I: RipsInt>(
 /// Set `check_top_cofacets` to false if cofacets of the top dimension might not fit in a [`RipsIndex`]
 /// (then top-dimensional births of zero-persistence apparent pairs are kept, which is harmless).
 /// If `parallel`, build on the current rayon thread pool.
-pub fn build_reduction_bases<I: RipsInt>(
-    distances: &[Vec<NotNan<f64>>],
+pub fn build_reduction_bases<I: RipsInt, D: Distances + ?Sized>(
+    distances: &D,
     max_dim: usize,
     threshold: NotNan<f64>,
     check_top_cofacets: bool,
@@ -550,7 +543,7 @@ pub fn build_reduction_bases<I: RipsInt>(
     };
 
     // All the simplices of the current dimension (needed to generate the next), then those we keep
-    let mut all: Vec<(NotNan<f64>, RipsIndex<I>)> = (0..distances.len())
+    let mut all: Vec<(NotNan<f64>, RipsIndex<I>)> = (0..distances.n_points())
         .map(|v| (zero, RipsIndex(I::from_usize(v + 1))))
         .collect();
     let mut dims = vec![];
@@ -593,15 +586,15 @@ pub fn build_reduction_bases<I: RipsInt>(
 }
 
 /// The largest distance between two distinct vertices (so 0 for a single vertex, whatever the diagonal of `distances`).
-pub(crate) fn max_pairwise_distance(
+#[inline]
+pub(crate) fn max_pairwise_distance<D: Distances + ?Sized>(
     vertices: &[usize],
-    distances: &[Vec<NotNan<f64>>],
+    distances: &D,
 ) -> NotNan<f64> {
     let mut max = NotNan::new(0.0).unwrap();
     for (i, &v) in vertices.iter().enumerate() {
-        let row = &distances[v];
         for &w in &vertices[i + 1..] {
-            max = max.max(row[w]);
+            max = max.max(distances.distance(v, w));
         }
     }
     max
@@ -634,24 +627,33 @@ pub fn rips_index_fits(n_points: usize, max_dim: usize) -> bool {
 /// Simplices with diameter above the [`enclosing_radius`] are never built, since by then the complex is a cone
 /// and nothing changes; this doesn't change the barcode.
 /// Bars of a filtration truncated at `threshold` that are still alive at `threshold` are essential.
+/// An infinite distance is an edge that never appears (as is a missing entry of a [`SparseDistances`]), so no
+/// simplex containing it is built.
+///
+/// `distances` is any [`Distances`]: a dense matrix (`Vec<Vec<NotNan<f64>>>`), a [`SparseDistances`], or a reference
+/// to either.
 /// Bars are returned in no particular order, and zero-length bars are omitted.
 ///
 /// # Panics
 /// If simplices of dimension `max_dim + 1` (which both methods need) do not fit in a [`RipsIndex`], see [`rips_index_fits`].
 ///
 /// Simplices are indexed by `RipsIndex<I>` (with `I = usize` unless you choose otherwise, e.g.
-/// `rips_barcode::<_, u64>(...)` for more points on 32-bit targets); it must fit every simplex up to dimension
+/// `rips_barcode::<_, u64, _>(...)` for more points on 32-bit targets); it must fit every simplex up to dimension
 /// `max_dim + 1` (see [`RipsIndex::fits`]).
-pub fn rips_barcode<R: ColumnRepresentation, I: RipsInt>(
-    distances: Vec<Vec<NotNan<f64>>>,
+pub fn rips_barcode<R: ColumnRepresentation, I: RipsInt, D: Distances>(
+    distances: D,
     max_dim: usize,
     threshold: NotNan<f64>,
     method: Method,
     algorithm: Algorithm<'_, R>,
     representatives: bool,
 ) -> Vec<RipsBar<I>> {
-    let n_points = distances.len();
-    let threshold = threshold.min(enclosing_radius(&distances));
+    let n_points = distances.n_points();
+    // A simplex with an infinite diameter has an edge that never appears, so it never appears either
+    let largest_finite = NotNan::new(f64::MAX).unwrap();
+    let threshold = threshold
+        .min(enclosing_radius(&distances))
+        .min(largest_finite);
     // Both methods need simplices of dimension max_dim + 1 (as cofacets, or the top of the boundary matrix)
     assert!(RipsIndex::<I>::fits(n_points, max_dim + 1));
     // Build the basis in parallel only for the parallel algorithm, on whatever rayon pool we're called from
@@ -667,12 +669,12 @@ pub fn rips_barcode<R: ColumnRepresentation, I: RipsInt>(
         }
     };
     // Each matrix is given its transpose, so that the reduction can find apparent pairs,
-    // and its basis omits the zero-persistence ones entirely
+    // and its basis omits the zero-persistence ones entirely. Both share the one set of distances.
     match method {
         Method::Cohomology => {
             let basis = bases(max_dim, true);
-            let boundary = RipsBoundary::<Z2, I>::new(distances.clone()).with_threshold(threshold);
-            let coboundary = RipsCoboundary::<Z2, I>::new(distances)
+            let boundary = RipsBoundary::<Z2, I, _>::new(&distances).with_threshold(threshold);
+            let coboundary = RipsCoboundary::<Z2, I, _>::new(&distances)
                 .with_threshold(threshold)
                 .with_basis(basis);
             let coboundary = (&coboundary).with_transpose(&boundary);
@@ -685,9 +687,8 @@ pub fn rips_barcode<R: ColumnRepresentation, I: RipsInt>(
         Method::Homology => {
             // Cofacets of the top dimension (max_dim + 1) might not fit in a RipsIndex, so don't look at them
             let basis = bases(max_dim + 1, false);
-            let coboundary =
-                RipsCoboundary::<Z2, I>::new(distances.clone()).with_threshold(threshold);
-            let boundary = RipsBoundary::<Z2, I>::new(distances)
+            let coboundary = RipsCoboundary::<Z2, I, _>::new(&distances).with_threshold(threshold);
+            let boundary = RipsBoundary::<Z2, I, _>::new(&distances)
                 .with_threshold(threshold)
                 .with_basis(basis);
             let boundary = (&boundary).with_transpose(&coboundary);
@@ -760,7 +761,7 @@ mod tests {
                         Algorithm::Clearing(clearing.clone().store_r(true)),
                         Algorithm::Clearing(clearing),
                     ]
-                }) {  let bars = rips_barcode::<_, usize>(
+                }) {  let bars = rips_barcode::<_, usize, _>(
                 distances.clone(),
                 2,
                 NotNan::new(f64::INFINITY).unwrap(),
@@ -770,7 +771,7 @@ mod tests {
             );
             assert_eq!(summary(bars), expected, "{algorithm:?}");
             // With representatives the involution's debug assertions check them against the pairing
-            let bars = rips_barcode::<_, usize>(
+            let bars = rips_barcode::<_, usize, _>(
                 distances.clone(),
                 2,
                 NotNan::new(f64::INFINITY).unwrap(),
@@ -780,7 +781,7 @@ mod tests {
             );
             assert_eq!(bars.len(), expected.len());
             // Homology pairs simplices the same way (the pairing doesn't depend on the method)
-            let bars = rips_barcode::<_, usize>(
+            let bars = rips_barcode::<_, usize, _>(
                 distances.clone(),
                 2,
                 NotNan::new(f64::INFINITY).unwrap(),
@@ -834,8 +835,8 @@ mod tests {
             .collect();
         let r = enclosing_radius(&distances);
         assert!(
-            build_rips_bases_with_threshold::<usize>(&distances, 2, r).size()
-                < build_rips_bases::<usize>(&distances, 2).size()
+            build_rips_bases_with_threshold::<usize, _>(&distances, 2, r).size()
+                < build_rips_bases::<usize, _>(&distances, 2).size()
         );
         let summary = |bars: Vec<crate::rips::RipsBar>| {
             let mut out: Vec<_> = bars
@@ -848,7 +849,7 @@ mod tests {
         let untruncated = build_rips_coboundary_matrix::<Z2>(distances.clone(), 2);
         let expected = summary(barcode::cohomology(&untruncated, Algorithm::default()));
         for method in [Method::Cohomology, Method::Homology] {
-            let bars = rips_barcode::<_, usize>(
+            let bars = rips_barcode::<_, usize, _>(
                 distances.clone(),
                 2,
                 NotNan::new(f64::INFINITY).unwrap(),
@@ -985,7 +986,7 @@ mod tests {
                     }
                 };
                 let a = summary(
-                    rips_barcode::<_, usize>(
+                    rips_barcode::<_, usize, _>(
                         distances.clone(),
                         2,
                         inf,
@@ -996,11 +997,11 @@ mod tests {
                     14,
                 );
                 let b = summary(
-                    rips_barcode::<_, u32>(distances.clone(), 2, inf, method, algorithm(()), true),
+                    rips_barcode::<_, u32, _>(distances.clone(), 2, inf, method, algorithm(()), true),
                     14,
                 );
                 let c = summary(
-                    rips_barcode::<_, u64>(distances.clone(), 2, inf, method, algorithm(()), true),
+                    rips_barcode::<_, u64, _>(distances.clone(), 2, inf, method, algorithm(()), true),
                     14,
                 );
                 assert_eq!(a, b);
@@ -1034,9 +1035,129 @@ mod tests {
         let one = NotNan::new(1.0).unwrap();
         let zero = NotNan::new(0.0).unwrap();
         let basis =
-            crate::rips::build_rips_bases::<usize>(&vec![vec![zero, one], vec![one, zero]], 0);
+            crate::rips::build_rips_bases::<usize, _>(&vec![vec![zero, one], vec![one, zero]], 0);
         assert_eq!(basis.n_dimensions(), 1);
         assert_eq!(basis.size(), 2);
+    }
+
+    /// A sparse matrix (absent = never appears) must give exactly the dense matrix's barcode (infinite entries), with
+    /// every algorithm, method and threshold, and with representatives
+    #[test]
+    fn sparse_distances_give_the_dense_barcode() {
+        use crate::rips::{rips_barcode, Method, SparseDistances};
+        use ordered_float::NotNan;
+        use phlite::{
+            barcode::Algorithm,
+            columns::{HeapColumns, MergedColumns},
+            reduction::{Clearing, Standard},
+        };
+        // A small linear congruential generator: deterministic, and no dependency
+        let mut state = 12345u64;
+        let mut next = move |modulus: u64| {
+            state = state
+                .wrapping_mul(6364136223846793005)
+                .wrapping_add(1442695040888963407);
+            (state >> 33) % modulus
+        };
+        type Summary = Vec<(
+            Vec<usize>,
+            NotNan<f64>,
+            Option<(Vec<usize>, NotNan<f64>)>,
+            Option<Vec<Vec<usize>>>,
+        )>;
+        let summary = |bars: Vec<crate::rips::RipsBar>, n: usize| -> Summary {
+            let mut out: Summary = bars
+                .into_iter()
+                .map(|bar| {
+                    let rep = bar.representative.map(|rep| {
+                        let mut rep: Vec<_> = rep.into_iter().map(|(_, s)| s.to_vec(n)).collect();
+                        rep.sort();
+                        rep
+                    });
+                    (
+                        bar.birth.to_vec(n),
+                        bar.birth_value,
+                        bar.death.map(|(d, v)| (d.to_vec(n), v)),
+                        rep,
+                    )
+                })
+                .collect();
+            out.sort();
+            out
+        };
+        for trial in 0..60 {
+            let n = 2 + next(9) as usize;
+            // Small integer distances (lots of ties), with some edges missing
+            let mut dense = vec![vec![NotNan::new(0.0).unwrap(); n]; n];
+            let mut edges = vec![];
+            for i in 0..n {
+                for j in (i + 1)..n {
+                    let d = if next(4) == 0 {
+                        f64::INFINITY
+                    } else {
+                        next(6) as f64
+                    };
+                    dense[i][j] = NotNan::new(d).unwrap();
+                    dense[j][i] = NotNan::new(d).unwrap();
+                    edges.push((i, j, d));
+                }
+            }
+            let sparse = SparseDistances::from_edges(n, edges).unwrap();
+            let threshold = NotNan::new(if trial % 3 == 0 { 3.0 } else { f64::INFINITY }).unwrap();
+            for method in [Method::Cohomology, Method::Homology] {
+                for representatives in [false, true] {
+                    macro_rules! compare {
+                        ($algorithm:expr) => {{
+                            let want = summary(
+                                rips_barcode::<_, usize, _>(
+                                    dense.clone(),
+                                    2,
+                                    threshold,
+                                    method,
+                                    $algorithm,
+                                    representatives,
+                                ),
+                                n,
+                            );
+                            let got = summary(
+                                rips_barcode::<_, usize, _>(
+                                    &sparse,
+                                    2,
+                                    threshold,
+                                    method,
+                                    $algorithm,
+                                    representatives,
+                                ),
+                                n,
+                            );
+                            assert_eq!(
+                                got,
+                                want,
+                                "trial {trial}, {method:?}, representatives {representatives}, {}",
+                                stringify!($algorithm)
+                            );
+                        }};
+                    }
+                    compare!(Algorithm::Clearing(
+                        Clearing::new().with_columns(HeapColumns)
+                    ));
+                    compare!(Algorithm::Clearing(
+                        Clearing::new()
+                            .with_columns(MergedColumns)
+                            .cache_columns(true)
+                    ));
+                    compare!(Algorithm::Standard(
+                        Standard::new().with_columns(HeapColumns)
+                    ));
+                    // (Which representative the parallel algorithm finds can depend on the threads' timing)
+                    if !representatives {
+                        compare!(Algorithm::ParallelClearing(
+                            Clearing::new().with_columns(HeapColumns).parallel()
+                        ));
+                    }
+                }
+            }
+        }
     }
 
     #[test]

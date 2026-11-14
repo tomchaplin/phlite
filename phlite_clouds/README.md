@@ -49,6 +49,12 @@ Avoid `'sorted'` columns there: they can take hours where the others take second
 Representatives are lists of simplices, each a tuple of point indices in increasing order.
 An infinite distance means that edge never appears. See `examples/circle.py` for a full example.
 
+Instead of a dense matrix, `rips` also takes a scipy sparse matrix (a missing entry is an edge that never appears, so
+memory and time grow with the number of edges), or points: `rips(points=X)`, with `metric='euclidean'` (the default),
+`'manhattan'` or `'chebyshev'`. With a `threshold`, points are turned straight into a sparse matrix of the distances up
+to it. In Rust, `rips_barcode` takes any `rips::Distances`: a dense `Vec<Vec<NotNan<f64>>>`, a `rips::SparseDistances`
+(from edges, or from points with `SparseDistances::from_points`), or a reference to either.
+
 Pass `threshold=t` to only build the Rips complex up to diameter `t` (bars still alive at `t` are then essential).
 Simplices above the enclosing radius `min_i max_j d(i, j)` are always skipped, since beyond it the complex is a cone and nothing changes, so this never affects the result.
 

@@ -1,6 +1,6 @@
 use super::RipsBasis;
 use crate::rips::{
-    build_rips_bases_with_threshold, cohomology::oldest_cofacet, RipsIndex, RipsInt,
+    build_rips_bases_with_threshold, cohomology::oldest_cofacet, Distances, RipsIndex, RipsInt,
 };
 use ordered_float::NotNan;
 use phlite::{
@@ -18,16 +18,22 @@ use std::marker::PhantomData;
 // We add the phantom because we want to be generic over coefficient type
 // but they don't appear anywhere else in the struct so the compiler must be appeased.
 
-pub struct RipsBoundary<CF: NonZeroCoefficient + Invertible, I: RipsInt = usize> {
-    distances: Vec<Vec<NotNan<f64>>>,
+/// The Rips boundary oracle, with simplices indexed by `RipsIndex<I>` (see [`RipsInt`]), and distances from `D`: a
+/// dense matrix by default, or a [`SparseDistances`](super::SparseDistances), or a reference to either.
+pub struct RipsBoundary<
+    CF: NonZeroCoefficient + Invertible,
+    I: RipsInt = usize,
+    D: Distances = Vec<Vec<NotNan<f64>>>,
+> {
+    distances: D,
     /// Simplices with a larger diameter are not in the complex (only matters for finding cofacets)
     threshold: NotNan<f64>,
     phantom: PhantomData<(CF, I)>,
 }
 
-impl<CF: NonZeroCoefficient + Invertible, I: RipsInt> RipsBoundary<CF, I> {
+impl<CF: NonZeroCoefficient + Invertible, I: RipsInt, D: Distances> RipsBoundary<CF, I, D> {
     /// The boundary oracle on its own, without a column basis attached (see [`build_rips_boundary_matrix`]).
-    pub fn new(distances: Vec<Vec<NotNan<f64>>>) -> Self {
+    pub fn new(distances: D) -> Self {
         Self {
             distances,
             threshold: NotNan::new(f64::INFINITY).unwrap(),
@@ -42,7 +48,7 @@ impl<CF: NonZeroCoefficient + Invertible, I: RipsInt> RipsBoundary<CF, I> {
     }
 
     fn n_points(&self) -> usize {
-        self.distances.len()
+        self.distances.n_points()
     }
 }
 
@@ -57,7 +63,9 @@ impl<CF: NonZeroCoefficient + Invertible, I: RipsInt> RipsBoundary<CF, I> {
 // An entry is described by the row index and the value of the coefficient.
 // There is no requirement on the order in which the entries are produced.
 
-impl<CF: NonZeroCoefficient + Invertible, I: RipsInt> MatrixOracle for RipsBoundary<CF, I> {
+impl<CF: NonZeroCoefficient + Invertible, I: RipsInt, D: Distances> MatrixOracle
+    for RipsBoundary<CF, I, D>
+{
     type CoefficientField = CF;
 
     type ColT = RipsIndex<I>;
@@ -98,7 +106,9 @@ impl<CF: NonZeroCoefficient + Invertible, I: RipsInt> MatrixOracle for RipsBound
 // then wrap it in an additional struct that has the filtration information.
 // In these cases, consider using `phlite::matricies::MatrixRef::with_filtration`.
 
-impl<CF: NonZeroCoefficient + Invertible, I: RipsInt> HasRowFiltration for RipsBoundary<CF, I> {
+impl<CF: NonZeroCoefficient + Invertible, I: RipsInt, D: Distances> HasRowFiltration
+    for RipsBoundary<CF, I, D>
+{
     type FiltrationT = NotNan<f64>;
 
     fn filtration_value(&self, row: Self::RowT) -> Self::FiltrationT {
@@ -107,7 +117,8 @@ impl<CF: NonZeroCoefficient + Invertible, I: RipsInt> HasRowFiltration for RipsB
 
     // Row sigma has entries in the columns of its cofacets, so the first is its oldest cofacet
     fn first_column_in_row(&self, row: Self::RowT) -> Option<Self::ColT> {
-        oldest_cofacet::<CF, I>(&self.distances, self.threshold, row).map(|entry| entry.row_index)
+        oldest_cofacet::<CF, I, _>(&self.distances, self.threshold, row)
+            .map(|entry| entry.row_index)
     }
 
     // TODO:Can we override column with filtration to compute more efficiently?
@@ -118,7 +129,8 @@ impl<CF: NonZeroCoefficient + Invertible, I: RipsInt> HasRowFiltration for RipsB
 // For this we use `MatrixWithBasis` which is provided by `phltie`.
 // We also provide a helper function for constructing such a thing directly from a distance matrix.
 
-pub type RipsBoundaryAllDims<CF, I = usize> = MatrixWithBasis<RipsBoundary<CF, I>, RipsBasis<I>>;
+pub type RipsBoundaryAllDims<CF, I = usize, D = Vec<Vec<NotNan<f64>>>> =
+    MatrixWithBasis<RipsBoundary<CF, I, D>, RipsBasis<I>>;
 
 pub fn build_rips_boundary_matrix<CF: Invertible>(
     distances: Vec<Vec<NotNan<f64>>>,
@@ -131,13 +143,13 @@ pub fn build_rips_boundary_matrix<CF: Invertible>(
     )
 }
 
-/// As [`build_rips_boundary_matrix`], but only the simplices with diameter at most `threshold`.
-/// (The boundary of such a simplex is automatically within the threshold.)
-pub fn build_rips_boundary_matrix_with_threshold<CF: Invertible>(
-    distances: Vec<Vec<NotNan<f64>>>,
+/// As [`build_rips_boundary_matrix`], but only the simplices with diameter at most `threshold`, from any
+/// [`Distances`]. (The boundary of such a simplex is automatically within the threshold.)
+pub fn build_rips_boundary_matrix_with_threshold<CF: Invertible, D: Distances>(
+    distances: D,
     max_dim: usize,
     threshold: NotNan<f64>,
-) -> RipsBoundaryAllDims<CF> {
+) -> RipsBoundaryAllDims<CF, usize, D> {
     let basis = build_rips_bases_with_threshold(&distances, max_dim, threshold);
     RipsBoundaryAllDims {
         matrix: RipsBoundary::new(distances).with_threshold(threshold),

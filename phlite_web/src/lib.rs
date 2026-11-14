@@ -475,7 +475,7 @@ pub fn rips(
     impl Visitor for V {
         type Output = Vec<phlite_clouds::rips::RipsBar<u64>>;
         fn visit<R: ColumnRepresentation>(self, algorithm: Algorithm<'_, R>) -> Self::Output {
-            phlite_clouds::rips::rips_barcode::<_, u64>(
+            phlite_clouds::rips::rips_barcode::<_, u64, _>(
                 self.distances,
                 self.max_dim,
                 self.threshold,
