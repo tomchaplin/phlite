@@ -5,10 +5,11 @@ the page sends the data to a Web Worker, which runs phlite's reductions on a poo
 [wasm-bindgen-rayon](https://github.com/RReverser/wasm-bindgen-rayon)). There is no server-side code.
 
 * `src/lib.rs`: the WebAssembly API, one function per pipeline:
-  * `rips` (Vietoris–Rips, by `phlite_clouds` with 64-bit simplex indices);
-  * `alpha` (the Delaunay alpha filtration from `alphalpha`, reduced as an explicit complex);
-  * `grpph` (`phlite_networks`);
-  * `image` (cubical complexes);
+  * `rips` (Vietoris–Rips, optionally DTM-weighted, by `phlite_clouds` with 64-bit simplex indices);
+  * `delaunay` (alpha and Delaunay–Čech filtrations of points in the plane or in space, by `phlite_clouds::alpha`);
+  * `grpph` (GrPPH and PPH, by `phlite_networks`);
+  * `network` (directed flag complexes, grounded or not, ordered tuples and Dowker complexes, by `phlite_networks`);
+  * `image` (cubical complexes, T- or V-construction, by `phlite_images`);
   * `complex` (explicit complexes over Z/2, 3, 5 or 7, by `phlite_complexes`'s explicit complexes).
   Each takes an options object (missing options take the pipeline's Python defaults) and returns the bars, with
   representatives if asked for.

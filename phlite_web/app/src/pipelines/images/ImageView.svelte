@@ -6,6 +6,7 @@
     img,
     t,
     superlevel,
+    construction = 'T',
     bar,
     painting = false,
     brush = 4,
@@ -15,6 +16,8 @@
     img: Img;
     t: number | null;
     superlevel: boolean;
+    /** Pixels are squares ('T') or vertices ('V') of the complex. */
+    construction?: 'T' | 'V';
     bar: Bar | null;
     painting?: boolean;
     brush?: number;
@@ -55,8 +58,10 @@
     ctx.imageSmoothingEnabled = false;
     ctx.drawImage(base, 0, 0, w, h);
 
-    // Doubled grid coordinates to screen: pixel (X/2, Y/2) at the centre of its square
-    const px = (X: number) => (X / 2 + 0.5) * scale;
+    // Doubled grid coordinates to screen. V: pixel p is the vertex 2p, at the centre of its square on screen;
+    // T: pixel p is the square 2p + 1, so the vertex 2p is its corner
+    const offset = construction === 'V' ? 0.5 : 0;
+    const px = (X: number) => (X / 2 + offset) * scale;
     const cell = (c: number[], kind: 'rep' | 'death') => {
       const [X, Y] = c;
       const oddX = X % 2 === 1;

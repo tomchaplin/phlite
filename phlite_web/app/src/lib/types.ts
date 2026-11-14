@@ -33,11 +33,41 @@ export interface AlgoOptions {
   representatives: boolean;
 }
 
+/** The complexes of `phlite_web::network`. */
+export type NetworkKind = 'flag' | 'flag-sp' | 'grounded-flag' | 'tuples' | 'dowker-sink' | 'dowker-source';
+
 export type Job =
-  | { pipeline: 'rips'; coords: Float64Array; pointDim: number; maxDim: number; threshold: number | null; options: AlgoOptions }
-  | { pipeline: 'alpha'; coords: Float64Array; options: AlgoOptions }
-  | { pipeline: 'grpph'; n: number; sources: Uint32Array; targets: Uint32Array; weights: Float64Array; options: AlgoOptions }
-  | { pipeline: 'image'; pixels: Float64Array; width: number; height: number; superlevel: boolean; options: AlgoOptions }
+  | {
+      pipeline: 'rips';
+      coords: Float64Array;
+      pointDim: number;
+      maxDim: number;
+      threshold: number | null;
+      /** DTM-Rips: weight each point by its distance to measure over this many nearest neighbours. */
+      dtmK: number | null;
+      options: AlgoOptions;
+    }
+  | { pipeline: 'delaunay'; coords: Float64Array; pointDim: number; cech: boolean; options: AlgoOptions }
+  | { pipeline: 'grpph'; n: number; sources: Uint32Array; targets: Uint32Array; weights: Float64Array; grounded: boolean; options: AlgoOptions }
+  | {
+      pipeline: 'network';
+      kind: NetworkKind;
+      n: number;
+      sources: Uint32Array;
+      targets: Uint32Array;
+      weights: Float64Array;
+      maxDim: number;
+      options: AlgoOptions;
+    }
+  | {
+      pipeline: 'image';
+      pixels: Float64Array;
+      width: number;
+      height: number;
+      superlevel: boolean;
+      construction: 'T' | 'V';
+      options: AlgoOptions;
+    }
   | {
       pipeline: 'complex';
       dimensions: Uint32Array;

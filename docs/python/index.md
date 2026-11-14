@@ -6,9 +6,9 @@ Persistent homology from Rust, in Python packages sharing the namespace `phlite`
 | Module | Package | Computes | Reference |
 |---|---|---|---|
 | `phlite.complexes` | `phlite-complexes` | persistence of any filtered chain complex you build: from integer columns, CSC arrays, or your own Python objects as cells | {doc}`api/phlite/complexes/index` |
-| `phlite.clouds` | `phlite-clouds` | persistence of point clouds and distance matrices: Vietoris–Rips | {doc}`api/phlite/clouds/index` |
-| `phlite.networks` | `phlite-networks` | persistence of networks: grounded persistent path homology of a weighted digraph | {doc}`api/phlite/networks/index` |
-| `phlite.images` | `phlite-images` | persistence of images (nothing yet) | {doc}`api/phlite/images/index` |
+| `phlite.clouds` | `phlite-clouds` | persistence of point clouds and distance matrices: Vietoris–Rips (sparse, weighted, DTM), alpha and Delaunay–Čech | {doc}`api/phlite/clouds/index` |
+| `phlite.networks` | `phlite-networks` | persistence of networks (weighted digraphs): GrPPH and PPH, directed flag, ordered-tuple and Dowker complexes | {doc}`api/phlite/networks/index` |
+| `phlite.images` | `phlite-images` | persistence of images and volumes: cubical complexes (T- and V-constructions) | {doc}`api/phlite/images/index` |
 | `phlite.core` | `phlite-core` | what they share: `Algorithm`, `Barcode` and `defaults()` | {doc}`api/phlite/core/index` |
 
 Every pipeline returns a barcode with optional representative cycles, computes by cohomology (default) or homology,

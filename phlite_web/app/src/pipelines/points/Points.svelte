@@ -17,7 +17,10 @@
   let source = $state<Source>('examples');
   let exampleId = $state(EXAMPLES[0].id);
   let cloud = $state.raw<Cloud>(EXAMPLES[0].make());
-  let filtration = $state<'rips' | 'alpha'>('rips');
+  type Filtration = 'rips' | 'dtm' | 'alpha' | 'cech';
+  let filtration = $state<Filtration>('rips');
+  let dtmK = $state(10);
+  const isDelaunay = $derived(filtration === 'alpha' || filtration === 'cech');
   let maxDim = $state(EXAMPLES[0].maxDim);
   let threshold = $state('');
   let options = $state(defaultsFor(RIPS));
@@ -30,7 +33,6 @@
     exampleId = id;
     cloud = ex.make();
     maxDim = ex.maxDim;
-    if (cloud.dim === 3 && filtration === 'alpha') setFiltration('rips');
   }
 
   let randomKind = $state<RandomKind>('uniform');
@@ -40,7 +42,6 @@
   function useRandom(newSeed = false) {
     if (newSeed) randomSeedValue = randomSeed();
     cloud = randomCloud(randomKind, randomN, randomNoise, randomSeedValue);
-    if (cloud.dim === 3 && filtration === 'alpha') setFiltration('rips');
   }
 
   let uploadError = $state<string | null>(null);
@@ -48,7 +49,6 @@
     try {
       cloud = parseCloud(await file.text());
       uploadError = null;
-      if (cloud.dim === 3 && filtration === 'alpha') setFiltration('rips');
     } catch (e) {
       uploadError = (e as Error).message;
     }
@@ -77,28 +77,36 @@
     else drawBox = null;
   });
 
-  function setFiltration(f: 'rips' | 'alpha') {
+  function setFiltration(f: Filtration) {
     filtration = f;
-    options = defaultsFor(f === 'rips' ? RIPS : COMPLEX);
-    showBalls = f === 'alpha';
+    options = defaultsFor(f === 'rips' || f === 'dtm' ? RIPS : COMPLEX);
+    showBalls = f === 'alpha' || f === 'cech';
   }
 
   // ---- Computing ----
   const thresholdValue = $derived(threshold.trim() === '' ? null : Number(threshold));
   const problem = $derived.by(() => {
     if (cloud.points.length === 0) return 'No points yet.';
-    if (filtration === 'alpha' && cloud.dim !== 2) return 'Alpha persistence is only for points in the plane.';
-    if (filtration === 'alpha' && cloud.points.length < 3) return 'Alpha persistence needs at least three points.';
+    if (isDelaunay && cloud.dim !== 2 && cloud.dim !== 3) return 'Alpha and Delaunay–Čech persistence are for points in the plane or in space.';
     if (thresholdValue !== null && !(thresholdValue > 0)) return 'The threshold must be a positive number.';
-    if (options.algorithm === 'standard' && filtration === 'rips' && cloud.points.length > 120)
+    if (filtration === 'dtm' && !(dtmK >= 1 && dtmK <= cloud.points.length)) return `k must be between 1 and the number of points (${cloud.points.length}).`;
+    if (options.algorithm === 'standard' && !isDelaunay && cloud.points.length > 120)
       return 'The standard algorithm builds every simplex, which takes a very long time for more than about 120 points. Compute anyway?';
     return null;
   });
   const job = $derived.by((): Job | null => {
-    if (cloud.points.length === 0 || (filtration === 'alpha' && cloud.dim !== 2)) return null;
+    if (cloud.points.length === 0) return null;
     const opts = $state.snapshot(options);
-    if (filtration === 'alpha') return { pipeline: 'alpha', coords: flatten(cloud), options: opts };
-    return { pipeline: 'rips', coords: flatten(cloud), pointDim: cloud.dim, maxDim, threshold: thresholdValue, options: opts };
+    if (isDelaunay) return { pipeline: 'delaunay', coords: flatten(cloud), pointDim: cloud.dim, cech: filtration === 'cech', options: opts };
+    return {
+      pipeline: 'rips',
+      coords: flatten(cloud),
+      pointDim: cloud.dim,
+      maxDim,
+      threshold: thresholdValue,
+      dtmK: filtration === 'dtm' ? Math.min(dtmK, cloud.points.length) : null,
+      options: opts,
+    };
   });
   const blocked = $derived(problem !== null && !problem.endsWith('anyway?'));
   const risky = $derived(problem?.endsWith('anyway?') ?? false);
@@ -121,9 +129,9 @@
         <View2D
           points={cloud.points}
           t={runner.t}
-          {filtration}
+          filtration={isDelaunay ? 'alpha' : 'rips'}
           {bar}
-          balls={showBalls}
+          balls={showBalls && filtration !== 'dtm'}
           {edges}
           tool={source === 'draw' ? tool : null}
           {brush}
@@ -134,11 +142,11 @@
         <View3D points={cloud.points} t={runner.t} {bar} edges={filtration === 'rips' ? edges : null} />
       {/if}
       <div style="margin-top: 0.6rem">
-        <FiltrationSlider bind:t={runner.t} {domain} label={filtration === 'rips' ? 'Diameter' : 'Radius'} />
+        <FiltrationSlider bind:t={runner.t} {domain} label={isDelaunay ? 'Radius' : 'Diameter'} />
       </div>
       <div class="legend" style="margin-top: 0.4rem">
         <span>{cloud.points.length} points{cloud.dim === 3 ? ' in space' : ''}</span>
-        {#if cloud.dim === 2}<label><input type="checkbox" bind:checked={showBalls} /> balls of radius {filtration === 'rips' ? 'd/2' : 'r'}</label>{/if}
+        {#if cloud.dim === 2 && filtration !== 'dtm'}<label><input type="checkbox" bind:checked={showBalls} /> balls of radius {filtration === 'rips' ? 'd/2' : 'r'}</label>{/if}
         {#if filtration === 'rips'}<span>edges: pairs within the diameter</span>{/if}
         {#if bar}<span>coloured: the representative · dashed: the simplex that kills it</span>{/if}
       </div>
@@ -206,20 +214,32 @@
       <div class="field"><span>Filtration</span>
         <div class="tools">
           <button class:on={filtration === 'rips'} onclick={() => setFiltration('rips')}>Vietoris–Rips</button>
-          <button class:on={filtration === 'alpha'} disabled={cloud.dim !== 2} onclick={() => setFiltration('alpha')}>Alpha (2D)</button>
+          <button class:on={filtration === 'dtm'} onclick={() => setFiltration('dtm')}>DTM-Rips</button>
+          <button class:on={filtration === 'alpha'} onclick={() => setFiltration('alpha')}>Alpha</button>
+          <button class:on={filtration === 'cech'} onclick={() => setFiltration('cech')}>Delaunay–Čech</button>
         </div>
       </div>
-      {#if filtration === 'rips'}
+      {#if !isDelaunay}
         <label class="field"><span>Up to dimension</span>
           <select bind:value={maxDim}>
             <option value={0}>H₀</option><option value={1}>H₁</option><option value={2}>H₂</option><option value={3}>H₃</option>
           </select>
         </label>
         <label class="field"><span>Threshold</span><input type="text" placeholder="none (the enclosing radius)" bind:value={threshold} /></label>
+        {#if filtration === 'dtm'}
+          <label class="field"><span>DTM neighbours k</span><input type="range" min="1" max={Math.max(1, Math.min(50, cloud.points.length))} bind:value={dtmK} /><span>{dtmK}</span></label>
+          <p class="note">
+            Weighted Rips, each point weighted by its distance to measure (the root mean square distance to its k nearest
+            neighbours, itself included): a point appears at twice its weight, and an edge when the balls about its ends,
+            of radius the scale less the weights, meet. Outliers come late, so noise matters less.
+          </p>
+        {/if}
+      {:else if filtration === 'alpha'}
+        <p class="note">The exact Delaunay triangulation (in the plane or in space), each cell entering at the radius of its smallest empty circumsphere: the same barcode as the Čech filtration, from a small complex.</p>
       {:else}
-        <p class="note">The Delaunay triangulation, each cell entering at the radius of its smallest empty circumcircle (via <code>alphalpha</code>), reduced as an explicit complex.</p>
+        <p class="note">The exact Delaunay triangulation (in the plane or in space), each cell entering at the radius of its minimal enclosing ball, when the balls about its vertices first meet.</p>
       {/if}
-      <Options bind:options defaults={filtration === 'rips' ? RIPS : COMPLEX} />
+      <Options bind:options defaults={isDelaunay ? COMPLEX : RIPS} />
       <div class="compute-row">
         <button class="primary" disabled={!job || blocked} onclick={() => runner.run(job)}>Compute</button>
         <label><input type="checkbox" bind:checked={runner.auto} /> recompute on every change</label>

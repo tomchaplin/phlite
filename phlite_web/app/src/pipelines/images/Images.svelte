@@ -7,7 +7,7 @@
   import FiltrationSlider from '../../components/FiltrationSlider.svelte';
   import ImageView from './ImageView.svelte';
   import { Runner } from '../../lib/runner.svelte';
-  import { COMPLEX, defaultsFor } from '../../lib/options';
+  import { IMAGE, defaultsFor } from '../../lib/options';
   import { randomSeed } from '../../lib/random';
   import type { Job } from '../../lib/types';
   import { EXAMPLES, smoothNoise, loadImage, blur, type Img } from './data';
@@ -16,7 +16,8 @@
   let exampleId = $state(EXAMPLES[0].id);
   let img = $state.raw<Img>(EXAMPLES[0].make());
   let superlevel = $state(EXAMPLES[0].superlevel);
-  let options = $state(defaultsFor(COMPLEX));
+  let construction = $state<'T' | 'V'>('T');
+  let options = $state(defaultsFor(IMAGE));
   const runner = new Runner();
 
   function useExample(id: string) {
@@ -63,6 +64,7 @@
     width: img.width,
     height: img.height,
     superlevel,
+    construction,
     options: $state.snapshot(options),
   });
   $effect(() => {
@@ -93,7 +95,7 @@
 <div class="layout">
   <div>
     <div class="panel">
-      <ImageView {img} t={runner.t} {superlevel} {bar} painting={source === 'draw'} {brush} value={paintValue} onpaint={(i) => (img = i)} />
+      <ImageView {img} t={runner.t} {superlevel} {construction} {bar} painting={source === 'draw'} {brush} value={paintValue} onpaint={(i) => (img = i)} />
       <div style="margin-top: 0.6rem">
         <FiltrationSlider bind:t={runner.t} {domain} reversed={superlevel} label="Intensity" />
       </div>
@@ -167,11 +169,24 @@
           <button class:on={superlevel} onclick={() => (superlevel = true)}>Superlevel (bright first)</button>
         </div>
       </div>
+      <div class="field"><span>Construction</span>
+        <div class="tools">
+          <button class:on={construction === 'T'} onclick={() => (construction = 'T')}>T: pixels as squares</button>
+          <button class:on={construction === 'V'} onclick={() => (construction = 'V')}>V: pixels as vertices</button>
+        </div>
+      </div>
       <p class="note">
-        The cubical complex with a vertex per pixel, an edge between neighbouring pixels and a square for each 2×2 block;
-        each cell enters with the {superlevel ? 'darkest' : 'brightest'} of its pixels. Reduced as an explicit complex.
+        {#if construction === 'T'}
+          The cubical complex with a square per pixel, entering at the pixel's value, and every edge and vertex entering
+          with the {superlevel ? 'brightest' : 'darkest'} square around it: pixels touching at a corner are connected.
+        {:else}
+          The cubical complex with a vertex per pixel, an edge between neighbouring pixels and a square for each 2×2 block;
+          each cell enters with the {superlevel ? 'darkest' : 'brightest'} of its pixels: only pixels sharing a side are
+          connected.
+        {/if}
+        Computed by <code>phlite_images</code>' cubical complexes, nothing stored but the image.
       </p>
-      <Options bind:options defaults={COMPLEX} />
+      <Options bind:options defaults={IMAGE} />
       <div class="compute-row">
         <button class="primary" onclick={() => runner.run(job)}>Compute</button>
         <label><input type="checkbox" bind:checked={runner.auto} /> recompute on every change</label>

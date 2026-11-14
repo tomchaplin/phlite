@@ -7,17 +7,74 @@
   import FiltrationSlider from '../../components/FiltrationSlider.svelte';
   import GraphView, { type Tool } from './GraphView.svelte';
   import { Runner } from '../../lib/runner.svelte';
-  import { GRPPH, defaultsFor } from '../../lib/options';
+  import { GRPPH, NETWORK, defaultsFor } from '../../lib/options';
   import { barDomain } from '../../lib/scale';
   import { randomSeed } from '../../lib/random';
-  import type { Job } from '../../lib/types';
+  import type { Job, NetworkKind } from '../../lib/types';
   import { EXAMPLES, randomDigraph, parseEdges, layout, shortestPaths, type Digraph } from './data';
 
   let source = $state<Source>('examples');
   let exampleId = $state(EXAMPLES[0].id);
   let g = $state.raw<Digraph>(EXAMPLES[0].make());
+  type Complex = 'grpph' | 'pph' | NetworkKind;
+  const COMPLEXES: { id: Complex; name: string; about: string }[] = [
+    {
+      id: 'grpph',
+      name: 'GrPPH',
+      about:
+        "Grounded persistent path homology: the path homology of the shortest-path filtration, grounded at the graph's own edges (which are there from the start). H₀ and H₁; representatives are sums of nodes or of directed edges.",
+    },
+    {
+      id: 'pph',
+      name: 'PPH',
+      about:
+        'Persistent path homology: the path homology of the shortest-path filtration, a pair a→b entering at the length of the shortest path from a to b. H₀ and H₁.',
+    },
+    {
+      id: 'flag',
+      name: 'Directed flag',
+      about:
+        "The directed flag complex (as flagser): a simplex for each directed clique, a sequence of distinct nodes with an edge from each to every later one, entering with its last edge (at the edge's weight).",
+    },
+    {
+      id: 'flag-sp',
+      name: 'Directed flag (paths)',
+      about: 'The directed flag complex of the shortest-path filtration: each pair a→b at the length of the shortest path from a to b.',
+    },
+    {
+      id: 'grounded-flag',
+      name: 'Grounded flag',
+      about:
+        "The directed flag complex of the shortest-path filtration, grounded at the graph's own edges (there from the start): H₁ bars are the graph's own cycles, born at 0, until they are filled in. H₀ and H₁.",
+    },
+    {
+      id: 'tuples',
+      name: 'Ordered tuples',
+      about:
+        'Directed Rips (Turner): the directed flag complex with repeated nodes allowed, so long as no node is next to itself, so a pair of opposite edges is filled in by (a, b, a) as soon as both appear.',
+    },
+    {
+      id: 'dowker-sink',
+      name: 'Dowker sink',
+      about:
+        'The Dowker sink complex: a set of nodes enters at t once some node x is within t of each of them (an edge of weight at most t to x, or x itself). Dense: best on small graphs.',
+    },
+    {
+      id: 'dowker-source',
+      name: 'Dowker source',
+      about: 'The Dowker source complex: as the sink complex with the edges reversed. By Dowker duality, the same barcode as the sink complex.',
+    },
+  ];
+  let complex = $state<Complex>('grpph');
+  let maxDim = $state(1);
+  const pathHomology = $derived(complex === 'grpph' || complex === 'pph');
+  const shortestPath = $derived(pathHomology || complex === 'flag-sp' || complex === 'grounded-flag');
   let options = $state(defaultsFor(GRPPH));
   const runner = new Runner();
+  function setComplex(c: Complex) {
+    complex = c;
+    options = defaultsFor(c === 'grpph' || c === 'pph' ? GRPPH : NETWORK);
+  }
 
   function useExample(id: string) {
     exampleId = id;
@@ -53,32 +110,34 @@
   }
 
   // ---- Computing ----
-  const job = $derived<Job | null>(
-    g.nodes.length === 0
-      ? null
-      : {
-          pipeline: 'grpph',
-          n: g.nodes.length,
-          sources: Uint32Array.from(g.edges.map((e) => e.s)),
-          targets: Uint32Array.from(g.edges.map((e) => e.t)),
-          weights: Float64Array.from(g.edges.map((e) => e.w)),
-          options: $state.snapshot(options),
-        },
-  );
+  const job = $derived.by((): Job | null => {
+    if (g.nodes.length === 0) return null;
+    const graph = {
+      n: g.nodes.length,
+      sources: Uint32Array.from(g.edges.map((e) => e.s)),
+      targets: Uint32Array.from(g.edges.map((e) => e.t)),
+      weights: Float64Array.from(g.edges.map((e) => e.w)),
+      options: $state.snapshot(options),
+    };
+    if (complex === 'grpph' || complex === 'pph') return { pipeline: 'grpph', grounded: complex === 'grpph', ...graph };
+    return { pipeline: 'network', kind: complex, maxDim: complex === 'grounded-flag' ? Math.min(maxDim, 1) : maxDim, ...graph };
+  });
   // Moving a node changes nothing to compute
-  const jobKey = $derived(job ? JSON.stringify([g.nodes.length, g.edges, options]) : '');
+  const jobKey = $derived(job ? JSON.stringify([g.nodes.length, g.edges, options, complex, maxDim]) : '');
   $effect(() => {
     jobKey;
     const j = untrack(() => job);
     if (runner.auto) untrack(() => runner.schedule(j));
   });
 
-  const dist = $derived(g.nodes.length <= 150 ? shortestPaths(g) : null);
+  const dist = $derived(shortestPath && g.nodes.length <= 150 ? shortestPaths(g) : null);
   const domain = $derived(barDomain(runner.result?.barcode.bars ?? [], [0]));
   const bar = $derived(runner.selected === null ? null : (runner.result?.barcode.bars[runner.selected] ?? null));
   const label = (v: number) => g.nodes[v]?.label ?? String(v);
   const describe = (c: number[]) => {
     if (c.length === 1) return `node ${label(c[0])}`;
+    if (complex === 'dowker-sink' || complex === 'dowker-source') return `{${c.map(label).join(', ')}}`;
+    if (!pathHomology) return `(${c.map(label).join(', ')})`;
     if (c.length === 2) return `${label(c[0])}→${label(c[1])}`;
     if (c.length === 3 && c[0] === c[2]) return `double edge ${label(c[0])}⇄${label(c[1])}`;
     if (c.length === 3) return `triangle ${c.map(label).join('→')}`;
@@ -91,11 +150,11 @@
     <div class="panel">
       <GraphView {g} t={runner.t} {bar} {dist} tool={source === 'draw' ? tool : null} {newWeight} bind:selectedEdge onedit={(next) => (g = next)} />
       <div style="margin-top: 0.6rem">
-        <FiltrationSlider bind:t={runner.t} {domain} label="Path length" />
+        <FiltrationSlider bind:t={runner.t} {domain} label={shortestPath ? 'Path length' : 'Weight'} />
       </div>
       <div class="legend" style="margin-top: 0.4rem">
         <span>{g.nodes.length} nodes, {g.edges.length} edges</span>
-        <span><i style="background: #54a24b"></i>new edges: pairs joined by a path no longer than the slider</span>
+        {#if dist}<span><i style="background: #54a24b"></i>new edges: pairs joined by a path no longer than the slider</span>{/if}
         {#if bar}<span>coloured: the representative (dashed if not an edge of the graph) · red: what kills it</span>{/if}
       </div>
     </div>
@@ -149,16 +208,25 @@ c,a,2</pre>
 
   <div>
     <div class="panel">
-      <Results result={runner.result} error={runner.error} running={runner.running} {domain} bind:selected={runner.selected} bind:t={runner.t} {describe} name="grpph" />
+      <Results result={runner.result} error={runner.error} running={runner.running} {domain} bind:selected={runner.selected} bind:t={runner.t} {describe} name={complex} />
     </div>
 
     <div class="panel secondary">
       <h3>Compute</h3>
-      <p class="note" style="margin-top: 0">
-        Grounded persistent path homology: the path homology of the shortest-path filtration, grounded at the graph's own
-        edges (which are there from the start). H₀ and H₁; representatives are sums of nodes or of directed edges.
-      </p>
-      <Options bind:options defaults={GRPPH} />
+      <label class="field"><span>Complex</span>
+        <select value={complex} onchange={(e) => setComplex(e.currentTarget.value as Complex)}>
+          {#each COMPLEXES as c}<option value={c.id}>{c.name}</option>{/each}
+        </select>
+      </label>
+      {#if !pathHomology && complex !== 'grounded-flag'}
+        <label class="field"><span>Up to dimension</span>
+          <select bind:value={maxDim}>
+            <option value={0}>H₀</option><option value={1}>H₁</option><option value={2}>H₂</option><option value={3}>H₃</option>
+          </select>
+        </label>
+      {/if}
+      <p class="note">{COMPLEXES.find((c) => c.id === complex)?.about}</p>
+      <Options bind:options defaults={pathHomology ? GRPPH : NETWORK} />
       <div class="compute-row">
         <button class="primary" disabled={!job} onclick={() => runner.run(job)}>Compute</button>
         <label><input type="checkbox" bind:checked={runner.auto} /> recompute on every change</label>

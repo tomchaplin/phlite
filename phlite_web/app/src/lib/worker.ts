@@ -6,7 +6,7 @@ import type { Job } from './types';
 // What both builds export (their glue differs)
 type Module = Pick<
   typeof import('phlite-web-single'),
-  'rips' | 'alpha' | 'grpph' | 'image' | 'complex' | 'n_threads' | 'set_crash_hooks' | 'crash_for_testing'
+  'rips' | 'delaunay' | 'grpph' | 'network' | 'image' | 'complex' | 'n_threads' | 'set_crash_hooks' | 'crash_for_testing'
 >;
 type Message = { type: 'init'; threads: number; single: boolean; channel: string } | { type: 'run'; id: number; job: Job };
 
@@ -39,16 +39,21 @@ self.onmessage = async (event: MessageEvent<Message>) => {
     let barcode;
     switch (job.pipeline) {
       case 'rips':
-        barcode = phlite.rips(job.coords, job.pointDim, job.maxDim, job.threshold ?? undefined, job.options);
+        barcode = phlite.rips(
+          job.coords, job.pointDim, job.maxDim, job.threshold ?? undefined, job.dtmK ?? undefined, job.options,
+        );
         break;
-      case 'alpha':
-        barcode = phlite.alpha(job.coords, job.options);
+      case 'delaunay':
+        barcode = phlite.delaunay(job.coords, job.pointDim, job.cech, job.options);
         break;
       case 'grpph':
-        barcode = phlite.grpph(job.n, job.sources, job.targets, job.weights, job.options);
+        barcode = phlite.grpph(job.n, job.sources, job.targets, job.weights, job.grounded, job.options);
+        break;
+      case 'network':
+        barcode = phlite.network(job.kind, job.n, job.sources, job.targets, job.weights, job.maxDim, job.options);
         break;
       case 'image':
-        barcode = phlite.image(job.pixels, job.width, job.height, job.superlevel, job.options);
+        barcode = phlite.image(job.pixels, job.width, job.height, job.superlevel, job.construction, job.options);
         break;
       case 'complex':
         barcode = phlite.complex(

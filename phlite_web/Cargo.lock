@@ -480,6 +480,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "phlite_images"
+version = "0.1.0"
+dependencies = [
+ "ordered-float",
+ "phlite",
+ "rayon",
+]
+
+[[package]]
 name = "phlite_networks"
 version = "0.1.0"
 dependencies = [
@@ -487,6 +496,7 @@ dependencies = [
  "ordered-float",
  "petgraph",
  "phlite",
+ "rayon",
  "rustc-hash",
 ]
 
@@ -501,6 +511,7 @@ dependencies = [
  "phlite",
  "phlite_clouds",
  "phlite_complexes",
+ "phlite_images",
  "phlite_networks",
  "rayon",
  "serde",

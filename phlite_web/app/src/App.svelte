@@ -10,9 +10,9 @@
 
   type Tab = 'points' | 'images' | 'networks' | 'complexes';
   const tabs: [Tab, string, string][] = [
-    ['points', 'Point clouds', 'Vietoris–Rips'],
-    ['images', 'Images', 'cubical, sub/superlevel'],
-    ['networks', 'Networks', 'GrPPH of weighted digraphs'],
+    ['points', 'Point clouds', 'Rips, DTM, alpha, Čech'],
+    ['images', 'Images', 'cubical, T or V'],
+    ['networks', 'Networks', 'path homology, flag, Dowker'],
     ['complexes', 'Chain complexes', 'explicit boundary matrices'],
   ];
   const fromHash = () => (tabs.find(([id]) => `#${id}` === location.hash)?.[0] ?? 'points') as Tab;
