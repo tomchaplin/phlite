@@ -18,7 +18,7 @@ merely when it wouldn't fit in memory:
 Vietoris–Rips complexes often fit in memory, and storing them is still the wrong choice: they are huge, sparse and
 almost entirely apparent pairs. The opposite case is a complex where **many columns need genuine reduction**: dense
 boundaries, or cubical complexes of pure noise. There the work is in adding columns, and PHAT's tricks (dense indices,
-pivot columns, storing R) win. For those, build the complex explicitly with the [`phlite` Python package](../python/phlite.md)
+pivot columns, storing R) win. For those, build the complex explicitly with [`phlite.complexes`](../python/complexes.md)
 (which applies all of them), or use PHAT.
 
 A smooth 3D volume is in the lazy camp: in the example below, 94.5% of the cells are in zero-length apparent pairs.

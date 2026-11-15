@@ -35,7 +35,7 @@ since most columns finish at their pivot.
 `phlite` also has PHAT's tricks: [dense indices](../internals/bookkeeping.md) for vector bookkeeping,
 [pivot columns](../columns/pivot.md) and [stored R](../algorithms/store-r.md). They need an array over every cell,
 which is exactly what this oracle avoids, and they pay when many columns need genuine reduction, which isn't the
-case here. If your complex is like that, build it explicitly with the [`phlite` Python package](../python/phlite.md),
+case here. If your complex is like that, build it explicitly with [`phlite.complexes`](../python/complexes.md),
 which applies them all.
 
 ## Next

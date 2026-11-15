@@ -6,15 +6,16 @@ all use. `pip install phlite` installs them all.
 | Package | Module | Input | Pipelines | Rust crate |
 |---|---|---|---|---|
 | `phlite-complexes` | [`phlite.complexes`](complexes.md) | a chain complex you build: integer columns, CSC arrays, or your own cell objects; any filtration | `FilteredComplex.persistence`: cubical, simplicial and cell complexes, anything PHAT or LoPHAT would take | `phlite_complexes` |
-| `phlite-clouds` | [`phlite.clouds`](clouds.md) | a point cloud or distance matrix | [`rips`](clouds/rips.md): Vietoris–Rips, like ripser and giotto-ph | `phlite_clouds` |
-| `phlite-networks` | [`phlite.networks`](networks.md) | a weighted digraph (networkx or edge list) | [`grpph`](networks/grpph.md): grounded persistent path homology, like grpphati | `phlite_networks` |
-| `phlite-images` | [`phlite.images`](images.md) | an image | none yet | `phlite_images` |
+| `phlite-clouds` | [`phlite.clouds`](clouds.md) | a point cloud or distance matrix | [`rips`](clouds/rips.md): Vietoris–Rips (dense or sparse, like ripser and giotto-ph), [weighted and DTM-Rips](clouds/weighted.md); [`alpha` and `delaunay_cech`](clouds/alpha.md) in the plane and in space | `phlite_clouds` |
+| `phlite-networks` | [`phlite.networks`](networks.md) | a weighted digraph (networkx or edge list) | [`pph`](networks/pph.md) (any dimension), [`grpph`](networks/grpph.md), [`directed_flag`](networks/directed_flag.md) (like flagser, grounded or not), [`ordered_tuples`](networks/ordered_tuples.md), [`dowker`](networks/dowker.md) | `phlite_networks` |
+| `phlite-images` | [`phlite.images`](images.md) | an image or volume (numpy array, 1 to 4 axes) | [`cubical`](images/cubical.md): T- or V-construction, sublevel or superlevel sets, like GUDHI and Cubical Ripser | `phlite_images` |
 | `phlite-core` | `phlite.core` | | [`Algorithm`](algorithms.md), `Barcode` and `defaults()`, shared by every package | `phlite_bindings` |
 
 ```python
 from phlite.core import Algorithm
-from phlite.clouds import rips
-from phlite.networks import grpph
+from phlite.clouds import rips, alpha
+from phlite.networks import pph, directed_flag
+from phlite.images import cubical
 from phlite.complexes import ChainComplex
 ```
 
