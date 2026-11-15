@@ -5,11 +5,18 @@ import itertools
 COLUMNS = ["merged", "heap", "sorted", "pivot"]
 
 
-def algorithm_grid(Algorithm, top=None, threads=2, row_ranks=True):
-    """Every valid combination of algorithm, column representation, caching, skipping zero-length apparent pairs and (if
+def algorithm_grid(Algorithm, top=None, threads=2, row_ranks=True, union_find=False):
+    """With `union_find` (for pipelines that use union-find by default), each also with union-find turned off.
+
+    Every valid combination of algorithm, column representation, caching, skipping zero-length apparent pairs and (if
     `top`, the top dimension, is given) dimension order, plus storing R for serial clearing and the thread count and
     storage of parallel clearing. `row_ranks`: whether the pipeline's matrices know their row ranks, without which
     'pivot' columns are refused."""
+    if union_find:
+        for algorithm in algorithm_grid(Algorithm, top, threads, row_ranks):
+            yield algorithm
+            yield algorithm.with_union_find(False)
+        return
     bases = [Algorithm.standard(), Algorithm.clearing(), Algorithm.parallel_clearing()]
     orders = [None] if top is None else [None, list(range(top + 1)), list(range(top, -1, -1))]
     for base, columns, cache in itertools.product(bases, COLUMNS, [True, False]):

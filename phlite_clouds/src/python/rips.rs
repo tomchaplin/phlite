@@ -17,7 +17,7 @@ use phlite_bindings::{
 };
 
 use crate::rips::{
-    distance_to_measure, rips_barcode, rips_index_fits, Distances, Metric, SparseDistances, Weighted,
+    distance_to_measure, rips_barcode_with, rips_index_fits, Distances, Metric, SparseDistances, Weighted,
 };
 
 /// The pipeline `'clouds.rips'`: Rips columns are cheap to recompute, and caching them dominates the memory used.
@@ -27,6 +27,7 @@ pub(crate) const DEFAULTS: AlgorithmDefaults = AlgorithmDefaults {
     cache: false,
     store_r: false,
     row_ranks: false,
+    union_find: Some(true),
 };
 
 // ====== Reading the input ================================================
@@ -238,7 +239,7 @@ fn read_points(points: &Bound<'_, PyAny>, metric: Metric, threshold: NotNan<f64>
 ///     algorithm: The reduction algorithm and its options, as a `phlite.core.Algorithm` (default:
 ///         `Algorithm.serial()`).
 ///         For example `Algorithm.parallel(threads=8)`.
-///         Pipeline defaults (`'clouds.rips'`): columns='heap', cache=False, store_r=False.
+///         Pipeline defaults (`'clouds.rips'`): columns='heap', cache=False, store_r=False, union_find=True.
 ///     representatives: Whether to also compute a representative cycle for every bar.
 ///         With `method='cohomology'` these are computed via involution.
 ///
@@ -322,6 +323,7 @@ fn rips<'py>(
             threshold,
             method,
             representatives,
+            union_find: algorithm.union_find(),
         })
     })?;
     bars.into_python(py, &algorithm, representatives, None)
@@ -335,6 +337,7 @@ struct RipsRun {
     threshold: NotNan<f64>,
     method: Method,
     representatives: bool,
+    union_find: bool,
 }
 
 impl AlgorithmVisitor for RipsRun {
@@ -344,13 +347,14 @@ impl AlgorithmVisitor for RipsRun {
         let n_points = self.input.n_points();
         macro_rules! run {
             ($distances:expr) => {
-                rips_barcode::<_, usize, _>(
+                rips_barcode_with::<_, usize, _>(
                     $distances,
                     self.max_dim,
                     self.threshold,
                     self.method,
                     algorithm,
                     self.representatives,
+                    self.union_find,
                 )
             };
         }

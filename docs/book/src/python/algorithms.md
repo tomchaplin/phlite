@@ -36,21 +36,23 @@ GrPPH), when it runs.
 ## Each pipeline's defaults
 
 The column representation, caching and storing R are best chosen per kind of input, so the presets leave them unset
-(`None`), and each pipeline fills them in with its own defaults when it runs:
+(`None`), and each pipeline fills them in with its own defaults when it runs. So does `with_union_find`: whether, by
+cohomology, to find dimension 0 by union-find (as Ripser and Cubical Ripser do) rather than by reducing it, which the
+pipelines that can (Vietoris–Rips and cubical complexes, `—` below for the others, which refuse it) do by default:
 
 <!-- defaults:start -->
-| Pipeline | Function | Columns (serial) | Cache (serial) | Store R (serial) | Columns (parallel) | Cache (parallel) |
-|---|---|---|---|---|---|---|
-| `complexes` | `phlite.complexes.FilteredComplex.persistence` | `'pivot'` | `False` | `True` | `'merged'` | `False` |
-| `clouds.rips` | `phlite.clouds.rips` | `'heap'` | `False` | `False` | `'heap'` | `False` |
-| `clouds.alpha` | `phlite.clouds.alpha` | `'pivot'` | `False` | `True` | `'merged'` | `False` |
-| `clouds.delaunay_cech` | `phlite.clouds.delaunay_cech` | `'pivot'` | `False` | `True` | `'merged'` | `False` |
-| `networks.grpph` | `phlite.networks.grpph` | `'merged'` | `True` | `False` | `'merged'` | `True` |
-| `networks.pph` | `phlite.networks.pph` | `'merged'` | `True` | `False` | `'merged'` | `True` |
-| `networks.directed_flag` | `phlite.networks.directed_flag` | `'merged'` | `True` | `False` | `'merged'` | `True` |
-| `networks.ordered_tuples` | `phlite.networks.ordered_tuples` | `'merged'` | `True` | `False` | `'merged'` | `True` |
-| `networks.dowker` | `phlite.networks.dowker` | `'merged'` | `True` | `False` | `'merged'` | `True` |
-| `images.cubical` | `phlite.images.cubical` | `'merged'` | `False` | `True` | `'merged'` | `False` |
+| Pipeline | Function | Columns (serial) | Cache (serial) | Store R (serial) | Columns (parallel) | Cache (parallel) | Union-find |
+|---|---|---|---|---|---|---|---|
+| `complexes` | `phlite.complexes.FilteredComplex.persistence` | `'pivot'` | `False` | `True` | `'merged'` | `False` | — |
+| `clouds.rips` | `phlite.clouds.rips` | `'heap'` | `False` | `False` | `'heap'` | `False` | `True` |
+| `clouds.alpha` | `phlite.clouds.alpha` | `'pivot'` | `False` | `True` | `'merged'` | `False` | — |
+| `clouds.delaunay_cech` | `phlite.clouds.delaunay_cech` | `'pivot'` | `False` | `True` | `'merged'` | `False` | — |
+| `networks.grpph` | `phlite.networks.grpph` | `'merged'` | `True` | `False` | `'merged'` | `True` | — |
+| `networks.pph` | `phlite.networks.pph` | `'merged'` | `True` | `False` | `'merged'` | `True` | — |
+| `networks.directed_flag` | `phlite.networks.directed_flag` | `'merged'` | `True` | `False` | `'merged'` | `True` | — |
+| `networks.ordered_tuples` | `phlite.networks.ordered_tuples` | `'merged'` | `True` | `False` | `'merged'` | `True` | — |
+| `networks.dowker` | `phlite.networks.dowker` | `'merged'` | `True` | `False` | `'merged'` | `True` | — |
+| `images.cubical` | `phlite.images.cubical` | `'merged'` | `False` | `True` | `'merged'` | `False` | `True` |
 <!-- defaults:end -->
 
 (`python-tests/tests/test_core.py` checks this table, and each function's docstring, against the pipelines

@@ -40,7 +40,7 @@ use ordered_float::NotNan;
 use phlite::{
     barcode::{self, Algorithm, Bar},
     columns::ColumnRepresentation,
-    fields::Z2,
+    fields::{NonZeroCoefficient, Z2},
     matrices::{BasisElement, MatrixOracle, SplitBasis},
 };
 
@@ -545,11 +545,27 @@ pub fn build_reduction_bases<I: RipsInt, D: Distances + ?Sized>(
     check_top_cofacets: bool,
     parallel: bool,
 ) -> RipsBasis<I> {
+    build_reduction_bases_from(distances, max_dim, threshold, check_top_cofacets, parallel, false, &[])
+}
+
+/// As [`build_reduction_bases`], but with dimension 0 empty if `skip_vertices` (it is found by union-find instead),
+/// and leaving out the edges in `excluded` (sorted: those that kill a component, which clearing would leave out).
+fn build_reduction_bases_from<I: RipsInt, D: Distances + ?Sized>(
+    distances: &D,
+    max_dim: usize,
+    threshold: NotNan<f64>,
+    check_top_cofacets: bool,
+    parallel: bool,
+    skip_vertices: bool,
+    excluded: &[RipsIndex<I>],
+) -> RipsBasis<I> {
     use rayon::prelude::*;
     let keep = |dim: usize| {
         let check_cofacets = dim < max_dim || check_top_cofacets;
         move |&(_, simplex): &(NotNan<f64>, RipsIndex<I>)| {
-            !in_zero_apparent_pair(simplex, distances, threshold, check_cofacets)
+            !(dim == 0 && skip_vertices)
+                && !(dim == 1 && excluded.binary_search(&simplex).is_ok())
+                && !in_zero_apparent_pair(simplex, distances, threshold, check_cofacets)
         }
     };
     let sorted_indices = |mut simplices: Vec<(NotNan<f64>, RipsIndex<I>)>| {
@@ -680,6 +696,21 @@ pub fn rips_barcode<R: ColumnRepresentation, I: RipsInt, D: Distances>(
     algorithm: Algorithm<'_, R>,
     representatives: bool,
 ) -> Vec<RipsBar<I>> {
+    rips_barcode_with(distances, max_dim, threshold, method, algorithm, representatives, true)
+}
+
+/// As [`rips_barcode`], choosing whether (by cohomology) to find dimension 0 by union-find (`union_find`, which
+/// [`rips_barcode`] does) rather than by reducing it.
+#[allow(clippy::too_many_arguments)]
+pub fn rips_barcode_with<R: ColumnRepresentation, I: RipsInt, D: Distances>(
+    distances: D,
+    max_dim: usize,
+    threshold: NotNan<f64>,
+    method: Method,
+    algorithm: Algorithm<'_, R>,
+    representatives: bool,
+    union_find: bool,
+) -> Vec<RipsBar<I>> {
     let n_points = distances.n_points();
     // A simplex with an infinite diameter has an edge that never appears, so it never appears either
     let largest_finite = NotNan::new(f64::MAX).unwrap();
@@ -693,18 +724,48 @@ pub fn rips_barcode<R: ColumnRepresentation, I: RipsInt, D: Distances>(
     let parallel = matches!(algorithm, Algorithm::ParallelClearing(_));
     // The standard algorithm can't find the owners of omitted apparent pairs, so give it every simplex
     let filter = !matches!(algorithm, Algorithm::Standard(_));
-    let bases = |max_dim: usize, check_top_cofacets: bool| {
+    let bases = |max_dim: usize, check_top_cofacets: bool, skip_vertices: bool, excluded: &[RipsIndex<I>]| {
         if filter {
-            build_reduction_bases(&distances, max_dim, threshold, check_top_cofacets, parallel)
+            build_reduction_bases_from(
+                &distances,
+                max_dim,
+                threshold,
+                check_top_cofacets,
+                parallel,
+                skip_vertices,
+                excluded,
+            )
         } else {
-            build_rips_bases_with_threshold(&distances, max_dim, threshold)
+            without(build_rips_bases_with_threshold(&distances, max_dim, threshold), skip_vertices, excluded)
         }
     };
     // Each matrix is given its transpose, so that the reduction can find apparent pairs,
     // and its basis omits the zero-persistence ones entirely. Both share the one set of distances.
     match method {
+        Method::Cohomology if union_find && !(representatives && threshold < enclosing_radius(&distances)) => {
+            // Dimension 0 by union-find, as Ripser does. The edges that kill a component are exactly the pivots of
+            // the reduced dimension-0 coboundary, which clearing would leave out of dimension 1, so leave them out of
+            // the basis. (With representatives, the involution finds those of essential classes above dimension 0 by
+            // reducing their columns, which needs those edges: there are none unless the threshold is below the
+            // enclosing radius, where the complex is a cone; otherwise reduce dimension 0 as usual, below.)
+            let (mut bars, deaths) = connected_components(&distances, threshold, representatives, parallel);
+            if max_dim >= 1 {
+                let basis = bases(max_dim, true, true, &deaths);
+                let boundary = RipsBoundary::<Z2, I, _>::new(&distances).with_threshold(threshold);
+                let coboundary = RipsCoboundary::<Z2, I, _>::new(&distances)
+                    .with_threshold(threshold)
+                    .with_basis(basis);
+                let coboundary = (&coboundary).with_transpose(&boundary);
+                bars.extend(if representatives {
+                    barcode::cohomology_with_involution(coboundary, algorithm)
+                } else {
+                    barcode::cohomology(coboundary, algorithm)
+                });
+            }
+            bars
+        }
         Method::Cohomology => {
-            let basis = bases(max_dim, true);
+            let basis = bases(max_dim, true, false, &[]);
             let boundary = RipsBoundary::<Z2, I, _>::new(&distances).with_threshold(threshold);
             let coboundary = RipsCoboundary::<Z2, I, _>::new(&distances)
                 .with_threshold(threshold)
@@ -718,7 +779,7 @@ pub fn rips_barcode<R: ColumnRepresentation, I: RipsInt, D: Distances>(
         }
         Method::Homology => {
             // Cofacets of the top dimension (max_dim + 1) might not fit in a RipsIndex, so don't look at them
-            let basis = bases(max_dim + 1, false);
+            let basis = bases(max_dim + 1, false, false, &[]);
             let coboundary = RipsCoboundary::<Z2, I, _>::new(&distances).with_threshold(threshold);
             let boundary = RipsBoundary::<Z2, I, _>::new(&distances)
                 .with_threshold(threshold)
@@ -730,6 +791,118 @@ pub fn rips_barcode<R: ColumnRepresentation, I: RipsInt, D: Distances>(
             bars
         }
     }
+}
+
+/// `basis` without dimension 0 if `skip_vertices`, and without the edges in `excluded` (sorted).
+fn without<I: RipsInt>(basis: RipsBasis<I>, skip_vertices: bool, excluded: &[RipsIndex<I>]) -> RipsBasis<I> {
+    use phlite::matrices::SplitByDimension;
+    let dims: Vec<Vec<RipsIndex<I>>> = (0..SplitByDimension::n_dimensions(&&basis))
+        .map(|dim| {
+            let slice = (&basis).in_dimension(dim).0;
+            match dim {
+                0 if skip_vertices => vec![],
+                1 => slice.iter().copied().filter(|e| excluded.binary_search(e).is_err()).collect(),
+                _ => slice.to_vec(),
+            }
+        })
+        .collect();
+    SplitBasis::from_dimensions(dims)
+}
+
+/// The barcode in dimension 0, by union-find on the edges in filtration order (by diameter, then index, as the
+/// reductions order simplices), with the elder rule: when an edge joins two components, the one whose oldest vertex
+/// (by birth, then index) is younger dies, so the pairs are those a reduction would find. Zero-length bars are left
+/// out. Also returns the edges that kill a component (zero-length bars' included), sorted.
+///
+/// With `representatives`, a finite bar's is its birth vertex plus the oldest vertex of the component it joins (born
+/// earlier, so the chain is born at the birth, and joined to it at the death and not before); an essential bar's, its
+/// birth vertex.
+fn connected_components<I: RipsInt, D: Distances>(
+    distances: &D,
+    threshold: NotNan<f64>,
+    representatives: bool,
+    parallel: bool,
+) -> (Vec<RipsBar<I>>, Vec<RipsIndex<I>>) {
+    use rayon::prelude::*;
+    let n = distances.n_points();
+    let zero = NotNan::new(0.0).unwrap();
+    // Points born after the threshold never appear (but, as in ripser, every point born at 0 does)
+    let present: Vec<bool> = (0..n)
+        .map(|v| {
+            let birth = distances.birth(v);
+            birth <= threshold || birth <= zero
+        })
+        .collect();
+    let edge = |i: usize, j: usize| RipsIndex(I::from_usize(i + 1) + I::from_usize(n + 1) * I::from_usize(j + 1));
+    let edges_of = |i: usize| {
+        let present = &present;
+        distances
+            .neighbours(i, i + 1)
+            .filter(move |&j| j != i && present[j])
+            .filter_map(move |j| {
+                let value = max_pairwise_distance(&[i, j], distances);
+                (value <= threshold).then(|| (value, edge(i, j), i as u32, j as u32))
+            })
+    };
+    let mut edges: Vec<(NotNan<f64>, RipsIndex<I>, u32, u32)> = if parallel {
+        (0..n).into_par_iter().filter(|&i| present[i]).flat_map_iter(edges_of).collect()
+    } else {
+        (0..n).filter(|&i| present[i]).flat_map(edges_of).collect()
+    };
+    let by_key = |a: &(NotNan<f64>, RipsIndex<I>, u32, u32), b: &(NotNan<f64>, RipsIndex<I>, u32, u32)| {
+        (a.0, a.1).cmp(&(b.0, b.1))
+    };
+    if parallel {
+        edges.par_sort_unstable_by(by_key);
+    } else {
+        edges.sort_unstable_by(by_key);
+    }
+    let vertex = |v: u32| RipsIndex(I::from_usize(v as usize + 1));
+    let birth = |v: u32| distances.birth(v as usize);
+    // Each vertex's parent, next to its birth, so that comparing roots needs no other lookup
+    let mut nodes: Vec<(u32, NotNan<f64>)> = (0..n as u32).map(|v| (v, birth(v))).collect();
+    fn find(nodes: &mut [(u32, NotNan<f64>)], mut v: u32) -> u32 {
+        while nodes[v as usize].0 != v {
+            let grandparent = nodes[nodes[v as usize].0 as usize].0;
+            nodes[v as usize].0 = grandparent;
+            v = grandparent;
+        }
+        v
+    }
+    let rep = |cells: &[u32]| {
+        representatives.then(|| cells.iter().map(|&v| (<Z2 as NonZeroCoefficient>::one(), vertex(v))).collect())
+    };
+    let mut bars = vec![];
+    let mut deaths = vec![];
+    for (value, index, a, b) in edges {
+        let (ra, rb) = (find(&mut nodes, a), find(&mut nodes, b));
+        if ra == rb {
+            continue;
+        }
+        let (older, younger) = if (nodes[ra as usize].1, ra) < (nodes[rb as usize].1, rb) { (ra, rb) } else { (rb, ra) };
+        nodes[younger as usize].0 = older;
+        deaths.push(index);
+        let birth_value = nodes[younger as usize].1;
+        if birth_value != value {
+            bars.push(Bar {
+                birth: vertex(younger),
+                birth_value,
+                death: Some((index, value)),
+                representative: rep(&[younger, older]),
+            });
+        }
+    }
+    for v in 0..n as u32 {
+        if present[v as usize] && nodes[v as usize].0 == v {
+            bars.push(Bar { birth: vertex(v), birth_value: birth(v), death: None, representative: rep(&[v]) });
+        }
+    }
+    if parallel {
+        deaths.par_sort_unstable();
+    } else {
+        deaths.sort_unstable();
+    }
+    (bars, deaths)
 }
 
 #[cfg(test)]

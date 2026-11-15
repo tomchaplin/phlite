@@ -23,6 +23,7 @@ pub(crate) const DEFAULTS: AlgorithmDefaults = AlgorithmDefaults {
     cache: false,
     store_r: true,
     row_ranks: false,
+    union_find: Some(true),
 };
 
 /// Compute the persistent homology of the cubical complex of an image (or a volume, or any grid with 1 to 4 axes), in
@@ -43,7 +44,7 @@ pub(crate) const DEFAULTS: AlgorithmDefaults = AlgorithmDefaults {
 ///     method: `'cohomology'` (the default) or `'homology'`.
 ///     algorithm: The reduction algorithm and its options, as a `phlite.core.Algorithm` (default:
 ///         `Algorithm.serial()`).
-///         Pipeline defaults (`'images.cubical'`): columns='merged', cache=False, store_r=True.
+///         Pipeline defaults (`'images.cubical'`): columns='merged', cache=False, store_r=True, union_find=True.
 ///     representatives: Whether to also compute a representative cycle for every bar.
 ///
 /// Returns:
@@ -102,6 +103,7 @@ fn cubical<'py>(
             max_dim,
             method,
             representatives,
+            union_find: algorithm.union_find(),
         })
     })?;
     bars.map_err(PyValueError::new_err)?
@@ -132,6 +134,7 @@ struct CubicalRun {
     max_dim: usize,
     method: Method,
     representatives: bool,
+    union_find: bool,
 }
 
 impl CubicalRun {
@@ -144,7 +147,15 @@ impl CubicalRun {
             .map_err(|e| e.to_string())?;
         // In the sublevel filtration's values (of the negated image, for superlevel sets), so that `SortedBars` knows
         // which cells never appear; negated back afterwards
-        let bars = filtration_barcode(&complex, self.max_dim, self.method, algorithm, self.representatives, false);
+        let bars = filtration_barcode(
+            &complex,
+            self.max_dim,
+            self.method,
+            algorithm,
+            self.representatives,
+            false,
+            self.union_find,
+        );
         let bars = SortedBars::new(bars, self.max_dim + 1, |cube| {
             (complex.dimension(*cube), complex.coordinates(*cube).to_vec())
         });

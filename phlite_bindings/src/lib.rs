@@ -124,6 +124,7 @@ pub fn init_package(
             defaults.cache,
             defaults.store_r,
             defaults.row_ranks,
+            defaults.union_find,
         ))?;
     }
     Ok(())

@@ -164,7 +164,7 @@ def rips(distance_matrix: typing.Optional[typing.Union[numpy.typing.NDArray[nump
         algorithm: The reduction algorithm and its options, as a `phlite.core.Algorithm` (default:
             `Algorithm.serial()`).
             For example `Algorithm.parallel(threads=8)`.
-            Pipeline defaults (`'clouds.rips'`): columns='heap', cache=False, store_r=False.
+            Pipeline defaults (`'clouds.rips'`): columns='heap', cache=False, store_r=False, union_find=True.
         representatives: Whether to also compute a representative cycle for every bar.
             With `method='cohomology'` these are computed via involution.
     

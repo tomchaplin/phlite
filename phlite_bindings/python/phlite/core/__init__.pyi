@@ -36,6 +36,11 @@ class Algorithm:
     algorithm that computed it (`barcode.algorithm`).
     """
     @property
+    def union_find(self) -> typing.Optional[builtins.bool]:
+        r"""
+        Whether dimension 0 is found by union-find, or `None` for the pipeline's default.
+        """
+    @property
     def name(self) -> builtins.str:
         r"""
         `'standard'`, `'clearing'` or `'parallel-clearing'`.
@@ -175,6 +180,18 @@ class Algorithm:
     def with_threads(self, threads: typing.Optional[builtins.int]) -> Algorithm:
         r"""
         The number of threads for the parallel algorithm, or `None` for all cores.
+        """
+    def with_union_find(self, union_find: typing.Optional[builtins.bool] = True) -> Algorithm:
+        r"""
+        Whether to find dimension 0 by union-find rather than by reducing it, when computing by cohomology, or `None`
+        for the pipeline's default: union-find in `phlite.clouds.rips` (as Ripser does) and in `phlite.images.cubical`
+        (which also finds the top dimension by union-find on the dual, as Cubical Ripser does); other pipelines can't,
+        and refuse it.
+        
+        The edges that kill a component then never enter the reduction (as clearing would leave them out), so only
+        the dimensions above are reduced. Reducing dimension 0 is most of the time of a Vietoris–Rips barcode of points
+        in the plane (2–3× slower than union-find), and of a cubical one. Representatives come from the union-find too
+        (a component's: its birth vertex plus the oldest vertex of the component it joins).
         """
     def resolve(self, pipeline: builtins.str) -> Algorithm:
         r"""

@@ -29,6 +29,7 @@ const LAZY: AlgorithmDefaults = AlgorithmDefaults {
     cache: true,
     store_r: false,
     row_ranks: false,
+    union_find: None,
 };
 
 /// The pipeline `'networks.directed_flag'`.

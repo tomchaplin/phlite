@@ -42,6 +42,12 @@ It implements the optimisations of Ripser and giotto-ph on `phlite`'s oracles:
 - **Simplices as integers.** A simplex's vertices are the digits of a base-\\((n+1)\\) number, so a simplex is one
   `usize`, and its cofacets and facets are computed arithmetically by inserting or removing a digit.
 - **Clearing** and **cohomology** by default.
+- **Dimension 0 by union-find**, as Ripser does: the edges in filtration order, with the elder rule, so only the
+  dimensions above are reduced (the edges that kill a component are left out of dimension 1, as clearing would). It
+  is a pipeline default (`Algorithm.with_union_find(False)` reduces dimension 0 instead): on random points in the
+  plane, dimensions 0–1, 2.3–3.3× faster than reducing it (3000 points: 1.4 s against 4.7 s; ripser takes 4.6 s).
+  Representatives come from the union-find too, except below the enclosing radius, where the involution needs
+  dimension 0 reduced to find essential classes' representatives.
 - **Emergent pairs**: cofacets are enumerated in order, and the first with the simplex's own diameter is its pivot,
   so most columns are finished after a step or two.
 - **Zero-length apparent pairs are left out of the basis entirely** (they are nearly all of them), and the basis is

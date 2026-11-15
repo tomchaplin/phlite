@@ -969,11 +969,13 @@ pub fn cubical_barcode<R: ColumnRepresentation, const D: usize>(
     algorithm: Algorithm<'_, R>,
     representatives: bool,
 ) -> Vec<CubicalBar> {
-    filtration_barcode(complex, max_dim, method, algorithm, representatives, true)
+    filtration_barcode(complex, max_dim, method, algorithm, representatives, true, true)
 }
 
 /// As [`cubical_barcode`], but for superlevel sets only negates the values back to the image's if
-/// `negate_superlevel`: otherwise the bars are those of the sublevel filtration of the negated image.
+/// `negate_superlevel` (otherwise the bars are those of the sublevel filtration of the negated image), and choosing
+/// whether, by cohomology, to find dimension 0 and the top dimension by union-find (`union_find`, which
+/// [`cubical_barcode`] does) rather than by reducing them.
 pub fn filtration_barcode<R: ColumnRepresentation, const D: usize>(
     complex: &CubicalComplex<D>,
     max_dim: usize,
@@ -981,6 +983,7 @@ pub fn filtration_barcode<R: ColumnRepresentation, const D: usize>(
     algorithm: Algorithm<'_, R>,
     representatives: bool,
     negate_superlevel: bool,
+    union_find: bool,
 ) -> Vec<CubicalBar> {
     if complex.grid().is_none() {
         return vec![];
@@ -996,7 +999,7 @@ pub fn filtration_barcode<R: ColumnRepresentation, const D: usize>(
     // Each matrix is given its transpose, so that the reduction can find apparent pairs (the matrices find them
     // themselves, but the involution needs the transpose for representatives)
     let mut bars = match method {
-        Method::Cohomology if representatives && middle_essentials(complex, max_dim) => {
+        Method::Cohomology if !union_find || (representatives && middle_essentials(complex, max_dim)) => {
             // The involution finds representatives of essential classes in the middle dimensions by reducing their
             // columns, which needs the edges that kill components: so reduce dimension 0 too
             let basis = build_bases(complex, max_dim, skip_apparent, parallel);

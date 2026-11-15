@@ -179,7 +179,7 @@ def test_default_columns():
 def test_every_algorithm_agrees(distances, max_dim):
     """Every algorithm and option of the full grid (as for explicit complexes) gives the default's barcode."""
     expected = rips(distances, max_dim)
-    for method, algorithm in itertools.product(METHODS, algorithm_grid(Algorithm, row_ranks=False)):
+    for method, algorithm in itertools.product(METHODS, algorithm_grid(Algorithm, row_ranks=False, union_find=True)):
         note(f"method={method} algorithm={algorithm!r}")
         barcode = rips(distances, max_dim, method=method, algorithm=algorithm)
         assert (barcode.essential, barcode.pairings) == (expected.essential, expected.pairings)

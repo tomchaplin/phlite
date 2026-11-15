@@ -986,7 +986,7 @@ pub fn image(
         fn visit<R: ColumnRepresentation>(self, algorithm: Algorithm<'_, R>) -> Self::Output {
             // In the sublevel filtration's values, so that classes born at +inf (never) are told from those born at
             // -inf (first, for superlevel sets)
-            filtration_barcode(self.complex, 1, self.method, algorithm, self.representatives, false)
+            filtration_barcode(self.complex, 1, self.method, algorithm, self.representatives, false, true)
         }
     }
     let bars = config.run(V {

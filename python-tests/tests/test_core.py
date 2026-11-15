@@ -56,9 +56,10 @@ def test_docstrings_state_the_defaults(name):
     serial preset resolves."""
     serial = defaults()[name]["serial"]
     doc = " ".join(pipeline_function(name).__doc__.split())
+    union_find = "" if serial.union_find is None else f", union_find={serial.union_find!r}"
     expected = (
         f"Pipeline defaults (`'{name}'`): columns={serial.columns!r}, cache={serial.cache!r}, "
-        f"store_r={serial.store_r!r}."
+        f"store_r={serial.store_r!r}{union_find}."
     )
     assert expected in doc
 
@@ -80,7 +81,7 @@ def test_book_table_matches_the_registry():
     table = book_table()
     registry = defaults()
     assert set(table) == set(registry), "add a row to the table in docs/book/src/python/algorithms.md"
-    for name, (function, columns, cache, store_r, parallel_columns, parallel_cache) in table.items():
+    for name, (function, columns, cache, store_r, parallel_columns, parallel_cache, union_find) in table.items():
         serial, parallel = registry[name]["serial"], registry[name]["parallel"]
         expected_function = (
             "phlite.complexes.FilteredComplex.persistence" if name == "complexes" else f"phlite.{name}"
@@ -88,6 +89,8 @@ def test_book_table_matches_the_registry():
         assert function == expected_function
         assert [columns, cache, store_r] == [repr(serial.columns), repr(serial.cache), repr(serial.store_r)]
         assert [parallel_columns, parallel_cache] == [repr(parallel.columns), repr(parallel.cache)]
+        assert union_find == ("—" if serial.union_find is None else repr(serial.union_find))
+        assert parallel.union_find == serial.union_find
 
 
 def test_unset_options_are_shown():
@@ -102,6 +105,21 @@ def test_unset_options_are_shown():
     )
     assert algorithm.with_columns(None).columns is None
     assert Algorithm.serial().columns is None and Algorithm.serial().with_cache(None) == Algorithm.serial()
+
+
+def test_union_find_only_where_supported():
+    assert Algorithm.serial().resolve("clouds.rips").union_find is True
+    assert Algorithm.serial().with_union_find(False).resolve("clouds.rips").union_find is False
+    assert Algorithm.serial().resolve("networks.grpph").union_find is None
+    assert "union_find" not in repr(Algorithm.serial().resolve("networks.grpph"))
+    assert repr(Algorithm.serial().with_union_find()).endswith("union_find=True)")
+    with pytest.raises(ValueError, match="union-find"):
+        Algorithm.serial().with_union_find().resolve("networks.grpph")
+    # Survives the trip between packages
+    barcode = __import__("phlite.clouds", fromlist=["rips"]).rips(
+        [[0.0, 1.0], [1.0, 0.0]], algorithm=Algorithm.serial().with_union_find(False)
+    )
+    assert barcode.algorithm.union_find is False
 
 
 def test_resolve():

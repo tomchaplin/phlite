@@ -23,6 +23,7 @@ pub(crate) const DEFAULTS: AlgorithmDefaults = AlgorithmDefaults {
     store_r: true,
     // The complex knows the position of every cell in the filtration
     row_ranks: true,
+    union_find: None,
 };
 
 /// The pipeline `'clouds.delaunay_cech'`: reduced as an explicit complex, as alpha complexes are.

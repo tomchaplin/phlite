@@ -28,6 +28,7 @@ pub(crate) const DEFAULTS: AlgorithmDefaults = AlgorithmDefaults {
     cache: true,
     store_r: false,
     row_ranks: false,
+    union_find: None,
 };
 
 // ====== The entry points =================================================

@@ -16,7 +16,7 @@ pub const SPEC_PROTOCOL: u32 = 1;
 /// {"protocol": 1, "kind": "standard" | "clearing" | "parallel-clearing",
 ///  "columns": None | "merged" | "heap" | "sorted" | "pivot", "cache": None | bool, "store_r": None | bool,
 ///  "skip_zero_apparent_pairs": bool, "dimension_order": None | list[int], "storage": "locking" | "lock-free",
-///  "threads": None | int}
+///  "threads": None | int, "union_find": None | bool}
 /// ```
 ///
 /// `None` means the pipeline's default.
@@ -31,6 +31,7 @@ pub fn spec_to_dict<'py>(py: Python<'py>, spec: &AlgorithmSpec) -> PyResult<Boun
     dict.set_item("dimension_order", spec.dimension_order.clone())?;
     dict.set_item("storage", storage_name(spec.storage))?;
     dict.set_item("threads", spec.threads)?;
+    dict.set_item("union_find", spec.union_find)?;
     Ok(dict)
 }
 
@@ -57,6 +58,7 @@ pub fn spec_from_dict(dict: &Bound<'_, PyDict>) -> PyResult<AlgorithmSpec> {
         dimension_order: get("dimension_order")?.extract()?,
         storage: storage_from_name(&get("storage")?.extract::<String>()?)?,
         threads: get("threads")?.extract()?,
+        union_find: get("union_find")?.extract()?,
     };
     spec.validate()?;
     Ok(spec)

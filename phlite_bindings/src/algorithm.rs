@@ -132,6 +132,9 @@ pub struct AlgorithmDefaults {
     /// ([`row_ranks`](phlite::matrices::HasRowFiltration::row_ranks)), which [`Columns::Pivot`] needs: without
     /// them, asking for pivot columns is refused rather than silently merging.
     pub row_ranks: bool,
+    /// Whether the pipeline finds dimension 0 (and, for images, the top dimension) by union-find rather than by
+    /// reducing it, when computing by cohomology; `None` if it can't (asking for it is then refused).
+    pub union_find: Option<bool>,
 }
 
 /// A reduction algorithm, with the options the user set: `None` means the pipeline's default.
@@ -148,6 +151,8 @@ pub struct AlgorithmSpec {
     pub storage: Storage,
     /// `None` for all cores.
     pub threads: Option<usize>,
+    /// `None` means the pipeline's default (see [`AlgorithmDefaults::union_find`]).
+    pub union_find: Option<bool>,
 }
 
 impl AlgorithmSpec {
@@ -163,6 +168,7 @@ impl AlgorithmSpec {
             dimension_order: None,
             storage: Storage::Locking,
             threads: None,
+            union_find: None,
         }
     }
 
@@ -229,8 +235,19 @@ impl AlgorithmSpec {
             None if defaults.columns == Columns::Pivot && self.kind != Kind::Clearing => Columns::Merged,
             None => defaults.columns,
         };
+        let union_find = match (self.union_find, defaults.union_find) {
+            (Some(true), None) => {
+                return Err(AlgorithmError(format!(
+                    "The pipeline '{}' can't find dimension 0 by union-find",
+                    defaults.pipeline
+                )))
+            }
+            (_, None) => None,
+            (set, Some(default)) => Some(set.unwrap_or(default)),
+        };
         Ok(ResolvedAlgorithm {
             kind: self.kind,
+            union_find,
             columns,
             cache: self.cache.unwrap_or(defaults.cache),
             store_r: self
@@ -271,6 +288,8 @@ pub struct ResolvedAlgorithm {
     pub dimension_order: Option<Vec<usize>>,
     pub storage: Storage,
     pub threads: Option<usize>,
+    /// `None` if the pipeline can't use union-find.
+    pub union_find: Option<bool>,
 }
 
 impl ResolvedAlgorithm {
@@ -285,7 +304,13 @@ impl ResolvedAlgorithm {
             dimension_order: self.dimension_order.clone(),
             storage: self.storage,
             threads: self.threads,
+            union_find: self.union_find,
         }
+    }
+
+    /// Whether to use union-find (for a pipeline that can).
+    pub fn union_find(&self) -> bool {
+        self.union_find.unwrap_or(false)
     }
 
     /// Run `visitor` with the configured [`Algorithm`], on a pool of `threads` threads if set.
@@ -356,6 +381,7 @@ mod tests {
         cache: false,
         store_r: false,
         row_ranks: false,
+        union_find: None,
     };
     const COMPLEX: AlgorithmDefaults = AlgorithmDefaults {
         pipeline: "complex",
@@ -363,6 +389,7 @@ mod tests {
         cache: false,
         store_r: true,
         row_ranks: true,
+        union_find: None,
     };
 
     #[test]
@@ -398,6 +425,17 @@ mod tests {
             (resolved.columns, resolved.cache, resolved.store_r),
             (Columns::Sorted, true, false)
         );
+    }
+
+    #[test]
+    fn union_find_only_where_supported() {
+        let with = |union_find| AlgorithmSpec { union_find, ..AlgorithmSpec::default() };
+        let supported = AlgorithmDefaults { union_find: Some(true), ..RIPS };
+        assert_eq!(with(None).resolve(&supported).unwrap().union_find, Some(true));
+        assert_eq!(with(Some(false)).resolve(&supported).unwrap().union_find, Some(false));
+        assert_eq!(with(None).resolve(&RIPS).unwrap().union_find, None);
+        assert_eq!(with(Some(false)).resolve(&RIPS).unwrap().union_find, None);
+        assert!(with(Some(true)).resolve(&RIPS).unwrap_err().0.contains("union-find"));
     }
 
     #[test]

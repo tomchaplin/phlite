@@ -185,6 +185,26 @@ impl AlgorithmConfig {
         self.with(|spec| spec.threads = threads)
     }
 
+    /// Whether to find dimension 0 by union-find rather than by reducing it, when computing by cohomology, or `None`
+    /// for the pipeline's default: union-find in `phlite.clouds.rips` (as Ripser does) and in `phlite.images.cubical`
+    /// (which also finds the top dimension by union-find on the dual, as Cubical Ripser does); other pipelines can't,
+    /// and refuse it.
+    ///
+    /// The edges that kill a component then never enter the reduction (as clearing would leave them out), so only
+    /// the dimensions above are reduced. Reducing dimension 0 is most of the time of a Vietoris–Rips barcode of points
+    /// in the plane (2–3× slower than union-find), and of a cubical one. Representatives come from the union-find too
+    /// (a component's: its birth vertex plus the oldest vertex of the component it joins).
+    #[pyo3(signature = (union_find = Some(true)))]
+    fn with_union_find(&self, union_find: Option<bool>) -> PyResult<Self> {
+        self.with(|spec| spec.union_find = union_find)
+    }
+
+    /// Whether dimension 0 is found by union-find, or `None` for the pipeline's default.
+    #[getter]
+    fn union_find(&self) -> Option<bool> {
+        self.spec.union_find
+    }
+
     /// `'standard'`, `'clearing'` or `'parallel-clearing'`.
     #[getter]
     fn name(&self) -> &'static str {
@@ -296,6 +316,10 @@ impl AlgorithmConfig {
                 "threads={}",
                 spec.threads.map_or("None".to_string(), |t| t.to_string())
             ));
+        }
+        // Only shown when set (or resolved for a pipeline that can use it)
+        if let Some(union_find) = spec.union_find {
+            fields.push(format!("union_find={}", python_bool(union_find)));
         }
         format!("Algorithm({})", fields.join(", "))
     }

@@ -234,7 +234,7 @@ def test_symmetries_and_monotone_maps(image, construction, seed):
     superlevel = diagrams(cubical(-image, construction=construction, filtration="superlevel"))
     assert superlevel == [sorted((-b, -d if d != INF else INF) for b, d in dim) for dim in expected]
 
-    for method, algorithm in itertools.product(METHODS, algorithm_grid(Algorithm, row_ranks=False)):
+    for method, algorithm in itertools.product(METHODS, algorithm_grid(Algorithm, row_ranks=False, union_find=True)):
         barcode = cubical(image, construction=construction, method=method, algorithm=algorithm)
         assert diagrams(barcode) == expected, f"{method} {algorithm!r}"
 

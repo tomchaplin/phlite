@@ -32,7 +32,7 @@ def cubical(image: numpy.typing.ArrayLike, max_dim: typing.Optional[builtins.int
         method: `'cohomology'` (the default) or `'homology'`.
         algorithm: The reduction algorithm and its options, as a `phlite.core.Algorithm` (default:
             `Algorithm.serial()`).
-            Pipeline defaults (`'images.cubical'`): columns='merged', cache=False, store_r=True.
+            Pipeline defaults (`'images.cubical'`): columns='merged', cache=False, store_r=True, union_find=True.
         representatives: Whether to also compute a representative cycle for every bar.
     
     Returns:
