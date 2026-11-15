@@ -14,6 +14,10 @@ name = "phlite_networks_grpph"
 path = "src/bin/grpph.rs"
 
 [[bin]]
+name = "phlite_networks_pph"
+path = "src/bin/pph.rs"
+
+[[bin]]
 name = "phlite_networks_stub_gen"
 path = "src/bin/stub_gen.rs"
 doc = false

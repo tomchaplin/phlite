@@ -23,7 +23,7 @@ SUITE = {
     "title": "PPH: `phlite.networks.pph` vs grpphati",
     "description": "Persistent path homology (dimensions 0 and 1, on the shortest-path filtration) of a random weighted "
         "digraph on `n` nodes, each edge present with probability `p`, weights uniform in [0, 1]: grpphati's `PPH` "
-        "pipeline against `pph(n, edges)`. On the largest cases only phlite runs.",
+        "pipeline against `pph(n, edges, filtration='shortest_path')`. On the largest cases only phlite runs.",
     "order": 22,
     "summary": ["grpphati (PPH)", "phlite (serial)", "phlite (parallel)"],
     "default": "phlite (serial)",
@@ -34,7 +34,7 @@ SUITE = {
 def phlite(algorithm=Algorithm.serial):
     def compute(case):
         n, edges = case
-        barcode = pph(n, edges, algorithm=algorithm())
+        barcode = pph(n, edges, filtration="shortest_path", algorithm=algorithm())
         return lambda: fingerprint([list(p) + [(b, INF) for b in e] for p, e in zip(barcode.pairings, barcode.essential)])
 
     return compute
@@ -56,7 +56,7 @@ def phlite_h1(algorithm=Algorithm.serial):
 
     def compute(case):
         n, edges = case
-        barcode = pph(n, edges, algorithm=algorithm())
+        barcode = pph(n, edges, filtration="shortest_path", algorithm=algorithm())
         return lambda: fingerprint([list(barcode.pairings[1]) + [(b, INF) for b in barcode.essential[1]]])
 
     return compute

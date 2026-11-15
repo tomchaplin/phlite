@@ -1,7 +1,8 @@
 //! Persistent homology of networks, implemented with [`phlite`].
 //!
-//! * [`grpph`]: grounded persistent path homology (GrPPH) of weighted digraphs, and (without grounding) persistent path
-//!   homology (PPH), in dimensions 0 and 1.
+//! * [`pph`]: persistent path homology (PPH, Chowdhury and Mémoli) of weighted digraphs, in any dimension.
+//! * [`grpph`]: grounded persistent path homology (GrPPH) of weighted digraphs, and (without grounding) PPH of the
+//!   shortest-path filtration, in dimensions 0 and 1.
 //! * [`flag`]: directed flag complexes (as flagser), grounded or not, and ordered-tuple complexes (Turner's directed
 //!   Rips), in any dimension.
 //! * [`dowker`]: Dowker sink and source complexes.
@@ -12,7 +13,8 @@
 //!
 //! With the feature `python`, this crate is also the Python package `phlite-networks`, `phlite.networks` (its
 //! bindings are in `src/python`, one file per pipeline; see `phlite_bindings` for how to add one). The
-//! `phlite_networks_grpph` binary times GrPPH on a complete digraph.
+//! `phlite_networks_grpph` binary times GrPPH on a complete digraph, and `phlite_networks_pph` computes PPH of networks read
+//! from stdin (see `matlab_compare/`).
 //!
 //! This crate was called `phlite_grpph` (and its Python package the same) before it gathered every network
 //! filtration.
@@ -22,6 +24,7 @@ pub mod dowker;
 pub mod flag;
 pub mod grpph;
 pub mod lazy;
+pub mod pph;
 pub mod simplex;
 #[cfg(feature = "python")]
 mod python;

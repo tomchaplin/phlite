@@ -6,7 +6,7 @@ Persistent homology of networks (weighted digraphs): the `phlite-networks` packa
 | Function | Filtration | Chapter |
 |---|---|---|
 | `phlite.networks.grpph` | grounded persistent path homology | [Grounded path homology](networks/grpph.md) |
-| `phlite.networks.pph` | persistent path homology | [Path homology](networks/pph.md) |
+| `phlite.networks.pph` | persistent path homology (Chowdhury and Mémoli), any dimension | [Path homology](networks/pph.md) |
 | `phlite.networks.directed_flag` | directed flag complexes (as flagser), grounded or not | [Directed flag complexes](networks/directed_flag.md) |
 | `phlite.networks.dowker` | Dowker sink and source complexes | [Dowker complexes](networks/dowker.md) |
 | `phlite.networks.ordered_tuples` | ordered-tuple complexes (Turner's directed Rips) | [Directed Rips](networks/ordered_tuples.md) |

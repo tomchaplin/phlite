@@ -16,7 +16,7 @@
   let source = $state<Source>('examples');
   let exampleId = $state(EXAMPLES[0].id);
   let g = $state.raw<Digraph>(EXAMPLES[0].make());
-  type Complex = 'grpph' | 'pph' | NetworkKind;
+  type Complex = 'grpph' | 'pph-sp' | NetworkKind;
   const COMPLEXES: { id: Complex; name: string; about: string }[] = [
     {
       id: 'grpph',
@@ -28,7 +28,13 @@
       id: 'pph',
       name: 'PPH',
       about:
-        'Persistent path homology: the path homology of the shortest-path filtration, a pair a→b entering at the length of the shortest path from a to b. H₀ and H₁.',
+        'Persistent path homology (Chowdhury and Mémoli): the path homology of the digraph of edges with weight at most t, in any dimension. Cells are regular paths, each entering once all its edges have.',
+    },
+    {
+      id: 'pph-sp',
+      name: 'PPH (paths)',
+      about:
+        'Persistent path homology of the shortest-path filtration, a pair a→b entering at the length of the shortest path from a to b (GrPPH without the grounding). H₀ and H₁.',
     },
     {
       id: 'flag',
@@ -67,13 +73,13 @@
   ];
   let complex = $state<Complex>('grpph');
   let maxDim = $state(1);
-  const pathHomology = $derived(complex === 'grpph' || complex === 'pph');
-  const shortestPath = $derived(pathHomology || complex === 'flag-sp' || complex === 'grounded-flag');
+  const pathHomology = $derived(complex === 'grpph' || complex === 'pph-sp' || complex === 'pph');
+  const shortestPath = $derived(complex === 'grpph' || complex === 'pph-sp' || complex === 'flag-sp' || complex === 'grounded-flag');
   let options = $state(defaultsFor(GRPPH));
   const runner = new Runner();
   function setComplex(c: Complex) {
     complex = c;
-    options = defaultsFor(c === 'grpph' || c === 'pph' ? GRPPH : NETWORK);
+    options = defaultsFor(c === 'grpph' || c === 'pph-sp' ? GRPPH : NETWORK);
   }
 
   function useExample(id: string) {
@@ -119,7 +125,7 @@
       weights: Float64Array.from(g.edges.map((e) => e.w)),
       options: $state.snapshot(options),
     };
-    if (complex === 'grpph' || complex === 'pph') return { pipeline: 'grpph', grounded: complex === 'grpph', ...graph };
+    if (complex === 'grpph' || complex === 'pph-sp') return { pipeline: 'grpph', grounded: complex === 'grpph', ...graph };
     return { pipeline: 'network', kind: complex, maxDim: complex === 'grounded-flag' ? Math.min(maxDim, 1) : maxDim, ...graph };
   });
   // Moving a node changes nothing to compute
@@ -138,6 +144,7 @@
     if (c.length === 1) return `node ${label(c[0])}`;
     if (complex === 'dowker-sink' || complex === 'dowker-source') return `{${c.map(label).join(', ')}}`;
     if (!pathHomology) return `(${c.map(label).join(', ')})`;
+    if (complex === 'pph') return `path ${c.map(label).join('→')}`;
     if (c.length === 2) return `${label(c[0])}→${label(c[1])}`;
     if (c.length === 3 && c[0] === c[2]) return `double edge ${label(c[0])}⇄${label(c[1])}`;
     if (c.length === 3) return `triangle ${c.map(label).join('→')}`;
@@ -218,7 +225,7 @@ c,a,2</pre>
           {#each COMPLEXES as c}<option value={c.id}>{c.name}</option>{/each}
         </select>
       </label>
-      {#if !pathHomology && complex !== 'grounded-flag'}
+      {#if complex !== 'grpph' && complex !== 'pph-sp' && complex !== 'grounded-flag'}
         <label class="field"><span>Up to dimension</span>
           <select bind:value={maxDim}>
             <option value={0}>H₀</option><option value={1}>H₁</option><option value={2}>H₂</option><option value={3}>H₃</option>
@@ -226,7 +233,7 @@ c,a,2</pre>
         </label>
       {/if}
       <p class="note">{COMPLEXES.find((c) => c.id === complex)?.about}</p>
-      <Options bind:options defaults={pathHomology ? GRPPH : NETWORK} />
+      <Options bind:options defaults={complex === 'grpph' || complex === 'pph-sp' ? GRPPH : NETWORK} />
       <div class="compute-row">
         <button class="primary" disabled={!job} onclick={() => runner.run(job)}>Compute</button>
         <label><input type="checkbox" bind:checked={runner.auto} /> recompute on every change</label>

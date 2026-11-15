@@ -10,6 +10,7 @@ use pyo3::prelude::*;
 mod complexes;
 mod graph;
 mod grpph;
+mod pph;
 
 const DOC: &str = "Persistent homology of networks (weighted digraphs): `grpph` (grounded persistent path homology), \
                    `pph` (persistent path homology), `directed_flag` (directed flag complexes, as flagser, grounded or \
@@ -19,7 +20,7 @@ pyo3_stub_gen::module_doc!("phlite.networks", "{}", DOC);
 /// This package's pipelines, registered with `phlite.core` on import.
 const PIPELINES: &[AlgorithmDefaults] = &[
     grpph::DEFAULTS,
-    grpph::PPH_DEFAULTS,
+    pph::DEFAULTS,
     complexes::FLAG_DEFAULTS,
     complexes::TUPLES_DEFAULTS,
     complexes::DOWKER_DEFAULTS,
@@ -32,6 +33,7 @@ fn _networks(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.setattr("__doc__", DOC)?;
     phlite_bindings::add_functions(m, "phlite.networks", |m| {
         grpph::register(m)?;
+        pph::register(m)?;
         complexes::register(m)?;
         Ok(())
     })?;

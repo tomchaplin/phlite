@@ -264,7 +264,9 @@ def test_against_grpphati(graph):
     if not finite:
         return
     note(f"edges={edges}")
-    assert diagram(pph(n, edges), 1) == grpphati_diagram(n, edges, make_standard_pipeline, RegularPathHomology)
+    assert diagram(pph(n, edges, filtration="shortest_path"), 1) == grpphati_diagram(
+        n, edges, make_standard_pipeline, RegularPathHomology
+    )
     assert diagram(directed_flag(n, edges, filtration="shortest_path"), 1) == grpphati_diagram(
         n, edges, make_standard_pipeline, DirectedFlagComplexHomology
     )

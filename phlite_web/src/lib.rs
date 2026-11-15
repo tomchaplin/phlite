@@ -665,7 +665,9 @@ pub fn grpph(
 /// * `"flag-sp"`: the directed flag complex, each pair at the length of the shortest path;
 /// * `"grounded-flag"`: the directed flag complex grounded at the digraph's edges (dimensions 0 and 1);
 /// * `"tuples"`: the ordered-tuple complex (directed Rips), each edge at its weight;
-/// * `"dowker-sink"`, `"dowker-source"`: the Dowker sink or source complex.
+/// * `"dowker-sink"`, `"dowker-source"`: the Dowker sink or source complex;
+/// * `"pph"`: persistent path homology (Chowdhury and Mémoli), each edge at its weight, by `phlite_networks::pph`
+///   (cells are regular paths).
 #[wasm_bindgen]
 pub fn network(
     kind: &str,
@@ -703,6 +705,7 @@ pub fn network(
         "tuples" => lazy_bars(&FlagComplex::new(FlagKind::OrderedTuples, with(Distances::Weight)), max_dim, &config)?,
         "dowker-sink" => lazy_bars(&DowkerComplex::new(&with(Distances::Weight), Side::Sink), max_dim, &config)?,
         "dowker-source" => lazy_bars(&DowkerComplex::new(&with(Distances::Weight), Side::Source), max_dim, &config)?,
+        "pph" => pph_bars(n_vertices, &edges, max_dim, &config)?,
         other => return Err(err(format!("Unknown network complex {other:?}"))),
     };
     to_js(Barcode {
@@ -713,6 +716,49 @@ pub fn network(
             describe(&config)
         ),
     })
+}
+
+/// Persistent path homology in dimensions `0..=max_dim`, cells as their vertices.
+fn pph_bars(
+    n_vertices: u32,
+    edges: &[(u32, u32, f64)],
+    max_dim: usize,
+    config: &Config,
+) -> Result<(Vec<OutBar>, String), JsError> {
+    use phlite_networks::pph::{pph_barcode, Network, PPHBar};
+    let edges: Vec<(u16, u16, f64)> = edges.iter().map(|&(a, b, w)| (a as u16, b as u16, w)).collect();
+    let network = Network::from_edges(n_vertices as u16, &edges);
+    if max_dim >= network.max_dimension() {
+        return Err(err(format!(
+            "Too many nodes ({n_vertices}) for paths of dimension {}",
+            max_dim + 1
+        )));
+    }
+    struct V<'a> {
+        network: &'a Network,
+        max_dim: usize,
+        method: Method,
+        representatives: bool,
+    }
+    impl Visitor for V<'_> {
+        type Output = Vec<PPHBar<Z2>>;
+        fn visit<R: ColumnRepresentation>(self, algorithm: Algorithm<'_, R>) -> Self::Output {
+            pph_barcode(self.network, self.max_dim, self.method, algorithm, self.representatives)
+        }
+    }
+    let bars = config.run(V {
+        network: &network,
+        max_dim,
+        method: config.method,
+        representatives: config.representatives,
+    });
+    let bars = translate::<_, Z2>(
+        bars,
+        |p| p.dimension(),
+        |p| network.vertices(p).into_iter().map(u32::from).collect(),
+        |v| v,
+    );
+    Ok((bars, format!("dimensions 0–{max_dim}, regular paths")))
 }
 
 /// The barcode of a lazy complex in dimensions `0..=max_dim`, cells as their vertices.

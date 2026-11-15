@@ -34,7 +34,7 @@ export interface AlgoOptions {
 }
 
 /** The complexes of `phlite_web::network`. */
-export type NetworkKind = 'flag' | 'flag-sp' | 'grounded-flag' | 'tuples' | 'dowker-sink' | 'dowker-source';
+export type NetworkKind = 'pph' | 'flag' | 'flag-sp' | 'grounded-flag' | 'tuples' | 'dowker-sink' | 'dowker-source';
 
 export type Job =
   | {
