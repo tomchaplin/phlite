@@ -135,7 +135,7 @@ def test_cycle_networks():
         assert diagram(barcode, 1) == [(1.0, float(math.ceil(n / 2)))]
 
 
-@given(network=networks(max_nodes=6), filtration=st.sampled_from(["weight", "shortest_path"]))
+@given(network=networks(max_nodes=8), filtration=st.sampled_from(["weight", "shortest_path"]))
 def test_matches_pathhomfast(network, filtration):
     """The barcode in dimensions 0-2 (0-3 on at most 4 nodes) against PathHomFast's (explicit filtered bases of Ω, over
     GF(2))."""
