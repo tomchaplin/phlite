@@ -1062,6 +1062,7 @@ dependencies = [
  "petgraph",
  "phlite",
  "phlite_bindings",
+ "phlite_clouds",
  "pyo3",
  "pyo3-log",
  "pyo3-stub-gen",

@@ -21,6 +21,12 @@ pub enum NetworkError {
     NotSquare { row: usize, len: usize, n: usize },
     /// More nodes than the structure can index.
     TooManyVertices { n_vertices: usize, max: usize },
+    /// An edge of an undirected graph with a `NaN` weight (negative weights are fine there: they are only values).
+    NotANumber { source: u32, target: u32 },
+    /// A node value that is infinite or `NaN`.
+    BadNodeValue { node: u32, value: f64 },
+    /// One value per node is needed.
+    WrongNumberOfNodeValues { values: usize, n_vertices: usize },
 }
 
 impl fmt::Display for NetworkError {
@@ -47,6 +53,13 @@ impl fmt::Display for NetworkError {
             }
             NetworkError::TooManyVertices { n_vertices, max } => {
                 write!(f, "{n_vertices} nodes is more than the {max} supported")
+            }
+            NetworkError::NotANumber { source, target } => write!(f, "edge {source} - {target} has a NaN weight"),
+            NetworkError::BadNodeValue { node, value } => {
+                write!(f, "node {node} has value {value}; node values must be finite")
+            }
+            NetworkError::WrongNumberOfNodeValues { values, n_vertices } => {
+                write!(f, "there are {values} node values for {n_vertices} nodes")
             }
         }
     }

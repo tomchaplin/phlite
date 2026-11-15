@@ -335,8 +335,8 @@ pub fn build_rips_bases_with_threshold<I: RipsInt, D: Distances + ?Sized>(
     // Build up the basis
     for v in 0..(distances.n_points()) {
         let birth = distances.birth(v);
-        // Points born after the threshold never appear (but, as in ripser, every point born at 0 does)
-        if birth > threshold && birth > ZERO {
+        // Points born after the threshold never appear (but, as in ripser, unweighted points, born at 0, always do)
+        if birth > threshold && (D::HAS_BIRTHS || birth > ZERO) {
             continue;
         }
         let mut simplex = vec![v];
@@ -584,8 +584,8 @@ fn build_reduction_bases_from<I: RipsInt, D: Distances + ?Sized>(
     // All the simplices of the current dimension (needed to generate the next), then those we keep
     let mut all: Vec<(NotNan<f64>, RipsIndex<I>)> = (0..distances.n_points())
         .map(|v| (distances.birth(v), RipsIndex(I::from_usize(v + 1))))
-        // Points born after the threshold never appear (but, as in ripser, every point born at 0 does)
-        .filter(|&(birth, _)| birth <= threshold || birth <= ZERO)
+        // Points born after the threshold never appear (but, as in ripser, unweighted points, born at 0, always do)
+        .filter(|&(birth, _)| birth <= threshold || (!D::HAS_BIRTHS && birth <= ZERO))
         .collect();
     let mut dims = vec![];
     for dim in 0..=max_dim {
@@ -837,11 +837,11 @@ fn connected_components<I: RipsInt, D: Distances>(
     use rayon::prelude::*;
     let n = distances.n_points();
     let zero = ZERO;
-    // Points born after the threshold never appear (but, as in ripser, every point born at 0 does)
+    // Points born after the threshold never appear (but, as in ripser, unweighted points, born at 0, always do)
     let present: Vec<bool> = (0..n)
         .map(|v| {
             let birth = distances.birth(v);
-            birth <= threshold || birth <= zero
+            birth <= threshold || (!D::HAS_BIRTHS && birth <= zero)
         })
         .collect();
     let edge = |i: usize, j: usize| RipsIndex(I::from_usize(i + 1) + I::from_usize(n + 1) * I::from_usize(j + 1));
