@@ -19,6 +19,11 @@ Start from a preset or an algorithm, then adjust with `with_*` methods (each ret
 | `Algorithm.parallel(threads=None)` | `Algorithm.parallel_clearing().with_threads(threads)`: [parallel clearing](../algorithms/parallel.md) on all cores by default |
 | `Algorithm.standard()` | the [standard algorithm](../algorithms/standard.md) |
 
+Only parallel clearing uses more than one core. That includes the work around the reduction: the pipelines that build
+their bases (Vietoris–Rips, cubical complexes, the network complexes, path homology) or sort and join cells for
+union-find in parallel do so only for the parallel algorithm, on its threads; with `Algorithm.serial()` or
+`Algorithm.standard()` the whole computation runs on the calling thread (checked by comparing CPU and wall time).
+
 | Option | What | Default |
 |---|---|---|
 | `with_columns` | the [column representation](../columns/overview.md): `'merged'`, `'heap'`, `'sorted'`, `'pivot'` | the pipeline's (below) |

@@ -42,7 +42,7 @@ fn main() {
     }
     let network = Network::from_edges(n, &edges);
     let start = Instant::now();
-    let basis = cohomology_basis(&network, max_dim);
+    let basis = cohomology_basis(&network, max_dim, true);
     let enumeration = start.elapsed();
     let size = phlite::matrices::ColBasis::size(&basis);
     drop(basis);

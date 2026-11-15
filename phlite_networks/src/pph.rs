@@ -357,8 +357,9 @@ impl Network {
 
     /// The allowed paths of each dimension `0..=max_dim`, each sorted by allow time (then path), with their allow times.
     ///
-    /// Each dimension is built from the last in parallel, by appending out-neighbours.
-    pub fn allowed_paths(&self, max_dim: usize) -> Vec<Vec<(Time, RegularPath)>> {
+    /// Each dimension is built from the last by appending out-neighbours, in parallel on the current rayon thread pool
+    /// if `parallel`.
+    pub fn allowed_paths(&self, max_dim: usize, parallel: bool) -> Vec<Vec<(Time, RegularPath)>> {
         assert!(
             max_dim <= self.max_dimension(),
             "dimension {max_dim} too large to encode on {} vertices",
@@ -371,23 +372,27 @@ impl Network {
             .collect();
         let mut dims = Vec::with_capacity(max_dim + 1);
         for dim in 0..=max_dim {
-            let next: Vec<(Time, u64, u16)> = if dim < max_dim {
-                frontier
-                    .par_iter()
-                    .flat_map_iter(|&(time, code, last)| {
-                        self.out_adj[last as usize]
-                            .iter()
-                            .map(move |&(y, t)| (time.max(t), code * base + digit(y, last), y))
-                    })
-                    .collect()
-            } else {
-                vec![]
+            let extend = |&(time, code, last): &(Time, u64, u16)| {
+                self.out_adj[last as usize]
+                    .iter()
+                    .map(move |&(y, t)| (time.max(t), code * base + digit(y, last), y))
             };
-            let mut paths: Vec<(Time, RegularPath)> = frontier
-                .into_par_iter()
-                .map(|(time, code, _last)| (time, RegularPath::from_parts(dim, code)))
-                .collect();
-            paths.par_sort_unstable();
+            let next: Vec<(Time, u64, u16)> = match (dim < max_dim, parallel) {
+                (false, _) => vec![],
+                (true, true) => frontier.par_iter().flat_map_iter(extend).collect(),
+                (true, false) => frontier.iter().flat_map(extend).collect(),
+            };
+            let to_path = |(time, code, _last): (Time, u64, u16)| (time, RegularPath::from_parts(dim, code));
+            let mut paths: Vec<(Time, RegularPath)> = if parallel {
+                frontier.into_par_iter().map(to_path).collect()
+            } else {
+                frontier.into_iter().map(to_path).collect()
+            };
+            if parallel {
+                paths.par_sort_unstable();
+            } else {
+                paths.sort_unstable();
+            }
             dims.push(paths);
             frontier = next;
         }
@@ -403,11 +408,10 @@ impl Network {
         &self,
         allowed: &[Vec<(Time, RegularPath)>],
         max_dim: usize,
+        parallel: bool,
     ) -> Vec<Vec<RegularPath>> {
         let n = self.n_vertices;
-        let bridged: Vec<(u16, u16)> = (0..n)
-            .into_par_iter()
-            .flat_map_iter(|a| {
+        let bridged_from = |a| {
                 let mut targets = vec![false; n as usize];
                 for &(b, _) in &self.out_adj[a as usize] {
                     for &(c, _) in &self.out_adj[b as usize] {
@@ -419,8 +423,12 @@ impl Network {
                 (0..n)
                     .filter(move |&c| targets[c as usize])
                     .map(move |c| (a, c))
-            })
-            .collect();
+            };
+        let bridged: Vec<(u16, u16)> = if parallel {
+            (0..n).into_par_iter().flat_map_iter(bridged_from).collect()
+        } else {
+            (0..n).flat_map(bridged_from).collect()
+        };
         let mut out = vec![vec![]; max_dim + 1];
         if bridged.is_empty() || max_dim == 0 {
             return out;
@@ -437,9 +445,7 @@ impl Network {
         }
         for (dim, faces) in out.iter_mut().enumerate().skip(1) {
             // left has dimension j, right has dimension dim - 1 - j
-            let mut found: Vec<RegularPath> = bridged
-                .par_iter()
-                .flat_map_iter(|&(a, c)| {
+            let faces_of = |&(a, c)| {
                     let by_first = &by_first;
                     let by_last = &by_last;
                     (0..dim).flat_map(move |j| {
@@ -451,9 +457,17 @@ impl Network {
                             })
                         })
                     })
-                })
-                .collect();
-            found.par_sort_unstable();
+                };
+            let mut found: Vec<RegularPath> = if parallel {
+                bridged.par_iter().flat_map_iter(faces_of).collect()
+            } else {
+                bridged.iter().flat_map(faces_of).collect()
+            };
+            if parallel {
+                found.par_sort_unstable();
+            } else {
+                found.sort_unstable();
+            }
             found.dedup();
             *faces = found;
         }
@@ -581,10 +595,10 @@ impl<CF: NonZeroCoefficient> HasRowFiltration for PPHCoboundary<'_, CF> {
 }
 
 /// The column basis for reducing the boundary matrix: allowed paths in dimensions `0..=max_dim + 1`, in filtration order.
-pub fn homology_basis(network: &Network, max_dim: usize) -> SplitBasis<RegularPath> {
+pub fn homology_basis(network: &Network, max_dim: usize, parallel: bool) -> SplitBasis<RegularPath> {
     SplitBasis::from_dimensions(
         network
-            .allowed_paths(max_dim + 1)
+            .allowed_paths(max_dim + 1, parallel)
             .into_iter()
             .map(|paths| paths.into_iter().map(|(_t, path)| path)),
     )
@@ -593,9 +607,9 @@ pub fn homology_basis(network: &Network, max_dim: usize) -> SplitBasis<RegularPa
 /// The column basis for reducing the coboundary matrix: in each dimension `0..=max_dim`, the allowed paths and then the
 /// never-allowed faces of allowed paths one dimension up (which are rows of the boundary matrix, so must be columns here,
 /// at `+∞`), in filtration order. Paths of dimension `max_dim + 1` are never enumerated.
-pub fn cohomology_basis(network: &Network, max_dim: usize) -> SplitBasis<RegularPath> {
-    let allowed = network.allowed_paths(max_dim);
-    let never_allowed = network.never_allowed_faces(&allowed, max_dim);
+pub fn cohomology_basis(network: &Network, max_dim: usize, parallel: bool) -> SplitBasis<RegularPath> {
+    let allowed = network.allowed_paths(max_dim, parallel);
+    let never_allowed = network.never_allowed_faces(&allowed, max_dim, parallel);
     SplitBasis::from_dimensions(
         allowed
             .into_iter()
@@ -657,16 +671,19 @@ where
         max_dim + 1,
         network.n_vertices()
     );
+    // Enumerate paths in parallel only for the parallel algorithm, on whatever rayon pool we're called from
+    #[allow(unreachable_patterns)]
+    let parallel = matches!(algorithm, Algorithm::ParallelClearing(_));
     let boundary = PPHBoundary::<CF>::new(network);
     let coboundary = PPHCoboundary::<CF>::new(network);
     let bars = match method {
         Method::Homology => {
-            let boundary = (&boundary).with_basis(homology_basis(network, max_dim));
+            let boundary = (&boundary).with_basis(homology_basis(network, max_dim, parallel));
             let boundary = (&boundary).with_transpose(&coboundary);
             barcode::homology(boundary, algorithm, representatives)
         }
         Method::Cohomology => {
-            let coboundary = (&coboundary).with_basis(cohomology_basis(network, max_dim));
+            let coboundary = (&coboundary).with_basis(cohomology_basis(network, max_dim, parallel));
             let coboundary = (&coboundary).with_transpose(&boundary);
             if representatives {
                 barcode::cohomology_with_involution(coboundary, algorithm)

@@ -110,7 +110,7 @@ fn coboundary_is_transpose_of_boundary() {
         let network = random_network(&mut rng, 5, 50, 3);
         let boundary = PPHBoundary::<Z3>::new(&network);
         let coboundary = PPHCoboundary::<Z3>::new(&network);
-        let basis = homology_basis(&network, 2);
+        let basis = homology_basis(&network, 2, false);
         let mut from_boundary = HashMap::new();
         for i in 0..basis.size() {
             let tau = basis.element(i);
@@ -221,7 +221,7 @@ fn methods_and_algorithms_agree_z3() {
 fn cohomology_basis_includes_never_allowed_faces() {
     // a -> b -> c without a -> c: the face [a, c] of [a, b, c] is never allowed
     let network = Network::from_edges(3, &[(0, 1, 1.0), (1, 2, 1.0)]);
-    let basis = cohomology_basis(&network, 1);
+    let basis = cohomology_basis(&network, 1, false);
     let elems: Vec<_> = (0..basis.size()).map(|i| basis.element(i)).collect();
     assert!(elems.contains(&network.path(&[0, 2])));
     assert_eq!(network.allow_time(network.path(&[0, 2])), f64::INFINITY);
@@ -316,7 +316,7 @@ fn cohomology_basis_is_allowed_paths_and_their_never_allowed_faces() {
         let network = random_network(&mut rng, 6, [20, 40, 60][trial % 3], 3);
         let max_dim = 3;
         let boundary = PPHBoundary::<Z2>::new(&network);
-        let higher = homology_basis(&network, max_dim);
+        let higher = homology_basis(&network, max_dim, false);
         let mut expected = std::collections::BTreeSet::new();
         for i in 0..higher.size() {
             let path = higher.element(i);
@@ -327,7 +327,7 @@ fn cohomology_basis_is_allowed_paths_and_their_never_allowed_faces() {
                 expected.insert(face);
             }
         }
-        let basis = cohomology_basis(&network, max_dim);
+        let basis = cohomology_basis(&network, max_dim, true);
         let got: std::collections::BTreeSet<_> =
             (0..basis.size()).map(|i| basis.element(i)).collect();
         assert_eq!(got.len(), basis.size(), "duplicates in the basis");
