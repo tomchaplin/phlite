@@ -19,7 +19,7 @@ export const GRPPH: PipelineDefaults = { columns: 'merged', cache: true, storeR:
 export const COMPLEX: PipelineDefaults = { columns: 'pivot', cache: false, storeR: true, pivot: true };
 /** Directed flag, ordered-tuple and Dowker complexes (`networks.directed_flag` etc.). */
 export const NETWORK: PipelineDefaults = { columns: 'merged', cache: true, storeR: false, pivot: false };
-export const IMAGE: PipelineDefaults = { columns: 'heap', cache: false, storeR: false, pivot: false };
+export const IMAGE: PipelineDefaults = { columns: 'merged', cache: false, storeR: true, pivot: false };
 
 /** The default algorithm: serial clearing, or parallel clearing if chosen (and there are threads). */
 export function defaultAlgorithm(): AlgoOptions['algorithm'] {

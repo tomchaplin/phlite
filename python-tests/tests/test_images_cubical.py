@@ -262,4 +262,4 @@ def test_input_handling():
         cubical(image, construction="X")
     with pytest.raises(ValueError, match="filtration"):
         cubical(image, filtration="lower")
-    assert Algorithm.serial().resolve("images.cubical").columns == "heap"
+    assert Algorithm.serial().resolve("images.cubical").columns == "merged"

@@ -46,18 +46,39 @@ As for Vietoris–Rips, nothing is stored but the image (the crate's `phlite_ima
   Ripser), and similarly for faces.
 * The bases leave out every cell in a zero-persistence apparent pair, which in smooth images is most cells, and never
   hold the top dimension in full.
-* By cohomology without representatives (the default), the two ends are found by union-find, as Cubical Ripser does,
-  and only the dimensions in between (dimension 1 of a volume) are reduced: dimension 0 by joining pixels along the
-  edges in filtration order (the elder rule), and the top dimension `D - 1` by duality, joining top cells (and the
-  outside of the grid) along the cells of dimension `D - 1` in decreasing order. The edges that kill components are
-  left out of dimension 1, as clearing would. (Reducing dimension 0 of a large image by cohomology took 3–4 times as
-  long as the rest.) With representatives, or by homology, every dimension is reduced.
+* By cohomology (the default), the two ends are found by union-find, as Cubical Ripser does, and only the dimensions
+  in between (dimension 1 of a volume) are reduced: dimension 0 by joining pixels along the edges in filtration order
+  (the elder rule), and the top dimension `D - 1` by duality, joining top cells (and the outside of the grid) along the
+  cells of dimension `D - 1` in decreasing order. The edges that kill components are left out of dimension 1, as
+  clearing would. (Reducing dimension 0 of a large image by cohomology took 3–4 times as long as the rest.)
+* The union-finds need every edge (or cell of dimension `D - 1`) in filtration order. Every cell's value is one of its
+  pixels', so the pixels are ranked once, and a cell's rank is the min or max of its pixels' ranks: a walk over each
+  type of cell in C order (no decoding), which also finds each cell's two neighbours, then a radix sort on the ranks,
+  stable so that ties stay in order of number, exactly as the reductions break them.
+* Representatives come from the union-finds too: a component's is its birth pixel plus the oldest pixel of the
+  component it joins; a void's (the top dimension), the boundary of the top cells that fill it. In the middle
+  dimensions they come by the involution, unless the image has missing pixels (only then can there be essential
+  classes there, whose representatives need dimension 0 reduced), when every dimension is reduced. By homology, every
+  dimension is reduced.
+* A cell's value in the matrices is the min (T) or max (V) over the pixels at fixed offsets for its type, precomputed,
+  with the image padded with `+inf` for the T-construction so that every cell has the same pattern.
 
-On a 1024 × 1024 smoothed noise image (T-construction, sublevel sets, both dimensions) this takes 0.6 s serially and
-0.44 s in parallel, against GUDHI's 3.6 s and Cubical Ripser's 0.32 s; on a 64³ smoothed volume, 0.54 s and 0.24 s
-against 1.7 s and 0.17 s (`python-tests/benchmarks/bench_images_cubical.py`).
+Pipeline defaults (`'images.cubical'`): merged columns, not cached, storing R (by measurement: storing R makes reducing
+the middle dimension of a volume up to 3× faster).
 
-Pipeline defaults (`'images.cubical'`): heap columns, not cached (columns are short, and cheap to recompute).
+Times, in seconds, by `phlite.images.cubical` (sublevel sets, every dimension) and Cubical Ripser (`computePH_T` or
+`computePH`), on smoothed noise (noise averaged over 5 pixels along each axis) and uniform noise:
+
+| Image | Construction | phlite (serial) | phlite (parallel) | phlite (with representatives) | Cubical Ripser |
+|---|---|---|---|---|---|
+| 1024², smoothed | T | 0.39 | 0.38 | 1.06 | 0.27 |
+| 1024², smoothed | V | 0.34 | 0.32 | 1.05 | 0.26 |
+| 256², noise | T | 0.012 | 0.011 | 0.062 | 0.009 |
+| 64³, smoothed | T | 0.28 | 0.17 | 0.58 | 0.14 |
+| 64³, smoothed | V | 0.22 | 0.12 | 0.72 | 0.11 |
+| 32³, noise | T | 0.054 | 0.051 | 0.23 | 0.026 |
+
+GUDHI takes 3.6 s on the 1024² image and 1.7 s on the 64³ volume (`python-tests/benchmarks/bench_images_cubical.py`).
 
 ## Checked against
 

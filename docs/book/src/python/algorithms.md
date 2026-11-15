@@ -50,7 +50,7 @@ The column representation, caching and storing R are best chosen per kind of inp
 | `networks.directed_flag` | `phlite.networks.directed_flag` | `'merged'` | `True` | `False` | `'merged'` | `True` |
 | `networks.ordered_tuples` | `phlite.networks.ordered_tuples` | `'merged'` | `True` | `False` | `'merged'` | `True` |
 | `networks.dowker` | `phlite.networks.dowker` | `'merged'` | `True` | `False` | `'merged'` | `True` |
-| `images.cubical` | `phlite.images.cubical` | `'heap'` | `False` | `False` | `'heap'` | `False` |
+| `images.cubical` | `phlite.images.cubical` | `'merged'` | `False` | `True` | `'merged'` | `False` |
 <!-- defaults:end -->
 
 (`python-tests/tests/test_core.py` checks this table, and each function's docstring, against the pipelines

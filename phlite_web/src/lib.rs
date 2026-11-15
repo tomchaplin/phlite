@@ -179,9 +179,9 @@ const NETWORK_DEFAULTS: Defaults = Defaults {
     row_ranks: false,
 };
 const IMAGE_DEFAULTS: Defaults = Defaults {
-    columns: Columns::Heap,
+    columns: Columns::Merged,
     cache: false,
-    store_r: false,
+    store_r: true,
     row_ranks: false,
 };
 const COMPLEX_DEFAULTS: Defaults = Defaults {

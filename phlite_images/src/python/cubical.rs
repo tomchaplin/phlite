@@ -14,13 +14,14 @@ use phlite_bindings::{
 
 use crate::cubical::{filtration_barcode, Construction, CubicalComplex, Filtration, MAX_AXES};
 
-/// The pipeline `'images.cubical'`. Columns are recomputed from the pixels on the fly, as for Vietoris–Rips, and are
-/// short (at most `2 D` entries before reduction), so heap columns, not cached.
+/// The pipeline `'images.cubical'`. Columns are recomputed from the pixels on the fly, as for Vietoris–Rips; by
+/// measurement, storing R (rather than rebuilding each pivot column from V) makes reducing the middle dimensions of a
+/// volume up to 3x faster, and merged columns are then as fast as any (images have no reduction left in between).
 pub(crate) const DEFAULTS: AlgorithmDefaults = AlgorithmDefaults {
     pipeline: "images.cubical",
-    columns: Columns::Heap,
+    columns: Columns::Merged,
     cache: false,
-    store_r: false,
+    store_r: true,
     row_ranks: false,
 };
 
@@ -42,7 +43,7 @@ pub(crate) const DEFAULTS: AlgorithmDefaults = AlgorithmDefaults {
 ///     method: `'cohomology'` (the default) or `'homology'`.
 ///     algorithm: The reduction algorithm and its options, as a `phlite.core.Algorithm` (default:
 ///         `Algorithm.serial()`).
-///         Pipeline defaults (`'images.cubical'`): columns='heap', cache=False, store_r=False.
+///         Pipeline defaults (`'images.cubical'`): columns='merged', cache=False, store_r=True.
 ///     representatives: Whether to also compute a representative cycle for every bar.
 ///
 /// Returns:

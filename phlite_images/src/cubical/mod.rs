@@ -133,6 +133,16 @@ pub struct CubicalComplex<const D: usize> {
     filtration: Filtration,
     /// `None` if the image has no pixels (so the complex has no cells)
     grid: Option<Grid<D>>,
+    /// The pixels again, for computing values: in the T-construction padded with `+inf` all round (so that every cell
+    /// has a top cell either side along each axis it doesn't span); in the V-construction, empty (`pixels` is used)
+    padded: Vec<f64>,
+    /// C-order strides of the image values are computed from (`padded` for T, `pixels` for V)
+    value_strides: [usize; D],
+    /// For each cell type (bitmask of odd axes): the offsets of the pixels around a cell from its base pixel
+    /// `type_shift[mask] + Σ reduced[a] * value_strides[a]`, the first `type_len[mask]` of them
+    type_offsets: [[usize; 1 << MAX_AXES]; 1 << MAX_AXES],
+    type_len: [u8; 1 << MAX_AXES],
+    type_shift: [usize; 1 << MAX_AXES],
 }
 
 impl<const D: usize> CubicalComplex<D> {
@@ -193,6 +203,49 @@ impl<const D: usize> CubicalComplex<D> {
                 .map_err(|TooManyCells(n)| CubicalError::TooManyCells(n))?;
             Some(grid)
         };
+        // The pixels around each type of cell, at fixed offsets: V, the vertices, a step along each odd axis; T, the
+        // top cells, a step along each even axis (padded, the base is the one below, and along odd axes the top cell
+        // is the next one)
+        let (padded, value_strides) = match construction {
+            Construction::V => (vec![], pixel_strides),
+            Construction::T => {
+                let padded_shape = shape.map(|n| n + 2);
+                let mut strides = [0; D];
+                let mut stride = 1;
+                for a in (0..D).rev() {
+                    strides[a] = stride;
+                    stride *= padded_shape[a];
+                }
+                let mut padded = vec![f64::INFINITY; stride];
+                for (i, &value) in pixels.iter().enumerate() {
+                    let index: usize = (0..D).map(|a| ((i / pixel_strides[a]) % shape[a] + 1) * strides[a]).sum();
+                    padded[index] = value;
+                }
+                (padded, strides)
+            }
+        };
+        let mut type_offsets = [[0usize; 1 << MAX_AXES]; 1 << MAX_AXES];
+        let mut type_len = [0u8; 1 << MAX_AXES];
+        let mut type_shift = [0usize; 1 << MAX_AXES];
+        for mask in 0..1usize << D {
+            let odd = |a: usize| mask >> a & 1 == 1;
+            let spans = |a: usize| match construction {
+                Construction::V => odd(a),
+                Construction::T => !odd(a),
+            };
+            let mut len = 1;
+            for a in (0..D).filter(|&a| spans(a)) {
+                for i in 0..len {
+                    type_offsets[mask][len + i] = type_offsets[mask][i] + value_strides[a];
+                }
+                len *= 2;
+            }
+            type_len[mask] = len as u8;
+            type_shift[mask] = match construction {
+                Construction::V => 0,
+                Construction::T => (0..D).filter(|&a| odd(a)).map(|a| value_strides[a]).sum(),
+            };
+        }
         Ok(Self {
             pixels,
             shape,
@@ -200,6 +253,11 @@ impl<const D: usize> CubicalComplex<D> {
             construction,
             filtration,
             grid,
+            padded,
+            value_strides,
+            type_offsets,
+            type_len,
+            type_shift,
         })
     }
 
@@ -266,60 +324,15 @@ impl<const D: usize> CubicalComplex<D> {
     /// The value at which `cell` enters the (sublevel) filtration: `+inf` if never.
     #[inline]
     pub(crate) fn internal_value(&self, cell: &Decoded<D>) -> f64 {
-        // The (at most 2^D) pixels around the cell, as offsets into `pixels`
-        let mut offsets = [0usize; 1 << MAX_AXES];
-        let mut n = 1;
+        let mask = cell.mask as usize;
+        let mut base = self.type_shift[mask];
+        for a in 0..D {
+            base += cell.reduced[a] as usize * self.value_strides[a];
+        }
+        let offsets = &self.type_offsets[mask][..self.type_len[mask] as usize];
         match self.construction {
-            Construction::V => {
-                // The vertices: along an odd axis, the pixels at r and r + 1; along an even one, at r
-                for a in 0..D {
-                    let stride = self.pixel_strides[a];
-                    let base = cell.reduced[a] as usize * stride;
-                    if cell.is_odd(a) {
-                        for i in 0..n {
-                            offsets[n + i] = offsets[i] + base + stride;
-                            offsets[i] += base;
-                        }
-                        n *= 2;
-                    } else {
-                        for offset in &mut offsets[..n] {
-                            *offset += base;
-                        }
-                    }
-                }
-                offsets[..n]
-                    .iter()
-                    .map(|&i| self.pixels[i])
-                    .fold(f64::NEG_INFINITY, f64::max)
-            }
-            Construction::T => {
-                // The top cells: along an odd axis, the pixel at r; along an even one, those at r - 1 and r (if any)
-                for a in 0..D {
-                    let stride = self.pixel_strides[a];
-                    let r = cell.reduced[a] as usize;
-                    let below = (!cell.is_odd(a) && r > 0).then(|| (r - 1) * stride);
-                    let at = (cell.is_odd(a) || r < self.shape[a]).then_some(r * stride);
-                    match (below, at) {
-                        (Some(below), Some(at)) => {
-                            for i in 0..n {
-                                offsets[n + i] = offsets[i] + at;
-                                offsets[i] += below;
-                            }
-                            n *= 2;
-                        }
-                        (Some(only), None) | (None, Some(only)) => {
-                            for offset in &mut offsets[..n] {
-                                *offset += only;
-                            }
-                        }
-                        (None, None) => unreachable!("every axis has a pixel"),
-                    }
-                }
-                offsets[..n]
-                    .iter()
-                    .map(|&i| self.pixels[i])
-                    .fold(f64::INFINITY, f64::min)
-            }
+            Construction::V => offsets.iter().map(|&o| self.pixels[base + o]).fold(f64::NEG_INFINITY, f64::max),
+            Construction::T => offsets.iter().map(|&o| self.padded[base + o]).fold(f64::INFINITY, f64::min),
         }
     }
 
@@ -492,80 +505,329 @@ pub fn build_reduction_bases<const D: usize>(
     build_bases(complex, max_dim, true, parallel)
 }
 
-// ====== Dimension 0 ======================================================
+/// Whether the middle dimensions (`1..=max_dim`, below `D - 1`) may have essential classes, so that the involution
+/// can't find their representatives without dimension 0 (it reduces their columns, which needs the edges that kill
+/// components). Without excluded cells the complex is a box, with no homology above dimension 0.
+fn middle_essentials<const D: usize>(complex: &CubicalComplex<D>, max_dim: usize) -> bool {
+    D >= 3 && max_dim >= 1 && complex.pixels.contains(&f64::INFINITY)
+}
+
+// ====== Union-find at both ends ===========================================
+
+/// The ranks of the pixels' (internal) values: every cell's value is one of its pixels', so its rank among the distinct
+/// values orders cells as their values do, and fits a `u32`. `values[rank]` is the value; `+inf` has the last rank.
+struct Ranks {
+    /// Each pixel's rank, in C order
+    pixels: Vec<u32>,
+    /// The distinct values in increasing order, `+inf` last (whether or not a pixel has it)
+    values: Vec<f64>,
+}
+
+impl Ranks {
+    fn new(pixels: &[f64], parallel: bool) -> Self {
+        // Sort the pixels by value (as integers that sort like the values, with -0.0 as 0.0), keeping their indices
+        let sortable = |(i, v): (usize, &f64)| {
+            let bits = (v + 0.0).to_bits();
+            let bits = if bits >> 63 == 1 { !bits } else { bits | 1 << 63 };
+            (u128::from(bits) << 32) | i as u128
+        };
+        let mut sorted: Vec<u128> = if parallel {
+            pixels.par_iter().enumerate().map(sortable).collect()
+        } else {
+            pixels.iter().enumerate().map(sortable).collect()
+        };
+        if parallel {
+            sorted.par_sort_unstable();
+        } else {
+            sorted.sort_unstable();
+        }
+        let mut ranks = vec![0u32; pixels.len()];
+        let mut values: Vec<f64> = vec![];
+        for key in sorted {
+            let i = key as u32 as usize;
+            let value = pixels[i] + 0.0;
+            if value == f64::INFINITY {
+                break;
+            }
+            if values.last() != Some(&value) {
+                values.push(value);
+            }
+            ranks[i] = values.len() as u32 - 1;
+        }
+        values.push(f64::INFINITY);
+        let infinite = values.len() as u32 - 1;
+        for (rank, value) in ranks.iter_mut().zip(pixels) {
+            if *value == f64::INFINITY {
+                *rank = infinite;
+            }
+        }
+        Self { pixels: ranks, values }
+    }
+
+    fn infinite(&self) -> u32 {
+        self.values.len() as u32 - 1
+    }
+}
+
+/// Along which axis a cell's neighbours (for union-find) lie, and in which grid.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Neighbours {
+    /// An edge's two vertices
+    Vertices,
+    /// A cell of dimension `D - 1`'s one or two top cells (the other side being the outside)
+    Tops,
+}
+
+/// The cells of dimension `k`, each with its rank and (if asked) its two neighbours, walked in order of number.
+struct DimensionCells {
+    /// The rank of each cell, indexed from the dimension's first cell
+    ranks: Vec<u32>,
+    /// The two neighbours of each cell (vertex or top cell indices, `u32::MAX` for the outside), if asked for
+    neighbours: Vec<[u32; 2]>,
+}
+
+impl<const D: usize> CubicalComplex<D> {
+    /// The rank of every cell of dimension `k` (see [`Ranks`]), indexed by its number less the dimension's first, and
+    /// with `neighbours`, each cell's two neighbours.
+    ///
+    /// Cells of a type are numbered in C order, and the pixels around a cell are at fixed offsets from a base pixel
+    /// (in the T-construction, of the image padded with `+inf`, so that every cell has a top cell either side along
+    /// each axis it doesn't span), so this walks each type once, with no decoding.
+    fn dimension_cells(&self, ranks: &Ranks, k: usize, neighbours: Option<Neighbours>) -> DimensionCells {
+        let grid = self.grid_ref();
+        let vertices = grid.vertices().map(|n| n as usize);
+        let n_cells = grid.cells_of_dimension(k).len();
+        let mut out = DimensionCells {
+            ranks: Vec::with_capacity(n_cells),
+            neighbours: Vec::with_capacity(if neighbours.is_some() { n_cells } else { 0 }),
+        };
+        let c_strides = |extents: [usize; D]| {
+            let mut strides = [0; D];
+            let mut stride = 1;
+            for a in (0..D).rev() {
+                strides[a] = stride;
+                stride *= extents[a];
+            }
+            strides
+        };
+        // The image the offsets index, and its C-order strides
+        let padded;
+        let (image, strides): (&[u32], [usize; D]) = match self.construction {
+            Construction::V => (&ranks.pixels, self.pixel_strides),
+            Construction::T => {
+                let strides = c_strides(self.shape.map(|n| n + 2));
+                let mut image = vec![ranks.infinite(); self.shape.iter().map(|n| n + 2).product()];
+                for (i, &rank) in ranks.pixels.iter().enumerate() {
+                    let mut padded_index = 0;
+                    for a in 0..D {
+                        padded_index += ((i / self.pixel_strides[a]) % self.shape[a] + 1) * strides[a];
+                    }
+                    image[padded_index] = rank;
+                }
+                padded = image;
+                (&padded, strides)
+            }
+        };
+        let vertex_strides = c_strides(vertices);
+        let top_strides = c_strides(vertices.map(|n| n.saturating_sub(1)));
+        let mut masks: Vec<u32> = (0..1u32 << D).filter(|m| m.count_ones() as usize == k).collect();
+        masks.sort_unstable();
+        for mask in masks {
+            let odd = |a: usize| mask >> a & 1 == 1;
+            let extents: [usize; D] = std::array::from_fn(|a| vertices[a] - usize::from(odd(a)));
+            if extents.contains(&0) {
+                continue;
+            }
+            // V: the vertices, a step along each odd axis; T: the top cells, a step along each even axis (padded,
+            // the base is the one below, and along odd axes the top cell is the next one)
+            let spans = |a: usize| match self.construction {
+                Construction::V => odd(a),
+                Construction::T => !odd(a),
+            };
+            let mut offsets = vec![0usize];
+            for a in (0..D).filter(|&a| spans(a)) {
+                let more: Vec<usize> = offsets.iter().map(|o| o + strides[a]).collect();
+                offsets.extend(more);
+            }
+            let mut base: usize = match self.construction {
+                Construction::V => 0,
+                Construction::T => (0..D).filter(|&a| odd(a)).map(|a| strides[a]).sum(),
+            };
+            // The neighbours: an edge's along its odd axis, a (D - 1)-cell's along its even axis
+            let axis = (0..D).find(|&a| odd(a) == (neighbours == Some(Neighbours::Vertices))).unwrap_or(0);
+            let neighbour_strides = match neighbours {
+                Some(Neighbours::Vertices) | None => vertex_strides,
+                Some(Neighbours::Tops) => top_strides,
+            };
+            let mut neighbour_base = 0usize;
+            let total: usize = extents.iter().product();
+            let mut reduced = [0usize; D];
+            for _ in 0..total {
+                let rank = match self.construction {
+                    Construction::V => offsets.iter().map(|&o| image[base + o]).max(),
+                    Construction::T => offsets.iter().map(|&o| image[base + o]).min(),
+                };
+                out.ranks.push(rank.expect("a cell has a pixel"));
+                match neighbours {
+                    None => {}
+                    Some(Neighbours::Vertices) => out
+                        .neighbours
+                        .push([neighbour_base as u32, (neighbour_base + vertex_strides[axis]) as u32]),
+                    Some(Neighbours::Tops) => {
+                        let below = (reduced[axis] > 0).then(|| (neighbour_base - top_strides[axis]) as u32);
+                        let above = (reduced[axis] + 1 < vertices[axis]).then_some(neighbour_base as u32);
+                        out.neighbours.push([below.unwrap_or(u32::MAX), above.unwrap_or(u32::MAX)]);
+                    }
+                }
+                // The next cell in C order
+                let mut a = D - 1;
+                loop {
+                    reduced[a] += 1;
+                    base += strides[a];
+                    neighbour_base += neighbour_strides[a];
+                    if reduced[a] < extents[a] {
+                        break;
+                    }
+                    base -= extents[a] * strides[a];
+                    neighbour_base -= extents[a] * neighbour_strides[a];
+                    reduced[a] = 0;
+                    if a == 0 {
+                        break;
+                    }
+                    a -= 1;
+                }
+            }
+        }
+        out
+    }
+}
+
+/// The indices of the cells with rank below `skip_from`, in increasing order of (rank, index): a least significant
+/// digit radix sort on the ranks, 11 bits at a time (so the buckets stay in cache), which is stable, so cells with the
+/// same rank stay in order of index.
+fn sort_by_rank(ranks: &[u32], n_ranks: usize, skip_from: u32) -> Vec<u32> {
+    const BITS: u32 = 11;
+    const BUCKETS: usize = 1 << BITS;
+    // (rank, index) packed, so that each pass moves one word
+    let mut keys: Vec<u64> = ranks
+        .iter()
+        .enumerate()
+        .filter(|&(_, &rank)| rank < skip_from)
+        .map(|(i, &rank)| (u64::from(rank) << 32) | i as u64)
+        .collect();
+    let mut scratch = vec![0u64; keys.len()];
+    let rank_bits = usize::BITS - n_ranks.leading_zeros();
+    let mut shift = 32;
+    while shift < 32 + rank_bits {
+        let mut starts = [0usize; BUCKETS + 1];
+        for &key in &keys {
+            starts[((key >> shift) as usize & (BUCKETS - 1)) + 1] += 1;
+        }
+        for b in 0..BUCKETS {
+            starts[b + 1] += starts[b];
+        }
+        for &key in &keys {
+            let slot = &mut starts[(key >> shift) as usize & (BUCKETS - 1)];
+            scratch[*slot] = key;
+            *slot += 1;
+        }
+        std::mem::swap(&mut keys, &mut scratch);
+        shift += BITS;
+    }
+    keys.into_iter().map(|key| key as u32).collect()
+}
+
+/// A union-find node: its parent, and its rank (to compare roots by, next to the parent so that one cache line has
+/// both).
+#[derive(Clone, Copy)]
+struct Node {
+    parent: u32,
+    rank: u32,
+}
+
+/// Find the root of `v`, halving paths on the way.
+#[inline]
+fn find(nodes: &mut [Node], mut v: u32) -> u32 {
+    while nodes[v as usize].parent != v {
+        let grandparent = nodes[nodes[v as usize].parent as usize].parent;
+        nodes[v as usize].parent = grandparent;
+        v = grandparent;
+    }
+    v
+}
+
+fn not_nan(value: f64) -> NotNan<f64> {
+    NotNan::new(value).expect("values are never NaN")
+}
+
+fn one() -> Z2 {
+    <Z2 as phlite::fields::NonZeroCoefficient>::one()
+}
 
 /// The barcode in dimension 0, by union-find on the edges in filtration order (by value, then number, as the
 /// reductions order cells), with the elder rule: when an edge joins two components, the one whose oldest vertex is
-/// younger dies. So the pairs are those a reduction would find. Zero-length bars are left out. Also returns the edges
-/// that kill a component (zero-length bars' included). Bars have no representatives.
+/// younger dies. So the pairs are those a reduction would find. Zero-length bars are left out. With `deaths`, also
+/// returns the edges that kill a component (zero-length bars' included), sorted.
+///
+/// With `representatives`, a finite bar's is its birth vertex plus the oldest vertex of the component it joins (born
+/// earlier, so the chain is born at the birth, and joined to it at the death and not before); an essential bar's, its
+/// birth vertex.
 fn connected_components<const D: usize>(
     complex: &CubicalComplex<D>,
-    parallel: bool,
+    ranks: &Ranks,
+    vertex_ranks: &[u32],
+    edges: &DimensionCells,
+    representatives: bool,
+    want_deaths: bool,
 ) -> (Vec<CubicalBar>, Vec<Cube>) {
-    let Some(grid) = complex.grid() else {
-        return (vec![], vec![]);
-    };
-    let value = |cube: Cube| complex.internal_value_of(cube);
-    let key = |cube: Cube| (NotNan::new(value(cube)).expect("values are never NaN"), cube);
-    let vertices = grid.cells_of_dimension(0);
-    let first_vertex = vertices.start;
-    let mut parent: Vec<u32> = vertices.clone().collect();
-    let finite_edge = |number: u32| {
-        let cube = Cube(number);
-        let v = value(cube);
-        (v != f64::INFINITY).then(|| (NotNan::new(v).expect("values are never NaN"), cube))
-    };
-    let mut edges: Vec<(NotNan<f64>, Cube)> = if parallel {
-        grid.cells_of_dimension(1).into_par_iter().filter_map(finite_edge).collect()
-    } else {
-        grid.cells_of_dimension(1).filter_map(finite_edge).collect()
-    };
-    if parallel {
-        edges.par_sort_unstable();
-    } else {
-        edges.sort_unstable();
-    }
-    // The root of a component is its oldest vertex
-    fn find(parent: &mut [u32], first: u32, mut v: u32) -> u32 {
-        while parent[(v - first) as usize] != v {
-            let grandparent = parent[(parent[(v - first) as usize] - first) as usize];
-            parent[(v - first) as usize] = grandparent;
-            v = grandparent;
-        }
-        v
-    }
+    let grid = complex.grid_ref();
+    let first_vertex = grid.cells_of_dimension(0).start;
+    let first_edge = grid.cells_of_dimension(1).start;
+    let value = |rank: u32| not_nan(ranks.values[rank as usize]);
+    let order = sort_by_rank(&edges.ranks, ranks.values.len(), ranks.infinite());
+    // Vertices by index from 0; the root of a component is its oldest vertex
+    let mut nodes: Vec<Node> =
+        vertex_ranks.iter().enumerate().map(|(v, &rank)| Node { parent: v as u32, rank }).collect();
+    let rep = |cells: &[u32]| representatives.then(|| cells.iter().map(|&v| (one(), Cube(first_vertex + v))).collect());
     let mut bars = vec![];
-    let mut deaths = vec![];
-    for (edge_value, edge) in edges {
-        let mut ends = grid.faces(&grid.decode(edge)).into_iter().map(|face| face.cube.0);
-        let (a, b) = (ends.next().expect("an edge has two ends"), ends.next().expect("an edge has two ends"));
-        let (ra, rb) = (find(&mut parent, first_vertex, a), find(&mut parent, first_vertex, b));
+    let mut deaths = Vec::with_capacity(if want_deaths { vertex_ranks.len() } else { 0 });
+    for edge in order {
+        let [a, b] = edges.neighbours[edge as usize];
+        let (ra, rb) = (find(&mut nodes, a), find(&mut nodes, b));
         if ra == rb {
             continue;
         }
-        let (older, younger) = if key(Cube(ra)) < key(Cube(rb)) { (ra, rb) } else { (rb, ra) };
-        parent[(younger - first_vertex) as usize] = older;
-        deaths.push(edge);
-        let birth_value = key(Cube(younger)).0;
-        if birth_value != edge_value {
+        let (older, younger) = if (nodes[ra as usize].rank, ra) < (nodes[rb as usize].rank, rb) {
+            (ra, rb)
+        } else {
+            (rb, ra)
+        };
+        nodes[younger as usize].parent = older;
+        let cube = Cube(first_edge + edge);
+        if want_deaths {
+            deaths.push(cube);
+        }
+        let (birth, death) = (nodes[younger as usize].rank, edges.ranks[edge as usize]);
+        if birth != death {
             bars.push(Bar {
-                birth: Cube(younger),
-                birth_value,
-                death: Some((edge, edge_value)),
-                representative: None,
+                birth: Cube(first_vertex + younger),
+                birth_value: value(birth),
+                death: Some((cube, value(death))),
+                representative: rep(&[younger, older]),
             });
         }
     }
-    for v in vertices {
-        if parent[(v - first_vertex) as usize] == v && value(Cube(v)) != f64::INFINITY {
+    for v in 0..vertex_ranks.len() as u32 {
+        if nodes[v as usize].parent == v && vertex_ranks[v as usize] != ranks.infinite() {
             bars.push(Bar {
-                birth: Cube(v),
-                birth_value: key(Cube(v)).0,
+                birth: Cube(first_vertex + v),
+                birth_value: value(vertex_ranks[v as usize]),
                 death: None,
-                representative: None,
+                representative: rep(&[v]),
             });
         }
     }
+    deaths.sort_unstable();
     (bars, deaths)
 }
 
@@ -575,71 +837,111 @@ fn connected_components<const D: usize>(
 /// homology in dimension `D - 1`). A component's root is its youngest top cell (the outside is younger than all);
 /// when a cell joins two components, the one with the older root dies (in reverse), so that cell is the birth of a
 /// class which that root kills. By duality, these are the pairs a reduction would find. Classes killed at `+inf` are
-/// essential, classes born there never exist, and zero-length bars are left out. Bars have no representatives.
-fn voids<const D: usize>(complex: &CubicalComplex<D>, parallel: bool) -> Vec<CubicalBar> {
-    let Some(grid) = complex.grid() else {
-        return vec![];
-    };
-    let key = |cube: Cube| (NotNan::new(complex.internal_value_of(cube)).expect("values are never NaN"), cube);
-    let tops = grid.cells_of_dimension(D);
-    if tops.is_empty() {
+/// essential, classes born there never exist, and zero-length bars are left out.
+///
+/// With `representatives`, a bar's is the boundary of the top cells of the component that dies (the void): its faces
+/// all entered no later than the cell joining it to the rest, which is the youngest of them (the birth), and it is a
+/// boundary exactly once all of those top cells have entered, the last being the root (the death).
+fn voids<const D: usize>(
+    complex: &CubicalComplex<D>,
+    ranks: &Ranks,
+    faces: &DimensionCells,
+    top_ranks: &[u32],
+    representatives: bool,
+) -> Vec<CubicalBar> {
+    let grid = complex.grid_ref();
+    if top_ranks.is_empty() {
         // An axis with a single vertex: the complex is a box of lower dimension, with no homology in dimension D - 1
         return vec![];
     }
-    let first_top = tops.start;
-    let outside = tops.len() as u32;
-    let mut parent: Vec<u32> = (0..=outside).collect();
-    let mut cells: Vec<(NotNan<f64>, Cube)> = if parallel {
-        grid.cells_of_dimension(D - 1).into_par_iter().map(|n| key(Cube(n))).collect()
+    let first_top = grid.cells_of_dimension(D).start;
+    let first_face = grid.cells_of_dimension(D - 1).start;
+    let outside = top_ranks.len() as u32;
+    let value = |rank: u32| not_nan(ranks.values[rank as usize]);
+    // Top cells by index from 0, then the outside (ranked after everything)
+    let mut nodes: Vec<Node> = top_ranks
+        .iter()
+        .enumerate()
+        .map(|(t, &rank)| Node { parent: t as u32, rank })
+        .chain([Node { parent: outside, rank: u32::MAX }])
+        .collect();
+    // Every cell, infinite ones too, in decreasing order
+    let order = sort_by_rank(&faces.ranks, ranks.values.len(), u32::MAX);
+    // With representatives, each component's top cells, as linked lists: `next[v]` follows `v`, and `last[root]`
+    // is the root's list's last
+    let (mut next, mut last): (Vec<u32>, Vec<u32>) = if representatives {
+        (vec![u32::MAX; outside as usize + 1], (0..=outside).collect())
     } else {
-        grid.cells_of_dimension(D - 1).map(|n| key(Cube(n))).collect()
-    };
-    if parallel {
-        cells.par_sort_unstable_by(|a, b| b.cmp(a));
-    } else {
-        cells.sort_unstable_by(|a, b| b.cmp(a));
-    }
-    fn find(parent: &mut [u32], mut v: u32) -> u32 {
-        while parent[v as usize] != v {
-            let grandparent = parent[parent[v as usize] as usize];
-            parent[v as usize] = grandparent;
-            v = grandparent;
-        }
-        v
-    }
-    // Roots are compared by key, the outside last
-    let root_key = |node: u32| (node != outside).then(|| key(Cube(first_top + node)));
-    let younger = |a: u32, b: u32| match (root_key(a), root_key(b)) {
-        (None, _) => true,
-        (_, None) => false,
-        (Some(ka), Some(kb)) => ka > kb,
+        (vec![], vec![])
     };
     let mut bars = vec![];
-    for (value, cell) in cells {
-        let mut sides = grid.cofaces(&grid.decode(cell)).into_iter().map(|c| c.cube.0 - first_top);
-        let a = sides.next().expect("a cell of dimension D - 1 is a face of a top cell");
-        let b = sides.next().unwrap_or(outside);
-        let (ra, rb) = (find(&mut parent, a), find(&mut parent, b));
+    for cell in order.into_iter().rev() {
+        let [a, b] = faces.neighbours[cell as usize].map(|n| n.min(outside));
+        let (ra, rb) = (find(&mut nodes, a), find(&mut nodes, b));
         if ra == rb {
             continue;
         }
-        let (survivor, dies) = if younger(ra, rb) { (ra, rb) } else { (rb, ra) };
-        parent[dies as usize] = survivor;
-        if value.into_inner() == f64::INFINITY {
-            continue;
+        // Roots are compared by (rank, number), the outside last
+        let (survivor, dies) = if (nodes[ra as usize].rank, ra) > (nodes[rb as usize].rank, rb) {
+            (ra, rb)
+        } else {
+            (rb, ra)
+        };
+        nodes[dies as usize].parent = survivor;
+        let (birth, death) = (faces.ranks[cell as usize], nodes[dies as usize].rank);
+        if birth != ranks.infinite() && birth != death {
+            bars.push(Bar {
+                birth: Cube(first_face + cell),
+                birth_value: value(birth),
+                death: (death != ranks.infinite()).then(|| (Cube(first_top + dies), value(death))),
+                representative: representatives.then(|| void_boundary(complex, &next, dies, first_top, outside)),
+            });
         }
-        let (death_value, death) = key(Cube(first_top + dies));
-        if death_value == value {
-            continue;
+        if representatives {
+            // Append the dying list to the survivor's
+            next[last[survivor as usize] as usize] = dies;
+            last[survivor as usize] = last[dies as usize];
         }
-        bars.push(Bar {
-            birth: cell,
-            birth_value: value,
-            death: (death_value.into_inner() != f64::INFINITY).then_some((death, death_value)),
-            representative: None,
-        });
     }
     bars
+}
+
+/// The boundary (over Z/2) of the top cells in the list starting at `root`, in decreasing filtration order.
+fn void_boundary<const D: usize>(
+    complex: &CubicalComplex<D>,
+    next: &[u32],
+    root: u32,
+    first_top: u32,
+    outside: u32,
+) -> Vec<(Z2, Cube)> {
+    let grid = complex.grid_ref();
+    let mut faces: Vec<u32> = vec![];
+    let mut node = root;
+    while node != u32::MAX {
+        // (The outside is never in a dying component)
+        debug_assert!(node != outside);
+        faces.extend(grid.faces(&grid.decode(Cube(first_top + node))).into_iter().map(|f| f.cube.0));
+        node = next[node as usize];
+    }
+    // Faces shared by two of the top cells cancel
+    faces.sort_unstable();
+    let mut boundary: Vec<(NotNan<f64>, u32)> = vec![];
+    let mut i = 0;
+    while i < faces.len() {
+        let mut j = i;
+        while j < faces.len() && faces[j] == faces[i] {
+            j += 1;
+        }
+        if (j - i) % 2 == 1 {
+            boundary.push((not_nan(complex.internal_value_of(Cube(faces[i]))), faces[i]));
+        }
+        i = j;
+    }
+    boundary.sort_unstable_by(|a, b| b.cmp(a));
+    boundary
+        .into_iter()
+        .map(|(_, cube)| (one(), Cube(cube)))
+        .collect()
 }
 
 // ====== High-level API ===================================================
@@ -694,9 +996,9 @@ pub fn filtration_barcode<R: ColumnRepresentation, const D: usize>(
     // Each matrix is given its transpose, so that the reduction can find apparent pairs (the matrices find them
     // themselves, but the involution needs the transpose for representatives)
     let mut bars = match method {
-        Method::Cohomology if representatives => {
-            // The involution finds representatives of essential classes in dimension 1 by reducing edge columns, which
-            // needs the edges that kill components: so reduce dimension 0 too
+        Method::Cohomology if representatives && middle_essentials(complex, max_dim) => {
+            // The involution finds representatives of essential classes in the middle dimensions by reducing their
+            // columns, which needs the edges that kill components: so reduce dimension 0 too
             let basis = build_bases(complex, max_dim, skip_apparent, parallel);
             let coboundary = coboundary.with_basis(basis);
             let coboundary = (&coboundary).with_transpose(boundary);
@@ -707,21 +1009,29 @@ pub fn filtration_barcode<R: ColumnRepresentation, const D: usize>(
             // The edges that kill a component are exactly the pivots of the reduced dimension-0 coboundary, which
             // clearing would leave out of dimension 1, so leave them out of the basis.
             // And the top dimension (D - 1) by union-find on the dual, as Cubical Ripser does
-            let (mut bars, mut deaths) = connected_components(complex, parallel);
-            if D >= 2 && max_dim >= D - 1 {
-                bars.extend(voids(complex, parallel));
-            }
-            if parallel {
-                deaths.par_sort_unstable();
-            } else {
-                deaths.sort_unstable();
-            }
+            // (With representatives, by the union-finds and, in between, by the involution: see `middle_essentials`.)
+            let ranks = Ranks::new(&complex.pixels, parallel);
+            let cells = |k: usize, neighbours| complex.dimension_cells(&ranks, k, neighbours);
+            let vertex_ranks = cells(0, None).ranks;
+            let edges = cells(1, Some(Neighbours::Vertices));
             let middle = max_dim.min(D.saturating_sub(2));
+            let (mut bars, deaths) =
+                connected_components(complex, &ranks, &vertex_ranks, &edges, representatives, middle >= 1);
+            drop(edges);
+            if D >= 2 && max_dim >= D - 1 {
+                let faces = cells(D - 1, Some(Neighbours::Tops));
+                let top_ranks = cells(D, None).ranks;
+                bars.extend(voids(complex, &ranks, &faces, &top_ranks, representatives));
+            }
             if middle >= 1 {
                 let basis = build_bases_from(complex, 1, middle, skip_apparent, parallel, &deaths);
                 let coboundary = coboundary.with_basis(basis);
                 let coboundary = (&coboundary).with_transpose(boundary);
-                bars.extend(barcode::cohomology(coboundary, algorithm));
+                bars.extend(if representatives {
+                    barcode::cohomology_with_involution(coboundary, algorithm)
+                } else {
+                    barcode::cohomology(coboundary, algorithm)
+                });
             }
             bars
         }
