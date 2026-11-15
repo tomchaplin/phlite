@@ -66,4 +66,8 @@
   .editbar { display: flex; flex-direction: column; gap: 0.35rem; margin-top: 0.6rem; padding-top: 0.55rem; border-top: 1px dashed var(--line); }
   .sep { flex: 1; }
   .extra { display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem 0.8rem; font-size: 0.85rem; }
+  .extra :global(.field) { margin: 0; }
+  .extra :global(.field > span:first-child) { min-width: 0; }
+  .extra :global(.field input[type='range']) { width: 7rem; flex: none; }
+  .extra :global(.field input[type='number']) { width: 4.5rem; }
 </style>

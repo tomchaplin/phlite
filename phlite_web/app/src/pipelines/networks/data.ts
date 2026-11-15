@@ -27,6 +27,8 @@ export interface NetworkExample {
   name: string;
   about: string;
   make: () => Digraph;
+  /** What to compute, if the example is about a particular complex: chosen with it. */
+  show?: { complex: 'pph' | 'dowker-sink'; shortestPath: boolean; maxDim: number };
 }
 
 export const EXAMPLES: NetworkExample[] = [
@@ -84,6 +86,32 @@ export const EXAMPLES: NetworkExample[] = [
         ],
       };
     },
+  },
+  {
+    id: 'sphere',
+    name: 'Path-homology sphere',
+    about:
+      'A directed 4-cycle (weight 1), coned off from s (weight 2) and then from t (weight 3): in PPH the loop is born at 1 and filled by the first cone at 2, and the two cones make a sphere, an H₂ bar born at 3 (its representative is the eight triangles), filled at 4 by the edge s→t. The Dowker complexes only see the loop.',
+    make: () => {
+      const at = [[0.2, 0.5], [0.5, 0.36], [0.8, 0.5], [0.5, 0.64], [0.5, 0.06], [0.5, 0.94]];
+      const nodes = at.map(([x, y], i) => ({ x, y, label: i < 4 ? `a${i}` : i === 4 ? 's' : 't' }));
+      const edges = [
+        ...[0, 1, 2, 3].map((i) => ({ s: i, t: (i + 1) % 4, w: 1 })),
+        ...[0, 1, 2, 3].map((i) => ({ s: 4, t: i, w: 2 })),
+        ...[0, 1, 2, 3].map((i) => ({ s: 5, t: i, w: 3 })),
+        { s: 4, t: 5, w: 4 },
+      ];
+      return { nodes, edges };
+    },
+    show: { complex: 'pph', shortestPath: false, maxDim: 2 },
+  },
+  {
+    id: 'dowker-cycle',
+    name: 'Cycle network (Dowker)',
+    about:
+      "A directed 8-cycle of unit edges, each pair at its shortest path's length (a cycle network, as Chowdhury and Mémoli study): its Dowker complex has an H₁ bar [1, 4), three H₂ bars [4, 5) and an H₃ bar [5, 6), as the balls about the nodes grow round the cycle. The sink and source complexes agree (Dowker duality).",
+    make: () => cycle(8),
+    show: { complex: 'dowker-sink', shortestPath: true, maxDim: 3 },
   },
   {
     id: 'weighted',
@@ -195,22 +223,4 @@ export function parseEdges(text: string): Digraph {
   const start = ring(nodes.length);
   g.nodes.forEach((v, i) => Object.assign(v, start[i]));
   return layout(g);
-}
-
-/** All-pairs shortest path lengths (Floyd–Warshall), `Infinity` where there is no path. */
-export function shortestPaths(g: Digraph): Float64Array {
-  const n = g.nodes.length;
-  const d = new Float64Array(n * n).fill(Infinity);
-  for (let i = 0; i < n; i++) d[i * n + i] = 0;
-  for (const { s, t, w } of g.edges) d[s * n + t] = Math.min(d[s * n + t], w);
-  for (let k = 0; k < n; k++)
-    for (let i = 0; i < n; i++) {
-      const dik = d[i * n + k];
-      if (dik === Infinity) continue;
-      for (let j = 0; j < n; j++) {
-        const via = dik + d[k * n + j];
-        if (via < d[i * n + j]) d[i * n + j] = via;
-      }
-    }
-  return d;
 }

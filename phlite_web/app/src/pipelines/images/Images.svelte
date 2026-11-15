@@ -3,6 +3,7 @@
   import SourceTabs, { type Source } from '../../components/SourceTabs.svelte';
   import FileDrop from '../../components/FileDrop.svelte';
   import Options from '../../components/Options.svelte';
+  import ComputeRow from '../../components/ComputeRow.svelte';
   import Results from '../../components/Results.svelte';
   import FiltrationSlider from '../../components/FiltrationSlider.svelte';
   import ImageView, { type Tool } from './ImageView.svelte';
@@ -247,10 +248,7 @@
         Computed by <code>phlite_images</code>' cubical complexes, nothing stored but the image.
       </p>
       <Options bind:options defaults={IMAGE} />
-      <div class="compute-row">
-        <button class="primary" onclick={() => runner.run(job)}>Compute</button>
-        <label><input type="checkbox" bind:checked={runner.auto} /> recompute on every change</label>
-      </div>
+      <ComputeRow {runner} {job} />
     </div>
   </div>
 </div>

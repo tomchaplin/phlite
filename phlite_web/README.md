@@ -14,13 +14,16 @@ the page sends the data to a Web Worker, which runs phlite's reductions on a poo
   * `image` (cubical complexes, T- or V-construction, by `phlite_images`);
   * `complex` (explicit complexes over Z/2, 3, 5 or 7, by `phlite_complexes`'s explicit complexes).
   Each takes an options object (missing options take the pipeline's Python defaults, union-find and parallel setup
-  included) and returns the bars, with representatives if asked for.
+  included) and returns the bars, with representatives if asked for. The Rips, GrPPH and network pipelines also
+  return their filtration's edges, from the very distances the barcode was computed from, so that the app draws the
+  complex at any value without computing a filtration itself.
 * `app/`: the Svelte + TypeScript app (Vite). `src/lib/worker.ts` owns the WebAssembly module, and
   `src/lib/engine.svelte.ts` talks to it, cancelling a computation by restarting the worker. Each pipeline lives in
   `src/pipelines/<name>/` (its data sources, view and page), and shares the barcode, diagram and options components in
   `src/components/`. Every dataset can be edited in its view, whatever it came from (select, move, add, spray and erase
   points; paint, smooth and pick on images; add, move and delete nodes and edges), with the toolbar in
-  `src/components/EditBar.svelte` and undo by `src/lib/history.svelte.ts`.
+  `src/components/EditBar.svelte` and undo by `src/lib/history.svelte.ts`. With "live" on, the barcode is recomputed
+  while you edit, each computation running to the end before the latest edit is computed (`src/lib/runner.svelte.ts`).
 
 ## Building
 

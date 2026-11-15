@@ -13,6 +13,18 @@ export interface Bar {
 export interface Barcode {
   bars: Bar[];
   summary: string;
+  /** The filtration's edges, if the pipeline draws its complex (see `FiltrationEdges`). */
+  edges?: FiltrationEdges | null;
+}
+
+/**
+ * The edges of the filtration a barcode was computed from, by phlite, sorted by when they enter: `pairs[2k] →
+ * pairs[2k + 1]` at `values[k]`, with each point's birth if not every point is born at 0 (weighted Rips).
+ */
+export interface FiltrationEdges {
+  pairs: Uint32Array;
+  values: Float64Array;
+  births: Float64Array | null;
 }
 
 export interface RunResult {

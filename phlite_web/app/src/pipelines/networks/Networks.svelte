@@ -3,6 +3,7 @@
   import SourceTabs, { type Source } from '../../components/SourceTabs.svelte';
   import FileDrop from '../../components/FileDrop.svelte';
   import Options from '../../components/Options.svelte';
+  import ComputeRow from '../../components/ComputeRow.svelte';
   import Results from '../../components/Results.svelte';
   import FiltrationSlider from '../../components/FiltrationSlider.svelte';
   import EditBar from '../../components/EditBar.svelte';
@@ -13,7 +14,7 @@
   import { barDomain } from '../../lib/scale';
   import { randomSeed } from '../../lib/random';
   import type { Job, NetworkKind } from '../../lib/types';
-  import { EXAMPLES, randomDigraph, parseEdges, layout, shortestPaths, type Digraph } from './data';
+  import { EXAMPLES, randomDigraph, parseEdges, layout, type Digraph } from './data';
 
   let source = $state<Source>('examples');
   let exampleId = $state(EXAMPLES[0].id);
@@ -96,7 +97,13 @@
   }
   function useExample(id: string) {
     exampleId = id;
-    replace(EXAMPLES.find((e) => e.id === id)!.make());
+    const ex = EXAMPLES.find((e) => e.id === id)!;
+    replace(ex.make());
+    if (ex.show) {
+      setComplex(ex.show.complex);
+      pathFiltration = ex.show.shortestPath;
+      maxDim = ex.show.maxDim;
+    }
   }
 
   let randomN = $state(12);
@@ -175,7 +182,16 @@
     if (runner.auto) untrack(() => runner.schedule(j));
   });
 
-  const dist = $derived(shortestPath && g.nodes.length <= 150 ? shortestPaths(g) : null);
+  // When each pair a → b enters the filtration (phlite's, sent with the barcode), while the result is for this digraph
+  const dist = $derived.by(() => {
+    const job = runner.resultJob;
+    const edges = runner.result?.barcode.edges;
+    const n = g.nodes.length;
+    if (!edges || !job || !('n' in job) || job.n !== n || n > 150) return null;
+    const d = new Float64Array(n * n).fill(Infinity);
+    for (let k = 0; k < edges.values.length; k++) d[edges.pairs[2 * k] * n + edges.pairs[2 * k + 1]] = edges.values[k];
+    return d;
+  });
   const domain = $derived(barDomain(runner.result?.barcode.bars ?? [], [0]));
   const bar = $derived(runner.selected === null ? null : (runner.result?.barcode.bars[runner.selected] ?? null));
   const label = (v: number) => g.nodes[v]?.label ?? String(v);
@@ -213,7 +229,7 @@
       </div>
       <div class="legend" style="margin-top: 0.4rem">
         <span>{g.nodes.length} nodes, {g.edges.length} edges</span>
-        {#if dist}<span><i style="background: var(--green)"></i>new edges: pairs joined by a path no longer than the slider</span>{/if}
+        {#if dist && shortestPath}<span><i style="background: var(--green)"></i>new edges: pairs joined by a path no longer than the slider</span>{/if}
         {#if bar}<span>coloured: the representative (dashed if not an edge of the graph) · red: what kills it</span>{/if}
       </div>
       <EditBar
@@ -315,10 +331,7 @@ c,a,2</pre>
       {/if}
       <p class="note">{COMPLEXES.find((c) => c.id === complex)?.about}</p>
       <Options bind:options {defaults} />
-      <div class="compute-row">
-        <button class="primary" disabled={!job} onclick={() => runner.run(job)}>Compute</button>
-        <label><input type="checkbox" bind:checked={runner.auto} /> recompute on every change</label>
-      </div>
+      <ComputeRow {runner} {job} />
     </div>
   </div>
 </div>

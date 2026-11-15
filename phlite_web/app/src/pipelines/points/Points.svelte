@@ -3,6 +3,7 @@
   import SourceTabs, { type Source } from '../../components/SourceTabs.svelte';
   import FileDrop from '../../components/FileDrop.svelte';
   import Options from '../../components/Options.svelte';
+  import ComputeRow from '../../components/ComputeRow.svelte';
   import Results from '../../components/Results.svelte';
   import FiltrationSlider from '../../components/FiltrationSlider.svelte';
   import EditBar from '../../components/EditBar.svelte';
@@ -14,7 +15,7 @@
   import { barDomain } from '../../lib/scale';
   import { randomSeed } from '../../lib/random';
   import type { Job, Metric } from '../../lib/types';
-  import { EXAMPLES, RANDOM_KINDS, randomCloud, parseCloud, sortedEdges, flatten, type Cloud, type RandomKind } from './data';
+  import { EXAMPLES, RANDOM_KINDS, randomCloud, parseCloud, flatten, type Cloud, type RandomKind } from './data';
 
   let source = $state<Source>('examples');
   let exampleId = $state(EXAMPLES[0].id);
@@ -153,7 +154,17 @@
   });
 
   // ---- Viewing ----
-  const edges = $derived(filtration === 'rips' && cloud.points.length <= 1200 ? sortedEdges(cloud.points, metric) : null);
+  // Rips and DTM-Rips filter the complete complex on the points (a flag filtration): draw its complex at t
+  const isFlag = $derived(filtration === 'rips' || filtration === 'dtm');
+  // The edges are phlite's, sent with the barcode, so the complex drawn is the one computed. Only while the result is
+  // for these points (live, a result one edit behind with the same number of points is drawn on the moved points)
+  const edges = $derived.by(() => {
+    const job = runner.resultJob;
+    const edges = runner.result?.barcode.edges;
+    if (!isFlag || !edges || job?.pipeline !== 'rips') return null;
+    if (job.coords.length !== cloud.points.length * cloud.dim) return null;
+    return edges;
+  });
   const domain = $derived(barDomain(runner.result?.barcode.bars ?? [], [0]));
   const bar = $derived(runner.selected === null ? null : (runner.result?.barcode.bars[runner.selected] ?? null));
   const describe = (cell: number[]) => (cell.length === 1 ? `point ${cell[0]}` : `[${cell.join(' ')}]`);
@@ -178,7 +189,7 @@
           onedit={edited}
         />
       {:else}
-        <View3D points={cloud.points} t={runner.t} {bar} edges={filtration === 'rips' ? edges : null} />
+        <View3D points={cloud.points} t={runner.t} {bar} {edges} />
       {/if}
       <div style="margin-top: 0.6rem">
         <FiltrationSlider bind:t={runner.t} {domain} label={isDelaunay ? 'Radius' : 'Diameter'} />
@@ -186,7 +197,7 @@
       <div class="legend" style="margin-top: 0.4rem">
         <span>{cloud.points.length} points{cloud.dim === 3 ? ' in space' : ''}</span>
         {#if cloud.dim === 2 && ballsShow}<label><input type="checkbox" bind:checked={showBalls} /> balls of radius {filtration === 'rips' ? 'd/2' : 'r'}</label>{/if}
-        {#if filtration === 'rips'}<span>edges: pairs within the diameter</span>{/if}
+        {#if isFlag && edges}<span><i style="background: var(--edges)"></i>the complex at the slider's value: edges and (shaded) triangles{filtration === 'dtm' ? '; hollow points are not yet born' : ''}</span>{/if}
         {#if bar}<span>coloured: the representative · dashed: the simplex that kills it</span>{/if}
       </div>
       <EditBar
@@ -305,10 +316,7 @@
         <p class="note">The exact Delaunay triangulation (in the plane or in space), each cell entering at the radius of its minimal enclosing ball, when the balls about its vertices first meet.</p>
       {/if}
       <Options bind:options defaults={isDelaunay ? COMPLEX : RIPS} />
-      <div class="compute-row">
-        <button class="primary" disabled={!job || blocked} onclick={() => runner.run(job)}>Compute</button>
-        <label><input type="checkbox" bind:checked={runner.auto} /> recompute on every change</label>
-      </div>
+      <ComputeRow {runner} {job} disabled={blocked} />
       {#if problem}<p class="note" class:error={blocked}>{problem}</p>{/if}
     </div>
   </div>

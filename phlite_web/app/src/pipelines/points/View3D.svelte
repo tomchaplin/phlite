@@ -2,9 +2,9 @@
   import * as THREE from 'three';
   import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
   import { onMount } from 'svelte';
-  import { dimColour, type Bar } from '../../lib/types';
+  import { dimColour, type Bar, type FiltrationEdges } from '../../lib/types';
   import { cssColour } from '../../lib/palette.svelte';
-  import { countUpTo } from './data';
+  import { activeComplex } from './data';
 
   let {
     points,
@@ -15,7 +15,8 @@
     points: number[][];
     t: number | null;
     bar: Bar | null;
-    edges: { pairs: Uint32Array; lengths: Float64Array } | null;
+    /** A flag filtration's edges (Rips, DTM-Rips), to draw its complex at t: edges and triangles. */
+    edges: FiltrationEdges | null;
   } = $props();
 
   let width = $state(500);
@@ -89,11 +90,31 @@
     render();
   });
 
-  // The Rips edges at t
+  // The complex at t: its edges and (translucent) triangles
   $effect(() => {
     clear(groups.complex);
     if (t !== null && edges) {
-      const count = Math.min(countUpTo(edges.lengths, t), EDGE_LIMIT);
+      const complex = activeComplex(edges, points.length, t, 20000);
+      const tri = complex.triangles;
+      if (tri.length > 0) {
+        const corners = new Float32Array(tri.length * 3);
+        for (let k = 0; k < tri.length; k++) corners.set(points[tri[k]].slice(0, 3), 3 * k);
+        const surface = new THREE.BufferGeometry();
+        surface.setAttribute('position', new THREE.BufferAttribute(corners, 3));
+        groups.complex.add(
+          new THREE.Mesh(
+            surface,
+            new THREE.MeshBasicMaterial({
+              color: new THREE.Color(cssColour('--edges')),
+              transparent: true,
+              opacity: tri.length / 3 > 2000 ? 0.08 : 0.2,
+              side: THREE.DoubleSide,
+              depthWrite: false,
+            }),
+          ),
+        );
+      }
+      const count = Math.min(complex.m, EDGE_LIMIT);
       const positions = new Float32Array(count * 6);
       for (let k = 0; k < count; k++) {
         const a = points[edges.pairs[2 * k]];

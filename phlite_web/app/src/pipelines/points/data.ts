@@ -1,4 +1,4 @@
-import type { Metric } from '../../lib/types';
+import type { FiltrationEdges } from '../../lib/types';
 import { rng, type Rng } from '../../lib/random';
 
 /** A point cloud in the plane or in space. */
@@ -188,46 +188,41 @@ export function parseCloud(text: string, maxPoints = 5000): Cloud {
   return { dim, points: rows.map((r) => r.slice(0, dim)) };
 }
 
-/** The distance between two points in `metric` (Euclidean by default), as `phlite.clouds.rips`' metrics. */
-export function distance(a: number[], b: number[], metric: Metric = 'euclidean'): number {
-  let s = 0;
-  for (let k = 0; k < a.length; k++) {
-    const d = Math.abs(a[k] - b[k]);
-    if (metric === 'euclidean') s += d * d;
-    else if (metric === 'manhattan') s += d;
-    else s = Math.max(s, d);
-  }
-  return metric === 'euclidean' ? Math.sqrt(s) : s;
-}
 
-/** Every pair of points, sorted by distance: `pairs[2k], pairs[2k + 1]` at `lengths[k]`. */
-export function sortedEdges(points: number[][], metric: Metric = 'euclidean', limit = 4_000_000) {
-  const n = points.length;
-  const m = Math.min((n * (n - 1)) / 2, limit);
-  const order = new Uint32Array(m);
-  const lengths = new Float64Array(m);
-  const a = new Uint32Array(m);
-  const b = new Uint32Array(m);
-  let k = 0;
-  outer: for (let i = 0; i < n; i++) {
-    for (let j = i + 1; j < n; j++) {
-      if (k >= m) break outer;
-      a[k] = i;
-      b[k] = j;
-      lengths[k] = distance(points[i], points[j], metric);
-      order[k] = k;
-      k++;
+/**
+ * The simplicial complex of a flag filtration at `t`, from its edges (as phlite computed them): how many of the sorted
+ * `edges` are in, and its triangles (every three points pairwise joined), as `[a, b, c]` triples, at most `limit` of
+ * them (`truncated` if there were more).
+ */
+export function activeComplex(edges: FiltrationEdges, n: number, t: number, limit = 20000) {
+  const m = countUpTo(edges.values, t);
+  const adjacent: number[][] = Array.from({ length: n }, () => []);
+  for (let k = 0; k < m; k++) {
+    const a = edges.pairs[2 * k];
+    const b = edges.pairs[2 * k + 1];
+    adjacent[a].push(b);
+    adjacent[b].push(a);
+  }
+  // A triangle once, from its smallest vertex: c > b > a, both b and c neighbours of a, and c of b
+  const triangles: number[] = [];
+  let truncated = false;
+  const mark = new Int32Array(n).fill(-1);
+  outer: for (let a = 0; a < n; a++) {
+    for (const b of adjacent[a]) if (b > a) mark[b] = a;
+    for (const b of adjacent[a]) {
+      if (b <= a) continue;
+      for (const c of adjacent[b]) {
+        if (c > b && mark[c] === a) {
+          if (triangles.length >= 3 * limit) {
+            truncated = true;
+            break outer;
+          }
+          triangles.push(a, b, c);
+        }
+      }
     }
   }
-  order.sort((x, y) => lengths[x] - lengths[y]);
-  const pairs = new Uint32Array(2 * m);
-  const sorted = new Float64Array(m);
-  for (let k = 0; k < m; k++) {
-    pairs[2 * k] = a[order[k]];
-    pairs[2 * k + 1] = b[order[k]];
-    sorted[k] = lengths[order[k]];
-  }
-  return { pairs, lengths: sorted };
+  return { m, triangles: Uint32Array.from(triangles), truncated };
 }
 
 /** How many entries of the sorted `lengths` are at most `t`. */

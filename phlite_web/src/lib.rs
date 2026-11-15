@@ -222,6 +222,8 @@ struct Config {
     representatives: bool,
     union_find: bool,
     parallel_setup: bool,
+    /// Whether the pipeline has a choice of setup (to describe).
+    has_setup: bool,
 }
 
 fn err(message: impl Into<String>) -> JsError {
@@ -313,6 +315,7 @@ impl Config {
             representatives: options.representatives,
             union_find,
             parallel_setup,
+            has_setup: defaults.parallel_setup,
         })
     }
 
@@ -375,12 +378,68 @@ pub struct Barcode {
     pub bars: Vec<OutBar>,
     /// What was computed, in words (sizes and the resolved algorithm).
     pub summary: String,
+    /// The filtration's edges, to draw the complex at any value (as typed arrays, see [`FiltrationEdges`]).
+    #[serde(skip)]
+    pub edges: Option<FiltrationEdges>,
 }
 
+/// The edges of the filtration a barcode was computed from, sorted by when they enter, so that the page can draw the
+/// complex at any value from the very values phlite used: the edge `pairs[2k] → pairs[2k + 1]` at `values[k]` (both
+/// ways round for a flag filtration of points; one way for a digraph's), with each point's birth if not all are born
+/// at 0 (weighted Rips). Edges that never enter are left out.
+#[derive(Debug, Default)]
+pub struct FiltrationEdges {
+    pairs: Vec<u32>,
+    values: Vec<f64>,
+    births: Option<Vec<f64>>,
+}
+
+impl FiltrationEdges {
+    fn from_unsorted(mut edges: Vec<(u32, u32, f64)>, births: Option<Vec<f64>>) -> Self {
+        edges.retain(|e| e.2.is_finite());
+        edges.sort_by(|a, b| a.2.total_cmp(&b.2));
+        Self {
+            pairs: edges.iter().flat_map(|&(a, b, _)| [a, b]).collect(),
+            values: edges.iter().map(|e| e.2).collect(),
+            births,
+        }
+    }
+
+    /// Every pair of points of a (weighted) Rips filtration.
+    fn flag<D: phlite_clouds::rips::Distances>(distances: &D) -> Self {
+        let n = distances.n_points();
+        let edges = (0..n)
+            .flat_map(|i| (i + 1..n).map(move |j| (i as u32, j as u32, distances.distance(i, j).into_inner())))
+            .collect();
+        let births = D::HAS_BIRTHS.then(|| (0..n).map(|v| distances.birth(v).into_inner()).collect());
+        Self::from_unsorted(edges, births)
+    }
+
+    fn to_js(&self) -> JsValue {
+        js_sys_object(&[
+            ("pairs", js_sys::Uint32Array::from(&self.pairs[..]).into()),
+            ("values", js_sys::Float64Array::from(&self.values[..]).into()),
+            (
+                "births",
+                self.births
+                    .as_ref()
+                    .map_or(JsValue::NULL, |b| js_sys::Float64Array::from(&b[..]).into()),
+            ),
+        ])
+    }
+}
+
+/// Filtrations with more points than this aren't drawn (and their edges not sent).
+const DRAWN_POINTS: usize = 1200;
+
 fn to_js(barcode: Barcode) -> Result<JsValue, JsError> {
-    barcode
+    let value = barcode
         .serialize(&serde_wasm_bindgen::Serializer::json_compatible())
-        .map_err(|e| err(e.to_string()))
+        .map_err(|e| err(e.to_string()))?;
+    if let Some(edges) = &barcode.edges {
+        let _ = js_sys::Reflect::set(&value, &JsValue::from_str("edges"), &edges.to_js());
+    }
+    Ok(value)
 }
 
 /// Translate bars, dropping those of length zero, with `cell` describing a cell, `dim` its dimension and `value`
@@ -436,7 +495,7 @@ fn describe(config: &Config) -> String {
     if config.union_find {
         s += ", union-find in dimension 0";
     }
-    if config.parallel_setup != (config.kind == Kind::Parallel) {
+    if config.has_setup && config.parallel_setup != (config.kind == Kind::Parallel) {
         s += if config.parallel_setup { ", parallel setup" } else { ", serial setup" };
     }
     if config.kind == Kind::Parallel {
@@ -477,10 +536,12 @@ pub fn rips(
     options: JsValue,
 ) -> Result<JsValue, JsError> {
     let config = Config::resolve(options, RIPS_DEFAULTS)?;
-    let metric: fn(&[f64], &[f64]) -> f64 = match metric {
-        "euclidean" => |p, q| p.iter().zip(q).map(|(a, b)| (a - b) * (a - b)).sum::<f64>().sqrt(),
-        "manhattan" => |p, q| p.iter().zip(q).map(|(a, b)| (a - b).abs()).sum(),
-        "chebyshev" => |p, q| p.iter().zip(q).map(|(a, b)| (a - b).abs()).fold(0.0, f64::max),
+    use phlite_clouds::rips::Metric;
+    let metric_name = metric;
+    let metric = match metric {
+        "euclidean" => Metric::Euclidean,
+        "manhattan" => Metric::Manhattan,
+        "chebyshev" => Metric::Chebyshev,
         other => return Err(err(format!("Unknown metric {other:?}"))),
     };
     let distances = if point_dim == 0 {
@@ -495,22 +556,21 @@ pub fn rips(
         if !coords.len().is_multiple_of(point_dim) {
             return Err(err("The coordinates don't divide into points"));
         }
+        if !coords.iter().all(|x| x.is_finite()) {
+            return Err(err("Coordinates must be finite"));
+        }
         let points: Vec<&[f64]> = coords.chunks(point_dim).collect();
         points
             .iter()
-            .map(|p| {
-                points
-                    .iter()
-                    .map(|q| not_nan(metric(p, q)))
-                    .collect()
-            })
-            .collect::<Result<Vec<Vec<_>>, _>>()?
+            .map(|p| points.iter().map(|q| metric.distance(p, q)).collect())
+            .collect::<Vec<Vec<_>>>()
     };
     let n = distances.len();
     if n == 0 {
         return to_js(Barcode {
             bars: vec![],
             summary: "No points".into(),
+            edges: None,
         });
     }
     // usize is 32 bits here, so index simplices by u64: up to 65 534 points for H₂ rather than 254
@@ -560,17 +620,19 @@ pub fn rips(
     }
     let (method, representatives) = (config.method, config.representatives);
     let (union_find, parallel_setup) = (config.union_find, config.parallel_setup);
-    let bars = match &weights {
-        None => config.run(V { distances, max_dim, threshold, method, representatives, union_find, parallel_setup }),
-        Some(weights) => config.run(V {
-            distances: phlite_clouds::rips::Weighted::new(distances, weights).map_err(err)?,
-            max_dim,
-            threshold,
-            method,
-            representatives,
-            union_find,
-            parallel_setup,
-        }),
+    // The filtration's edges, from the distances the barcode is computed from
+    let drawn = n <= DRAWN_POINTS;
+    let (bars, edges) = match &weights {
+        None => {
+            let edges = drawn.then(|| FiltrationEdges::flag(&distances));
+            (config.run(V { distances, max_dim, threshold, method, representatives, union_find, parallel_setup }), edges)
+        }
+        Some(weights) => {
+            let distances = phlite_clouds::rips::Weighted::new(distances, weights).map_err(err)?;
+            let edges = drawn.then(|| FiltrationEdges::flag(&distances));
+            let v = V { distances, max_dim, threshold, method, representatives, union_find, parallel_setup };
+            (config.run(v), edges)
+        }
     };
     let bars = translate::<_, Z2>(
         bars,
@@ -581,10 +643,12 @@ pub fn rips(
     to_js(Barcode {
         bars,
         summary: format!(
-            "{n} points, dimensions 0–{max_dim}{}; {}",
+            "{n} points, dimensions 0–{max_dim}{}{}; {}",
+            if point_dim > 0 && metric_name != "euclidean" { format!(", {metric_name} metric") } else { String::new() },
             dtm_k.map_or(String::new(), |k| format!(", DTM-weighted (k = {k})")),
             describe(&config)
         ),
+        edges,
     })
 }
 
@@ -641,6 +705,19 @@ pub fn grpph(
     let config = Config::resolve(options, GRPPH_DEFAULTS)?;
     let edges = read_edges(n_vertices, sources, targets, weights)?;
     let filtration = phlite_networks::grpph::build_filtration(n_vertices, &edges);
+    let drawn = FiltrationEdges::from_unsorted(
+        filtration
+            .iter()
+            .enumerate()
+            .flat_map(|(a, row)| {
+                row.iter()
+                    .enumerate()
+                    .filter(move |&(b, _)| a != b)
+                    .filter_map(move |(b, d)| d.map(|d| (a as u32, b as u32, d.into_inner())))
+            })
+            .collect(),
+        None,
+    );
     let edge_set = if grounded {
         phlite_networks::grpph::build_edge_set(&edges)
     } else {
@@ -701,6 +778,7 @@ pub fn grpph(
             if grounded { "grounded" } else { "not grounded" },
             describe(&config)
         ),
+        edges: Some(drawn),
     })
 }
 
@@ -729,16 +807,53 @@ pub fn network(
     max_dim: usize,
     options: JsValue,
 ) -> Result<JsValue, JsError> {
-    use phlite_networks::{
-        digraph::{Digraph, Distances},
-        dowker::{DowkerComplex, Side},
-        flag::{FlagComplex, Kind as FlagKind},
-    };
+    use phlite_networks::digraph::{Digraph, Distances};
     let config = Config::resolve(options, NETWORK_DEFAULTS)?;
     let edges = read_edges(n_vertices, sources, targets, weights)?;
     let distances = if shortest_path { Distances::ShortestPath } else { Distances::Weight };
     let with = || Digraph::with_distances(n_vertices, &edges, distances);
-    let (bars, sizes) = match kind {
+    let digraph_edges = |g: &Digraph| {
+        FiltrationEdges::from_unsorted(g.edges().map(|(a, b, w)| (a, b, w.into_inner())).collect(), None)
+    };
+    let drawn = match kind {
+        "grounded-flag" => digraph_edges(&Digraph::shortest_paths(n_vertices, &edges)),
+        "pph" => FiltrationEdges::default(), // from the PPH network itself, below
+        _ => digraph_edges(&with()),
+    };
+    let (bars, sizes, drawn) = match kind {
+        "pph" => pph_bars(n_vertices, &edges, shortest_path, max_dim, &config)?,
+        _ => {
+            let (bars, sizes) = network_bars(kind, n_vertices, &edges, &with, max_dim, &config)?;
+            (bars, sizes, drawn)
+        }
+    };
+    to_js(Barcode {
+        bars,
+        summary: format!(
+            "{n_vertices} nodes, {} edges, {sizes}{}; {}",
+            edges.len(),
+            if shortest_path || kind == "grounded-flag" { ", shortest-path filtration" } else { "" },
+            describe(&config)
+        ),
+        edges: Some(drawn),
+    })
+}
+
+/// The barcode of a lazy complex of a digraph (every kind of [`network`] but PPH).
+fn network_bars(
+    kind: &str,
+    n_vertices: u32,
+    edges: &[(u32, u32, f64)],
+    with: &dyn Fn() -> phlite_networks::digraph::Digraph,
+    max_dim: usize,
+    config: &Config,
+) -> Result<(Vec<OutBar>, String), JsError> {
+    use phlite_networks::{
+        digraph::Digraph,
+        dowker::{DowkerComplex, Side},
+        flag::{FlagComplex, Kind as FlagKind},
+    };
+    Ok(match kind {
         "flag" => lazy_bars(&FlagComplex::new(FlagKind::DirectedFlag, with()), max_dim, &config)?,
         "grounded-flag" => lazy_bars(
             &FlagComplex::grounded(
@@ -752,17 +867,7 @@ pub fn network(
         "tuples" => lazy_bars(&FlagComplex::new(FlagKind::OrderedTuples, with()), max_dim, &config)?,
         "dowker-sink" => lazy_bars(&DowkerComplex::new(&with(), Side::Sink), max_dim, &config)?,
         "dowker-source" => lazy_bars(&DowkerComplex::new(&with(), Side::Source), max_dim, &config)?,
-        "pph" => pph_bars(n_vertices, &edges, shortest_path, max_dim, &config)?,
         other => return Err(err(format!("Unknown network complex {other:?}"))),
-    };
-    to_js(Barcode {
-        bars,
-        summary: format!(
-            "{n_vertices} nodes, {} edges, {sizes}{}; {}",
-            edges.len(),
-            if shortest_path || kind == "grounded-flag" { ", shortest-path filtration" } else { "" },
-            describe(&config)
-        ),
     })
 }
 
@@ -773,7 +878,7 @@ fn pph_bars(
     shortest_path: bool,
     max_dim: usize,
     config: &Config,
-) -> Result<(Vec<OutBar>, String), JsError> {
+) -> Result<(Vec<OutBar>, String, FiltrationEdges), JsError> {
     use phlite_networks::pph::{pph_barcode_with, Network, PPHBar};
     let edges: Vec<(u16, u16, f64)> = if shortest_path {
         // Every pair joined by a path, at the length of the shortest one
@@ -790,6 +895,14 @@ fn pph_bars(
         edges.iter().map(|&(a, b, w)| (a as u16, b as u16, w)).collect()
     };
     let network = Network::from_edges(n_vertices as u16, &edges);
+    let n = n_vertices as u16;
+    let drawn = FiltrationEdges::from_unsorted(
+        (0..n)
+            .flat_map(|a| (0..n).filter(move |&b| b != a).map(move |b| (a, b)))
+            .filter_map(|(a, b)| network.edge_time(a, b).map(|t| (a as u32, b as u32, t.into_inner())))
+            .collect(),
+        None,
+    );
     if max_dim >= network.max_dimension() {
         return Err(err(format!(
             "Too many nodes ({n_vertices}) for paths of dimension {}",
@@ -829,7 +942,7 @@ fn pph_bars(
         |p| network.vertices(p).into_iter().map(u32::from).collect(),
         |v| v,
     );
-    Ok((bars, format!("dimensions 0–{max_dim}, regular paths")))
+    Ok((bars, format!("dimensions 0–{max_dim}, regular paths"), drawn))
 }
 
 /// The barcode of a lazy complex in dimensions `0..=max_dim`, cells as their vertices.
@@ -987,6 +1100,7 @@ pub fn complex(
     to_js(Barcode {
         bars,
         summary: format!("{sizes}, over Z/{modulus}; {}", describe(&config)),
+        edges: None,
     })
 }
 
@@ -1024,6 +1138,7 @@ pub fn delaunay(coords: &[f64], point_dim: usize, cech: bool, options: JsValue) 
             if cech { "Delaunay–Čech" } else { "alpha" },
             describe(&config)
         ),
+        edges: None,
     })
 }
 
@@ -1116,5 +1231,6 @@ pub fn image(
             if superlevel { "superlevel" } else { "sublevel" },
             describe(&config)
         ),
+        edges: None,
     })
 }

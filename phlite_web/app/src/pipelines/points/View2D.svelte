@@ -1,8 +1,8 @@
 <script lang="ts">
   import { untrack } from 'svelte';
-  import { dimColour, type Bar } from '../../lib/types';
+  import { dimColour, type Bar, type FiltrationEdges } from '../../lib/types';
   import { cssColour } from '../../lib/palette.svelte';
-  import { countUpTo } from './data';
+  import { activeComplex } from './data';
 
   /**
    * `select`: click a point to select it (shift to add to the selection), drag to move the selection, or drag from
@@ -29,7 +29,8 @@
     filtration: 'rips' | 'alpha';
     bar: Bar | null;
     balls: boolean;
-    edges: { pairs: Uint32Array; lengths: Float64Array } | null;
+    /** A flag filtration's edges (Rips, DTM-Rips), to draw its complex at t: edges and triangles. */
+    edges: FiltrationEdges | null;
     tool?: Tool | null;
     /** The brush's radius, as a fraction of the view's width. */
     brush?: number;
@@ -47,6 +48,9 @@
   let hover: number[] | null = $state(null);
   const height = $derived(Math.round(width * 0.8));
   const EDGE_LIMIT = 30000;
+  const TRIANGLE_LIMIT = 20000;
+  // The complex at t, when the filtration is a flag filtration
+  const complex = $derived(edges && t !== null ? activeComplex(edges, points.length, t, TRIANGLE_LIMIT) : null);
 
   function fit(pad: number) {
     if (points.length === 0) return [-1.25, -1, 1.25, 1];
@@ -125,9 +129,11 @@
       drag = { kind: 'move', from: w, original: points, moved: false };
     } else if (tool === 'add') {
       // Add a point, selected, and carry on dragging it into place
-      onedit([...points, w]);
-      selection = [points.length];
-      drag = { kind: 'move', from: w, original: [...points, w], moved: true };
+      // (Build the new cloud once: `points` is the parent's, so it is the new cloud as soon as `onedit` returns)
+      const added = [...points, w];
+      onedit(added);
+      selection = [added.length - 1];
+      drag = { kind: 'move', from: w, original: added, moved: true };
     } else {
       drag = { kind: 'brush', last: null };
       stroke(px);
@@ -203,8 +209,22 @@
         }
         ctx.fill();
       }
-      if (filtration === 'rips' && edges) {
-        const m = Math.min(countUpTo(edges.lengths, t), EDGE_LIMIT);
+      if (complex && edges) {
+        // Triangles, faintly (they overlap, so many look darker), then edges
+        const tri = complex.triangles;
+        ctx.fillStyle = cssColour('--edges');
+        ctx.globalAlpha = tri.length / 3 > 2000 ? 0.08 : 0.2;
+        ctx.beginPath();
+        for (let k = 0; k < tri.length; k += 3) {
+          const [a, b, c] = [points[tri[k]], points[tri[k + 1]], points[tri[k + 2]]];
+          if (!a || !b || !c) continue;
+          ctx.moveTo(sx(a[0]), sy(a[1]));
+          ctx.lineTo(sx(b[0]), sy(b[1]));
+          ctx.lineTo(sx(c[0]), sy(c[1]));
+          ctx.closePath();
+        }
+        ctx.fill();
+        const m = Math.min(complex.m, EDGE_LIMIT);
         ctx.strokeStyle = muted;
         ctx.globalAlpha = m > 3000 ? 0.25 : 0.55;
         ctx.lineWidth = 0.8;
@@ -260,15 +280,28 @@
       }
     }
 
-    // The points, the selected ones ringed
+    // The points, the selected ones ringed; with births (DTM-Rips), those not yet born at t hollow
     const pr = points.length > 1000 ? 1.6 : points.length > 300 ? 2.2 : 3;
+    const births = edges?.births && t !== null ? edges.births : null;
     ctx.fillStyle = fg;
     ctx.beginPath();
-    for (const [x, y] of points) {
+    points.forEach(([x, y], i) => {
+      if (births && births[i] > t!) return;
       ctx.moveTo(sx(x) + pr, sy(y));
       ctx.arc(sx(x), sy(y), pr, 0, 2 * Math.PI);
-    }
+    });
     ctx.fill();
+    if (births) {
+      ctx.strokeStyle = muted;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      points.forEach(([x, y], i) => {
+        if (births[i] <= t!) return;
+        ctx.moveTo(sx(x) + pr, sy(y));
+        ctx.arc(sx(x), sy(y), pr, 0, 2 * Math.PI);
+      });
+      ctx.stroke();
+    }
     if (tool && (selection.length > 0 || hovered >= 0)) {
       ctx.strokeStyle = accent;
       ctx.lineWidth = 2;
