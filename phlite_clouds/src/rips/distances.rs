@@ -7,6 +7,7 @@
 //! of edges rather than its square.
 
 use ordered_float::NotNan;
+use phlite::values::{INFINITY, ZERO};
 
 pub use crate::error::check_points;
 use crate::error::CloudError;
@@ -30,7 +31,7 @@ pub trait Distances: Sync {
     /// must be at least both their births.
     #[inline(always)]
     fn birth(&self, _v: usize) -> NotNan<f64> {
-        NotNan::new(0.0).unwrap()
+        ZERO
     }
 
     /// Every vertex `w >= from` (other than `v`) whose distance to `v` might be finite, in increasing order (it may
@@ -50,10 +51,10 @@ pub trait Distances: Sync {
                     .filter(|&j| j != i)
                     .map(|j| self.distance(i, j))
                     .max()
-                    .unwrap_or(NotNan::new(0.0).unwrap())
+                    .unwrap_or(ZERO)
             })
             .min()
-            .unwrap_or(NotNan::new(f64::INFINITY).unwrap())
+            .unwrap_or(INFINITY)
     }
 
     /// The vertex of smallest degree among `vertices` (the first, if they tie), or `None` if there are none.
@@ -347,7 +348,7 @@ impl Distances for SparseDistances {
         let (indices, values) = self.row(i);
         match indices.binary_search(&(j as u32)) {
             Ok(k) => values[k],
-            Err(_) => NotNan::new(f64::INFINITY).unwrap(),
+            Err(_) => INFINITY,
         }
     }
 
@@ -374,10 +375,10 @@ impl Distances for SparseDistances {
                     .iter()
                     .copied()
                     .max()
-                    .unwrap_or(NotNan::new(0.0).unwrap())
+                    .unwrap_or(ZERO)
             })
             .min()
-            .unwrap_or(NotNan::new(f64::INFINITY).unwrap())
+            .unwrap_or(INFINITY)
     }
 }
 
@@ -443,7 +444,7 @@ impl<D: Distances> Distances for Weighted<D> {
         // (NaN only from inf + -inf, impossible with finite weights.)
         let (lo, hi) = (i.min(j), i.max(j));
         // (The larger index's weight first, as GUDHI adds them, so that the values agree to the last bit)
-        let sum = NotNan::new(*d + *self.weights[hi] + *self.weights[lo]).unwrap();
+        let sum = NotNan::new(*d + *self.weights[hi] + *self.weights[lo]).expect("a sum of finite weights and a finite distance");
         sum.max(self.births[i]).max(self.births[j])
     }
 
@@ -480,7 +481,7 @@ impl<D: Distances> Distances for Weighted<D> {
     /// has appeared, since each edge appears after its ends), looking only at each point's neighbours.
     fn enclosing_radius(&self) -> NotNan<f64> {
         let n = self.n_points();
-        let infinity = NotNan::new(f64::INFINITY).unwrap();
+        let infinity = INFINITY;
         (0..n)
             .map(|i| {
                 let mut others = 0;

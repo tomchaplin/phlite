@@ -55,6 +55,7 @@
 use std::marker::PhantomData;
 
 use ordered_float::NotNan;
+use phlite::values::{INFINITY};
 
 use crate::error::{check_edges, NetworkError};
 use phlite::{
@@ -158,7 +159,7 @@ fn undigit(d: u64, prev: u16) -> u16 {
 type Time = NotNan<f64>;
 
 fn infinity() -> Time {
-    NotNan::new(f64::INFINITY).unwrap()
+    INFINITY
 }
 
 /// A weighted digraph: the edge `a -> b` enters the filtration at its weight.
@@ -372,6 +373,9 @@ impl Network {
     ///
     /// Each dimension is built from the last by appending out-neighbours, in parallel on the current rayon thread pool
     /// if `parallel`.
+    ///
+    /// # Panics
+    /// If `max_dim` is more than [`max_dimension`](Self::max_dimension).
     pub fn allowed_paths(&self, max_dim: usize, parallel: bool) -> Vec<Vec<(Time, RegularPath)>> {
         assert!(
             max_dim <= self.max_dimension(),
@@ -608,6 +612,9 @@ impl<CF: NonZeroCoefficient> HasRowFiltration for PPHCoboundary<'_, CF> {
 }
 
 /// The column basis for reducing the boundary matrix: allowed paths in dimensions `0..=max_dim + 1`, in filtration order.
+///
+/// # Panics
+/// If `max_dim + 1` is more than [`Network::max_dimension`].
 pub fn homology_basis(network: &Network, max_dim: usize, parallel: bool) -> SplitBasis<RegularPath> {
     SplitBasis::from_dimensions(
         network
@@ -620,6 +627,9 @@ pub fn homology_basis(network: &Network, max_dim: usize, parallel: bool) -> Spli
 /// The column basis for reducing the coboundary matrix: in each dimension `0..=max_dim`, the allowed paths and then the
 /// never-allowed faces of allowed paths one dimension up (which are rows of the boundary matrix, so must be columns here,
 /// at `+∞`), in filtration order. Paths of dimension `max_dim + 1` are never enumerated.
+///
+/// # Panics
+/// If `max_dim + 1` is more than [`Network::max_dimension`] (the faces one dimension up are still encoded).
 pub fn cohomology_basis(network: &Network, max_dim: usize, parallel: bool) -> SplitBasis<RegularPath> {
     let allowed = network.allowed_paths(max_dim, parallel);
     let never_allowed = network.never_allowed_faces(&allowed, max_dim, parallel);
@@ -685,6 +695,9 @@ where
 
 /// As [`pph_barcode`], choosing whether to enumerate paths in parallel on the current rayon thread pool
 /// (`parallel_setup`, which [`pph_barcode`] does only for the parallel algorithm), whatever the algorithm.
+///
+/// # Panics
+/// As [`pph_barcode`]: if paths of dimension `max_dim + 1` can't be encoded, see [`Network::max_dimension`].
 pub fn pph_barcode_with<CF, R>(
     network: &Network,
     max_dim: usize,

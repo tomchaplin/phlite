@@ -5,6 +5,7 @@ use numpy::{
     PyArray1, PyArray2, PyArrayMethods, PyReadonlyArray1, PyUntypedArray, PyUntypedArrayMethods,
 };
 use ordered_float::NotNan;
+use phlite::values::{INFINITY};
 use phlite::{
     barcode::{Algorithm, Method},
     columns::ColumnRepresentation,
@@ -269,7 +270,7 @@ fn rips<'py>(
     representatives: bool,
 ) -> PyResult<Bound<'py, PyAny>> {
     let threshold = match threshold {
-        None => NotNan::new(f64::INFINITY).unwrap(),
+        None => INFINITY,
         Some(t) => {
             NotNan::new(t).map_err(|_| PyValueError::new_err("threshold must not be NaN"))?
         }

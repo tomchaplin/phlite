@@ -3,6 +3,7 @@ use crate::rips::{
     build_rips_bases_with_threshold, cohomology::oldest_cofacet, Distances, RipsIndex, RipsInt,
 };
 use ordered_float::NotNan;
+use phlite::values::{INFINITY};
 use phlite::{
     fields::{Invertible, NonZeroCoefficient},
     matrices::{adaptors::MatrixWithBasis, HasRowFiltration, MatrixOracle},
@@ -36,7 +37,7 @@ impl<CF: NonZeroCoefficient + Invertible, I: RipsInt, D: Distances> RipsBoundary
     pub fn new(distances: D) -> Self {
         Self {
             distances,
-            threshold: NotNan::new(f64::INFINITY).unwrap(),
+            threshold: INFINITY,
             phantom: PhantomData,
         }
     }
@@ -139,7 +140,7 @@ pub fn build_rips_boundary_matrix<CF: Invertible>(
     build_rips_boundary_matrix_with_threshold(
         distances,
         max_dim,
-        NotNan::new(f64::INFINITY).unwrap(),
+        INFINITY,
     )
 }
 
@@ -168,6 +169,7 @@ pub fn build_rips_boundary_matrix_with_threshold<CF: Invertible, D: Distances>(
 // TODO: Write some proper tests
 #[cfg(test)]
 mod tests {
+    use phlite::values::ZERO;
 
     use ordered_float::NotNan;
 
@@ -179,7 +181,7 @@ mod tests {
     };
 
     fn distance_matrix() -> Vec<Vec<NotNan<f64>>> {
-        let zero = NotNan::new(0.0).unwrap();
+        let zero = ZERO;
         let one = NotNan::new(1.0).unwrap();
         let sqrt2 = NotNan::new(2.0_f64.sqrt()).unwrap();
         let distance_matrix: Vec<Vec<NotNan<f64>>> = vec![

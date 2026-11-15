@@ -51,6 +51,7 @@ pub mod fields;
 mod hash;
 pub mod matrices;
 pub mod reduction;
+pub mod values;
 
 // TODO: Better system for column algebra
 // TODO: Documentation

@@ -815,7 +815,7 @@ pub fn filtered_delaunay(
     };
     let mut offsets = vec![0];
     for dim in &simplices {
-        offsets.push(offsets.last().unwrap() + dim.len());
+        offsets.push(offsets[offsets.len() - 1] + dim.len());
     }
     Ok(AlphaComplex {
         simplices,
@@ -958,7 +958,7 @@ impl AlphaComplex {
 
     /// The number of simplices.
     pub fn n_simplices(&self) -> usize {
-        *self.offsets.last().unwrap()
+        self.offsets[self.offsets.len() - 1]
     }
 
     /// The dimension and simplex of a cell of [`filtered`](Self::filtered)'s complex.

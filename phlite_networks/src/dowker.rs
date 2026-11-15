@@ -135,7 +135,7 @@ impl Iterator for DowkerCofacets<'_> {
                 return Some(Cofacet {
                     position: self.position,
                     simplex: self.complex.codec.insert(self.simplex, self.position, w),
-                    value: NotNan::new(value).unwrap(),
+                    value: NotNan::new(value).expect("a finite value"),
                 });
             }
         }
@@ -166,7 +166,7 @@ impl LazyComplex for DowkerComplex {
         let reach = self.reach(&vertices);
         let value = reach.iter().copied().fold(f64::INFINITY, f64::min);
         (
-            NotNan::new(value).unwrap(),
+            NotNan::new(value).expect("a minimum of maxima of weights is not NaN"),
             DowkerCofacets {
                 complex: self,
                 simplex,

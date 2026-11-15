@@ -374,6 +374,9 @@ pub fn barcode<K: LazyComplex, R: ColumnRepresentation>(
 
 /// As [`barcode`], choosing whether to build the bases in parallel on the current rayon thread pool
 /// (`parallel_setup`, which [`barcode`] does only for the parallel algorithm), whatever the algorithm.
+///
+/// # Panics
+/// As [`barcode`]: if simplices of dimension `max_dim + 1` don't fit in a [`Simplex`] (see [`fits`]).
 pub fn barcode_with<K: LazyComplex, R: ColumnRepresentation>(
     complex: &K,
     max_dim: usize,

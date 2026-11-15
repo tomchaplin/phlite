@@ -73,7 +73,11 @@ impl<'a, CF: NonZeroCoefficient, RowT: BasisElement> MatrixOracle for VecVecMatr
         &self,
         col: Self::ColT,
     ) -> impl Iterator<Item = (Self::CoefficientField, Self::RowT)> {
-        self.columns.get(col).unwrap().iter().cloned()
+        self.columns
+            .get(col)
+            .unwrap_or_else(|| panic!("column {col} of a {}-column VecVecMatrix", self.columns.len()))
+            .iter()
+            .cloned()
     }
 }
 
@@ -190,7 +194,11 @@ where
         &self,
         col: Self::ColT,
     ) -> impl Iterator<Item = (Self::CoefficientField, Self::RowT)> {
-        self.columns.get(&col).unwrap().iter().cloned()
+        self.columns
+            .get(&col)
+            .expect("a column of a MapVecMatrix is one of its keys")
+            .iter()
+            .cloned()
     }
 }
 

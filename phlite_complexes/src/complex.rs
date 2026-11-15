@@ -528,7 +528,7 @@ impl<CF: IntField> Chain<CF> {
     pub fn filter(&self, values: Option<Vec<f64>>) -> Result<Complex<CF>, ComplexError> {
         let n = self.n_cells();
         let values: Vec<NotNan<f64>> = match values {
-            None => (0..n).map(|i| NotNan::new(i as f64).unwrap()).collect(),
+            None => (0..n).map(|i| NotNan::new(i as f64).expect("an integer is not NaN")).collect(),
             Some(values) => {
                 if values.len() != n {
                     return Err(ComplexError::Input(format!(
