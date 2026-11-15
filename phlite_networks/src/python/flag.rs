@@ -224,8 +224,9 @@ pub(crate) fn read(
 ///     method: `'cohomology'` (the default) or `'homology'`.
 ///     algorithm: The reduction algorithm and its options, as a `phlite.core.Algorithm` (default:
 ///         `Algorithm.serial()`).
-///         Pipeline defaults: explicitly (`'networks.flag'`) columns='pivot', cache=False, store_r=True; implicitly
-///         (`'networks.flag_implicit'`) columns='heap', cache=False, store_r=False, union_find=True.
+///         Listed explicitly: Pipeline defaults (`'networks.flag'`): columns='pivot', cache=False, store_r=True.
+///         Computed implicitly: Pipeline defaults (`'networks.flag_implicit'`): columns='heap', cache=False,
+///         store_r=False, union_find=True.
 ///     representatives: Whether to also compute a representative cycle for every bar. Cells are tuples of nodes (node
 ///         labels for a networkx graph).
 ///

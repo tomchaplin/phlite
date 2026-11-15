@@ -167,11 +167,12 @@ def flag(graph: typing.Any, edges: typing.Optional[typing.Sequence[typing.Union[
     matrix of path lengths; node values still apply). Edge weights are then lengths, so must be non-negative; with
     `weight=None` every edge has length 1 (the hop distance). Pairs in different components are never joined.
     
-    A complex of at most a million simplices (up to dimension `max_dim + 1`, and the threshold) is listed and reduced
-    explicitly, as `phlite.complexes` does: much the fastest, as each column is built once. A bigger one (a dense
-    graph, or shortest paths, which join every connected pair) is computed implicitly, by the same machinery as
-    Vietoris–Rips (union-find in dimension 0, apparent pairs, cofacets enumerated through the neighbours of the
-    sparsest vertex, nothing stored but the graph). `explicit` forces either.
+    By edge weights, a complex of at most a million simplices (up to dimension `max_dim + 1`, the threshold and the
+    enclosing radius) is listed and reduced explicitly, as `phlite.complexes` does: much the fastest for a sparse
+    graph or arbitrary weights, as each column is built once. A bigger one, and shortest paths (a metric, joining every
+    connected pair), are computed implicitly by the same machinery as Vietoris–Rips (union-find in dimension 0,
+    apparent pairs, which settle nearly every column of a metric's complex without reducing it, cofacets enumerated
+    through the neighbours of the sparsest vertex, nothing stored but the graph). `explicit` forces either.
     
     Call either as `flag(G)` with a networkx `Graph` (or `MultiGraph`, which keeps the lightest of parallel edges), or as
     `flag(n_vertices, edges)`.
@@ -191,13 +192,14 @@ def flag(graph: typing.Any, edges: typing.Optional[typing.Sequence[typing.Union[
         threshold: Only build the complex up to this value (default: no limit). Bars still alive at the threshold are
             reported as essential.
         explicit: `True` to list the complex explicitly, `False` to compute it implicitly, `None` (the default) to list
-            it if it has at most a million simplices (and the algorithm doesn't ask for union-find, which only the
-            implicit computation has).
+            it if the filtration is by weight, it has at most a million simplices, and the algorithm doesn't ask for
+            union-find (which only the implicit computation has).
         method: `'cohomology'` (the default) or `'homology'`.
         algorithm: The reduction algorithm and its options, as a `phlite.core.Algorithm` (default:
             `Algorithm.serial()`).
-            Pipeline defaults: explicitly (`'networks.flag'`) columns='pivot', cache=False, store_r=True; implicitly
-            (`'networks.flag_implicit'`) columns='heap', cache=False, store_r=False, union_find=True.
+            Listed explicitly: Pipeline defaults (`'networks.flag'`): columns='pivot', cache=False, store_r=True.
+            Computed implicitly: Pipeline defaults (`'networks.flag_implicit'`): columns='heap', cache=False,
+            store_r=False, union_find=True.
         representatives: Whether to also compute a representative cycle for every bar. Cells are tuples of nodes (node
             labels for a networkx graph).
     
