@@ -12,7 +12,7 @@ use phlite_bindings::{
     algorithm_from_py, parse_method, AlgorithmDefaults, AlgorithmVisitor, Columns, SortedBars,
 };
 
-use super::graph::{parse_distances, read_graph};
+use super::graph::{network_error, parse_distances, read_graph};
 use crate::{
     digraph::{Digraph, Distances},
     dowker::{DowkerComplex, Side},
@@ -178,11 +178,12 @@ fn directed_flag<'py>(
                 "Only dimensions 0 and 1 make sense for the grounded directed flag complex (max_dim must be 0 or 1)",
             ));
         }
-        let graph = Digraph::shortest_paths(n_vertices, &edges);
-        FlagComplex::grounded(Kind::DirectedFlag, graph, edges.iter().map(|&(a, b, _)| (a, b)))
+        let graph = Digraph::shortest_paths(n_vertices, &edges).map_err(network_error)?;
+        FlagComplex::grounded(Kind::DirectedFlag, graph, edges.iter().map(|&(a, b, _)| (a, b))).map_err(network_error)?
     } else {
         let distances = parse_distances(filtration.unwrap_or("weight"))?;
-        FlagComplex::new(Kind::DirectedFlag, Digraph::with_distances(n_vertices, &edges, distances))
+        let graph = Digraph::with_distances(n_vertices, &edges, distances).map_err(network_error)?;
+        FlagComplex::new(Kind::DirectedFlag, graph)
     };
     run(py, &complex, max_dim, method, algorithm, representatives, &FLAG_DEFAULTS, labels)
 }
@@ -237,7 +238,8 @@ fn ordered_tuples<'py>(
 ) -> PyResult<Bound<'py, PyAny>> {
     let (n_vertices, edges, labels) = read_graph(graph, edges, weight, "ordered_tuples", u32::MAX - 1)?;
     let distances = parse_distances(filtration)?;
-    let complex = FlagComplex::new(Kind::OrderedTuples, Digraph::with_distances(n_vertices, &edges, distances));
+    let graph = Digraph::with_distances(n_vertices, &edges, distances).map_err(network_error)?;
+    let complex = FlagComplex::new(Kind::OrderedTuples, graph);
     run(py, &complex, max_dim, method, algorithm, representatives, &TUPLES_DEFAULTS, labels)
 }
 
@@ -304,7 +306,8 @@ fn dowker<'py>(
         }
     };
     let distances: Distances = parse_distances(filtration)?;
-    let complex = DowkerComplex::new(&Digraph::with_distances(n_vertices, &edges, distances), side);
+    let graph = Digraph::with_distances(n_vertices, &edges, distances).map_err(network_error)?;
+    let complex = DowkerComplex::new(&graph, side);
     run(py, &complex, max_dim, method, algorithm, representatives, &DOWKER_DEFAULTS, labels)
 }
 

@@ -37,7 +37,7 @@ fn random_network(rng: &mut Rng, n: u16, density_percent: u64, levels: u64) -> N
             }
         }
     }
-    Network::from_edges(n, &edges)
+    Network::from_edges(n, &edges).unwrap()
 }
 
 fn algorithms() -> Vec<(&'static str, Algorithm<'static, MergedColumns>)> {
@@ -80,7 +80,7 @@ fn cycle_network(n: u16) -> Network {
                 .map(move |b| (a, b, ((b + n - a) % n) as f64))
         })
         .collect();
-    Network::from_edges(n, &edges)
+    Network::from_edges(n, &edges).unwrap()
 }
 
 #[test]
@@ -220,7 +220,7 @@ fn methods_and_algorithms_agree_z3() {
 #[test]
 fn cohomology_basis_includes_never_allowed_faces() {
     // a -> b -> c without a -> c: the face [a, c] of [a, b, c] is never allowed
-    let network = Network::from_edges(3, &[(0, 1, 1.0), (1, 2, 1.0)]);
+    let network = Network::from_edges(3, &[(0, 1, 1.0), (1, 2, 1.0)]).unwrap();
     let basis = cohomology_basis(&network, 1, false);
     let elems: Vec<_> = (0..basis.size()).map(|i| basis.element(i)).collect();
     assert!(elems.contains(&network.path(&[0, 2])));
@@ -239,8 +239,8 @@ fn cohomology_basis_includes_never_allowed_faces() {
 #[test]
 fn bi_fan_and_bi_parallel() {
     // Chowdhury and Mémoli's examples: the bi-fan has H_1 = 1, the bi-parallel motif H_1 = 0
-    let bi_fan = Network::from_edges(4, &[(0, 1, 1.0), (2, 1, 1.0), (2, 3, 1.0), (0, 3, 1.0)]);
-    let bi_parallel = Network::from_edges(4, &[(0, 1, 1.0), (1, 3, 1.0), (0, 2, 1.0), (2, 3, 1.0)]);
+    let bi_fan = Network::from_edges(4, &[(0, 1, 1.0), (2, 1, 1.0), (2, 3, 1.0), (0, 3, 1.0)]).unwrap();
+    let bi_parallel = Network::from_edges(4, &[(0, 1, 1.0), (1, 3, 1.0), (0, 2, 1.0), (2, 3, 1.0)]).unwrap();
     let dim_one = |network: &Network| -> usize {
         let bars: Vec<PPHBar<Z2>> =
             pph_barcode(network, 1, Method::Cohomology, Algorithm::default(), false);
@@ -254,7 +254,7 @@ fn bi_fan_and_bi_parallel() {
 fn paths_round_trip_through_their_codes() {
     let mut rng = Rng(11);
     for n in [2u16, 3, 7, 300] {
-        let network = Network::from_edges(n, &[]);
+        let network = Network::from_edges(n, &[]).unwrap();
         let max_dim = network.max_dimension().min(8);
         for _ in 0..500 {
             let len = 1 + rng.below(max_dim as u64 + 1) as usize;
@@ -271,7 +271,7 @@ fn paths_round_trip_through_their_codes() {
         }
     }
     // the codes in each dimension are exactly 0..n(n-1)^p
-    let network = Network::from_edges(4, &[]);
+    let network = Network::from_edges(4, &[]).unwrap();
     assert_eq!(network.max_dimension(), 15);
     let last = network.path(&[3, 2, 3, 2]);
     assert_eq!(last.as_u64() & ((1 << 60) - 1), 4 * 27 - 1);
@@ -287,7 +287,7 @@ fn truncation_clips_the_barcode() {
         for t_max in [1.0, 2.0, 3.0] {
             let t = NotNan::new(t_max).unwrap();
             let truncated: Vec<PPHBar<Z2>> = pph_barcode(
-                &network.truncate(t_max),
+                &network.truncate(t),
                 2,
                 Method::Cohomology,
                 Algorithm::default(),

@@ -12,7 +12,10 @@ use phlite_bindings::{
     algorithm_from_py, parse_method, AlgorithmDefaults, AlgorithmVisitor, Columns, SortedBars,
 };
 
-use super::{graph::read_graph, grpph::path_homology};
+use super::{
+    graph::{network_error, read_graph},
+    grpph::path_homology,
+};
 use crate::{
     grpph::build_filtration,
     pph::{pph_barcode_with, Network},
@@ -129,7 +132,7 @@ fn pph<'py>(
     let algorithm = algorithm_from_py(algorithm.as_ref(), &DEFAULTS)?;
     let network = py.detach(|| {
         if shortest_path {
-            let distances = build_filtration(n_vertices, &edges);
+            let distances = build_filtration(n_vertices, &edges)?;
             let edges: Vec<(u16, u16, f64)> = distances
                 .iter()
                 .enumerate()
@@ -145,7 +148,8 @@ fn pph<'py>(
                 edges.iter().map(|&(a, b, w)| (a as u16, b as u16, w)).collect();
             Network::from_edges(n_vertices as u16, &edges)
         }
-    });
+    })
+    .map_err(network_error)?;
     if max_dim >= network.max_dimension() {
         return Err(PyValueError::new_err(format!(
             "Too many nodes ({n_vertices}) to encode paths of dimension {}",

@@ -5,7 +5,7 @@ use phlite::{
     barcode::{Algorithm, Method},
     columns::ColumnRepresentation,
 };
-use pyo3::{exceptions::PyValueError, prelude::*};
+use pyo3::prelude::*;
 use pyo3_stub_gen::derive::*;
 
 use phlite_bindings::{
@@ -88,7 +88,7 @@ fn alpha<'py>(
             representatives,
         })
     })?;
-    bars.map_err(PyValueError::new_err)?
+    bars.map_err(PyErr::from)?
         .into_python(py, &algorithm, representatives, None)
 }
 
@@ -145,7 +145,7 @@ fn delaunay_cech<'py>(
             representatives,
         })
     })?;
-    bars.map_err(PyValueError::new_err)?
+    bars.map_err(PyErr::from)?
         .into_python(py, &algorithm, representatives, None)
 }
 
@@ -160,7 +160,7 @@ struct DelaunayRun {
 }
 
 impl AlgorithmVisitor for DelaunayRun {
-    type Output = Result<SortedBars, String>;
+    type Output = Result<SortedBars, crate::CloudError>;
 
     fn visit<R: ColumnRepresentation>(self, algorithm: Algorithm<'_, R>) -> Self::Output {
         let (complex, bars) = delaunay_barcode(
@@ -236,8 +236,7 @@ fn filtration_list<'py>(
 ) -> PyResult<Vec<(Bound<'py, pyo3::types::PyTuple>, f64)>> {
     let points = read_rows(points, "points")?;
     let complex = py
-        .detach(|| filtered_delaunay(&points, filtration))
-        .map_err(PyValueError::new_err)?;
+        .detach(|| filtered_delaunay(&points, filtration))?;
     let mut cells: Vec<(f64, usize, &crate::alpha::Simplex)> = complex
         .simplices
         .iter()

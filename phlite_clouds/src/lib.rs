@@ -12,7 +12,10 @@
 //! filtration.
 
 pub mod alpha;
+pub mod error;
 pub mod rips;
+
+pub use error::CloudError;
 #[cfg(feature = "python")]
 mod python;
 

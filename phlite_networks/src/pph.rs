@@ -38,8 +38,9 @@
 //! use phlite_networks::pph::{pph_barcode, Network, PPHBar};
 //! 
 //! // A directed 4-cycle a -> b -> c -> d -> a, then its chords
-//! let network = Network::from_edges(4, &[(0, 1, 1.0), (1, 2, 1.0), (2, 3, 1.0), (3, 0, 1.0), (0, 2, 2.0), (2, 0, 2.0)]);
+//! let network = Network::from_edges(4, &[(0, 1, 1.0), (1, 2, 1.0), (2, 3, 1.0), (3, 0, 1.0), (0, 2, 2.0), (2, 0, 2.0)])?;
 //! let bars: Vec<PPHBar<Z2>> = pph_barcode(&network, 2, Method::Cohomology, Algorithm::default(), true);
+//! # Ok::<(), phlite_networks::NetworkError>(())
 //! ```
 //!
 //! Each bar has a `birth` path (its dimension is the bar's dimension), `birth_value`, an optional `death` and, if
@@ -54,6 +55,8 @@
 use std::marker::PhantomData;
 
 use ordered_float::NotNan;
+
+use crate::error::{check_edges, NetworkError};
 use phlite::{
     barcode::{self, Algorithm, Bar},
     columns::ColumnRepresentation,
@@ -176,23 +179,25 @@ impl Network {
     /// A network on `n_vertices` vertices with the given `(source, target, weight)` edges, all vertices present at time 0.
     /// Repeated edges keep the smallest weight; an infinite weight means no edge.
     ///
-    /// # Panics
-    /// If an edge is a self-loop, has a vertex out of range, or has a NaN or negative weight.
-    pub fn from_edges(n_vertices: u16, edges: &[(u16, u16, f64)]) -> Self {
+    /// # Errors
+    /// If an edge has an endpoint out of range, is a self-loop, or has a negative or `NaN` weight.
+    pub fn from_edges(n_vertices: u16, edges: &[(u16, u16, f64)]) -> Result<Self, NetworkError> {
+        check_edges(
+            n_vertices as u32,
+            &edges.iter().map(|&(a, b, w)| (a as u32, b as u32, w)).collect::<Vec<_>>(),
+        )?;
         let n = n_vertices as usize;
         let mut times = vec![None; n * n];
         for &(a, b, w) in edges {
-            assert!(a != b, "self-loops are not supported");
-            assert!(a < n_vertices && b < n_vertices, "vertex out of range");
-            assert!(w >= 0.0, "edge weights must be non-negative (and not NaN)");
-            if w == f64::INFINITY {
+            // Checked: not NaN
+            let Ok(w) = NotNan::new(w) else { continue };
+            if w.is_infinite() {
                 continue;
             }
-            let w = NotNan::new(w).unwrap();
             let slot: &mut Option<Time> = &mut times[a as usize * n + b as usize];
             *slot = Some(slot.map_or(w, |old| old.min(w)));
         }
-        Self::from_times(n_vertices, times, NotNan::new(0.0).unwrap())
+        Ok(Self::from_times(n_vertices, times, NotNan::default()))
     }
 
     fn from_times(n_vertices: u16, times: Vec<Option<Time>>, vertex_time: Time) -> Self {
@@ -218,30 +223,38 @@ impl Network {
 
     /// A network from a square weight matrix, `weights[a][b]` being the weight of `a -> b`.
     /// The diagonal is ignored and an infinite weight means no edge.
-    pub fn from_dense(weights: &[Vec<f64>]) -> Self {
+    ///
+    /// # Errors
+    /// If the matrix isn't square, has more than `u16::MAX` rows, or an off-diagonal weight is negative or `NaN`.
+    pub fn from_dense(weights: &[Vec<f64>]) -> Result<Self, NetworkError> {
         let n = weights.len();
+        if n > u16::MAX as usize {
+            return Err(NetworkError::TooManyVertices {
+                n_vertices: n,
+                max: u16::MAX as usize,
+            });
+        }
+        if let Some((row, r)) = weights.iter().enumerate().find(|(_, r)| r.len() != n) {
+            return Err(NetworkError::NotSquare { row, len: r.len(), n });
+        }
         let edges: Vec<_> = (0..n)
             .flat_map(|a| (0..n).map(move |b| (a, b)))
             .filter(|(a, b)| a != b)
-            .map(|(a, b)| {
-                assert!(weights[a].len() == n, "weight matrix must be square");
-                (a as u16, b as u16, weights[a][b])
-            })
+            .map(|(a, b)| (a as u16, b as u16, weights[a][b]))
             .collect();
         Self::from_edges(n as u16, &edges)
     }
 
     /// Set the time at which vertices (and so the 0-dimensional bars) are born, 0 by default.
-    pub fn with_vertex_time(mut self, time: f64) -> Self {
-        self.vertex_time = NotNan::new(time).unwrap();
+    pub fn with_vertex_time(mut self, time: NotNan<f64>) -> Self {
+        self.vertex_time = time;
         self
     }
 
     /// The network with every edge of weight above `t_max` removed, i.e. the filtration truncated at `t_max`.
     /// Its barcode agrees with the full barcode up to `t_max`: bars still alive at `t_max` become essential.
     /// Since allow times only grow as paths are extended, this prunes the enumeration of paths, so is much cheaper.
-    pub fn truncate(&self, t_max: f64) -> Self {
-        let t_max = NotNan::new(t_max).unwrap();
+    pub fn truncate(&self, t_max: NotNan<f64>) -> Self {
         let times = self
             .times
             .iter()

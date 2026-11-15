@@ -226,8 +226,9 @@ struct Config {
     has_setup: bool,
 }
 
-fn err(message: impl Into<String>) -> JsError {
-    JsError::new(&message.into())
+/// An error for JavaScript, from a message or from any of phlite's errors.
+fn err(message: impl std::fmt::Display) -> JsError {
+    JsError::new(&message.to_string())
 }
 
 impl Config {
@@ -704,7 +705,7 @@ pub fn grpph(
 ) -> Result<JsValue, JsError> {
     let config = Config::resolve(options, GRPPH_DEFAULTS)?;
     let edges = read_edges(n_vertices, sources, targets, weights)?;
-    let filtration = phlite_networks::grpph::build_filtration(n_vertices, &edges);
+    let filtration = phlite_networks::grpph::build_filtration(n_vertices, &edges).map_err(err)?;
     let drawn = FiltrationEdges::from_unsorted(
         filtration
             .iter()
@@ -811,19 +812,21 @@ pub fn network(
     let config = Config::resolve(options, NETWORK_DEFAULTS)?;
     let edges = read_edges(n_vertices, sources, targets, weights)?;
     let distances = if shortest_path { Distances::ShortestPath } else { Distances::Weight };
-    let with = || Digraph::with_distances(n_vertices, &edges, distances);
-    let digraph_edges = |g: &Digraph| {
-        FiltrationEdges::from_unsorted(g.edges().map(|(a, b, w)| (a, b, w.into_inner())).collect(), None)
-    };
-    let drawn = match kind {
-        "grounded-flag" => digraph_edges(&Digraph::shortest_paths(n_vertices, &edges)),
-        "pph" => FiltrationEdges::default(), // from the PPH network itself, below
-        _ => digraph_edges(&with()),
-    };
     let (bars, sizes, drawn) = match kind {
         "pph" => pph_bars(n_vertices, &edges, shortest_path, max_dim, &config)?,
         _ => {
-            let (bars, sizes) = network_bars(kind, n_vertices, &edges, &with, max_dim, &config)?;
+            // The digraph the complex is built on, and its edges to draw
+            let graph = if kind == "grounded-flag" {
+                Digraph::shortest_paths(n_vertices, &edges)
+            } else {
+                Digraph::with_distances(n_vertices, &edges, distances)
+            }
+            .map_err(err)?;
+            let drawn = FiltrationEdges::from_unsorted(
+                graph.edges().map(|(a, b, w)| (a, b, w.into_inner())).collect(),
+                None,
+            );
+            let (bars, sizes) = network_bars(kind, &edges, graph, max_dim, &config)?;
             (bars, sizes, drawn)
         }
     };
@@ -842,31 +845,25 @@ pub fn network(
 /// The barcode of a lazy complex of a digraph (every kind of [`network`] but PPH).
 fn network_bars(
     kind: &str,
-    n_vertices: u32,
     edges: &[(u32, u32, f64)],
-    with: &dyn Fn() -> phlite_networks::digraph::Digraph,
+    graph: phlite_networks::digraph::Digraph,
     max_dim: usize,
     config: &Config,
 ) -> Result<(Vec<OutBar>, String), JsError> {
     use phlite_networks::{
-        digraph::Digraph,
         dowker::{DowkerComplex, Side},
         flag::{FlagComplex, Kind as FlagKind},
     };
     Ok(match kind {
-        "flag" => lazy_bars(&FlagComplex::new(FlagKind::DirectedFlag, with()), max_dim, &config)?,
-        "grounded-flag" => lazy_bars(
-            &FlagComplex::grounded(
-                FlagKind::DirectedFlag,
-                Digraph::shortest_paths(n_vertices, &edges),
-                edges.iter().map(|&(a, b, _)| (a, b)),
-            ),
-            max_dim.min(1),
-            &config,
-        )?,
-        "tuples" => lazy_bars(&FlagComplex::new(FlagKind::OrderedTuples, with()), max_dim, &config)?,
-        "dowker-sink" => lazy_bars(&DowkerComplex::new(&with(), Side::Sink), max_dim, &config)?,
-        "dowker-source" => lazy_bars(&DowkerComplex::new(&with(), Side::Source), max_dim, &config)?,
+        "flag" => lazy_bars(&FlagComplex::new(FlagKind::DirectedFlag, graph), max_dim, config)?,
+        "grounded-flag" => {
+            let base = edges.iter().map(|&(a, b, _)| (a, b));
+            let complex = FlagComplex::grounded(FlagKind::DirectedFlag, graph, base).map_err(err)?;
+            lazy_bars(&complex, max_dim.min(1), config)?
+        }
+        "tuples" => lazy_bars(&FlagComplex::new(FlagKind::OrderedTuples, graph), max_dim, config)?,
+        "dowker-sink" => lazy_bars(&DowkerComplex::new(&graph, Side::Sink), max_dim, config)?,
+        "dowker-source" => lazy_bars(&DowkerComplex::new(&graph, Side::Source), max_dim, config)?,
         other => return Err(err(format!("Unknown network complex {other:?}"))),
     })
 }
@@ -883,6 +880,7 @@ fn pph_bars(
     let edges: Vec<(u16, u16, f64)> = if shortest_path {
         // Every pair joined by a path, at the length of the shortest one
         phlite_networks::grpph::build_filtration(n_vertices, edges)
+            .map_err(err)?
             .iter()
             .enumerate()
             .flat_map(|(a, row)| {
@@ -894,7 +892,7 @@ fn pph_bars(
     } else {
         edges.iter().map(|&(a, b, w)| (a as u16, b as u16, w)).collect()
     };
-    let network = Network::from_edges(n_vertices as u16, &edges);
+    let network = Network::from_edges(n_vertices as u16, &edges).map_err(err)?;
     let n = n_vertices as u16;
     let drawn = FiltrationEdges::from_unsorted(
         (0..n)

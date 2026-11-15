@@ -131,9 +131,9 @@ fn main() {
                     .collect()
             })
             .collect();
-        let mut network = Network::from_dense(&weights);
+        let mut network = Network::from_dense(&weights).unwrap();
         if let Some(t_max) = opts.threshold {
-            network = network.truncate(t_max);
+            network = network.truncate(ordered_float::NotNan::new(t_max).expect("the threshold is a number"));
         }
         let bars = match opts.field {
             2 => run::<Z2>(&network, dim, &opts),

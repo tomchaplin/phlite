@@ -14,6 +14,8 @@
 //! reject them, as well as negative and `NaN` weights.
 
 use ordered_float::NotNan;
+
+use crate::error::{check_edges, NetworkError};
 use petgraph::{algo::dijkstra, graph::NodeIndex, Graph};
 
 /// When the edge `a -> b` enters the filtration, see the [module docs](self).
@@ -58,22 +60,25 @@ fn compress(n: usize, mut triples: Vec<(u32, u32, NotNan<f64>)>) -> (Vec<usize>,
 
 impl Digraph {
     /// The digraph on `n_vertices` nodes with the given edges, each entering at its weight: parallel edges keep the
-    /// lightest weight, and self-loops and edges with infinite (or `NaN`) weight are left out.
+    /// lightest weight, and edges of infinite weight are left out.
     ///
-    /// # Panics
-    /// If an edge refers to a node outside `0..n_vertices`.
-    pub fn new(n_vertices: u32, edges: impl IntoIterator<Item = (u32, u32, f64)>) -> Self {
+    /// # Errors
+    /// If an edge has an endpoint outside `0..n_vertices`, is a self-loop, or has a negative or `NaN` weight.
+    pub fn new(n_vertices: u32, edges: impl IntoIterator<Item = (u32, u32, f64)>) -> Result<Self, NetworkError> {
+        let edges: Vec<_> = edges.into_iter().collect();
+        check_edges(n_vertices, &edges)?;
+        Ok(Self::new_unchecked(n_vertices, edges))
+    }
+
+    /// [`new`](Self::new) for edges known to be valid.
+    fn new_unchecked(n_vertices: u32, edges: Vec<(u32, u32, f64)>) -> Self {
         let n = n_vertices as usize;
         let mut lightest: rustc_hash::FxHashMap<(u32, u32), NotNan<f64>> = Default::default();
         for (a, b, w) in edges {
-            assert!(
-                a < n_vertices && b < n_vertices,
-                "edge ({a}, {b}) refers to a node outside 0..{n_vertices}"
-            );
-            if a == b || !w.is_finite() {
+            let Ok(w) = NotNan::new(w) else { continue };
+            if w.is_infinite() {
                 continue;
             }
-            let w = NotNan::new(w).unwrap();
             lightest
                 .entry((a, b))
                 .and_modify(|current| *current = (*current).min(w))
@@ -103,7 +108,14 @@ impl Digraph {
     }
 
     /// The digraph of `edges` filtered as `distances` says (see the [module docs](self)).
-    pub fn with_distances(n_vertices: u32, edges: &[(u32, u32, f64)], distances: Distances) -> Self {
+    ///
+    /// # Errors
+    /// As [`new`](Self::new).
+    pub fn with_distances(
+        n_vertices: u32,
+        edges: &[(u32, u32, f64)],
+        distances: Distances,
+    ) -> Result<Self, NetworkError> {
         match distances {
             Distances::Weight => Self::new(n_vertices, edges.iter().copied()),
             Distances::ShortestPath => Self::shortest_paths(n_vertices, edges),
@@ -112,26 +124,28 @@ impl Digraph {
 
     /// The complete digraph of shortest-path lengths: `a -> b` with weight the length of the shortest directed path
     /// from `a` to `b` in the digraph of `edges` (ignoring infinite weights), if there is one.
-    pub fn shortest_paths(n_vertices: u32, edges: &[(u32, u32, f64)]) -> Self {
+    ///
+    /// # Errors
+    /// As [`new`](Self::new) (Dijkstra's algorithm needs the weights non-negative).
+    pub fn shortest_paths(n_vertices: u32, edges: &[(u32, u32, f64)]) -> Result<Self, NetworkError> {
+        check_edges(n_vertices, edges)?;
         let mut graph = Graph::<(), f64>::with_capacity(n_vertices as usize, edges.len());
         for _ in 0..n_vertices {
             graph.add_node(());
         }
-        graph.extend_with_edges(
-            edges
-                .iter()
-                .filter(|(a, b, w)| a != b && w.is_finite()),
-        );
+        graph.extend_with_edges(edges.iter().filter(|(_, _, w)| w.is_finite()));
         let mut distances = vec![];
         for a in 0..n_vertices {
             let lengths = dijkstra(&graph, NodeIndex::new(a as usize), None, |e| *e.weight());
             distances.extend(
                 lengths
                     .into_iter()
+                    .filter(|&(b, _)| b.index() as u32 != a)
                     .map(|(b, length)| (a, b.index() as u32, length)),
             );
         }
-        Self::new(n_vertices, distances)
+        // Lengths of paths of non-negative weights: valid weights
+        Ok(Self::new_unchecked(n_vertices, distances))
     }
 
     /// The same digraph with every edge reversed.
@@ -210,20 +224,58 @@ mod tests {
     }
 
     #[test]
-    fn parallel_edges_keep_the_lightest_and_infinite_edges_and_loops_are_dropped() {
-        let graph = Digraph::new(
-            3,
-            [(0, 1, 2.0), (0, 1, 1.0), (1, 1, 0.0), (1, 2, f64::INFINITY), (2, 0, 3.0)],
-        );
+    fn parallel_edges_keep_the_lightest_and_infinite_edges_are_dropped() {
+        let graph = Digraph::new(3, [(0, 1, 2.0), (0, 1, 1.0), (1, 2, f64::INFINITY), (2, 0, 3.0)]).unwrap();
         assert_eq!(weights(&graph), vec![(0, 1, 1.0), (2, 0, 3.0)]);
         assert_eq!(graph.in_edges(0), &[(2, NotNan::new(3.0).unwrap())]);
         assert_eq!(graph.weight(1, 2), None);
     }
 
     #[test]
+    fn bad_edges_are_errors() {
+        use crate::NetworkError;
+        let check = |edges: &[(u32, u32, f64)]| {
+            let errors = [
+                Digraph::new(3, edges.iter().copied()).err(),
+                Digraph::shortest_paths(3, edges).err(),
+                crate::grpph::build_filtration(3, edges).err(),
+            ];
+            // (By their Debug strings: a NaN weight is not equal to itself)
+            assert!(errors.iter().all(|e| format!("{e:?}") == format!("{:?}", errors[0])), "{errors:?}");
+            errors[0]
+        };
+        assert_eq!(check(&[(0, 1, 1.0)]), None);
+        assert_eq!(check(&[(1, 1, 1.0)]), Some(NetworkError::SelfLoop { vertex: 1 }));
+        assert_eq!(
+            check(&[(0, 3, 1.0)]),
+            Some(NetworkError::VertexOutOfRange { source: 0, target: 3, n_vertices: 3 })
+        );
+        assert_eq!(
+            check(&[(0, 1, -1.0)]),
+            Some(NetworkError::BadWeight { source: 0, target: 1, weight: -1.0 })
+        );
+        assert!(matches!(check(&[(0, 1, f64::NAN)]), Some(NetworkError::BadWeight { .. })));
+        // pph::Network too, and a matrix that isn't square
+        use crate::pph::Network;
+        assert!(matches!(Network::from_edges(2, &[(0, 0, 1.0)]), Err(NetworkError::SelfLoop { vertex: 0 })));
+        assert!(matches!(
+            Network::from_dense(&[vec![0.0, 1.0], vec![0.0]]),
+            Err(NetworkError::NotSquare { row: 1, len: 1, n: 2 })
+        ));
+        assert!(matches!(
+            crate::flag::FlagComplex::grounded(
+                crate::flag::Kind::DirectedFlag,
+                Digraph::new(2, []).unwrap(),
+                [(0, 5)]
+            ),
+            Err(NetworkError::VertexOutOfRange { .. })
+        ));
+    }
+
+    #[test]
     fn shortest_paths_and_transpose() {
         let edges = [(0, 1, 1.0), (1, 2, 2.0), (0, 2, 5.0), (2, 3, f64::INFINITY)];
-        let graph = Digraph::shortest_paths(4, &edges);
+        let graph = Digraph::shortest_paths(4, &edges).unwrap();
         assert_eq!(weights(&graph), vec![(0, 1, 1.0), (0, 2, 3.0), (1, 2, 2.0)]);
         let transposed = graph.transpose();
         assert_eq!(weights(&transposed), vec![(1, 0, 1.0), (2, 0, 3.0), (2, 1, 2.0)]);
@@ -237,7 +289,7 @@ mod tests {
             let edges: Vec<_> = (0..n)
                 .flat_map(|a| [(a, (a * 7 + 1) % n, a as f64), (a, (a * 13 + 5) % n, 1.0)])
                 .collect();
-            let graph = Digraph::new(n, edges.iter().copied());
+            let graph = Digraph::new(n, edges.iter().copied()).unwrap();
             assert_eq!(graph.dense.is_some(), n == 20);
             for a in 0..n {
                 for b in 0..n {
