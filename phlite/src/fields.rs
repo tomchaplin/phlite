@@ -127,7 +127,7 @@ const fn is_prime(p: u8) -> bool {
     }
     let mut d: u16 = 2;
     while d * d <= p as u16 {
-        if p as u16 % d == 0 {
+        if (p as u16).is_multiple_of(d) {
             return false;
         }
         d += 1;
@@ -264,6 +264,8 @@ impl Q {
 impl Add for Q {
     type Output = Option<Q>;
 
+    // Dividing the common denominator by each denominator is part of adding fractions
+    #[allow(clippy::suspicious_arithmetic_impl)]
     fn add(self, rhs: Self) -> Self::Output {
         let lowest_common_denom = self.1.lcm(&rhs.1);
         let scale = |q: Q| {

@@ -309,6 +309,20 @@ mod tests {
         reduction::{Clearing, Reduction, ReductionAlgorithm, Standard},
     };
 
+    /// The coboundary and boundary meet phlite's contract, hooks included, and are each other's transposes
+    #[test]
+    fn meets_the_contract() {
+        use crate::rips::homology::build_rips_boundary_matrix;
+        use phlite::matrices::contract::{check_coboundary, check_split_basis, check_transposes, Direction};
+        for max_dim in 0..=2 {
+            let coboundary = build_rips_coboundary_matrix::<Z2>(distance_matrix(), max_dim);
+            assert_eq!(check_coboundary(&coboundary), Ok(()));
+            assert_eq!(check_split_basis(&coboundary, Direction::Coboundary), Ok(()));
+            let boundary = build_rips_boundary_matrix::<Z2>(distance_matrix(), max_dim);
+            assert_eq!(check_transposes(&coboundary, &boundary.matrix), Ok(()));
+        }
+    }
+
     /// The optimised `column_with_filtration` must agree with computing each row's filtration value from scratch
     #[test]
     fn test_column_with_filtration_matches_filtration_value() {

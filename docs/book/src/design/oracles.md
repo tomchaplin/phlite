@@ -125,3 +125,7 @@ Adaptors forward the optional hooks where that makes sense; `reverse` swaps the 
 so a coboundary that knows its smallest entry is fast after reversing too.
 
 Wrappers also work on references (`&M` is a matrix if `M` is), so you can keep the original and reduce a view of it.
+
+Every oracle must meet phlite's [contract](contract.md): a filtration, \(D^2 = 0\), its basis in order, and any hook
+you implement exactly right. phlite never checks these while reducing, but `phlite::matrices::contract` checks them
+for your tests.

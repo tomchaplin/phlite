@@ -1316,6 +1316,17 @@ mod tests {
                     assert_eq!(got, want);
                 }
             }
+            // The whole contract, with every hook the views implement (pivots, sorted columns, first and last
+            // columns in each row, row ranks, the dense index), and the two views each other's transposes
+            use phlite::matrices::contract::{check_boundary, check_coboundary, check_split_basis, check_transposes, Direction};
+            let b = complex.boundary().with_basis(complex.basis(top));
+            let c = complex.coboundary().with_basis(complex.basis(top));
+            assert_eq!(check_boundary(&b), Ok(()));
+            assert_eq!(check_split_basis(&b, Direction::Boundary), Ok(()));
+            assert_eq!(check_coboundary(&c), Ok(()));
+            assert_eq!(check_split_basis(&c, Direction::Coboundary), Ok(()));
+            assert_eq!(check_transposes(&b, complex.coboundary()), Ok(()));
+            assert_eq!(check_transposes(&c, complex.boundary()), Ok(()));
         }
     }
 
