@@ -10,6 +10,7 @@
   --on-accent: #eff1f5;   /* base */
   --danger: #d20f39;      /* red */
   --green: #40a02b;
+  --mauve: #8839ef;       /* the logo's "lite" */
   --plane-light: #eff1f5;
   --plane-dark: #ccd0da;  /* surface0 */
   --points: #5c5f77;      /* subtext1: points and edges drawn on the data */
@@ -34,6 +35,7 @@
     --on-accent: #181926; /* crust */
     --danger: #ed8796;    /* red */
     --green: #a6da95;
+    --mauve: #c6a0f6;
     --plane-light: #363a4f;
     --plane-dark: #494d64;
     --points: #b8c0e0;    /* subtext1 */
