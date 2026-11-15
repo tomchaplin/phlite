@@ -19,6 +19,9 @@ dependencies = [
     "pyflagser",
     # For phlite.images (cubical)
     "cripser",
+    # For phlite.networks.pph in every dimension: PathHomFast (WeilabMSU/PathHom, MIT, pure Python), persistent path
+    # homology from explicit filtered bases of Omega. Not on PyPI, so pinned to a commit
+    "pathhomfast @ git+https://github.com/WeilabMSU/PathHom@0184cfa8b5f2fd44d4132853871467a9d6d08e4d",
     "pytest-timeout>=2.3",
 ]
 

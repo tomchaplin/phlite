@@ -40,6 +40,10 @@ The Rust implementation is `phlite_networks::pph` (`Network`, `pph_barcode`).
 * `pph-matlab`, Chowdhury and Mémoli's MATLAB code, under Octave (`phlite_networks/matlab_compare/compare.py`): 0
   mismatches on 761 structured networks, 150 random ones and 80 with bars in dimension 2, for every method, algorithm
   and field, when the code was written (as the separate crate `phlite_pph`; not yet rerun since it moved here).
+* [PathHomFast](https://github.com/WeilabMSU/PathHom) (pure Python, a test dependency pinned to a commit), which
+  builds filtration-compatible bases of `Ω_q(G_t)` explicitly: an independent algorithm. Fuzzed in dimensions 0–2
+  (0–3 on up to 4 nodes), both filtrations, and on the 80 networks with bars in dimension 2 from the pph-matlab
+  comparison (`higher_dim_networks.txt`): no differences.
 * A brute force computing the persistent Betti numbers from `Ω_p(G_t)` by linear algebra, which (unlike pph-matlab)
   handles missing edges: in `matlab_compare/sparse_check.py`, and fuzzed in `python-tests/tests/test_networks_pph.py`
   in dimensions 0–2, both filtrations.

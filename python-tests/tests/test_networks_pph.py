@@ -1,6 +1,7 @@
 """Fuzz phlite.networks.pph (persistent path homology, Chowdhury and Mémoli) in any dimension: against a brute force
 (the persistent Betti numbers computed from the spaces of ∂-invariant paths Ω_p(G_t) by linear algebra, in
-phlite_networks/matlab_compare/brute.py), against grpphati (shortest-path filtration, dimension 1, in
+phlite_networks/matlab_compare/brute.py), against PathHomFast (WeilabMSU/PathHom: barcodes from explicit filtered
+bases of Ω, an independent algorithm), against grpphati (shortest-path filtration, dimension 1, in
 test_networks_complexes.py), and against invariants. Against pph-matlab under Octave: see
 phlite_networks/matlab_compare/."""
 
@@ -9,7 +10,10 @@ import math
 import os
 import sys
 
+import warnings
+
 import numpy as np
+import pathhomfast
 from hypothesis import given, note
 from hypothesis import strategies as st
 
@@ -129,3 +133,54 @@ def test_cycle_networks():
         edges = [(a, b, float((b - a) % n)) for a in range(n) for b in range(n) if a != b]
         barcode = pph(n, edges, 1)
         assert diagram(barcode, 1) == [(1.0, float(math.ceil(n / 2)))]
+
+
+@given(network=networks(max_nodes=6), filtration=st.sampled_from(["weight", "shortest_path"]))
+def test_matches_pathhomfast(network, filtration):
+    """The barcode in dimensions 0-2 (0-3 on at most 4 nodes) against PathHomFast's (explicit filtered bases of Ω, over
+    GF(2))."""
+    n, edges = network
+    max_dim = 3 if n <= 4 else 2
+    if filtration == "shortest_path":
+        weighted = [(a, b, w) for (a, b), w in shortest_paths(n, edges).items()]
+    else:
+        # It takes finite weights only: an infinite edge never enters, so leave it out
+        weighted = [(a, b, w) for a, b, w in edges if w != INF]
+    note(f"edges={weighted}")
+    engine = pathhomfast.PersistentPathHomology.from_weighted_edges(vertices=tuple(range(n)), edges=tuple(weighted))
+    with warnings.catch_warnings():
+        # It warns that dimensions 2 and above are expensive
+        warnings.simplefilter("ignore", pathhomfast.HigherDimensionWarning)
+        result = engine.compute(max_dimension=max_dim)
+    expected = [sorted((float(b), float(d)) for b, d in result.as_pairs(dim)) for dim in range(max_dim + 1)]
+    assert diagrams(pph(n, edges, max_dim, filtration=filtration)) == expected
+
+
+HIGHER_DIM_NETWORKS = os.path.join(
+    os.path.dirname(__file__), "..", "..", "phlite_networks", "matlab_compare", "higher_dim_networks.txt"
+)
+
+
+def test_higher_dim_networks_match_pathhomfast():
+    """The 80 networks with bars in dimension 2 that phlite_pph was checked on against pph-matlab (blocks `n dim t_end`
+    then the weight matrix, row `a` column `b` the weight of `a -> b`), against PathHomFast."""
+    tokens = open(HIGHER_DIM_NETWORKS).read().split()
+    i = 0
+    count = 0
+    while i < len(tokens):
+        n, dim = int(tokens[i]), int(tokens[i + 1])
+        i += 3
+        weights = [[float(tokens[i + a * n + b]) for b in range(n)] for a in range(n)]
+        i += n * n
+        edges = [(a, b, weights[a][b]) for a in range(n) for b in range(n) if a != b and math.isfinite(weights[a][b])]
+        max_dim = max(dim, 2)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", pathhomfast.HigherDimensionWarning)
+            result = pathhomfast.PersistentPathHomology.from_weighted_edges(range(n), edges).compute(
+                max_dimension=max_dim, max_paths=10_000_000
+            )
+        expected = [sorted((float(b), float(d)) for b, d in result.as_pairs(k)) for k in range(max_dim + 1)]
+        assert expected[2], "every network here has a bar in dimension 2"
+        assert diagrams(pph(n, edges, max_dim)) == expected, f"network {count}"
+        count += 1
+    assert count == 80

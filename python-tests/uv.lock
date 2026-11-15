@@ -711,6 +711,11 @@ wheels = [
 ]
 
 [[package]]
+name = "pathhomfast"
+version = "0.4.0"
+source = { git = "https://github.com/WeilabMSU/PathHom?rev=0184cfa8b5f2fd44d4132853871467a9d6d08e4d#0184cfa8b5f2fd44d4132853871467a9d6d08e4d" }
+
+[[package]]
 name = "persim"
 version = "0.4.1"
 source = { registry = "https://pypi.org/simple" }
@@ -740,6 +745,7 @@ dependencies = [
     { name = "maturin" },
     { name = "networkx" },
     { name = "numpy" },
+    { name = "pathhomfast" },
     { name = "pyflagser" },
     { name = "pytest" },
     { name = "pytest-timeout" },
@@ -769,6 +775,7 @@ requires-dist = [
     { name = "maturin", specifier = ">=1.9,<2.0" },
     { name = "networkx" },
     { name = "numpy" },
+    { name = "pathhomfast", git = "https://github.com/WeilabMSU/PathHom?rev=0184cfa8b5f2fd44d4132853871467a9d6d08e4d" },
     { name = "pyflagser" },
     { name = "pytest", specifier = ">=8" },
     { name = "pytest-timeout", specifier = ">=2.3" },
