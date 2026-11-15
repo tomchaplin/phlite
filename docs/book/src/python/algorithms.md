@@ -19,10 +19,14 @@ Start from a preset or an algorithm, then adjust with `with_*` methods (each ret
 | `Algorithm.parallel(threads=None)` | `Algorithm.parallel_clearing().with_threads(threads)`: [parallel clearing](../algorithms/parallel.md) on all cores by default |
 | `Algorithm.standard()` | the [standard algorithm](../algorithms/standard.md) |
 
-Only parallel clearing uses more than one core. That includes the work around the reduction: the pipelines that build
-their bases (Vietoris–Rips, cubical complexes, the network complexes, path homology) or sort and join cells for
+By default only parallel clearing uses more than one core. That includes the work before the reduction: the pipelines
+that build their bases (Vietoris–Rips, cubical complexes, the network complexes, path homology) or sort cells for
 union-find in parallel do so only for the parallel algorithm, on its threads; with `Algorithm.serial()` or
 `Algorithm.standard()` the whole computation runs on the calling thread (checked by comparing CPU and wall time).
+`with_parallel_setup` separates the two: `Algorithm.serial().with_parallel_setup()` builds in parallel (on
+`with_threads` threads, or all cores) and reduces serially, and `Algorithm.parallel().with_parallel_setup(False)` the
+other way round. On 2000 random points in the plane (Rips, dimensions 0–1), serial takes 0.57 s, serial with a
+parallel setup 0.31 s, parallel 0.20 s.
 
 | Option | What | Default |
 |---|---|---|
@@ -32,7 +36,8 @@ union-find in parallel do so only for the parallel algorithm, on its threads; wi
 | `with_skip_zero_apparent_pairs` | [skip](../algorithms/apparent-pairs.md#zero-length-apparent-pairs) zero-length apparent pairs | `True` (not for standard) |
 | `with_dimension_order` | reduce dimensions in this order (clearing) | detected |
 | `with_storage` | `'locking'` or `'lock-free'` (parallel) | `'locking'` |
-| `with_threads` | thread count (parallel) | all cores |
+| `with_threads` | thread count (parallel, or a parallel setup) | all cores |
+| `with_parallel_setup` | build bases and sort in parallel (`True`/`False`), or follow the algorithm (`None`) | `None` |
 
 Options an algorithm can't use are errors, not ignored: `with_threads` on `serial()`, or `'pivot'` columns on the
 parallel algorithm, as soon as you ask; `'pivot'` columns in a pipeline whose matrices have no row ranks (Vietoris–Rips,
