@@ -6,7 +6,7 @@ import type { Job } from './types';
 // What both builds export (their glue differs)
 type Module = Pick<
   typeof import('phlite-web-single'),
-  'rips' | 'delaunay' | 'grpph' | 'network' | 'image' | 'complex' | 'n_threads' | 'set_crash_hooks' | 'crash_for_testing'
+  'rips' | 'delaunay' | 'grpph' | 'network' | 'graph' | 'image' | 'complex' | 'n_threads' | 'set_crash_hooks' | 'crash_for_testing'
 >;
 type Message = { type: 'init'; threads: number; single: boolean; channel: string } | { type: 'run'; id: number; job: Job };
 
@@ -51,6 +51,9 @@ self.onmessage = async (event: MessageEvent<Message>) => {
         break;
       case 'network':
         barcode = phlite.network(job.kind, job.shortestPath, job.n, job.sources, job.targets, job.weights, job.maxDim, job.options);
+        break;
+      case 'graph':
+        barcode = phlite.graph(job.kind, job.n, job.sources, job.targets, job.weights, job.heights, job.maxDim, job.options);
         break;
       case 'image':
         barcode = phlite.image(job.pixels, job.width, job.height, job.superlevel, job.construction, job.options);

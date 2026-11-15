@@ -28,7 +28,7 @@ export interface NetworkExample {
   about: string;
   make: () => Digraph;
   /** What to compute, if the example is about a particular complex: chosen with it. */
-  show?: { complex: 'pph' | 'dowker-sink'; shortestPath: boolean; maxDim: number };
+  show?: { complex: 'pph' | 'dowker-sink' | 'u-extended'; shortestPath: boolean; maxDim: number };
 }
 
 export const EXAMPLES: NetworkExample[] = [
@@ -112,6 +112,25 @@ export const EXAMPLES: NetworkExample[] = [
       "A directed 8-cycle of unit edges, each pair at its shortest path's length (a cycle network, as Chowdhury and Mémoli study): its Dowker complex has an H₁ bar [1, 4), three H₂ bars [4, 5) and an H₃ bar [5, 6), as the balls about the nodes grow round the cycle. The sink and source complexes agree (Dowker duality).",
     make: () => cycle(8),
     show: { complex: 'dowker-sink', shortestPath: true, maxDim: 3 },
+  },
+  {
+    id: 'two-loops',
+    name: 'Two loops by height',
+    about:
+      "Two loops, one above the other, sharing node a, with a tail below, filtered by the nodes' heights (0 at the bottom, 10 at the top). Extended persistence: an Ext⁺ bar from the lowest node to the highest (0.3 to 8), and an Ext⁻ bar for each loop, from its highest node to its lowest (the lower loop 4 to 1, the upper 8 to 4). Drag a node up or down and watch them follow.",
+    make: () => {
+      const at: [string, number, number][] = [
+        ['a', 0.5, 0.6], ['b', 0.35, 0.75], ['c', 0.5, 0.9], ['d', 0.65, 0.75],
+        ['e', 0.3, 0.45], ['f', 0.38, 0.2], ['g', 0.62, 0.2], ['h', 0.7, 0.45], ['t', 0.5, 0.97],
+      ];
+      const ix = (l: string) => at.findIndex(([label]) => label === l);
+      const e = (u: string, v: string) => ({ s: ix(u), t: ix(v), w: 1 });
+      return {
+        nodes: at.map(([label, x, y]) => ({ x, y, label })),
+        edges: [e('a', 'b'), e('b', 'c'), e('c', 'd'), e('d', 'a'), e('a', 'e'), e('e', 'f'), e('f', 'g'), e('g', 'h'), e('h', 'a'), e('c', 't')],
+      };
+    },
+    show: { complex: 'u-extended', shortestPath: false, maxDim: 1 },
   },
   {
     id: 'weighted',

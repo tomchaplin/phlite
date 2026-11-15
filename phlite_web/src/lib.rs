@@ -372,6 +372,9 @@ pub struct OutBar {
     pub death_cell: Option<Vec<u32>>,
     /// A representative cycle as `[coefficient, cell]` pairs, if representatives were asked for.
     pub rep: Option<Vec<(u32, Vec<u32>)>>,
+    /// For extended persistence: `"ordinary"`, `"relative"`, `"extended+"` or `"extended-"` (absent otherwise).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub kind: Option<&'static str>,
 }
 
 #[derive(Debug, Serialize)]
@@ -464,6 +467,7 @@ fn translate<C: Copy, CF: IntField>(
                     .map(|(coeff, c)| (coeff.to_int() as u32, cell(c)))
                     .collect()
             }),
+            kind: None,
         })
         .collect()
 }
@@ -992,6 +996,208 @@ fn lazy_bars<K: phlite_networks::lazy::LazyComplex>(
         |v| v,
     );
     Ok((bars, format!("dimensions 0–{max_dim}")))
+}
+
+// ---- Undirected graphs ----
+
+/// Persistence of the undirected graph with the edges `sources[i] - targets[i]` of weight `weights[i]` (either way
+/// round: an edge given both ways keeps its smaller weight), and node values `heights` (the playground uses each
+/// node's height on the canvas). `kind` is one of
+/// * `"flag"`: the flag (clique) complex by edge weights, nodes at 0;
+/// * `"lower-star"`: the flag complex by the lower-star filtration of the heights (no edge weights);
+/// * `"flag-sp"`: the flag complex of shortest paths (Rips of the graph's metric), nodes at 0;
+/// * `"extended"`: extended persistence of the heights on the graph (bars with a `kind`; no cells).
+///
+/// As `phlite.networks.flag` and `extended`: small complexes are listed and reduced explicitly (with
+/// `phlite.complexes`' defaults), shortest paths by Rips' machinery (with its defaults).
+#[wasm_bindgen]
+#[allow(clippy::too_many_arguments)]
+pub fn graph(
+    kind: &str,
+    n_vertices: u32,
+    sources: &[u32],
+    targets: &[u32],
+    weights: &[f64],
+    heights: &[f64],
+    max_dim: usize,
+    options: JsValue,
+) -> Result<JsValue, JsError> {
+    use phlite_networks::undirected::{cliques_within, explicit_flag_barcode, flag_barcode, Graph};
+    use phlite_clouds::rips::Distances;
+    let edges = read_edges(n_vertices, sources, targets, weights)?;
+    let n = n_vertices as usize;
+    if kind == "extended" {
+        let config = Config::resolve(options, COMPLEX_DEFAULTS)?;
+        let pairs: Vec<(u32, u32)> = edges.iter().map(|&(u, v, _)| (u, v)).collect();
+        struct V<'a> {
+            n: u32,
+            pairs: &'a [(u32, u32)],
+            heights: &'a [f64],
+            method: Method,
+        }
+        impl Visitor for V<'_> {
+            type Output = Result<Vec<phlite_networks::extended::ExtendedBar>, phlite_networks::NetworkError>;
+            fn visit<R: ColumnRepresentation>(self, algorithm: Algorithm<'_, R>) -> Self::Output {
+                phlite_networks::extended::extended_persistence::<Z2, R>(
+                    self.n,
+                    self.pairs,
+                    self.heights,
+                    1,
+                    self.method,
+                    algorithm,
+                )
+            }
+        }
+        let bars = config
+            .run(V { n: n_vertices, pairs: &pairs, heights, method: config.method })
+            .map_err(err)?;
+        use phlite_networks::extended::Kind;
+        let bars = bars
+            .into_iter()
+            .map(|bar| OutBar {
+                dim: bar.dimension,
+                birth: bar.birth,
+                death: Some(bar.death),
+                birth_cell: vec![],
+                death_cell: None,
+                rep: None,
+                kind: Some(match bar.kind {
+                    Kind::Ordinary => "ordinary",
+                    Kind::Relative => "relative",
+                    Kind::ExtendedPlus => "extended+",
+                    Kind::ExtendedMinus => "extended-",
+                }),
+            })
+            .collect();
+        return to_js(Barcode {
+            bars,
+            summary: format!(
+                "{n_vertices} nodes, {} edges, extended persistence of the heights; {}",
+                pairs.len(),
+                describe(&config)
+            ),
+            edges: None,
+        });
+    }
+    let graph = match kind {
+        "flag" => Graph::new(n_vertices, &edges, None),
+        "lower-star" => {
+            let unweighted: Vec<_> = edges.iter().map(|&(u, v, _)| (u, v, f64::NEG_INFINITY)).collect();
+            Graph::new(n_vertices, &unweighted, Some(heights))
+        }
+        "flag-sp" => Graph::shortest_paths(n_vertices, &edges, None),
+        other => return Err(err(format!("Unknown graph complex {other:?}"))),
+    }
+    .map_err(err)?;
+    // The edges to draw: every edge of the graph (with its value), both ways round
+    let drawn = FiltrationEdges::from_unsorted(
+        (0..n)
+            .flat_map(|u| graph.neighbours(u, 0).map(move |v| (u, v)).collect::<Vec<_>>())
+            .map(|(u, v)| (u as u32, v as u32, graph.distance(u, v).into_inner()))
+            .collect(),
+        None,
+    );
+    let top = max_dim + 1;
+    let simplices = if kind == "flag-sp" {
+        None
+    } else {
+        cliques_within(&graph, top, graph.enclosing_radius(), 1_000_000)
+    };
+    let (bars, how) = match simplices {
+        Some(simplices) => {
+            let config = Config::resolve(options, COMPLEX_DEFAULTS)?;
+            struct V<'a> {
+                simplices: &'a [(NotNan<f64>, Vec<u32>)],
+                max_dim: usize,
+                method: Method,
+                representatives: bool,
+            }
+            impl Visitor for V<'_> {
+                type Output = Vec<Bar<Vec<u32>, NotNan<f64>, Z2>>;
+                fn visit<R: ColumnRepresentation>(self, algorithm: Algorithm<'_, R>) -> Self::Output {
+                    explicit_flag_barcode(self.simplices, self.max_dim, self.method, algorithm, self.representatives)
+                }
+            }
+            let bars = config.run(V {
+                simplices: &simplices,
+                max_dim,
+                method: config.method,
+                representatives: config.representatives,
+            });
+            // (Not `translate`, which needs cells that are Copy: these are lists of nodes)
+            let out = bars
+                .into_iter()
+                .filter(|bar| bar.death.as_ref().is_none_or(|(_, d)| *d != bar.birth_value))
+                .map(|bar| OutBar {
+                    dim: bar.birth.len() - 1,
+                    birth: bar.birth_value.into_inner(),
+                    death: bar.death.as_ref().map(|(_, d)| d.into_inner()),
+                    birth_cell: bar.birth.clone(),
+                    death_cell: bar.death.as_ref().map(|(c, _)| c.clone()),
+                    rep: bar.representative.map(|rep| rep.into_iter().map(|(_, c)| (1, c)).collect()),
+                    kind: None,
+                })
+                .collect();
+            (out, format!("{} simplices listed; {}", simplices.len(), describe(&config)))
+        }
+        None => {
+            let config = Config::resolve(options, RIPS_DEFAULTS)?;
+            if !phlite_clouds::rips::RipsIndex::<u64>::fits(n, max_dim + 1) {
+                return Err(err(format!("Too many nodes ({n}) for simplices of dimension {}", max_dim + 1)));
+            }
+            struct V<'a> {
+                graph: &'a Graph,
+                max_dim: usize,
+                method: Method,
+                representatives: bool,
+                union_find: bool,
+                parallel_setup: bool,
+            }
+            impl Visitor for V<'_> {
+                type Output = Vec<phlite_clouds::rips::RipsBar<u64>>;
+                fn visit<R: ColumnRepresentation>(self, algorithm: Algorithm<'_, R>) -> Self::Output {
+                    flag_barcode(
+                        self.graph,
+                        self.max_dim,
+                        phlite::values::INFINITY,
+                        self.method,
+                        algorithm,
+                        self.representatives,
+                        self.union_find,
+                        self.parallel_setup,
+                    )
+                }
+            }
+            let bars = config.run(V {
+                graph: &graph,
+                max_dim,
+                method: config.method,
+                representatives: config.representatives,
+                union_find: config.union_find,
+                parallel_setup: config.parallel_setup,
+            });
+            let bars = translate::<_, Z2>(
+                bars,
+                |s| s.dimension(n),
+                |s| s.vertices(n).iter().map(|&v| v as u32).collect(),
+                |v| v,
+            );
+            (bars, format!("by Rips' machinery; {}", describe(&config)))
+        }
+    };
+    to_js(Barcode {
+        bars,
+        summary: format!(
+            "{n_vertices} nodes, {} edges as undirected, dimensions 0–{max_dim}, {}, {how}",
+            graph.n_edges(),
+            match kind {
+                "flag" => "flag complex by weight",
+                "lower-star" => "lower-star of the heights",
+                _ => "shortest paths",
+            }
+        ),
+        edges: Some(drawn),
+    })
 }
 
 // ---- Explicit complexes ----

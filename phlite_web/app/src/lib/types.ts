@@ -8,7 +8,11 @@ export interface Bar {
   death_cell: number[] | null;
   /** A representative cycle as `[coefficient, cell]` pairs, if representatives were computed. */
   rep: [number, number[]][] | null;
+  /** For extended persistence, which kind of bar (its death may then be below its birth). */
+  kind?: ExtendedKind;
 }
+
+export type ExtendedKind = 'ordinary' | 'relative' | 'extended+' | 'extended-';
 
 export interface Barcode {
   bars: Bar[];
@@ -52,6 +56,9 @@ export interface AlgoOptions {
 export type Metric = 'euclidean' | 'manhattan' | 'chebyshev';
 
 /** The complexes of `phlite_web::network`. */
+/** The complexes of `phlite_web::graph` (undirected graphs; heights are the nodes' heights on the canvas). */
+export type GraphKind = 'flag' | 'lower-star' | 'flag-sp' | 'extended';
+
 export type NetworkKind = 'pph' | 'flag' | 'grounded-flag' | 'tuples' | 'dowker-sink' | 'dowker-source';
 
 export type Job =
@@ -77,6 +84,17 @@ export type Job =
       sources: Uint32Array;
       targets: Uint32Array;
       weights: Float64Array;
+      maxDim: number;
+      options: AlgoOptions;
+    }
+  | {
+      pipeline: 'graph';
+      kind: GraphKind;
+      n: number;
+      sources: Uint32Array;
+      targets: Uint32Array;
+      weights: Float64Array;
+      heights: Float64Array;
       maxDim: number;
       options: AlgoOptions;
     }
