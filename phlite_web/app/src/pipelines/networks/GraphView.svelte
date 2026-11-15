@@ -12,6 +12,7 @@
     tool = null,
     newWeight = 1,
     selectedEdge = $bindable(null),
+    onstart,
     onedit,
   }: {
     g: Digraph;
@@ -22,6 +23,8 @@
     tool?: Tool | null;
     newWeight?: number;
     selectedEdge?: number | null;
+    /** A gesture that may edit the digraph has begun. */
+    onstart?: () => void;
     onedit?: (g: Digraph) => void;
   } = $props();
 
@@ -79,6 +82,7 @@
     if (!tool || !onedit) return;
     // Otherwise a drag can start selecting (then dragging) the labels' text, which cancels the pointer
     e.preventDefault();
+    onstart?.();
     const p = local(e);
     pointer = p;
     const v = nodeAt(p);
@@ -122,6 +126,7 @@
   function clickEdge(i: number, e: MouseEvent) {
     if (tool === 'delete' && onedit) {
       e.stopPropagation();
+      onstart?.();
       onedit({ ...g, edges: g.edges.filter((_, j) => j !== i) });
       selectedEdge = null;
     } else if (tool) {

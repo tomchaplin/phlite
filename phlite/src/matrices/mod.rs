@@ -40,8 +40,6 @@
 use auto_impl::auto_impl;
 use delegate::delegate;
 use std::hash::Hash;
-use std::rc::Rc;
-use std::sync::Arc;
 use std::{cmp::Reverse, collections::HashMap};
 
 use adaptors::Consolidator;

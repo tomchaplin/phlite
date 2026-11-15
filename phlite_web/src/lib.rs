@@ -132,6 +132,10 @@ pub struct Options {
     /// `"cohomology"` (the default) or `"homology"`.
     pub method: Option<String>,
     pub representatives: bool,
+    /// Find dimension 0 by union-find (Rips and images only; the default there).
+    pub union_find: Option<bool>,
+    /// Build the matrices in parallel (by default, exactly when the algorithm is parallel clearing).
+    pub parallel_setup: Option<bool>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -157,6 +161,10 @@ struct Defaults {
     store_r: bool,
     /// Whether the matrices know the rank of every row, which pivot columns need.
     row_ranks: bool,
+    /// Whether dimension 0 is found by union-find by default, or `None` if the pipeline can't.
+    union_find: Option<bool>,
+    /// Whether the pipeline can build its matrices in parallel.
+    parallel_setup: bool,
 }
 
 const RIPS_DEFAULTS: Defaults = Defaults {
@@ -164,12 +172,16 @@ const RIPS_DEFAULTS: Defaults = Defaults {
     cache: false,
     store_r: false,
     row_ranks: false,
+    union_find: Some(true),
+    parallel_setup: true,
 };
 const GRPPH_DEFAULTS: Defaults = Defaults {
     columns: Columns::Merged,
     cache: true,
     store_r: false,
     row_ranks: false,
+    union_find: None,
+    parallel_setup: false,
 };
 /// The lazy network complexes' (directed flag, ordered tuples, Dowker), as `phlite.networks`'.
 const NETWORK_DEFAULTS: Defaults = Defaults {
@@ -177,18 +189,24 @@ const NETWORK_DEFAULTS: Defaults = Defaults {
     cache: true,
     store_r: false,
     row_ranks: false,
+    union_find: None,
+    parallel_setup: true,
 };
 const IMAGE_DEFAULTS: Defaults = Defaults {
     columns: Columns::Merged,
     cache: false,
     store_r: true,
     row_ranks: false,
+    union_find: Some(true),
+    parallel_setup: true,
 };
 const COMPLEX_DEFAULTS: Defaults = Defaults {
     columns: Columns::Pivot,
     cache: false,
     store_r: true,
     row_ranks: true,
+    union_find: None,
+    parallel_setup: false,
 };
 
 /// The resolved configuration.
@@ -202,6 +220,8 @@ struct Config {
     storage: Storage,
     method: Method,
     representatives: bool,
+    union_find: bool,
+    parallel_setup: bool,
 }
 
 fn err(message: impl Into<String>) -> JsError {
@@ -270,6 +290,18 @@ impl Config {
             "homology" => Method::Homology,
             other => return Err(err(format!("Unknown method {other:?}"))),
         };
+        let union_find = match (options.union_find, defaults.union_find) {
+            (Some(true), None) => return Err(err("This pipeline has no union-find for dimension 0")),
+            (Some(u), Some(_)) => u,
+            (_, d) => d.unwrap_or(false),
+        };
+        let parallel_setup = options.parallel_setup.unwrap_or(kind == Kind::Parallel);
+        if parallel_setup && !defaults.parallel_setup {
+            return Err(err("This pipeline has no parallel setup"));
+        }
+        if parallel_setup && !threaded() {
+            return Err(err("A parallel setup needs threads, which this page has not got"));
+        }
         Ok(Self {
             kind,
             columns,
@@ -279,6 +311,8 @@ impl Config {
             storage,
             method,
             representatives: options.representatives,
+            union_find,
+            parallel_setup,
         })
     }
 
@@ -399,6 +433,12 @@ fn describe(config: &Config) -> String {
     if config.store_r {
         s += ", storing R";
     }
+    if config.union_find {
+        s += ", union-find in dimension 0";
+    }
+    if config.parallel_setup != (config.kind == Kind::Parallel) {
+        s += if config.parallel_setup { ", parallel setup" } else { ", serial setup" };
+    }
     if config.kind == Kind::Parallel {
         s += &format!(
             ", {} storage on {}",
@@ -423,6 +463,7 @@ fn describe(config: &Config) -> String {
 ///   distance matrix (row by row, symmetric).
 /// * `max_dim`: the top dimension of homology.
 /// * `threshold`: only build the complex up to this diameter (`undefined` or infinite for no limit).
+/// * `metric`: for coordinates, `"euclidean"`, `"manhattan"` or `"chebyshev"`.
 /// * `dtm_k`: if given, DTM-Rips: weighted Rips with each point weighted by its distance to measure over its `dtm_k`
 ///   nearest neighbours (itself included, `q = 2`), as `phlite.clouds.rips(weights=dtm(k=dtm_k))`.
 #[wasm_bindgen]
@@ -431,10 +472,17 @@ pub fn rips(
     point_dim: usize,
     max_dim: usize,
     threshold: Option<f64>,
+    metric: &str,
     dtm_k: Option<usize>,
     options: JsValue,
 ) -> Result<JsValue, JsError> {
     let config = Config::resolve(options, RIPS_DEFAULTS)?;
+    let metric: fn(&[f64], &[f64]) -> f64 = match metric {
+        "euclidean" => |p, q| p.iter().zip(q).map(|(a, b)| (a - b) * (a - b)).sum::<f64>().sqrt(),
+        "manhattan" => |p, q| p.iter().zip(q).map(|(a, b)| (a - b).abs()).sum(),
+        "chebyshev" => |p, q| p.iter().zip(q).map(|(a, b)| (a - b).abs()).fold(0.0, f64::max),
+        other => return Err(err(format!("Unknown metric {other:?}"))),
+    };
     let distances = if point_dim == 0 {
         let n = (coords.len() as f64).sqrt() as usize;
         if n * n != coords.len() {
@@ -453,15 +501,7 @@ pub fn rips(
             .map(|p| {
                 points
                     .iter()
-                    .map(|q| {
-                        not_nan(
-                            p.iter()
-                                .zip(*q)
-                                .map(|(a, b)| (a - b) * (a - b))
-                                .sum::<f64>()
-                                .sqrt(),
-                        )
-                    })
+                    .map(|q| not_nan(metric(p, q)))
                     .collect()
             })
             .collect::<Result<Vec<Vec<_>>, _>>()?
@@ -500,29 +540,36 @@ pub fn rips(
         threshold: NotNan<f64>,
         method: Method,
         representatives: bool,
+        union_find: bool,
+        parallel_setup: bool,
     }
     impl<D: phlite_clouds::rips::Distances> Visitor for V<D> {
         type Output = Vec<phlite_clouds::rips::RipsBar<u64>>;
         fn visit<R: ColumnRepresentation>(self, algorithm: Algorithm<'_, R>) -> Self::Output {
-            phlite_clouds::rips::rips_barcode::<_, u64, _>(
+            phlite_clouds::rips::rips_barcode_with::<_, u64, _>(
                 self.distances,
                 self.max_dim,
                 self.threshold,
                 self.method,
                 algorithm,
                 self.representatives,
+                self.union_find,
+                self.parallel_setup,
             )
         }
     }
     let (method, representatives) = (config.method, config.representatives);
+    let (union_find, parallel_setup) = (config.union_find, config.parallel_setup);
     let bars = match &weights {
-        None => config.run(V { distances, max_dim, threshold, method, representatives }),
+        None => config.run(V { distances, max_dim, threshold, method, representatives, union_find, parallel_setup }),
         Some(weights) => config.run(V {
             distances: phlite_clouds::rips::Weighted::new(distances, weights).map_err(err)?,
             max_dim,
             threshold,
             method,
             representatives,
+            union_find,
+            parallel_setup,
         }),
     };
     let bars = translate::<_, Z2>(
@@ -666,11 +713,15 @@ pub fn grpph(
 /// * `"grounded-flag"`: the directed flag complex grounded at the digraph's edges (dimensions 0 and 1);
 /// * `"tuples"`: the ordered-tuple complex (directed Rips), each edge at its weight;
 /// * `"dowker-sink"`, `"dowker-source"`: the Dowker sink or source complex;
-/// * `"pph"`: persistent path homology (Chowdhury and Mémoli), each edge at its weight, by `phlite_networks::pph`
-///   (cells are regular paths).
+/// * `"pph"`: persistent path homology (Chowdhury and Mémoli), by `phlite_networks::pph` (cells are regular paths).
+///
+/// With `shortest_path`, each pair `a → b` enters at the length of the shortest path from `a` to `b` rather than with
+/// the edge's weight (as `filtration='shortest_path'` in Python; the grounded flag complex always does).
 #[wasm_bindgen]
+#[allow(clippy::too_many_arguments)]
 pub fn network(
     kind: &str,
+    shortest_path: bool,
     n_vertices: u32,
     sources: &[u32],
     targets: &[u32],
@@ -685,14 +736,10 @@ pub fn network(
     };
     let config = Config::resolve(options, NETWORK_DEFAULTS)?;
     let edges = read_edges(n_vertices, sources, targets, weights)?;
-    let with = |distances| Digraph::with_distances(n_vertices, &edges, distances);
+    let distances = if shortest_path { Distances::ShortestPath } else { Distances::Weight };
+    let with = || Digraph::with_distances(n_vertices, &edges, distances);
     let (bars, sizes) = match kind {
-        "flag" => lazy_bars(&FlagComplex::new(FlagKind::DirectedFlag, with(Distances::Weight)), max_dim, &config)?,
-        "flag-sp" => lazy_bars(
-            &FlagComplex::new(FlagKind::DirectedFlag, with(Distances::ShortestPath)),
-            max_dim,
-            &config,
-        )?,
+        "flag" => lazy_bars(&FlagComplex::new(FlagKind::DirectedFlag, with()), max_dim, &config)?,
         "grounded-flag" => lazy_bars(
             &FlagComplex::grounded(
                 FlagKind::DirectedFlag,
@@ -702,17 +749,18 @@ pub fn network(
             max_dim.min(1),
             &config,
         )?,
-        "tuples" => lazy_bars(&FlagComplex::new(FlagKind::OrderedTuples, with(Distances::Weight)), max_dim, &config)?,
-        "dowker-sink" => lazy_bars(&DowkerComplex::new(&with(Distances::Weight), Side::Sink), max_dim, &config)?,
-        "dowker-source" => lazy_bars(&DowkerComplex::new(&with(Distances::Weight), Side::Source), max_dim, &config)?,
-        "pph" => pph_bars(n_vertices, &edges, max_dim, &config)?,
+        "tuples" => lazy_bars(&FlagComplex::new(FlagKind::OrderedTuples, with()), max_dim, &config)?,
+        "dowker-sink" => lazy_bars(&DowkerComplex::new(&with(), Side::Sink), max_dim, &config)?,
+        "dowker-source" => lazy_bars(&DowkerComplex::new(&with(), Side::Source), max_dim, &config)?,
+        "pph" => pph_bars(n_vertices, &edges, shortest_path, max_dim, &config)?,
         other => return Err(err(format!("Unknown network complex {other:?}"))),
     };
     to_js(Barcode {
         bars,
         summary: format!(
-            "{n_vertices} nodes, {} edges, {sizes}; {}",
+            "{n_vertices} nodes, {} edges, {sizes}{}; {}",
             edges.len(),
+            if shortest_path || kind == "grounded-flag" { ", shortest-path filtration" } else { "" },
             describe(&config)
         ),
     })
@@ -722,11 +770,25 @@ pub fn network(
 fn pph_bars(
     n_vertices: u32,
     edges: &[(u32, u32, f64)],
+    shortest_path: bool,
     max_dim: usize,
     config: &Config,
 ) -> Result<(Vec<OutBar>, String), JsError> {
-    use phlite_networks::pph::{pph_barcode, Network, PPHBar};
-    let edges: Vec<(u16, u16, f64)> = edges.iter().map(|&(a, b, w)| (a as u16, b as u16, w)).collect();
+    use phlite_networks::pph::{pph_barcode_with, Network, PPHBar};
+    let edges: Vec<(u16, u16, f64)> = if shortest_path {
+        // Every pair joined by a path, at the length of the shortest one
+        phlite_networks::grpph::build_filtration(n_vertices, edges)
+            .iter()
+            .enumerate()
+            .flat_map(|(a, row)| {
+                row.iter()
+                    .enumerate()
+                    .filter_map(move |(b, d)| d.map(|d| (a as u16, b as u16, d.into_inner())))
+            })
+            .collect()
+    } else {
+        edges.iter().map(|&(a, b, w)| (a as u16, b as u16, w)).collect()
+    };
     let network = Network::from_edges(n_vertices as u16, &edges);
     if max_dim >= network.max_dimension() {
         return Err(err(format!(
@@ -739,11 +801,19 @@ fn pph_bars(
         max_dim: usize,
         method: Method,
         representatives: bool,
+        parallel_setup: bool,
     }
     impl Visitor for V<'_> {
         type Output = Vec<PPHBar<Z2>>;
         fn visit<R: ColumnRepresentation>(self, algorithm: Algorithm<'_, R>) -> Self::Output {
-            pph_barcode(self.network, self.max_dim, self.method, algorithm, self.representatives)
+            pph_barcode_with(
+                self.network,
+                self.max_dim,
+                self.method,
+                algorithm,
+                self.representatives,
+                self.parallel_setup,
+            )
         }
     }
     let bars = config.run(V {
@@ -751,6 +821,7 @@ fn pph_bars(
         max_dim,
         method: config.method,
         representatives: config.representatives,
+        parallel_setup: config.parallel_setup,
     });
     let bars = translate::<_, Z2>(
         bars,
@@ -767,7 +838,7 @@ fn lazy_bars<K: phlite_networks::lazy::LazyComplex>(
     max_dim: usize,
     config: &Config,
 ) -> Result<(Vec<OutBar>, String), JsError> {
-    use phlite_networks::lazy::{barcode, fits};
+    use phlite_networks::lazy::{barcode_with, fits};
     if !fits(complex, max_dim) {
         return Err(err(format!(
             "Too many nodes ({}) for simplices of dimension {}",
@@ -780,11 +851,19 @@ fn lazy_bars<K: phlite_networks::lazy::LazyComplex>(
         max_dim: usize,
         method: Method,
         representatives: bool,
+        parallel_setup: bool,
     }
     impl<K: phlite_networks::lazy::LazyComplex> Visitor for V<'_, K> {
         type Output = Vec<Bar<phlite_networks::simplex::Simplex, NotNan<f64>, Z2>>;
         fn visit<R: ColumnRepresentation>(self, algorithm: Algorithm<'_, R>) -> Self::Output {
-            barcode(self.complex, self.max_dim, self.method, algorithm, self.representatives)
+            barcode_with(
+                self.complex,
+                self.max_dim,
+                self.method,
+                algorithm,
+                self.representatives,
+                self.parallel_setup,
+            )
         }
     }
     let bars = config.run(V {
@@ -792,6 +871,7 @@ fn lazy_bars<K: phlite_networks::lazy::LazyComplex>(
         max_dim,
         method: config.method,
         representatives: config.representatives,
+        parallel_setup: config.parallel_setup,
     });
     let codec = complex.codec();
     let bars = translate::<_, Z2>(
@@ -980,23 +1060,32 @@ pub fn image(
         complex: &'a CubicalComplex<2>,
         method: Method,
         representatives: bool,
+        union_find: bool,
+        parallel_setup: bool,
     }
     impl Visitor for V<'_> {
         type Output = Vec<phlite_images::cubical::CubicalBar>;
         fn visit<R: ColumnRepresentation>(self, algorithm: Algorithm<'_, R>) -> Self::Output {
             // In the sublevel filtration's values, so that classes born at +inf (never) are told from those born at
             // -inf (first, for superlevel sets)
-            {
-                #[allow(unreachable_patterns)]
-                let parallel = matches!(algorithm, Algorithm::ParallelClearing(_));
-                filtration_barcode(self.complex, 1, self.method, algorithm, self.representatives, false, true, parallel)
-            }
+            filtration_barcode(
+                self.complex,
+                1,
+                self.method,
+                algorithm,
+                self.representatives,
+                false,
+                self.union_find,
+                self.parallel_setup,
+            )
         }
     }
     let bars = config.run(V {
         complex: &complex,
         method: config.method,
         representatives: config.representatives,
+        union_find: config.union_find,
+        parallel_setup: config.parallel_setup,
     });
     let sign = if superlevel { -1.0 } else { 1.0 };
     let bars = bars

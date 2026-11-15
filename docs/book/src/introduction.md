@@ -39,7 +39,8 @@ Then, as you need them:
   this: the defaults are the fastest we measured.
 - [Example notebooks](python/notebooks.md) and the [API reference](../api/index.html) (every argument of every function).
 - The **[playground](../playground/)** runs all of this in your browser (on all your cores, nothing to install), with
-  barcodes and representatives drawn on the data.
+  barcodes and representatives drawn on the data, which you can edit as you go (move, add and delete points, paint
+  on images, rewire digraphs) and watch the barcode follow.
 
 ### "I want persistent homology of my own filtration, in Rust"
 

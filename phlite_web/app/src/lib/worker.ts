@@ -40,7 +40,7 @@ self.onmessage = async (event: MessageEvent<Message>) => {
     switch (job.pipeline) {
       case 'rips':
         barcode = phlite.rips(
-          job.coords, job.pointDim, job.maxDim, job.threshold ?? undefined, job.dtmK ?? undefined, job.options,
+          job.coords, job.pointDim, job.maxDim, job.threshold ?? undefined, job.metric, job.dtmK ?? undefined, job.options,
         );
         break;
       case 'delaunay':
@@ -50,7 +50,7 @@ self.onmessage = async (event: MessageEvent<Message>) => {
         barcode = phlite.grpph(job.n, job.sources, job.targets, job.weights, job.grounded, job.options);
         break;
       case 'network':
-        barcode = phlite.network(job.kind, job.n, job.sources, job.targets, job.weights, job.maxDim, job.options);
+        barcode = phlite.network(job.kind, job.shortestPath, job.n, job.sources, job.targets, job.weights, job.maxDim, job.options);
         break;
       case 'image':
         barcode = phlite.image(job.pixels, job.width, job.height, job.superlevel, job.construction, job.options);

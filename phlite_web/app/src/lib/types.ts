@@ -31,10 +31,16 @@ export interface AlgoOptions {
   storage?: 'locking' | 'lock-free';
   method: 'cohomology' | 'homology';
   representatives: boolean;
+  /** Find dimension 0 by union-find (Rips and images). */
+  unionFind?: boolean;
+  /** Build the matrices in parallel (by default, exactly when the algorithm is parallel clearing). */
+  parallelSetup?: boolean;
 }
 
+export type Metric = 'euclidean' | 'manhattan' | 'chebyshev';
+
 /** The complexes of `phlite_web::network`. */
-export type NetworkKind = 'pph' | 'flag' | 'flag-sp' | 'grounded-flag' | 'tuples' | 'dowker-sink' | 'dowker-source';
+export type NetworkKind = 'pph' | 'flag' | 'grounded-flag' | 'tuples' | 'dowker-sink' | 'dowker-source';
 
 export type Job =
   | {
@@ -43,6 +49,7 @@ export type Job =
       pointDim: number;
       maxDim: number;
       threshold: number | null;
+      metric: Metric;
       /** DTM-Rips: weight each point by its distance to measure over this many nearest neighbours. */
       dtmK: number | null;
       options: AlgoOptions;
@@ -52,6 +59,8 @@ export type Job =
   | {
       pipeline: 'network';
       kind: NetworkKind;
+      /** Each pair at the length of the shortest path between them, rather than each edge at its weight. */
+      shortestPath: boolean;
       n: number;
       sources: Uint32Array;
       targets: Uint32Array;

@@ -12,14 +12,18 @@ export interface PipelineDefaults {
   storeR: boolean;
   /** Whether pivot columns are possible (the matrices know the rank of every row). */
   pivot: boolean;
+  /** Whether dimension 0 is found by union-find by default, or undefined if the pipeline can't. */
+  unionFind?: boolean;
+  /** Whether the pipeline can build its matrices in parallel. */
+  parallelSetup: boolean;
 }
 
-export const RIPS: PipelineDefaults = { columns: 'heap', cache: false, storeR: false, pivot: false };
-export const GRPPH: PipelineDefaults = { columns: 'merged', cache: true, storeR: false, pivot: false };
-export const COMPLEX: PipelineDefaults = { columns: 'pivot', cache: false, storeR: true, pivot: true };
-/** Directed flag, ordered-tuple and Dowker complexes (`networks.directed_flag` etc.). */
-export const NETWORK: PipelineDefaults = { columns: 'merged', cache: true, storeR: false, pivot: false };
-export const IMAGE: PipelineDefaults = { columns: 'merged', cache: false, storeR: true, pivot: false };
+export const RIPS: PipelineDefaults = { columns: 'heap', cache: false, storeR: false, pivot: false, unionFind: true, parallelSetup: true };
+export const GRPPH: PipelineDefaults = { columns: 'merged', cache: true, storeR: false, pivot: false, parallelSetup: false };
+export const COMPLEX: PipelineDefaults = { columns: 'pivot', cache: false, storeR: true, pivot: true, parallelSetup: false };
+/** Directed flag, ordered-tuple and Dowker complexes, and PPH (`networks.directed_flag` etc.). */
+export const NETWORK: PipelineDefaults = { columns: 'merged', cache: true, storeR: false, pivot: false, parallelSetup: true };
+export const IMAGE: PipelineDefaults = { columns: 'merged', cache: false, storeR: true, pivot: false, unionFind: true, parallelSetup: true };
 
 /** The default algorithm: serial clearing, or parallel clearing if chosen (and there are threads). */
 export function defaultAlgorithm(): AlgoOptions['algorithm'] {
@@ -37,6 +41,8 @@ export function defaultsFor(d: PipelineDefaults, algorithm = defaultAlgorithm())
     storage: 'locking',
     method: 'cohomology',
     representatives: true,
+    unionFind: d.unionFind ?? false,
+    parallelSetup: d.parallelSetup && algorithm === 'parallel',
   };
 }
 

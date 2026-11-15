@@ -5,6 +5,8 @@
   import Options from '../../components/Options.svelte';
   import Results from '../../components/Results.svelte';
   import FiltrationSlider from '../../components/FiltrationSlider.svelte';
+  import EditBar from '../../components/EditBar.svelte';
+  import { History } from '../../lib/history.svelte';
   import GraphView, { type Tool } from './GraphView.svelte';
   import { Runner } from '../../lib/runner.svelte';
   import { GRPPH, NETWORK, defaultsFor } from '../../lib/options';
@@ -16,7 +18,7 @@
   let source = $state<Source>('examples');
   let exampleId = $state(EXAMPLES[0].id);
   let g = $state.raw<Digraph>(EXAMPLES[0].make());
-  type Complex = 'grpph' | 'pph-sp' | NetworkKind;
+  type Complex = 'grpph' | NetworkKind;
   const COMPLEXES: { id: Complex; name: string; about: string }[] = [
     {
       id: 'grpph',
@@ -28,24 +30,13 @@
       id: 'pph',
       name: 'PPH',
       about:
-        'Persistent path homology (Chowdhury and Mémoli): the path homology of the digraph of edges with weight at most t, in any dimension. Cells are regular paths, each entering once all its edges have.',
-    },
-    {
-      id: 'pph-sp',
-      name: 'PPH (paths)',
-      about:
-        'Persistent path homology of the shortest-path filtration, a pair a→b entering at the length of the shortest path from a to b (GrPPH without the grounding). H₀ and H₁.',
+        'Persistent path homology (Chowdhury and Mémoli): the path homology of the digraph of edges present at t, in any dimension. Cells are regular paths, each entering once all its edges have. With the shortest-path filtration, H₀ and H₁ are GrPPH without the grounding.',
     },
     {
       id: 'flag',
       name: 'Directed flag',
       about:
         "The directed flag complex (as flagser): a simplex for each directed clique, a sequence of distinct nodes with an edge from each to every later one, entering with its last edge (at the edge's weight).",
-    },
-    {
-      id: 'flag-sp',
-      name: 'Directed flag (paths)',
-      about: 'The directed flag complex of the shortest-path filtration: each pair a→b at the length of the shortest path from a to b.',
     },
     {
       id: 'grounded-flag',
@@ -73,18 +64,39 @@
   ];
   let complex = $state<Complex>('grpph');
   let maxDim = $state(1);
-  const pathHomology = $derived(complex === 'grpph' || complex === 'pph-sp' || complex === 'pph');
-  const shortestPath = $derived(complex === 'grpph' || complex === 'pph-sp' || complex === 'flag-sp' || complex === 'grounded-flag');
+  /** Each pair at the length of the shortest path between them, rather than each edge at its weight. */
+  let pathFiltration = $state(false);
+  /** Whether the complex has a choice of filtration (GrPPH and the grounded flag complex are by shortest paths). */
+  const choosesFiltration = $derived(complex !== 'grpph' && complex !== 'grounded-flag');
+  const pathHomology = $derived(complex === 'grpph' || complex === 'pph');
+  const shortestPath = $derived(!choosesFiltration || pathFiltration);
+  /** PPH of the shortest-path filtration in H₀ and H₁ is GrPPH without the grounding (as Python's `pph`). */
+  const viaGrpph = $derived(complex === 'grpph' || (complex === 'pph' && pathFiltration && maxDim <= 1));
+  const defaults = $derived(viaGrpph ? GRPPH : NETWORK);
   let options = $state(defaultsFor(GRPPH));
   const runner = new Runner();
   function setComplex(c: Complex) {
     complex = c;
-    options = defaultsFor(c === 'grpph' || c === 'pph-sp' ? GRPPH : NETWORK);
+    options = defaultsFor(c === 'grpph' ? GRPPH : NETWORK);
   }
+  $effect(() => {
+    // Keep the options to what the pipeline that runs supports
+    const d = defaults;
+    untrack(() => {
+      if (!d.parallelSetup && options.parallelSetup) options.parallelSetup = false;
+    });
+  });
 
+  // ---- The digraph, with undo ----
+  const history = new History<Digraph>();
+  function replace(next: Digraph) {
+    history.commit(g);
+    g = next;
+    selectedEdge = null;
+  }
   function useExample(id: string) {
     exampleId = id;
-    g = EXAMPLES.find((e) => e.id === id)!.make();
+    replace(EXAMPLES.find((e) => e.id === id)!.make());
   }
 
   let randomN = $state(12);
@@ -94,25 +106,46 @@
   let seed = $state(1);
   function useRandom(newSeed = false) {
     if (newSeed) seed = randomSeed();
-    g = randomDigraph(randomN, randomP, Math.min(minW, maxW), Math.max(minW, maxW), seed);
+    replace(randomDigraph(randomN, randomP, Math.min(minW, maxW), Math.max(minW, maxW), seed));
   }
 
   let uploadError = $state<string | null>(null);
   async function upload(file: File) {
     try {
-      g = parseEdges(await file.text());
+      replace(parseEdges(await file.text()));
       uploadError = null;
     } catch (e) {
       uploadError = (e as Error).message;
     }
   }
 
-  let tool = $state<Tool>('node');
+  let tool = $state<Tool | null>(null);
   let newWeight = $state(1);
   let selectedEdge = $state<number | null>(null);
+  const TOOLS: [Tool, string, string][] = [
+    ['select', 'Move / select', 'Drag nodes about; click an edge to change its weight'],
+    ['node', 'Add nodes', 'Click to add a node'],
+    ['edge', 'Add edges', 'Drag from one node to another to add an edge'],
+    ['delete', 'Delete', 'Click a node or an edge to delete it'],
+  ];
   function setWeight(w: number) {
     if (selectedEdge === null || !(w >= 0)) return;
+    history.commit(g);
     g = { ...g, edges: g.edges.map((e, i) => (i === selectedEdge ? { ...e, w } : e)) };
+  }
+  function deleteSelected() {
+    if (selectedEdge === null) return;
+    history.commit(g);
+    g = { ...g, edges: g.edges.filter((_, i) => i !== selectedEdge) };
+    selectedEdge = null;
+  }
+  function undo() {
+    const previous = history.undo(g);
+    if (previous) [g, selectedEdge] = [previous, null];
+  }
+  function redo() {
+    const next = history.redo(g);
+    if (next) [g, selectedEdge] = [next, null];
   }
 
   // ---- Computing ----
@@ -125,11 +158,17 @@
       weights: Float64Array.from(g.edges.map((e) => e.w)),
       options: $state.snapshot(options),
     };
-    if (complex === 'grpph' || complex === 'pph-sp') return { pipeline: 'grpph', grounded: complex === 'grpph', ...graph };
-    return { pipeline: 'network', kind: complex, maxDim: complex === 'grounded-flag' ? Math.min(maxDim, 1) : maxDim, ...graph };
+    if (viaGrpph) return { pipeline: 'grpph', grounded: complex === 'grpph', ...graph };
+    return {
+      pipeline: 'network',
+      kind: complex as NetworkKind,
+      shortestPath: choosesFiltration && pathFiltration,
+      maxDim: complex === 'grounded-flag' ? Math.min(maxDim, 1) : maxDim,
+      ...graph,
+    };
   });
   // Moving a node changes nothing to compute
-  const jobKey = $derived(job ? JSON.stringify([g.nodes.length, g.edges, options, complex, maxDim]) : '');
+  const jobKey = $derived(job ? JSON.stringify([g.nodes.length, g.edges, options, complex, maxDim, pathFiltration]) : '');
   $effect(() => {
     jobKey;
     const j = untrack(() => job);
@@ -155,7 +194,20 @@
 <div class="layout">
   <div>
     <div class="panel">
-      <GraphView {g} t={runner.t} {bar} {dist} tool={source === 'draw' ? tool : null} {newWeight} bind:selectedEdge onedit={(next) => (g = next)} />
+      <GraphView
+        {g}
+        t={runner.t}
+        {bar}
+        {dist}
+        {tool}
+        {newWeight}
+        bind:selectedEdge
+        onstart={() => history.begin(g)}
+        onedit={(next) => {
+          history.edited();
+          g = next;
+        }}
+      />
       <div style="margin-top: 0.6rem">
         <FiltrationSlider bind:t={runner.t} {domain} label={shortestPath ? 'Path length' : 'Weight'} />
       </div>
@@ -164,11 +216,34 @@
         {#if dist}<span><i style="background: var(--green)"></i>new edges: pairs joined by a path no longer than the slider</span>{/if}
         {#if bar}<span>coloured: the representative (dashed if not an edge of the graph) · red: what kills it</span>{/if}
       </div>
+      <EditBar
+        bind:tool
+        tools={TOOLS}
+        canUndo={history.past.length > 0}
+        canRedo={history.future.length > 0}
+        onundo={undo}
+        onredo={redo}
+        ondelete={deleteSelected}
+      >
+        {#if tool === 'edge' || tool === 'node'}
+          <label class="field"><span>New edge weight</span><input type="number" min="0" step="0.5" bind:value={newWeight} /></label>
+        {/if}
+        {#if selectedEdge !== null && g.edges[selectedEdge]}
+          {@const e = g.edges[selectedEdge]}
+          <label class="field"><span>Edge {g.nodes[e.s].label}→{g.nodes[e.t].label}</span>
+            <input type="number" min="0" step="0.5" value={e.w} onchange={(ev) => setWeight(+ev.currentTarget.value)} /></label>
+          <button onclick={deleteSelected}>Delete edge</button>
+        {/if}
+        {#if tool}
+          <button onclick={() => replace(layout(g))}>Tidy</button>
+          <button disabled={g.nodes.length === 0} onclick={() => replace({ nodes: [], edges: [] })}>Clear</button>
+        {/if}
+      </EditBar>
     </div>
 
     <div class="panel secondary">
       <h3>Weighted digraph</h3>
-      <SourceTabs bind:source drawLabel="Build" />
+      <SourceTabs bind:source drawLabel="New" />
       {#if source === 'examples'}
         <div class="chips">
           {#each EXAMPLES as ex}
@@ -195,20 +270,18 @@ c,a,2</pre>
         {#if uploadError}<p class="error">{uploadError}</p>{/if}
       {:else}
         <div class="tools">
-          <button class:on={tool === 'node'} onclick={() => (tool = 'node')}>Add nodes</button>
-          <button class:on={tool === 'edge'} onclick={() => (tool = 'edge')}>Add edges</button>
-          <button class:on={tool === 'select'} onclick={() => (tool = 'select')}>Move / select</button>
-          <button class:on={tool === 'delete'} onclick={() => (tool = 'delete')}>Delete</button>
-          <button onclick={() => (g = layout(g))}>Tidy</button>
-          <button onclick={() => { g = { nodes: [], edges: [] }; selectedEdge = null; }}>Clear</button>
+          <button
+            onclick={() => {
+              replace({ nodes: [], edges: [] });
+              tool = 'node';
+            }}>Empty graph</button
+          >
         </div>
-        <label class="field"><span>New edge weight</span><input type="number" min="0" step="0.5" bind:value={newWeight} /></label>
-        {#if selectedEdge !== null && g.edges[selectedEdge]}
-          {@const e = g.edges[selectedEdge]}
-          <label class="field"><span>Edge {g.nodes[e.s].label}→{g.nodes[e.t].label}</span>
-            <input type="number" min="0" step="0.5" value={e.w} onchange={(ev) => setWeight(+ev.currentTarget.value)} /></label>
-        {/if}
-        <p class="note">Click to add a node; drag from one node to another to add an edge; click an edge to change its weight.</p>
+        <p class="note">
+          Start from nothing and build a digraph with the editing tools under the view: click to add nodes, drag between
+          them to add edges, click an edge to change its weight. Any digraph (an example, a random one or your own) can
+          be edited the same way.
+        </p>
       {/if}
     </div>
   </div>
@@ -225,7 +298,15 @@ c,a,2</pre>
           {#each COMPLEXES as c}<option value={c.id}>{c.name}</option>{/each}
         </select>
       </label>
-      {#if complex !== 'grpph' && complex !== 'pph-sp' && complex !== 'grounded-flag'}
+      {#if choosesFiltration}
+        <label class="field"><span>Filtration</span>
+          <select bind:value={pathFiltration}>
+            <option value={false}>edge weights</option>
+            <option value={true}>shortest paths</option>
+          </select>
+        </label>
+      {/if}
+      {#if complex !== 'grpph' && complex !== 'grounded-flag'}
         <label class="field"><span>Up to dimension</span>
           <select bind:value={maxDim}>
             <option value={0}>H₀</option><option value={1}>H₁</option><option value={2}>H₂</option><option value={3}>H₃</option>
@@ -233,7 +314,7 @@ c,a,2</pre>
         </label>
       {/if}
       <p class="note">{COMPLEXES.find((c) => c.id === complex)?.about}</p>
-      <Options bind:options defaults={complex === 'grpph' || complex === 'pph-sp' ? GRPPH : NETWORK} />
+      <Options bind:options {defaults} />
       <div class="compute-row">
         <button class="primary" disabled={!job} onclick={() => runner.run(job)}>Compute</button>
         <label><input type="checkbox" bind:checked={runner.auto} /> recompute on every change</label>

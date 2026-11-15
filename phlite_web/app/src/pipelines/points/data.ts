@@ -1,3 +1,4 @@
+import type { Metric } from '../../lib/types';
 import { rng, type Rng } from '../../lib/random';
 
 /** A point cloud in the plane or in space. */
@@ -187,14 +188,20 @@ export function parseCloud(text: string, maxPoints = 5000): Cloud {
   return { dim, points: rows.map((r) => r.slice(0, dim)) };
 }
 
-export function distance(a: number[], b: number[]): number {
+/** The distance between two points in `metric` (Euclidean by default), as `phlite.clouds.rips`' metrics. */
+export function distance(a: number[], b: number[], metric: Metric = 'euclidean'): number {
   let s = 0;
-  for (let k = 0; k < a.length; k++) s += (a[k] - b[k]) ** 2;
-  return Math.sqrt(s);
+  for (let k = 0; k < a.length; k++) {
+    const d = Math.abs(a[k] - b[k]);
+    if (metric === 'euclidean') s += d * d;
+    else if (metric === 'manhattan') s += d;
+    else s = Math.max(s, d);
+  }
+  return metric === 'euclidean' ? Math.sqrt(s) : s;
 }
 
 /** Every pair of points, sorted by distance: `pairs[2k], pairs[2k + 1]` at `lengths[k]`. */
-export function sortedEdges(points: number[][], limit = 4_000_000) {
+export function sortedEdges(points: number[][], metric: Metric = 'euclidean', limit = 4_000_000) {
   const n = points.length;
   const m = Math.min((n * (n - 1)) / 2, limit);
   const order = new Uint32Array(m);
@@ -207,7 +214,7 @@ export function sortedEdges(points: number[][], limit = 4_000_000) {
       if (k >= m) break outer;
       a[k] = i;
       b[k] = j;
-      lengths[k] = distance(points[i], points[j]);
+      lengths[k] = distance(points[i], points[j], metric);
       order[k] = k;
       k++;
     }

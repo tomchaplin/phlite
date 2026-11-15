@@ -80,6 +80,18 @@
           <input type="checkbox" bind:checked={options.storeR} disabled={options.algorithm !== 'clearing'} /> Store R
         </label>
       </div>
+      {#if defaults.unionFind !== undefined}
+        <div class="row">
+          <label class="check"><input type="checkbox" bind:checked={options.unionFind} /> Union-find in dimension 0</label>
+        </div>
+      {/if}
+      {#if defaults.parallelSetup}
+        <div class="row">
+          <label class="check" class:disabled={engine.single}>
+            <input type="checkbox" bind:checked={options.parallelSetup} disabled={engine.single} /> Parallel setup
+          </label>
+        </div>
+      {/if}
       <div class="row">
         <label class="check" class:disabled={options.algorithm === 'standard'}>
           <input type="checkbox" bind:checked={options.skipZeroApparentPairs} disabled={options.algorithm === 'standard'} />
@@ -100,11 +112,18 @@
           <button disabled={threads === engine.threads || threads < 1} onclick={() => engine.start(threads)}>Restart</button>
         </div>
       {/if}
+      {#if defaults.unionFind !== undefined || defaults.parallelSetup}
+        <p class="hint">
+          {#if defaults.unionFind !== undefined}Union-find pairs dimension 0 without a matrix (representatives too).{/if}
+          {#if defaults.parallelSetup}A parallel setup builds the matrices on every thread, whatever the reduction.{/if}
+        </p>
+      {/if}
       <p class="hint">
         How these work: <a href="{book}algorithms/clearing.html" target="_blank">clearing</a>,
         <a href="{book}algorithms/apparent-pairs.html" target="_blank">apparent pairs</a>,
         <a href="{book}algorithms/store-r.html" target="_blank">storing R</a>,
         <a href="{book}algorithms/parallel.html" target="_blank">parallel</a>,
+        <a href="{book}python/algorithms.html" target="_blank">union-find and parallel setup</a>,
         <a href="{book}columns/caching.html" target="_blank">caching</a>.
       </p>
     </div>

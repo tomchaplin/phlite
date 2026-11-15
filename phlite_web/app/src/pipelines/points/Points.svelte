@@ -5,33 +5,48 @@
   import Options from '../../components/Options.svelte';
   import Results from '../../components/Results.svelte';
   import FiltrationSlider from '../../components/FiltrationSlider.svelte';
+  import EditBar from '../../components/EditBar.svelte';
+  import { History } from '../../lib/history.svelte';
   import View2D, { type Tool } from './View2D.svelte';
   import View3D from './View3D.svelte';
   import { Runner } from '../../lib/runner.svelte';
   import { RIPS, COMPLEX, defaultsFor } from '../../lib/options';
   import { barDomain } from '../../lib/scale';
   import { randomSeed } from '../../lib/random';
-  import type { Job } from '../../lib/types';
+  import type { Job, Metric } from '../../lib/types';
   import { EXAMPLES, RANDOM_KINDS, randomCloud, parseCloud, sortedEdges, flatten, type Cloud, type RandomKind } from './data';
 
   let source = $state<Source>('examples');
   let exampleId = $state(EXAMPLES[0].id);
   let cloud = $state.raw<Cloud>(EXAMPLES[0].make());
+  /** Bumped whenever the cloud is replaced rather than edited, to fit the view to it. */
+  let fitKey = $state(0);
+  const history = new History<Cloud>();
+  /** Replace the cloud (undoably). */
+  function replace(next: Cloud) {
+    history.commit(cloud);
+    cloud = next;
+    selection = [];
+    fitKey++;
+  }
   type Filtration = 'rips' | 'dtm' | 'alpha' | 'cech';
   let filtration = $state<Filtration>('rips');
   let dtmK = $state(10);
   const isDelaunay = $derived(filtration === 'alpha' || filtration === 'cech');
   let maxDim = $state(EXAMPLES[0].maxDim);
   let threshold = $state('');
+  let metric = $state<Metric>('euclidean');
   let options = $state(defaultsFor(RIPS));
   let showBalls = $state(false);
+  /** Balls show the complex for Rips in the Euclidean metric, alpha and Čech. */
+  const ballsShow = $derived(isDelaunay || (filtration === 'rips' && metric === 'euclidean'));
   const runner = new Runner();
 
   // ---- Data sources ----
   function useExample(id: string) {
     const ex = EXAMPLES.find((e) => e.id === id)!;
     exampleId = id;
-    cloud = ex.make();
+    replace(ex.make());
     maxDim = ex.maxDim;
   }
 
@@ -41,40 +56,61 @@
   let randomSeedValue = $state(1);
   function useRandom(newSeed = false) {
     if (newSeed) randomSeedValue = randomSeed();
-    cloud = randomCloud(randomKind, randomN, randomNoise, randomSeedValue);
+    replace(randomCloud(randomKind, randomN, randomNoise, randomSeedValue));
   }
 
   let uploadError = $state<string | null>(null);
   async function upload(file: File) {
     try {
-      cloud = parseCloud(await file.text());
+      replace(parseCloud(await file.text()));
       uploadError = null;
     } catch (e) {
       uploadError = (e as Error).message;
     }
   }
 
-  let tool = $state<Tool>('spray');
-  let brush = $state(0.08);
-  let drawBox = $state<number[] | null>(null);
-  function startDrawing() {
-    if (cloud.dim === 3) cloud = { dim: 2, points: [] };
-    // Fix the view while drawing, so it doesn't move under the brush
-    const ps = cloud.points;
-    if (ps.length < 2) drawBox = [-1.25, -1, 1.25, 1];
-    else {
-      const xs = ps.map((p) => p[0]);
-      const ys = ps.map((p) => p[1]);
-      const [x0, x1, y0, y1] = [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)];
-      const pad = Math.max(x1 - x0, y1 - y0) * 0.15;
-      drawBox = [x0 - pad, y0 - pad, x1 + pad, y1 + pad];
+  // ---- Editing (points in the plane) ----
+  let tool = $state<Tool | null>(null);
+  let brush = $state(0.035);
+  let selection = $state<number[]>([]);
+  const TOOLS: [Tool, string, string][] = [
+    ['select', 'Select / move', 'Click or drag a box to select points (shift adds); drag a selected point to move them all'],
+    ['add', 'Add', 'Click to add a point; keep the button down to drag it into place'],
+    ['spray', 'Spray', 'Spray points with a round brush'],
+    ['erase', 'Erase', 'Erase the points under a round brush'],
+  ];
+  function edited(points: number[][]) {
+    history.edited();
+    cloud = { dim: 2, points };
+  }
+  function deleteSelected() {
+    if (selection.length === 0) return;
+    const gone = new Set(selection);
+    history.commit(cloud);
+    cloud = { dim: cloud.dim, points: cloud.points.filter((_, i) => !gone.has(i)) };
+    selection = [];
+  }
+  function undo() {
+    const previous = history.undo(cloud);
+    if (previous) {
+      cloud = previous;
+      selection = [];
     }
-    const span = Math.max(drawBox[2] - drawBox[0], drawBox[3] - drawBox[1]);
-    brush = span * 0.035;
+  }
+  function redo() {
+    const next = history.redo(cloud);
+    if (next) {
+      cloud = next;
+      selection = [];
+    }
+  }
+  // A new cloud: an empty plane to draw on
+  function blank() {
+    replace({ dim: 2, points: [] });
+    tool = 'spray';
   }
   $effect(() => {
-    if (source === 'draw') untrack(startDrawing);
-    else drawBox = null;
+    if (cloud.dim !== 2) untrack(() => (tool = null));
   });
 
   function setFiltration(f: Filtration) {
@@ -104,6 +140,7 @@
       pointDim: cloud.dim,
       maxDim,
       threshold: thresholdValue,
+      metric,
       dtmK: filtration === 'dtm' ? Math.min(dtmK, cloud.points.length) : null,
       options: opts,
     };
@@ -116,7 +153,7 @@
   });
 
   // ---- Viewing ----
-  const edges = $derived(filtration === 'rips' && cloud.points.length <= 1200 ? sortedEdges(cloud.points) : null);
+  const edges = $derived(filtration === 'rips' && cloud.points.length <= 1200 ? sortedEdges(cloud.points, metric) : null);
   const domain = $derived(barDomain(runner.result?.barcode.bars ?? [], [0]));
   const bar = $derived(runner.selected === null ? null : (runner.result?.barcode.bars[runner.selected] ?? null));
   const describe = (cell: number[]) => (cell.length === 1 ? `point ${cell[0]}` : `[${cell.join(' ')}]`);
@@ -131,12 +168,14 @@
           t={runner.t}
           filtration={isDelaunay ? 'alpha' : 'rips'}
           {bar}
-          balls={showBalls && filtration !== 'dtm'}
+          balls={showBalls && ballsShow}
           {edges}
-          tool={source === 'draw' ? tool : null}
+          {tool}
           {brush}
-          box={source === 'draw' ? drawBox : null}
-          onedit={(points) => (cloud = { dim: 2, points })}
+          bind:selection
+          {fitKey}
+          onstart={() => history.begin(cloud)}
+          onedit={edited}
         />
       {:else}
         <View3D points={cloud.points} t={runner.t} {bar} edges={filtration === 'rips' ? edges : null} />
@@ -146,15 +185,37 @@
       </div>
       <div class="legend" style="margin-top: 0.4rem">
         <span>{cloud.points.length} points{cloud.dim === 3 ? ' in space' : ''}</span>
-        {#if cloud.dim === 2 && filtration !== 'dtm'}<label><input type="checkbox" bind:checked={showBalls} /> balls of radius {filtration === 'rips' ? 'd/2' : 'r'}</label>{/if}
+        {#if cloud.dim === 2 && ballsShow}<label><input type="checkbox" bind:checked={showBalls} /> balls of radius {filtration === 'rips' ? 'd/2' : 'r'}</label>{/if}
         {#if filtration === 'rips'}<span>edges: pairs within the diameter</span>{/if}
         {#if bar}<span>coloured: the representative · dashed: the simplex that kills it</span>{/if}
       </div>
+      <EditBar
+        bind:tool
+        tools={cloud.dim === 2 ? TOOLS : []}
+        canUndo={history.past.length > 0}
+        canRedo={history.future.length > 0}
+        onundo={undo}
+        onredo={redo}
+        ondelete={deleteSelected}
+      >
+        {#if cloud.dim !== 2}
+          <span class="note">Editing is for clouds in the plane; this one is in space.</span>
+        {:else if tool === 'spray' || tool === 'erase'}
+          <label class="field"><span>Brush size</span><input type="range" min="0.005" max="0.12" step="any" bind:value={brush} /></label>
+        {:else if tool === 'select'}
+          <span class="note">{selection.length} selected</span>
+          <button disabled={selection.length === 0} onclick={deleteSelected}>Delete selected</button>
+          <button disabled={cloud.points.length === 0} onclick={() => (selection = cloud.points.map((_, i) => i))}>Select all</button>
+        {/if}
+        {#if cloud.dim === 2 && tool}
+          <button disabled={cloud.points.length === 0} onclick={() => replace({ dim: 2, points: [] })}>Clear</button>
+        {/if}
+      </EditBar>
     </div>
 
     <div class="panel secondary">
       <h3>Point cloud</h3>
-      <SourceTabs bind:source drawLabel="Brush" />
+      <SourceTabs bind:source drawLabel="New" />
       {#if source === 'examples'}
         <div class="chips">
           {#each EXAMPLES as ex}
@@ -182,15 +243,12 @@
         {#if uploadError}<p class="error">{uploadError}</p>{/if}
       {:else}
         <div class="tools">
-          <button class:on={tool === 'spray'} onclick={() => (tool = 'spray')}>Spray</button>
-          <button class:on={tool === 'point'} onclick={() => (tool = 'point')}>Single points</button>
-          <button class:on={tool === 'erase'} onclick={() => (tool = 'erase')}>Erase</button>
-          <button onclick={() => (cloud = { dim: 2, points: [] })}>Clear</button>
+          <button onclick={blank}>Empty plane</button>
         </div>
-        {#if tool !== 'point' && drawBox}
-          <label class="field"><span>Brush size</span><input type="range" min={(drawBox[2] - drawBox[0]) * 0.005} max={(drawBox[2] - drawBox[0]) * 0.12} step="any" bind:value={brush} /></label>
-        {/if}
-        <p class="note">Draw on the canvas below. The barcode updates as you go.</p>
+        <p class="note">
+          Start from nothing and draw a cloud with the editing tools under the view. Any cloud in the plane (an example, a
+          random sample or your own) can be edited the same way.
+        </p>
       {/if}
     </div>
   </div>
@@ -223,6 +281,13 @@
         <label class="field"><span>Up to dimension</span>
           <select bind:value={maxDim}>
             <option value={0}>H₀</option><option value={1}>H₁</option><option value={2}>H₂</option><option value={3}>H₃</option>
+          </select>
+        </label>
+        <label class="field"><span>Metric</span>
+          <select bind:value={metric}>
+            <option value="euclidean">Euclidean</option>
+            <option value="manhattan">Manhattan (L¹)</option>
+            <option value="chebyshev">Chebyshev (L∞)</option>
           </select>
         </label>
         <label class="field"><span>Threshold</span><input type="text" placeholder="none (the enclosing radius)" bind:value={threshold} /></label>
