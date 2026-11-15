@@ -1,6 +1,6 @@
 # phlite.networks: networks
 
-Persistent homology of networks (weighted digraphs): the `phlite-networks` package, built from the
+Persistent homology of networks, directed and undirected: the `phlite-networks` package, built from the
 `phlite_networks` crate (the Rust implementation, and its bindings in `src/python`).
 
 | Function | Filtration | Chapter |
@@ -10,15 +10,19 @@ Persistent homology of networks (weighted digraphs): the `phlite-networks` packa
 | `phlite.networks.directed_flag` | directed flag complexes (as flagser), grounded or not | [Directed flag complexes](networks/directed_flag.md) |
 | `phlite.networks.dowker` | Dowker sink and source complexes | [Dowker complexes](networks/dowker.md) |
 | `phlite.networks.ordered_tuples` | ordered-tuple complexes (Turner's directed Rips) | [Directed Rips](networks/ordered_tuples.md) |
+| `phlite.networks.flag` | flag complexes of **undirected** graphs, by edge weights, node values (lower-star) or shortest paths | [Flag complexes of graphs](networks/flag.md) |
+| `phlite.networks.extended` | extended persistence of node values on an undirected graph | [Extended persistence](networks/extended.md) |
 
-Every function returns a `phlite.core.Barcode`, and takes a [`phlite.core.Algorithm`](algorithms.md) whose unset
+Every function returns a `phlite.core.Barcode` (but `extended`, which returns its four diagrams), and takes a [`phlite.core.Algorithm`](algorithms.md) whose unset
 options it fills in with its own defaults (the pipeline names are `networks.<function>`, e.g. `networks.grpph`).
 
-Every function takes a digraph the same way: a networkx `DiGraph` (weights from the `weight` attribute, default 1;
+Every function for digraphs takes one the same way: a networkx `DiGraph` (weights from the `weight` attribute, default 1;
 cells come back as tuples of node labels), or `(n_vertices, edges)` with `(source, target, weight)` edges. Weights must
 be non-negative, and may be infinite (the edge never appears); self-loops are refused. Which time an edge enters at is
 the `filtration` argument where it applies: `'weight'`, its own weight, or `'shortest_path'`, the length of the shortest
-directed path (making the weights a quasi-metric).
+directed path (making the weights a quasi-metric). `flag` and `extended` take an undirected networkx `Graph`, or
+`(n_vertices, edges)` with `(u, v)` or `(u, v, weight)` edges, and node values (`node_weight`: an attribute name, or one
+value per node).
 
 The complexes other than (Gr)PPH are built on `phlite_networks::lazy`: a complex described by listing any simplex's
 cofacets (in increasing order) and facets, from which come coboundary and boundary oracles with Ripser's optimisations

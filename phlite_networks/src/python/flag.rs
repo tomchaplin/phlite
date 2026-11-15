@@ -17,11 +17,22 @@ use pyo3::{
 use pyo3_stub_gen::derive::*;
 
 use super::graph::network_error;
-use crate::undirected::{flag_barcode, Graph};
+use crate::undirected::{cliques_within, explicit_flag_barcode, flag_barcode, Graph};
 
-/// The pipeline `'networks.flag'`: computed by Rips' machinery, so with Rips' defaults.
+/// The pipeline `'networks.flag'`, for a complex small enough to list (the usual case): an explicit complex, so with
+/// `phlite.complexes`' defaults.
 pub(crate) const DEFAULTS: AlgorithmDefaults = AlgorithmDefaults {
     pipeline: "networks.flag",
+    columns: Columns::Pivot,
+    cache: false,
+    store_r: true,
+    row_ranks: true,
+    union_find: None,
+};
+
+/// The pipeline `'networks.flag_implicit'`, for a complex too big to list: Rips' machinery, so with Rips' defaults.
+pub(crate) const IMPLICIT_DEFAULTS: AlgorithmDefaults = AlgorithmDefaults {
+    pipeline: "networks.flag_implicit",
     columns: Columns::Heap,
     cache: false,
     store_r: false,
@@ -29,12 +40,15 @@ pub(crate) const DEFAULTS: AlgorithmDefaults = AlgorithmDefaults {
     union_find: Some(true),
 };
 
+/// The most simplices listed explicitly when `explicit` isn't given: beyond this, the complex is computed implicitly.
+const BUDGET: usize = 1_000_000;
+
 /// An undirected graph as `(n_vertices, edges, node values, labels)`.
 type Read = (u32, Vec<(u32, u32, f64)>, Option<Vec<f64>>, Option<Vec<Py<PyAny>>>);
 
 /// Read `graph` (a networkx graph, or the number of nodes with `edges`), its edge weights (`weight`, or none) and its
 /// node values (`node_weight`: an attribute name, or a value per node).
-fn read(
+pub(crate) fn read(
     graph: &Bound<'_, PyAny>,
     edges: Option<Vec<Bound<'_, PyAny>>>,
     weight: Option<&str>,
@@ -180,8 +194,12 @@ fn read(
 /// matrix of path lengths; node values still apply). Edge weights are then lengths, so must be non-negative; with
 /// `weight=None` every edge has length 1 (the hop distance). Pairs in different components are never joined.
 ///
-/// It is computed by the same machinery as Vietoris–Rips (union-find in dimension 0, apparent pairs, and cofacets
-/// enumerated through the neighbours of the sparsest vertex), so is fast on sparse graphs.
+/// By edge weights, a complex of at most a million simplices (up to dimension `max_dim + 1`, the threshold and the
+/// enclosing radius) is listed and reduced explicitly, as `phlite.complexes` does: much the fastest for a sparse
+/// graph or arbitrary weights, as each column is built once. A bigger one, and shortest paths (a metric, joining every
+/// connected pair), are computed implicitly by the same machinery as Vietoris–Rips (union-find in dimension 0,
+/// apparent pairs, which settle nearly every column of a metric's complex without reducing it, cofacets enumerated
+/// through the neighbours of the sparsest vertex, nothing stored but the graph). `explicit` forces either.
 ///
 /// Call either as `flag(G)` with a networkx `Graph` (or `MultiGraph`, which keeps the lightest of parallel edges), or as
 /// `flag(n_vertices, edges)`.
@@ -200,10 +218,14 @@ fn read(
 ///         joined by a path, at its length).
 ///     threshold: Only build the complex up to this value (default: no limit). Bars still alive at the threshold are
 ///         reported as essential.
+///     explicit: `True` to list the complex explicitly, `False` to compute it implicitly, `None` (the default) to list
+///         it if the filtration is by weight, it has at most a million simplices, and the algorithm doesn't ask for
+///         union-find (which only the implicit computation has).
 ///     method: `'cohomology'` (the default) or `'homology'`.
 ///     algorithm: The reduction algorithm and its options, as a `phlite.core.Algorithm` (default:
 ///         `Algorithm.serial()`).
-///         Pipeline defaults (`'networks.flag'`): columns='heap', cache=False, store_r=False, union_find=True.
+///         Pipeline defaults: explicitly (`'networks.flag'`) columns='pivot', cache=False, store_r=True; implicitly
+///         (`'networks.flag_implicit'`) columns='heap', cache=False, store_r=False, union_find=True.
 ///     representatives: Whether to also compute a representative cycle for every bar. Cells are tuples of nodes (node
 ///         labels for a networkx graph).
 ///
@@ -212,7 +234,7 @@ fn read(
 #[gen_stub_pyfunction(module = "phlite.networks")]
 #[gen_stub(override_return_type(type_repr = "core.Barcode", imports = ("phlite.core")))]
 #[pyfunction]
-#[pyo3(signature = (graph, edges = None, /, max_dim = 1, *, weight = Some("weight"), node_weight = None, filtration = "weight", threshold = None, method = "cohomology", algorithm = None, representatives = false))]
+#[pyo3(signature = (graph, edges = None, /, max_dim = 1, *, weight = Some("weight"), node_weight = None, filtration = "weight", threshold = None, explicit = None, method = "cohomology", algorithm = None, representatives = false))]
 #[allow(clippy::too_many_arguments)]
 fn flag<'py>(
     py: Python<'py>,
@@ -226,6 +248,7 @@ fn flag<'py>(
     #[gen_stub(override_type(type_repr = "typing.Literal['weight', 'shortest_path']", imports = ("typing")))]
     filtration: &str,
     threshold: Option<f64>,
+    explicit: Option<bool>,
     method: &str,
     algorithm: Option<Bound<'_, PyAny>>,
     representatives: bool,
@@ -260,7 +283,32 @@ fn flag<'py>(
         )));
     }
     let method = parse_method(method)?;
-    let algorithm = algorithm_from_py(algorithm.as_ref(), &DEFAULTS)?;
+    // Explicitly, if asked for or (unless the algorithm asks for what only the implicit computation has) if the
+    // complex is small enough
+    let as_explicit = algorithm_from_py(algorithm.as_ref(), &DEFAULTS);
+    // Past the enclosing radius the complex is a cone, so nothing changes (as Rips' machinery assumes too): list only
+    // the simplices up to it
+    let listed_up_to = || {
+        use phlite_clouds::rips::Distances;
+        threshold.min(graph.enclosing_radius())
+    };
+    // By default, shortest paths (a metric, on which Rips' apparent pairs settle nearly every column without reducing
+    // it) are computed implicitly; the graph's own weights, which can be anything, explicitly if the complex is small
+    let explicit = explicit.or((filtration == "shortest_path").then_some(false));
+    let simplices = match (explicit, &as_explicit) {
+        (Some(false), _) | (None, Err(_)) => None,
+        // (Without a budget, never `None`)
+        (Some(true), _) => py.detach(|| cliques_within(&graph, max_dim + 1, listed_up_to(), usize::MAX)),
+        (None, Ok(_)) => py.detach(|| cliques_within(&graph, max_dim + 1, listed_up_to(), BUDGET)),
+    };
+    if let Some(simplices) = simplices {
+        let algorithm = as_explicit?;
+        let bars = py.detach(|| {
+            algorithm.run(ExplicitRun { simplices: &simplices, max_dim, method, representatives })
+        })?;
+        return bars.into_python(py, &algorithm, representatives, labels.as_deref());
+    }
+    let algorithm = algorithm_from_py(algorithm.as_ref(), &IMPLICIT_DEFAULTS)?;
     let bars = py.detach(|| {
         algorithm.run(FlagRun {
             graph: &graph,
@@ -306,6 +354,23 @@ impl AlgorithmVisitor for FlagRun<'_> {
             let vertices = simplex.to_vec(n);
             (vertices.len() - 1, vertices.into_iter().map(|v| v as u32).collect())
         })
+    }
+}
+
+/// Compute the explicit flag complex's barcode with whichever algorithm is configured.
+struct ExplicitRun<'a> {
+    simplices: &'a [(NotNan<f64>, Vec<u32>)],
+    max_dim: usize,
+    method: Method,
+    representatives: bool,
+}
+
+impl AlgorithmVisitor for ExplicitRun<'_> {
+    type Output = SortedBars;
+
+    fn visit<R: ColumnRepresentation>(self, algorithm: Algorithm<'_, R>) -> SortedBars {
+        let bars = explicit_flag_barcode(self.simplices, self.max_dim, self.method, algorithm, self.representatives);
+        SortedBars::new(bars, self.max_dim + 1, |simplex| (simplex.len() - 1, simplex.clone()))
     }
 }
 

@@ -123,9 +123,10 @@ def test_flag_matches_gudhi(graph, max_dim):
     note(f"n={n} edges={edges} values={values} weighted={weighted}")
     expected = gudhi_diagrams(n, edges, values, weighted, max_dim)
     d = edge_values(n, edges, values, weighted)
-    for method in METHODS:
-        barcode = call(n, edges, values, weighted, max_dim, method=method, representatives=True)
-        assert [diagram(barcode, dim) for dim in range(max_dim + 1)] == expected, method
+    # Listed explicitly, computed implicitly (by Rips' machinery), and chosen automatically
+    for method, explicit in itertools.product(METHODS, [None, True, False]):
+        barcode = call(n, edges, values, weighted, max_dim, method=method, explicit=explicit, representatives=True)
+        assert [diagram(barcode, dim) for dim in range(max_dim + 1)] == expected, (method, explicit)
         check_representatives(n, values, d, barcode, max_dim)
 
 
@@ -133,10 +134,18 @@ def test_flag_matches_gudhi(graph, max_dim):
 def test_every_algorithm_agrees(graph, max_dim):
     n, edges, values, weighted = graph
     expected = gudhi_diagrams(n, edges, values, weighted, max_dim)
-    for algorithm in algorithm_grid(Algorithm, row_ranks=False, union_find=True):
-        for method in METHODS:
-            barcode = call(n, edges, values, weighted, max_dim, method=method, algorithm=algorithm)
-            assert [diagram(barcode, dim) for dim in range(max_dim + 1)] == expected, (algorithm, method)
+    # Implicitly: Rips' options (union-find, no pivot columns); explicitly: phlite.complexes' (pivot columns)
+    grids = [(False, algorithm_grid(Algorithm, row_ranks=False, union_find=True)), (True, algorithm_grid(Algorithm))]
+    for explicit, grid in grids:
+        for algorithm in grid:
+            for method in METHODS:
+                barcode = call(n, edges, values, weighted, max_dim, method=method, algorithm=algorithm, explicit=explicit)
+                assert [diagram(barcode, dim) for dim in range(max_dim + 1)] == expected, (algorithm, method, explicit)
+    # Asking for union-find chooses the implicit computation (which has it), and can't be had explicitly
+    assert [diagram(call(n, edges, values, weighted, max_dim, algorithm=Algorithm.serial().with_union_find()), dim)
+            for dim in range(max_dim + 1)] == expected
+    with pytest.raises(ValueError):
+        call(n, edges, values, weighted, max_dim, algorithm=Algorithm.serial().with_union_find(), explicit=True)
 
 
 @given(graph=graphs(), max_dim=st.integers(0, 2), data=st.data())
@@ -145,10 +154,11 @@ def test_threshold(graph, max_dim, data):
     n, edges, values, weighted = graph
     threshold = data.draw(st.sampled_from([-1.0, 0.0, 1.0, 2.5, 5.0]))
     full = call(n, edges, values, weighted, max_dim)
-    cut = call(n, edges, values, weighted, max_dim, threshold=threshold)
-    for dim in range(max_dim + 1):
-        expected = sorted((b, d if d <= threshold else INF) for b, d in diagram(full, dim) if b <= threshold)
-        assert diagram(cut, dim) == expected
+    for explicit in [True, False]:
+        cut = call(n, edges, values, weighted, max_dim, threshold=threshold, explicit=explicit)
+        for dim in range(max_dim + 1):
+            expected = sorted((b, d if d <= threshold else INF) for b, d in diagram(full, dim) if b <= threshold)
+            assert diagram(cut, dim) == expected, explicit
 
 
 @given(graph=graphs(), max_dim=st.integers(0, 2))
