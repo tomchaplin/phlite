@@ -1,30 +1,48 @@
+/* Catppuccin (https://catppuccin.com/palette): Latte in light mode, Macchiato in dark, as the rest of the docs */
 :root {
-  --bg: #f7f7f5;
-  --panel: #ffffff;
-  --panel2: #f0f0ec;
-  --fg: #1d1f24;
-  --muted: #646a73;
-  --line: #d9d9d4;
-  --accent: #4c78a8;
-  --danger: #c0392b;
-  --green: #287900;
-  --plane-light: #f7f7f7;
-  --plane-dark: #ebebeb;
+  --bg: #e6e9ef;          /* mantle */
+  --panel: #eff1f5;       /* base */
+  --panel2: #dce0e8;      /* crust */
+  --fg: #4c4f69;          /* text */
+  --muted: #6c6f85;       /* subtext0 */
+  --line: #bcc0cc;        /* surface1 */
+  --accent: #1e66f5;      /* blue */
+  --on-accent: #eff1f5;   /* base */
+  --danger: #d20f39;      /* red */
+  --green: #40a02b;
+  --plane-light: #eff1f5;
+  --plane-dark: #ccd0da;  /* surface0 */
+  --points: #5c5f77;      /* subtext1: points and edges drawn on the data */
+  --edges: #8c8fa1;       /* overlay1 */
+  /* Homology dimensions 0-4: blue, peach, green, red, mauve */
+  --dim0: #1e66f5;
+  --dim1: #fe640b;
+  --dim2: #40a02b;
+  --dim3: #d20f39;
+  --dim4: #8839ef;
   color-scheme: light;
 }
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #15171b;
-    --panel: #1d2026;
-    --panel2: #262a31;
-    --fg: #e7e9ec;
-    --muted: #9aa1ab;
-    --line: #353a43;
-    --accent: #7aa6d6;
-    --danger: #ff7a6b;
-    --green: #6cc644;
-    --plane-light: #2a2e36;
-    --plane-dark: #353a43;
+    --bg: #181926;        /* crust */
+    --panel: #24273a;     /* base */
+    --panel2: #363a4f;    /* surface0 */
+    --fg: #cad3f5;        /* text */
+    --muted: #a5adcb;     /* subtext0 */
+    --line: #494d64;      /* surface1 */
+    --accent: #8aadf4;    /* blue */
+    --on-accent: #181926; /* crust */
+    --danger: #ed8796;    /* red */
+    --green: #a6da95;
+    --plane-light: #363a4f;
+    --plane-dark: #494d64;
+    --points: #b8c0e0;    /* subtext1 */
+    --edges: #8087a2;     /* overlay1 */
+    --dim0: #8aadf4;
+    --dim1: #f5a97f;
+    --dim2: #a6da95;
+    --dim3: #ed8796;
+    --dim4: #c6a0f6;
     color-scheme: dark;
   }
 }
@@ -38,7 +56,7 @@ button {
 }
 button:hover:not(:disabled) { border-color: var(--accent); }
 button:disabled { opacity: 0.5; cursor: default; }
-button.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+button.primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); font-weight: 600; }
 button.link { background: none; border: none; padding: 0; color: var(--accent); }
 select, input[type='number'], input[type='text'], textarea {
   background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 0.25rem 0.4rem;

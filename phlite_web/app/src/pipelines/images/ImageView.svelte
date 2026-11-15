@@ -1,5 +1,6 @@
 <script lang="ts">
   import { dimColour, type Bar } from '../../lib/types';
+  import { cssColour, rgb } from '../../lib/palette.svelte';
   import type { Img } from './data';
 
   let {
@@ -37,12 +38,13 @@
     const c = new OffscreenCanvas(img.width, img.height);
     const ctx = c.getContext('2d')!;
     const data = ctx.createImageData(img.width, img.height);
+    const tint = rgb(dimColour(0));
     for (let i = 0; i < img.pixels.length; i++) {
       const v = Math.round(255 * Math.min(1, Math.max(0, img.pixels[i])));
       const inSet = t !== null && (superlevel ? img.pixels[i] >= t : img.pixels[i] <= t);
-      data.data[4 * i] = inSet ? Math.round(v * 0.45 + 76 * 0.55) : v;
-      data.data[4 * i + 1] = inSet ? Math.round(v * 0.45 + 120 * 0.55) : v;
-      data.data[4 * i + 2] = inSet ? Math.round(v * 0.45 + 168 * 0.55 + 40) : v;
+      data.data[4 * i] = inSet ? Math.round(v * 0.45 + tint[0] * 0.55) : v;
+      data.data[4 * i + 1] = inSet ? Math.round(v * 0.45 + tint[1] * 0.55) : v;
+      data.data[4 * i + 2] = inSet ? Math.round(v * 0.45 + tint[2] * 0.55) : v;
       data.data[4 * i + 3] = 255;
     }
     ctx.putImageData(data, 0, 0);
@@ -93,13 +95,13 @@
       }
       // The pixel where the class is born, and the cell that kills it
       ctx.lineWidth = 2;
-      ctx.strokeStyle = '#e45756';
+      ctx.strokeStyle = cssColour('--danger');
       ctx.setLineDash([3, 2]);
       if (bar.death_cell) cell(bar.death_cell, 'death');
       ctx.setLineDash([]);
     }
     if (painting && hover) {
-      ctx.strokeStyle = '#e45756';
+      ctx.strokeStyle = cssColour('--danger');
       ctx.lineWidth = 1;
       ctx.beginPath();
       ctx.arc(hover[0], hover[1], brush * scale, 0, 2 * Math.PI);

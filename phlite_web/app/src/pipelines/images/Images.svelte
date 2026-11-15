@@ -101,7 +101,7 @@
       </div>
       <div class="legend" style="margin-top: 0.4rem">
         <span>{img.width}×{img.height} pixels</span>
-        <span><i style="background: #4c78a8"></i>the {superlevel ? 'superlevel' : 'sublevel'} set at the slider's value</span>
+        <span><i style="background: var(--dim0)"></i>the {superlevel ? 'superlevel' : 'sublevel'} set at the slider's value</span>
         {#if bar}<span>coloured: the representative · red dashes: the cell that kills it</span>{/if}
       </div>
     </div>

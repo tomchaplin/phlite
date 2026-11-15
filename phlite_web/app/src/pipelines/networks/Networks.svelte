@@ -161,7 +161,7 @@
       </div>
       <div class="legend" style="margin-top: 0.4rem">
         <span>{g.nodes.length} nodes, {g.edges.length} edges</span>
-        {#if dist}<span><i style="background: #54a24b"></i>new edges: pairs joined by a path no longer than the slider</span>{/if}
+        {#if dist}<span><i style="background: var(--green)"></i>new edges: pairs joined by a path no longer than the slider</span>{/if}
         {#if bar}<span>coloured: the representative (dashed if not an edge of the graph) · red: what kills it</span>{/if}
       </div>
     </div>

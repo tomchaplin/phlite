@@ -70,5 +70,5 @@
   .lab { font-size: 10px; fill: var(--muted); }
   .lab.row { text-anchor: end; }
   .birth { fill: none; stroke: var(--accent); stroke-width: 1.5; }
-  .death { fill: none; stroke: #e45756; stroke-width: 1.5; stroke-dasharray: 3 2; }
+  .death { fill: none; stroke: var(--danger); stroke-width: 1.5; stroke-dasharray: 3 2; }
 </style>

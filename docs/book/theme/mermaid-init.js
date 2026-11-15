@@ -12,7 +12,33 @@
       div.textContent = code.textContent;
       code.parentElement.replaceWith(div);
     });
-    window.mermaid.initialize({ startOnLoad: false, theme: dark ? "dark" : "neutral" });
+    // The book's Catppuccin palette (theme/catppuccin.css), as mermaid's base theme's variables
+    const style = getComputedStyle(document.documentElement);
+    const c = (name) => style.getPropertyValue("--ctp-" + name).trim();
+    window.mermaid.initialize({
+      startOnLoad: false,
+      theme: "base",
+      darkMode: dark,
+      themeVariables: {
+        background: c("base"),
+        primaryColor: c("surface0"),
+        primaryTextColor: c("text"),
+        primaryBorderColor: c("blue"),
+        secondaryColor: c("mantle"),
+        secondaryTextColor: c("text"),
+        secondaryBorderColor: c("surface2"),
+        tertiaryColor: c("crust"),
+        tertiaryTextColor: c("text"),
+        tertiaryBorderColor: c("surface2"),
+        lineColor: c("overlay2"),
+        textColor: c("text"),
+        mainBkg: c("surface0"),
+        nodeBorder: c("blue"),
+        clusterBkg: c("mantle"),
+        clusterBorder: c("surface2"),
+        edgeLabelBackground: c("base"),
+      },
+    });
     window.mermaid.run({ querySelector: ".mermaid" });
   };
   document.head.appendChild(script);

@@ -54,7 +54,7 @@
 
   const present = (i: number) => t === null || values[i] <= t;
   const repCells = $derived(new Map((bar?.rep ?? []).map(([coeff, cell]) => [cell[0], coeff])));
-  const colour = $derived(bar ? dimColour(bar.dim) : '#000');
+  const colour = $derived(bar ? dimColour(bar.dim) : 'currentColor');
   const order = $derived(c.map((_, i) => i).sort((a, b) => c[b].dim - c[a].dim));
   const showLabels = $derived(c.filter((x) => x.dim === 0).length <= 40);
 
@@ -195,11 +195,11 @@
 </div>
 
 <style>
-  .tri { fill: #4c78a8; fill-opacity: 0.18; stroke: none; }
+  .tri { fill: var(--dim0); fill-opacity: 0.18; stroke: none; }
   .edge { stroke: var(--fg); stroke-width: 1.6; stroke-linecap: round; }
   .vertex { fill: var(--fg); }
   .vertex.picked { fill: var(--accent); }
   .absent { opacity: 0.12; }
   .label { font-size: 11px; fill: var(--muted); pointer-events: none; }
-  .death { fill: none; stroke: #e45756; stroke-width: 2; stroke-dasharray: 4 3; pointer-events: none; }
+  .death { fill: none; stroke: var(--danger); stroke-width: 2; stroke-dasharray: 4 3; pointer-events: none; }
 </style>

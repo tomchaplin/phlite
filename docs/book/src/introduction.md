@@ -62,7 +62,7 @@ boundary oracles, apparent and emergent pairs included).
 
 ### "I want to understand how phlite works"
 
-Read the book in order. [Background](background/persistence.md) recaps persistent homology as matrix reduction on one
+Read the book from [Background](background/persistence.md) on: it recaps persistent homology as matrix reduction on one
 small example that every later chapter comes back to; [How phlite is built](design/oracles.md) explains the oracle
 traits; the chapters on [reduction algorithms](algorithms/standard.md) and
 [column representations](columns/overview.md) explain every algorithm and trick (how it works, why it helps, and when

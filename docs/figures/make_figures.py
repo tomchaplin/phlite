@@ -19,15 +19,21 @@ from matplotlib.patches import FancyArrowPatch, Rectangle  # noqa: E402
 
 OUT = os.path.join(os.path.dirname(__file__), "..", "book", "src", "figures")
 
-# A palette that reads on white (figures sit on a white card in every book theme)
-INK = "#222222"
-MUTED = "#9a9a9a"
-PALE = "#eeeeee"
-BLUE = "#3b6fb6"
-ORANGE = "#e07b39"
-GREEN = "#3a9d5d"
-RED = "#c8453a"
-PURPLE = "#7d5ba6"
+# Catppuccin Latte (https://catppuccin.com/palette), as the rest of the docs: the figures sit on a Latte card in every
+# book theme (light or dark)
+BASE = "#eff1f5"  # base: the background
+INK = "#4c4f69"  # text
+MUTED = "#8c8fa1"  # overlay1
+PALE = "#dce0e8"  # crust
+GRID = "#bcc0cc"  # surface1
+EDGE = "#9ca0b0"  # overlay0
+BLUE = "#1e66f5"
+ORANGE = "#fe640b"  # peach
+GREEN = "#40a02b"
+RED = "#d20f39"
+PURPLE = "#8839ef"  # mauve
+BLUE_TINT = "#d0dcf5"  # 15% blue over base
+PEACH_TINT = "#f1dcd2"  # 15% peach over base
 DIM_COLOURS = [BLUE, ORANGE, GREEN]
 
 plt.rcParams.update(
@@ -85,7 +91,7 @@ ESSENTIAL = [i for i in range(N) if i not in PAIRED]
 
 def save(fig, name):
     os.makedirs(OUT, exist_ok=True)
-    fig.savefig(os.path.join(OUT, name), bbox_inches="tight", transparent=False, facecolor="white",
+    fig.savefig(os.path.join(OUT, name), bbox_inches="tight", transparent=False, facecolor=BASE,
                 metadata={"Date": None})
     plt.close(fig)
     print("wrote", name)
@@ -179,8 +185,9 @@ def fig_filtration():
     chart = (
         alt.hconcat(*panels)
         .properties(title="A filtration: cells enter over time (new cells in orange)")
-        .configure_view(stroke=None)
-        .configure_title(fontSize=13, anchor="middle")
+        .configure_view(stroke=None, fill=BASE)
+        .configure(background=BASE)
+        .configure_title(fontSize=13, anchor="middle", color=INK)
     )
     save_altair(chart, "filtration.svg")
 
@@ -212,8 +219,9 @@ def fig_barcode():
     chart = (
         (bars_ + arrows + labels)
         .properties(width=420, height=140, title="Its barcode (H0 blue, H1 orange)")
-        .configure_view(stroke=None)
-        .configure_axis(grid=False)
+        .configure_view(stroke=None, fill=BASE)
+        .configure(background=BASE)
+        .configure_axis(grid=False, labelColor=INK, titleColor=INK, domainColor=INK, tickColor=INK)
     )
     save_altair(chart, "barcode.svg")
 
@@ -225,9 +233,9 @@ def draw_matrix(ax, columns, title, row_labels=None, col_labels=None, highlight_
     row_labels = row_labels or [c[0] for c in CELLS]
     col_labels = col_labels or [c[0] for c in CELLS]
     for j in shade_cols:
-        ax.add_patch(Rectangle((j, 0), 1, n_rows, facecolor="#dfe9f7", edgecolor="none"))
+        ax.add_patch(Rectangle((j, 0), 1, n_rows, facecolor=BLUE_TINT, edgecolor="none"))
     for i in shade_rows:
-        ax.add_patch(Rectangle((0, i), n_cols, 1, facecolor="#fbe6d8", edgecolor="none"))
+        ax.add_patch(Rectangle((0, i), n_cols, 1, facecolor=PEACH_TINT, edgecolor="none"))
     for j in cleared:
         ax.add_patch(Rectangle((j, 0), 1, n_rows, facecolor=PALE, edgecolor="none", hatch="///"))
     for j, col in enumerate(columns):
@@ -237,14 +245,14 @@ def draw_matrix(ax, columns, title, row_labels=None, col_labels=None, highlight_
             if is_pivot:
                 ax.add_patch(Rectangle((j + 0.08, i + 0.08), 0.84, 0.84, facecolor=ORANGE, edgecolor="none"))
             ax.text(j + 0.5, i + 0.52, "1", ha="center", va="center",
-                    color="white" if is_pivot else entry_colour, fontsize=10, fontweight="bold" if is_pivot else None)
+                    color=BASE if is_pivot else entry_colour, fontsize=10, fontweight="bold" if is_pivot else None)
     if mark:
         for (i, j), colour in mark.items():
             ax.add_patch(Rectangle((j + 0.04, i + 0.04), 0.92, 0.92, facecolor="none", edgecolor=colour, lw=2.5))
     for k in range(n_cols + 1):
-        ax.plot([k, k], [0, n_rows], color="#d0d0d0", lw=0.6)
+        ax.plot([k, k], [0, n_rows], color=GRID, lw=0.6)
     for k in range(n_rows + 1):
-        ax.plot([0, n_cols], [k, k], color="#d0d0d0", lw=0.6)
+        ax.plot([0, n_cols], [k, k], color=GRID, lw=0.6)
     ax.set_xlim(0, n_cols)
     ax.set_ylim(n_rows, 0)
     ax.set_xticks([k + 0.5 for k in range(n_cols)])
@@ -278,10 +286,10 @@ def fig_reduction_step():
         for i in range(3):
             filled = i in col
             is_pivot = col and i == max(col)
-            ax.add_patch(Rectangle((0, i), 1, 1, facecolor=ORANGE if is_pivot else ("#dfe9f7" if filled else "white"),
-                                   edgecolor="#bbbbbb"))
+            ax.add_patch(Rectangle((0, i), 1, 1, facecolor=ORANGE if is_pivot else (BLUE_TINT if filled else BASE),
+                                   edgecolor=EDGE))
             ax.text(0.5, i + 0.5, "1" if filled else "", ha="center", va="center",
-                    color="white" if is_pivot else INK, fontweight="bold")
+                    color=BASE if is_pivot else INK, fontweight="bold")
             ax.text(-0.25, i + 0.5, rows[i], ha="right", va="center")
         ax.set_xlim(-0.8, 1.2)
         ax.set_ylim(3.2, -0.6)
@@ -358,7 +366,7 @@ def fig_store_r():
     ax.text(7.6, 3.15, "Store R (store_r): add R_j once", ha="center", fontsize=11, fontweight="bold")
     column(7.35, 0.6, 1.8, "R_j", ORANGE, 0.45)
     ax.text(7.6, 2.65, "one column, kept from when j was reduced", ha="center", fontsize=9.5)
-    ax.plot([5.1, 5.1], [0.3, 3.2], color="#cccccc", lw=1)
+    ax.plot([5.1, 5.1], [0.3, 3.2], color=GRID, lw=1)
     save(fig, "store_r.svg")
 
 
@@ -386,7 +394,7 @@ def fig_heap():
     for k, (x, y, label) in nodes.items():
         colour = ORANGE if k == 0 else (RED if label == "7" else BLUE)
         ax.scatter([x], [y], s=650, color=colour, zorder=1)
-        ax.text(x, y, label, ha="center", va="center", color="white", fontweight="bold")
+        ax.text(x, y, label, ha="center", va="center", color=BASE, fontweight="bold")
     ax.text(0.2, 2.6, "every term of every\ncolumn added is pushed", fontsize=10, va="center")
     ax.text(7.2, 2.6, "pop the top (the pivot);\nequal rows (7, red) are\nsummed as they surface", fontsize=10, va="center")
     save(fig, "heap.svg")
@@ -405,14 +413,14 @@ def fig_merged():
         for k, v in enumerate(run):
             colour = MUTED if k < cur else (ORANGE if k == cur else BLUE)
             ax.add_patch(Rectangle((1.2 + 0.6 * k, y), 0.5, 0.42, facecolor=colour, alpha=0.85 if k >= cur else 0.4))
-            ax.text(1.45 + 0.6 * k, y + 0.21, str(v), ha="center", va="center", color="white", fontweight="bold")
+            ax.text(1.45 + 0.6 * k, y + 0.21, str(v), ha="center", va="center", color=BASE, fontweight="bold")
         ax.annotate("", xy=(1.45 + 0.6 * cur, y + 0.47), xytext=(1.45 + 0.6 * cur, y + 0.78),
                     arrowprops=dict(arrowstyle="->", color=INK))
     hx, hy = 6.8, 2.2
     ax.text(hx + 0.8, 3.35, "heap of cursors (one per run)", ha="center", fontsize=10)
     for k, (x, y, v) in enumerate([(hx + 0.8, 2.6, "8"), (hx + 0.2, 1.6, "7"), (hx + 1.4, 1.6, "6")]):
         ax.scatter([x], [y], s=600, color=ORANGE if k == 0 else BLUE, zorder=2)
-        ax.text(x, y, v, ha="center", va="center", color="white", fontweight="bold", zorder=3)
+        ax.text(x, y, v, ha="center", va="center", color=BASE, fontweight="bold", zorder=3)
     ax.plot([hx + 0.8, hx + 0.2], [2.6, 1.6], color=MUTED, zorder=1)
     ax.plot([hx + 0.8, hx + 1.4], [2.6, 1.6], color=MUTED, zorder=1)
     ax.text(hx + 0.8, 0.7, "pivot = top cursor;\nterms below it are never read", ha="center", fontsize=10)
@@ -430,11 +438,11 @@ def fig_sorted():
     for k, v in enumerate(sorted_vec):
         moved = v > 4
         ax.add_patch(Rectangle((2.2 + 0.6 * k, 2.0), 0.5, 0.45, facecolor=ORANGE if moved else BLUE, alpha=0.85))
-        ax.text(2.45 + 0.6 * k, 2.22, str(v), ha="center", va="center", color="white", fontweight="bold")
+        ax.text(2.45 + 0.6 * k, 2.22, str(v), ha="center", va="center", color=BASE, fontweight="bold")
     ax.text(0.1, 1.25, "pending (unsorted)", fontsize=10)
     for k, v in enumerate(pending):
         ax.add_patch(Rectangle((2.2 + 0.6 * k, 1.0), 0.5, 0.45, facecolor=GREEN, alpha=0.85))
-        ax.text(2.45 + 0.6 * k, 1.22, str(v), ha="center", va="center", color="white", fontweight="bold")
+        ax.text(2.45 + 0.6 * k, 1.22, str(v), ha="center", va="center", color=BASE, fontweight="bold")
     ax.text(6.3, 1.9, "on the next pivot query, sort the pending terms\nand merge them in from the smallest (5):\n"
             "terms below it (blue) stay put, the rest are\nrewritten (orange). The pivot is the last term.",
             fontsize=9.5, va="center")
@@ -450,7 +458,7 @@ def fig_bit_tree():
     ax.text(0.1, 1.95, "level 0: one bit per rank (64 per word)", fontsize=10)
     top = [1, 0, 1, 1, 0, 0, 0, 1]
     for k, b in enumerate(top):
-        ax.add_patch(Rectangle((1.0 + 1.0 * k, 2.6), 0.9, 0.35, facecolor=ORANGE if b else PALE, edgecolor="#bbbbbb"))
+        ax.add_patch(Rectangle((1.0 + 1.0 * k, 2.6), 0.9, 0.35, facecolor=ORANGE if b else PALE, edgecolor=EDGE))
         ax.text(1.45 + 1.0 * k, 2.77, str(b), ha="center", va="center", fontsize=9)
     import random
 
@@ -459,8 +467,8 @@ def fig_bit_tree():
         for m in range(8):
             bit = b and rng.random() < 0.35
             ax.add_patch(Rectangle((1.0 + 1.0 * k + 0.11 * m, 1.35), 0.1, 0.35,
-                                   facecolor=BLUE if bit else PALE, edgecolor="#cccccc", lw=0.4))
-        ax.plot([1.45 + 1.0 * k, 1.45 + 1.0 * k], [2.6, 1.72], color="#cccccc", lw=0.8)
+                                   facecolor=BLUE if bit else PALE, edgecolor=GRID, lw=0.4))
+        ax.plot([1.45 + 1.0 * k, 1.45 + 1.0 * k], [2.6, 1.72], color=GRID, lw=0.8)
     ax.text(5.0, 0.6, "add an entry: flip its bit (equal entries cancel at once).  pivot: the highest set bit,\n"
             "found by a bit-scan at each level, top down. A slot array beside the bits holds each entry.",
             ha="center", fontsize=9.5)
@@ -508,10 +516,10 @@ def fig_ranks():
     ax.text(0.1, 0.6, "by rank", fontsize=10, va="center")
     for i, v in enumerate(values):
         ax.add_patch(Rectangle((2.0 + 1.2 * i, 2.2), 0.9, 0.45, facecolor=BLUE, alpha=0.85))
-        ax.text(2.45 + 1.2 * i, 2.42, f"{i} ({v})", ha="center", va="center", color="white", fontsize=9.5)
+        ax.text(2.45 + 1.2 * i, 2.42, f"{i} ({v})", ha="center", va="center", color=BASE, fontsize=9.5)
     for r, i in enumerate(order):
         ax.add_patch(Rectangle((2.0 + 1.2 * r, 0.4), 0.9, 0.45, facecolor=ORANGE, alpha=0.85))
-        ax.text(2.45 + 1.2 * r, 0.62, f"r{r} = {i}", ha="center", va="center", color="white", fontsize=9.5)
+        ax.text(2.45 + 1.2 * r, 0.62, f"r{r} = {i}", ha="center", va="center", color=BASE, fontsize=9.5)
         ax.annotate("", xy=(2.45 + 1.2 * r, 0.88), xytext=(2.45 + 1.2 * i, 2.18),
                     arrowprops=dict(arrowstyle="->", color=MUTED, lw=1))
     save(fig, "ranks.svg")

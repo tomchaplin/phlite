@@ -56,7 +56,7 @@
 
   const repEdges = $derived(bar?.rep ? bar.rep.filter(([, c]) => c.length === 2).map(([, c]) => c) : []);
   const repNodes = $derived(new Set(bar?.rep ? bar.rep.filter(([, c]) => c.length === 1).map(([, c]) => c[0]) : []));
-  const colour = $derived(bar ? dimColour(bar.dim) : '#000');
+  const colour = $derived(bar ? dimColour(bar.dim) : 'currentColor');
 
   // ---- Editing ----
   let svg: SVGSVGElement;
@@ -149,7 +149,7 @@
     onpointerup={up}
   >
     <defs>
-      {#each [['grey', 'var(--muted)'], ['new', '#54a24b'], ['rep', colour], ['sel', 'var(--accent)']] as [id, fill]}
+      {#each [['grey', 'var(--muted)'], ['new', 'var(--green)'], ['rep', colour], ['sel', 'var(--accent)']] as [id, fill]}
         <marker id="arrow-{id}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
           <path d="M0,0 L10,5 L0,10 z" style="fill: {fill}" />
         </marker>
@@ -200,10 +200,10 @@
   .edge { fill: none; stroke: var(--muted); stroke-width: 1.4; }
   .edge.sel { stroke: var(--accent); stroke-width: 2.5; }
   .hit { fill: none; stroke: transparent; stroke-width: 12; cursor: pointer; }
-  .new { fill: none; stroke: #54a24b; stroke-width: 1; stroke-dasharray: 4 3; opacity: 0.7; }
+  .new { fill: none; stroke: var(--green); stroke-width: 1; stroke-dasharray: 4 3; opacity: 0.7; }
   .rep { fill: none; stroke-width: 4; opacity: 0.9; pointer-events: none; }
   .rep.shortcut { stroke-dasharray: 6 4; }
-  .death { fill: none; stroke: #e45756; stroke-width: 2; stroke-dasharray: 3 3; pointer-events: none; }
+  .death { fill: none; stroke: var(--danger); stroke-width: 2; stroke-dasharray: 3 3; pointer-events: none; }
   .drag { stroke: var(--accent); stroke-width: 2; stroke-dasharray: 4 3; }
   .node { fill: var(--panel); stroke: var(--fg); stroke-width: 1.5; }
   .node.rep { stroke-width: 2.5; }

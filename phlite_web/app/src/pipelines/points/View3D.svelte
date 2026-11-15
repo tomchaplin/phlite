@@ -3,6 +3,7 @@
   import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
   import { onMount } from 'svelte';
   import { dimColour, type Bar } from '../../lib/types';
+  import { cssColour } from '../../lib/palette.svelte';
   import { countUpTo } from './data';
 
   let {
@@ -80,7 +81,7 @@
     clear(groups.points);
     const { r } = centre;
     const geometry = new THREE.SphereGeometry(r * (points.length > 500 ? 0.008 : 0.014), 8, 6);
-    const material = new THREE.MeshLambertMaterial({ color: 0x555b66 });
+    const material = new THREE.MeshLambertMaterial({ color: new THREE.Color(cssColour('--points')) });
     const mesh = new THREE.InstancedMesh(geometry, material, points.length);
     const m = new THREE.Matrix4();
     points.forEach((p, i) => mesh.setMatrixAt(i, m.makeTranslation(p[0], p[1], p[2])));
@@ -102,7 +103,7 @@
       const geometry = new THREE.BufferGeometry();
       geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
       groups.complex.add(
-        new THREE.LineSegments(geometry, new THREE.LineBasicMaterial({ color: 0x8a919c, transparent: true, opacity: count > 3000 ? 0.18 : 0.4 })),
+        new THREE.LineSegments(geometry, new THREE.LineBasicMaterial({ color: new THREE.Color(cssColour('--edges')), transparent: true, opacity: count > 3000 ? 0.18 : 0.4 })),
       );
     }
     render();

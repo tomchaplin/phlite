@@ -15,7 +15,11 @@ git-repository-url = "https://github.com/tomchaplin/phlite"
 mathjax-support = true
 # Mermaid diagrams (```mermaid blocks) are rendered in the browser by this script, which loads mermaid itself
 additional-js = ["theme/mermaid-init.js"]
-additional-css = ["theme/figures.css"]
+additional-css = ["theme/catppuccin.css", "theme/figures.css"]
+# Catppuccin throughout (theme/catppuccin.css): Latte for the light themes, Macchiato for the dark ones, the system's
+# preference choosing between them
+default-theme = "light"
+preferred-dark-theme = "navy"
 
 [output.html.fold]
 enable = true
