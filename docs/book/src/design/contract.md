@@ -27,7 +27,10 @@ since `C: Ord`.
 3. **A chain complex**: \\(D^2 = 0\\) over your coefficient field. If faces of faces don't cancel, there is no
    homology to compute.
 4. **The basis order**: the column basis lists every cell, and each dimension's cells in increasing filtration
-   order. A basis split by dimension (which the barcode functions require, for clearing) lists the dimensions one
+   order: **the same order the rows are compared in**, by `filtration_value` and then `C`'s `Ord`. Columns have no
+   order of their own; the reduction assumes that the order it visits columns in is the order of those cells as
+   rows. So ties in filtration value must be broken by `C`'s `Ord` in the basis too, not by any other rule (a basis
+   sorted by value alone, with ties in insertion order, breaks this). A basis split by dimension (which the barcode functions require, for clearing) lists the dimensions one
    after another, so it isn't sorted overall; nor need it be, since columns of different dimensions never share a
    row, so never meet in a reduction. Each column's rows are cells of one dimension lower (boundary) or higher
    (coboundary).
