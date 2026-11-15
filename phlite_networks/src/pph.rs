@@ -665,15 +665,32 @@ where
     CF: NonZeroCoefficient + Invertible + Send + Sync + 'static,
     R: ColumnRepresentation,
 {
+    #[allow(unreachable_patterns)]
+    let parallel = matches!(algorithm, Algorithm::ParallelClearing(_));
+    pph_barcode_with(network, max_dim, method, algorithm, representatives, parallel)
+}
+
+/// As [`pph_barcode`], choosing whether to enumerate paths in parallel on the current rayon thread pool
+/// (`parallel_setup`, which [`pph_barcode`] does only for the parallel algorithm), whatever the algorithm.
+pub fn pph_barcode_with<CF, R>(
+    network: &Network,
+    max_dim: usize,
+    method: Method,
+    algorithm: Algorithm<'_, R>,
+    representatives: bool,
+    parallel_setup: bool,
+) -> Vec<PPHBar<CF>>
+where
+    CF: NonZeroCoefficient + Invertible + Send + Sync + 'static,
+    R: ColumnRepresentation,
+{
     assert!(
         max_dim < network.max_dimension(),
         "paths of dimension {} can't be encoded on {} vertices",
         max_dim + 1,
         network.n_vertices()
     );
-    // Enumerate paths in parallel only for the parallel algorithm, on whatever rayon pool we're called from
-    #[allow(unreachable_patterns)]
-    let parallel = matches!(algorithm, Algorithm::ParallelClearing(_));
+    let parallel = parallel_setup;
     let boundary = PPHBoundary::<CF>::new(network);
     let coboundary = PPHCoboundary::<CF>::new(network);
     let bars = match method {

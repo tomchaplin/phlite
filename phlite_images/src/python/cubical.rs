@@ -104,6 +104,7 @@ fn cubical<'py>(
             method,
             representatives,
             union_find: algorithm.union_find(),
+            parallel_setup: algorithm.parallel_setup(),
         })
     })?;
     bars.map_err(PyValueError::new_err)?
@@ -135,6 +136,7 @@ struct CubicalRun {
     method: Method,
     representatives: bool,
     union_find: bool,
+    parallel_setup: bool,
 }
 
 impl CubicalRun {
@@ -155,6 +157,7 @@ impl CubicalRun {
             self.representatives,
             false,
             self.union_find,
+                    self.parallel_setup,
         );
         let bars = SortedBars::new(bars, self.max_dim + 1, |cube| {
             (complex.dimension(*cube), complex.coordinates(*cube).to_vec())

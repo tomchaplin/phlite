@@ -107,6 +107,28 @@ def test_unset_options_are_shown():
     assert Algorithm.serial().columns is None and Algorithm.serial().with_cache(None) == Algorithm.serial()
 
 
+def test_parallel_setup():
+    """Unset, the setup follows the algorithm; set, either way round, and threads size a serial algorithm's parallel
+    setup."""
+    assert Algorithm.serial().parallel_setup is None
+    assert "parallel_setup" not in repr(Algorithm.serial().resolve("clouds.rips"))
+    mixed = Algorithm.serial().with_parallel_setup().with_threads(2)
+    assert mixed.parallel_setup is True and mixed.threads == 2
+    assert repr(mixed).endswith("threads=2, parallel_setup=True)")
+    assert repr(Algorithm.parallel().with_parallel_setup(False)).endswith("parallel_setup=False)")
+    with pytest.raises(ValueError, match="threads"):
+        Algorithm.serial().with_threads(2)
+    assert mixed.resolve("clouds.rips").parallel_setup is True
+    from phlite.clouds import rips
+
+    points = [[0.0, 0.0], [1.0, 0.0], [0.0, 1.0], [1.0, 1.0]]
+    expected = rips(points=points)
+    for algorithm in [mixed, Algorithm.parallel().with_parallel_setup(False)]:
+        barcode = rips(points=points, algorithm=algorithm)
+        assert (barcode.pairings, barcode.essential) == (expected.pairings, expected.essential)
+        assert barcode.algorithm.parallel_setup == algorithm.parallel_setup
+
+
 def test_union_find_only_where_supported():
     assert Algorithm.serial().resolve("clouds.rips").union_find is True
     assert Algorithm.serial().with_union_find(False).resolve("clouds.rips").union_find is False

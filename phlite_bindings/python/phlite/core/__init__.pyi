@@ -36,6 +36,11 @@ class Algorithm:
     algorithm that computed it (`barcode.algorithm`).
     """
     @property
+    def parallel_setup(self) -> typing.Optional[builtins.bool]:
+        r"""
+        Whether the setup runs in parallel, or `None` to follow the algorithm.
+        """
+    @property
     def union_find(self) -> typing.Optional[builtins.bool]:
         r"""
         Whether dimension 0 is found by union-find, or `None` for the pipeline's default.
@@ -179,7 +184,8 @@ class Algorithm:
         """
     def with_threads(self, threads: typing.Optional[builtins.int]) -> Algorithm:
         r"""
-        The number of threads for the parallel algorithm, or `None` for all cores.
+        The number of threads for the parallel algorithm (and for a parallel setup, see `with_parallel_setup`), or
+        `None` for all cores.
         """
     def with_union_find(self, union_find: typing.Optional[builtins.bool] = True) -> Algorithm:
         r"""
@@ -192,6 +198,15 @@ class Algorithm:
         the dimensions above are reduced. Reducing dimension 0 is most of the time of a Vietoris–Rips barcode of points
         in the plane (2–3× slower than union-find), and of a cubical one. Representatives come from the union-find too
         (a component's: its birth vertex plus the oldest vertex of the component it joins).
+        """
+    def with_parallel_setup(self, parallel: typing.Optional[builtins.bool] = True) -> Algorithm:
+        r"""
+        Whether to do the work before the reduction in parallel (building the bases of the matrices, sorting cells for
+        union-find, enumerating paths), or `None` (the default) to follow the algorithm: in parallel for parallel
+        clearing, serially otherwise. So `Algorithm.serial().with_parallel_setup()` builds in parallel and reduces
+        serially, and `Algorithm.parallel().with_parallel_setup(False)` the other way round. With `with_threads`, a
+        parallel setup runs on that many threads (for a serial algorithm too), else on all cores. Pipelines with
+        nothing to set up in parallel (explicit complexes, alpha, GrPPH) ignore it.
         """
     def resolve(self, pipeline: builtins.str) -> Algorithm:
         r"""

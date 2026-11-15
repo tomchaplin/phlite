@@ -179,7 +179,8 @@ impl AlgorithmConfig {
         self.with(|spec| spec.storage = storage)
     }
 
-    /// The number of threads for the parallel algorithm, or `None` for all cores.
+    /// The number of threads for the parallel algorithm (and for a parallel setup, see `with_parallel_setup`), or
+    /// `None` for all cores.
     #[pyo3(signature = (threads))]
     fn with_threads(&self, threads: Option<usize>) -> PyResult<Self> {
         self.with(|spec| spec.threads = threads)
@@ -197,6 +198,23 @@ impl AlgorithmConfig {
     #[pyo3(signature = (union_find = Some(true)))]
     fn with_union_find(&self, union_find: Option<bool>) -> PyResult<Self> {
         self.with(|spec| spec.union_find = union_find)
+    }
+
+    /// Whether to do the work before the reduction in parallel (building the bases of the matrices, sorting cells for
+    /// union-find, enumerating paths), or `None` (the default) to follow the algorithm: in parallel for parallel
+    /// clearing, serially otherwise. So `Algorithm.serial().with_parallel_setup()` builds in parallel and reduces
+    /// serially, and `Algorithm.parallel().with_parallel_setup(False)` the other way round. With `with_threads`, a
+    /// parallel setup runs on that many threads (for a serial algorithm too), else on all cores. Pipelines with
+    /// nothing to set up in parallel (explicit complexes, alpha, GrPPH) ignore it.
+    #[pyo3(signature = (parallel = Some(true)))]
+    fn with_parallel_setup(&self, parallel: Option<bool>) -> PyResult<Self> {
+        self.with(|spec| spec.parallel_setup = parallel)
+    }
+
+    /// Whether the setup runs in parallel, or `None` to follow the algorithm.
+    #[getter]
+    fn parallel_setup(&self) -> Option<bool> {
+        self.spec.parallel_setup
     }
 
     /// Whether dimension 0 is found by union-find, or `None` for the pipeline's default.
@@ -312,10 +330,16 @@ impl AlgorithmConfig {
         }
         if spec.kind == Kind::ParallelClearing {
             fields.push(format!("storage='{}'", storage_name(spec.storage)));
+        }
+        if spec.kind == Kind::ParallelClearing || spec.threads.is_some() {
             fields.push(format!(
                 "threads={}",
                 spec.threads.map_or("None".to_string(), |t| t.to_string())
             ));
+        }
+        // Only shown when set
+        if let Some(parallel) = spec.parallel_setup {
+            fields.push(format!("parallel_setup={}", python_bool(parallel)));
         }
         // Only shown when set (or resolved for a pipeline that can use it)
         if let Some(union_find) = spec.union_find {

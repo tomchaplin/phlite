@@ -367,15 +367,28 @@ pub fn barcode<K: LazyComplex, R: ColumnRepresentation>(
     algorithm: Algorithm<'_, R>,
     representatives: bool,
 ) -> Vec<SimplexBar> {
+    #[allow(unreachable_patterns)]
+    let parallel = matches!(algorithm, Algorithm::ParallelClearing(_));
+    barcode_with(complex, max_dim, method, algorithm, representatives, parallel)
+}
+
+/// As [`barcode`], choosing whether to build the bases in parallel on the current rayon thread pool
+/// (`parallel_setup`, which [`barcode`] does only for the parallel algorithm), whatever the algorithm.
+pub fn barcode_with<K: LazyComplex, R: ColumnRepresentation>(
+    complex: &K,
+    max_dim: usize,
+    method: Method,
+    algorithm: Algorithm<'_, R>,
+    representatives: bool,
+    parallel_setup: bool,
+) -> Vec<SimplexBar> {
     assert!(
         fits(complex, max_dim),
         "simplices of dimension {} don't fit in a Simplex on {} vertices",
         max_dim + 1,
         complex.n_vertices()
     );
-    // Build the bases in parallel only for the parallel algorithm, on whatever rayon pool we're called from
-    #[allow(unreachable_patterns)]
-    let parallel = matches!(algorithm, Algorithm::ParallelClearing(_));
+    let parallel = parallel_setup;
     // The standard algorithm can't find the owners of omitted apparent pairs, so give it every simplex
     let skip = !matches!(algorithm, Algorithm::Standard(_));
     let coboundary = Coboundary::<K, Z2>::new(complex);

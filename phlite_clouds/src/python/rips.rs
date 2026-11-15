@@ -324,6 +324,7 @@ fn rips<'py>(
             method,
             representatives,
             union_find: algorithm.union_find(),
+            parallel_setup: algorithm.parallel_setup(),
         })
     })?;
     bars.into_python(py, &algorithm, representatives, None)
@@ -338,6 +339,7 @@ struct RipsRun {
     method: Method,
     representatives: bool,
     union_find: bool,
+    parallel_setup: bool,
 }
 
 impl AlgorithmVisitor for RipsRun {
@@ -355,6 +357,7 @@ impl AlgorithmVisitor for RipsRun {
                     algorithm,
                     self.representatives,
                     self.union_find,
+                    self.parallel_setup,
                 )
             };
         }

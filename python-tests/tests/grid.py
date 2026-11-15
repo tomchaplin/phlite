@@ -40,3 +40,7 @@ def algorithm_grid(Algorithm, top=None, threads=2, row_ranks=True, union_find=Fa
             if base.name == "parallel-clearing":
                 yield configured.with_threads(threads)
                 yield configured.with_storage("lock-free").with_threads(threads)
+    # The setup apart from the reduction: in parallel for a serial algorithm, and serially for a parallel one
+    yield Algorithm.serial().with_parallel_setup().with_threads(threads)
+    yield Algorithm.standard().with_parallel_setup()
+    yield Algorithm.parallel(threads).with_parallel_setup(False)

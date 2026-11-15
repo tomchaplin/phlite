@@ -153,6 +153,9 @@ pub struct AlgorithmSpec {
     pub threads: Option<usize>,
     /// `None` means the pipeline's default (see [`AlgorithmDefaults::union_find`]).
     pub union_find: Option<bool>,
+    /// Whether the work before the reduction (building bases, sorting) runs in parallel; `None` follows the
+    /// algorithm: in parallel only for parallel clearing.
+    pub parallel_setup: Option<bool>,
 }
 
 impl AlgorithmSpec {
@@ -169,7 +172,13 @@ impl AlgorithmSpec {
             storage: Storage::Locking,
             threads: None,
             union_find: None,
+            parallel_setup: None,
         }
+    }
+
+    /// Whether the setup runs in parallel: as set, else only for parallel clearing.
+    pub fn parallel_setup(&self) -> bool {
+        self.parallel_setup.unwrap_or(self.kind == Kind::ParallelClearing)
     }
 
     /// An error unless the algorithm is one of `kinds`.
@@ -208,7 +217,9 @@ impl AlgorithmSpec {
             self.require(&[Kind::ParallelClearing], "storage")?;
         }
         if let Some(threads) = self.threads {
-            self.require(&[Kind::ParallelClearing], "threads")?;
+            if !self.parallel_setup() {
+                self.require(&[Kind::ParallelClearing], "threads")?;
+            }
             if threads == 0 {
                 return Err(AlgorithmError("threads must be positive".into()));
             }
@@ -248,6 +259,7 @@ impl AlgorithmSpec {
         Ok(ResolvedAlgorithm {
             kind: self.kind,
             union_find,
+            parallel_setup: self.parallel_setup,
             columns,
             cache: self.cache.unwrap_or(defaults.cache),
             store_r: self
@@ -290,6 +302,8 @@ pub struct ResolvedAlgorithm {
     pub threads: Option<usize>,
     /// `None` if the pipeline can't use union-find.
     pub union_find: Option<bool>,
+    /// As set (`None`: follow the algorithm), see [`parallel_setup`](Self::parallel_setup).
+    pub parallel_setup: Option<bool>,
 }
 
 impl ResolvedAlgorithm {
@@ -305,7 +319,14 @@ impl ResolvedAlgorithm {
             storage: self.storage,
             threads: self.threads,
             union_find: self.union_find,
+            parallel_setup: self.parallel_setup,
         }
+    }
+
+    /// Whether the work before the reduction (building bases, sorting) should run in parallel: as set, else only for
+    /// parallel clearing. Pipelines pass this to their barcode functions.
+    pub fn parallel_setup(&self) -> bool {
+        self.parallel_setup.unwrap_or(self.kind == Kind::ParallelClearing)
     }
 
     /// Whether to use union-find (for a pipeline that can).
@@ -314,8 +335,8 @@ impl ResolvedAlgorithm {
     }
 
     /// Run `visitor` with the configured [`Algorithm`], on a pool of `threads` threads if set.
-    /// With threads set, the visitor itself runs on the pool, so any other rayon work it does (such as building a basis)
-    /// uses it too. Fails only if the thread pool can't be built.
+    /// With threads set, the visitor itself runs on the pool, so any other rayon work it does (such as building a basis
+    /// in parallel, for a parallel setup) uses it too. Fails only if the thread pool can't be built.
     pub fn run<V: AlgorithmVisitor>(&self, visitor: V) -> Result<V::Output, AlgorithmError> {
         match self.columns {
             Columns::Merged => self.run_with(MergedColumns, visitor),
@@ -342,12 +363,31 @@ impl ResolvedAlgorithm {
         visitor: V,
     ) -> Result<V::Output, AlgorithmError> {
         match self.kind {
-            Kind::Standard => Ok(visitor.visit(Algorithm::Standard(
-                Standard::new()
-                    .with_columns(columns)
-                    .cache_columns(self.cache),
-            ))),
-            Kind::Clearing => Ok(visitor.visit(Algorithm::Clearing(self.build_clearing(columns)))),
+            Kind::Standard | Kind::Clearing => {
+                // A serial algorithm with a parallel setup on a pool of its own: run the whole visitor there
+                let pool = match self.threads {
+                    Some(n) if self.parallel_setup() => Some(
+                        rayon::ThreadPoolBuilder::new()
+                            .num_threads(n)
+                            .build()
+                            .map_err(|e| AlgorithmError(format!("Could not build thread pool: {e}")))?,
+                    ),
+                    _ => None,
+                };
+                let run = move || {
+                    if self.kind == Kind::Standard {
+                        visitor.visit(Algorithm::Standard(
+                            Standard::new().with_columns(columns).cache_columns(self.cache),
+                        ))
+                    } else {
+                        visitor.visit(Algorithm::Clearing(self.build_clearing(columns)))
+                    }
+                };
+                Ok(match pool {
+                    Some(pool) => pool.install(run),
+                    None => run(),
+                })
+            }
             Kind::ParallelClearing => {
                 let algorithm = self
                     .build_clearing(columns)
@@ -436,6 +476,34 @@ mod tests {
         assert_eq!(with(None).resolve(&RIPS).unwrap().union_find, None);
         assert_eq!(with(Some(false)).resolve(&RIPS).unwrap().union_find, None);
         assert!(with(Some(true)).resolve(&RIPS).unwrap_err().0.contains("union-find"));
+    }
+
+    #[test]
+    fn parallel_setup_follows_the_algorithm_unless_set() {
+        assert!(!AlgorithmSpec::default().parallel_setup());
+        assert!(AlgorithmSpec::new(Kind::ParallelClearing).parallel_setup());
+        let serial_setup = AlgorithmSpec { parallel_setup: Some(false), ..AlgorithmSpec::new(Kind::ParallelClearing) };
+        assert!(!serial_setup.resolve(&RIPS).unwrap().parallel_setup());
+        // Threads for a serial algorithm only with a parallel setup
+        let threads = AlgorithmSpec { threads: Some(2), ..AlgorithmSpec::default() };
+        assert!(threads.validate().is_err());
+        let threads = AlgorithmSpec { parallel_setup: Some(true), ..threads };
+        assert!(threads.validate().is_ok());
+        assert!(threads.resolve(&RIPS).unwrap().parallel_setup());
+    }
+
+    /// A serial algorithm with a parallel setup and threads runs its visitor on a pool of that many threads.
+    #[test]
+    fn serial_algorithm_with_parallel_setup_runs_on_its_pool() {
+        struct Threads;
+        impl AlgorithmVisitor for Threads {
+            type Output = usize;
+            fn visit<R: ColumnRepresentation>(self, _algorithm: Algorithm<'_, R>) -> usize {
+                rayon::current_num_threads()
+            }
+        }
+        let spec = AlgorithmSpec { threads: Some(3), parallel_setup: Some(true), ..AlgorithmSpec::default() };
+        assert_eq!(spec.resolve(&RIPS).unwrap().run(Threads).unwrap(), 3);
     }
 
     #[test]

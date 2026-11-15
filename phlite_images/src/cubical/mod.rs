@@ -969,13 +969,17 @@ pub fn cubical_barcode<R: ColumnRepresentation, const D: usize>(
     algorithm: Algorithm<'_, R>,
     representatives: bool,
 ) -> Vec<CubicalBar> {
-    filtration_barcode(complex, max_dim, method, algorithm, representatives, true, true)
+    #[allow(unreachable_patterns)]
+    let parallel = matches!(algorithm, Algorithm::ParallelClearing(_));
+    filtration_barcode(complex, max_dim, method, algorithm, representatives, true, true, parallel)
 }
 
 /// As [`cubical_barcode`], but for superlevel sets only negates the values back to the image's if
 /// `negate_superlevel` (otherwise the bars are those of the sublevel filtration of the negated image), and choosing
 /// whether, by cohomology, to find dimension 0 and the top dimension by union-find (`union_find`, which
-/// [`cubical_barcode`] does) rather than by reducing them.
+/// [`cubical_barcode`] does) rather than by reducing them, and whether to build the bases and run the union-finds'
+/// sorts in parallel on the current rayon thread pool (`parallel_setup`, which [`cubical_barcode`] does only for the
+/// parallel algorithm), whatever the algorithm.
 pub fn filtration_barcode<R: ColumnRepresentation, const D: usize>(
     complex: &CubicalComplex<D>,
     max_dim: usize,
@@ -984,14 +988,13 @@ pub fn filtration_barcode<R: ColumnRepresentation, const D: usize>(
     representatives: bool,
     negate_superlevel: bool,
     union_find: bool,
+    parallel_setup: bool,
 ) -> Vec<CubicalBar> {
     if complex.grid().is_none() {
         return vec![];
     }
     let max_dim = max_dim.min(D - 1);
-    // Build the basis in parallel only for the parallel algorithm, on whatever rayon pool we're called from
-    #[allow(unreachable_patterns)]
-    let parallel = matches!(algorithm, Algorithm::ParallelClearing(_));
+    let parallel = parallel_setup;
     // The standard algorithm can't find the owners of omitted apparent pairs, so give it every cell
     let skip_apparent = !matches!(algorithm, Algorithm::Standard(_));
     let coboundary = CubicalCoboundary::<Z2, D>::new(complex);

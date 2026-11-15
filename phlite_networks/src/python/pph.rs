@@ -15,7 +15,7 @@ use phlite_bindings::{
 use super::{graph::read_graph, grpph::path_homology};
 use crate::{
     grpph::build_filtration,
-    pph::{pph_barcode, Network},
+    pph::{pph_barcode_with, Network},
 };
 
 /// The pipeline `'networks.pph'`.
@@ -158,6 +158,7 @@ fn pph<'py>(
             max_dim,
             method,
             representatives,
+            parallel_setup: algorithm.parallel_setup(),
         })
     })?;
     bars.into_python(py, &algorithm, representatives, labels.as_deref())
@@ -169,13 +170,21 @@ struct PPHRun<'a> {
     max_dim: usize,
     method: Method,
     representatives: bool,
+    parallel_setup: bool,
 }
 
 impl AlgorithmVisitor for PPHRun<'_> {
     type Output = SortedBars;
 
     fn visit<R: ColumnRepresentation>(self, algorithm: Algorithm<'_, R>) -> SortedBars {
-        let bars = pph_barcode::<Z2, R>(self.network, self.max_dim, self.method, algorithm, self.representatives);
+        let bars = pph_barcode_with::<Z2, R>(
+            self.network,
+            self.max_dim,
+            self.method,
+            algorithm,
+            self.representatives,
+            self.parallel_setup,
+        );
         SortedBars::new(bars, self.max_dim + 1, |path| {
             (
                 path.dimension(),

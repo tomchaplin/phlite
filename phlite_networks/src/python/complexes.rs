@@ -17,7 +17,7 @@ use crate::{
     digraph::{Digraph, Distances},
     dowker::{DowkerComplex, Side},
     flag::{FlagComplex, Kind},
-    lazy::{barcode, fits, LazyComplex},
+    lazy::{barcode_with, fits, LazyComplex},
 };
 
 /// Columns of these complexes are listed on the fly, as for Vietoris–Rips, but cost more to recompute (intersecting
@@ -56,13 +56,21 @@ struct LazyRun<'a, K> {
     max_dim: usize,
     method: Method,
     representatives: bool,
+    parallel_setup: bool,
 }
 
 impl<K: LazyComplex> AlgorithmVisitor for LazyRun<'_, K> {
     type Output = SortedBars;
 
     fn visit<R: ColumnRepresentation>(self, algorithm: Algorithm<'_, R>) -> SortedBars {
-        let bars = barcode(self.complex, self.max_dim, self.method, algorithm, self.representatives);
+        let bars = barcode_with(
+            self.complex,
+            self.max_dim,
+            self.method,
+            algorithm,
+            self.representatives,
+            self.parallel_setup,
+        );
         let codec = self.complex.codec();
         SortedBars::new(bars, self.max_dim + 1, |simplex| {
             (simplex.dimension(), codec.vertices(*simplex).to_vec())
@@ -97,6 +105,7 @@ fn run<'py, K: LazyComplex>(
             max_dim,
             method,
             representatives,
+            parallel_setup: algorithm.parallel_setup(),
         })
     })?;
     bars.into_python(py, &algorithm, representatives, labels.as_deref())

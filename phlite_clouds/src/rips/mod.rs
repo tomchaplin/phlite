@@ -696,11 +696,15 @@ pub fn rips_barcode<R: ColumnRepresentation, I: RipsInt, D: Distances>(
     algorithm: Algorithm<'_, R>,
     representatives: bool,
 ) -> Vec<RipsBar<I>> {
-    rips_barcode_with(distances, max_dim, threshold, method, algorithm, representatives, true)
+    #[allow(unreachable_patterns)]
+    let parallel = matches!(algorithm, Algorithm::ParallelClearing(_));
+    rips_barcode_with(distances, max_dim, threshold, method, algorithm, representatives, true, parallel)
 }
 
 /// As [`rips_barcode`], choosing whether (by cohomology) to find dimension 0 by union-find (`union_find`, which
-/// [`rips_barcode`] does) rather than by reducing it.
+/// [`rips_barcode`] does) rather than by reducing it, and whether to build the bases (and run the union-find's sorts)
+/// in parallel on the current rayon thread pool (`parallel_setup`, which [`rips_barcode`] does only for the parallel
+/// algorithm), whatever the algorithm.
 #[allow(clippy::too_many_arguments)]
 pub fn rips_barcode_with<R: ColumnRepresentation, I: RipsInt, D: Distances>(
     distances: D,
@@ -710,6 +714,7 @@ pub fn rips_barcode_with<R: ColumnRepresentation, I: RipsInt, D: Distances>(
     algorithm: Algorithm<'_, R>,
     representatives: bool,
     union_find: bool,
+    parallel_setup: bool,
 ) -> Vec<RipsBar<I>> {
     let n_points = distances.n_points();
     // A simplex with an infinite diameter has an edge that never appears, so it never appears either
@@ -719,9 +724,7 @@ pub fn rips_barcode_with<R: ColumnRepresentation, I: RipsInt, D: Distances>(
         .min(largest_finite);
     // Both methods need simplices of dimension max_dim + 1 (as cofacets, or the top of the boundary matrix)
     assert!(RipsIndex::<I>::fits(n_points, max_dim + 1));
-    // Build the basis in parallel only for the parallel algorithm, on whatever rayon pool we're called from
-    #[allow(unreachable_patterns)]
-    let parallel = matches!(algorithm, Algorithm::ParallelClearing(_));
+    let parallel = parallel_setup;
     // The standard algorithm can't find the owners of omitted apparent pairs, so give it every simplex
     let filter = !matches!(algorithm, Algorithm::Standard(_));
     let bases = |max_dim: usize, check_top_cofacets: bool, skip_vertices: bool, excluded: &[RipsIndex<I>]| {

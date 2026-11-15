@@ -16,7 +16,7 @@ pub const SPEC_PROTOCOL: u32 = 1;
 /// {"protocol": 1, "kind": "standard" | "clearing" | "parallel-clearing",
 ///  "columns": None | "merged" | "heap" | "sorted" | "pivot", "cache": None | bool, "store_r": None | bool,
 ///  "skip_zero_apparent_pairs": bool, "dimension_order": None | list[int], "storage": "locking" | "lock-free",
-///  "threads": None | int, "union_find": None | bool}
+///  "threads": None | int, "union_find": None | bool, "parallel_setup": None | bool}
 /// ```
 ///
 /// `None` means the pipeline's default.
@@ -32,6 +32,7 @@ pub fn spec_to_dict<'py>(py: Python<'py>, spec: &AlgorithmSpec) -> PyResult<Boun
     dict.set_item("storage", storage_name(spec.storage))?;
     dict.set_item("threads", spec.threads)?;
     dict.set_item("union_find", spec.union_find)?;
+    dict.set_item("parallel_setup", spec.parallel_setup)?;
     Ok(dict)
 }
 
@@ -59,6 +60,7 @@ pub fn spec_from_dict(dict: &Bound<'_, PyDict>) -> PyResult<AlgorithmSpec> {
         storage: storage_from_name(&get("storage")?.extract::<String>()?)?,
         threads: get("threads")?.extract()?,
         union_find: get("union_find")?.extract()?,
+        parallel_setup: get("parallel_setup")?.extract()?,
     };
     spec.validate()?;
     Ok(spec)
