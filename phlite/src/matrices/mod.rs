@@ -37,6 +37,8 @@
 // Bases are handed out as by-value views, so nothing in this module (including its adaptors) needs `unsafe`.
 #![forbid(unsafe_code)]
 
+use auto_impl::auto_impl;
+use delegate::delegate;
 use std::hash::Hash;
 use std::rc::Rc;
 use std::sync::Arc;
@@ -223,6 +225,11 @@ impl RowRanks {
 /// * An object of type [`CoefficientField`](MatrixOracle::CoefficientField) should represent a *non-zero* coefficient; ideally `0` is un-representable in this type. Since we essentially represent our columns as linear combinations of the row basis, `0` is represented by the *absence* of that basis element in the combination, i.e. `None` rather than `Some`. A good choice is [`Z2`](crate::fields::Z2).
 ///
 /// Note that an implementation of [`MatrixOracle`] for `M` automatically derives an implementation for `&'a M`, `Box<M>`, `Rc<M>` and `Arc<M>`.
+// `auto_impl` writes the impls for references and smart pointers, forwarding every method to the matrix except those
+// marked `keep_default_for`, which build a new matrix from `self` (so keep their defaults, wrapping the reference).
+// (It can't do the same for the traits below, whose methods use `MatrixOracle`'s associated types: their impls for
+// references use `delegate!`, and clippy checks they forward every method.)
+#[auto_impl(&, Box, Rc, Arc)]
 pub trait MatrixOracle {
     /// Represents the non-zero elements in the field over which we are doing linear algebra.   
     type CoefficientField: NonZeroCoefficient;
@@ -249,6 +256,7 @@ pub trait MatrixOracle {
         -> impl Iterator<Item = (Self::CoefficientField, Self::RowT)>;
 
     /// Checks that the matricies are equal on the specified col, ignoring ordering due to filtration values
+    #[auto_impl(keep_default_for(&, Box, Rc, Arc))]
     fn eq_on_col<M2>(&self, other: &M2, col: Self::ColT) -> bool
     where
         Self: Sized,
@@ -276,6 +284,7 @@ pub trait MatrixOracle {
     /// Borrow `self`, as [`Iterator::by_ref`] does: the adaptors below consume their matrix, and `&M` is a matrix
     /// too, so `matrix.by_ref().with_basis(basis)` wraps a reference and leaves `matrix` usable (the same as
     /// `(&matrix).with_basis(basis)`).
+    #[auto_impl(keep_default_for(&, Box, Rc, Arc))]
     fn by_ref(&self) -> &Self
     where
         Self: Sized,
@@ -284,6 +293,7 @@ pub trait MatrixOracle {
     }
 
     /// Endows `self` with a filtration in which all rows have the same filtration value: `()`.
+    #[auto_impl(keep_default_for(&, Box, Rc, Arc))]
     fn with_trivial_filtration(self) -> WithTrivialFiltration<Self>
     where
         Self: Sized,
@@ -292,6 +302,7 @@ pub trait MatrixOracle {
     }
 
     /// Endows `self` with the filtration given by the provided `filtration_function`.
+    #[auto_impl(keep_default_for(&, Box, Rc, Arc))]
     fn with_filtration<FT: FiltrationValue, F: Fn(Self::RowT) -> FT>(
         self,
         filtration_function: F,
@@ -306,6 +317,7 @@ pub trait MatrixOracle {
     }
 
     /// Endows `self` with the basis `basis`.
+    #[auto_impl(keep_default_for(&, Box, Rc, Arc))]
     fn with_basis<B>(self, basis: B) -> MatrixWithBasis<Self, B>
     where
         Self: Sized,
@@ -322,6 +334,7 @@ pub trait MatrixOracle {
     ///
     /// Column `r` of `transpose` must contain exactly the non-zero entries of row `r` of `self`.
     /// For a coboundary matrix, the transpose is the boundary matrix, and vice versa.
+    #[auto_impl(keep_default_for(&, Box, Rc, Arc))]
     fn with_transpose<T>(self, transpose: T) -> WithTranspose<Self, T>
     where
         Self: Sized,
@@ -338,6 +351,7 @@ pub trait MatrixOracle {
     }
 
     /// Turns `self` into a matrix indexed by `usize`, using the attached basis.
+    #[auto_impl(keep_default_for(&, Box, Rc, Arc))]
     fn using_col_basis_index(self) -> UsingColBasisIndex<Self>
     where
         Self: Sized + HasColBasis,
@@ -347,6 +361,7 @@ pub trait MatrixOracle {
 
     /// Reverse the order on both the rows and columns.
     /// Both the indices and the filtration values are now the [`Reverse`] of their previous type.
+    #[auto_impl(keep_default_for(&, Box, Rc, Arc))]
     fn reverse(self) -> ReverseMatrix<Self>
     where
         Self: Sized,
@@ -359,6 +374,7 @@ pub trait MatrixOracle {
     /// Returns a matrix indexed by `ColT` and `RowT`.
     /// Additionally, the filtration value can be 'unreversed'.
     /// Can be useful when `self` was obtained by reducing a [`reverse`](Self::reverse)d matrix.
+    #[auto_impl(keep_default_for(&, Box, Rc, Arc))]
     fn unreverse<ColT, RowT>(self) -> UnreverseMatrix<Self>
     where
         Self: Sized,
@@ -372,6 +388,7 @@ pub trait MatrixOracle {
     ///
     /// Essentailly, if we view the output of [`column`](Self::column) as a [`CF`](Self::CoefficientField)-weighted sum of row basis elements, this simplifies this sum by combining all of the summand with the same basis element.
     /// This can reduce memory usage when computing products/sums of large matrices (see Flagser's dynamic heap for an alternative approach).
+    #[auto_impl(keep_default_for(&, Box, Rc, Arc))]
     fn consolidate(self) -> Consolidator<Self>
     where
         Self: Sized,
@@ -388,70 +405,6 @@ pub trait SquareMatrix: MatrixOracle<ColT = <Self as MatrixOracle>::RowT> {}
 impl<M> SquareMatrix for M where M: MatrixOracle<ColT = <Self as MatrixOracle>::RowT> {}
 
 // ======== Default implementors ===============================
-
-impl<'a, M> MatrixOracle for &'a M
-where
-    M: MatrixOracle,
-{
-    type CoefficientField = M::CoefficientField;
-    type ColT = M::ColT;
-    type RowT = M::RowT;
-
-    fn column(
-        &self,
-        col: Self::ColT,
-    ) -> impl Iterator<Item = (Self::CoefficientField, Self::RowT)> {
-        (*self).column(col)
-    }
-}
-
-impl<M> MatrixOracle for Rc<M>
-where
-    M: MatrixOracle,
-{
-    type CoefficientField = M::CoefficientField;
-    type ColT = M::ColT;
-    type RowT = M::RowT;
-
-    fn column(
-        &self,
-        col: Self::ColT,
-    ) -> impl Iterator<Item = (Self::CoefficientField, Self::RowT)> {
-        (**self).column(col)
-    }
-}
-
-impl<M> MatrixOracle for Arc<M>
-where
-    M: MatrixOracle,
-{
-    type CoefficientField = M::CoefficientField;
-    type ColT = M::ColT;
-    type RowT = M::RowT;
-
-    fn column(
-        &self,
-        col: Self::ColT,
-    ) -> impl Iterator<Item = (Self::CoefficientField, Self::RowT)> {
-        (**self).column(col)
-    }
-}
-
-impl<M> MatrixOracle for Box<M>
-where
-    M: MatrixOracle,
-{
-    type CoefficientField = M::CoefficientField;
-    type ColT = M::ColT;
-    type RowT = M::RowT;
-
-    fn column(
-        &self,
-        col: Self::ColT,
-    ) -> impl Iterator<Item = (Self::CoefficientField, Self::RowT)> {
-        (**self).column(col)
-    }
-}
 
 // ======== Filtration on rows to order them ===================
 
@@ -671,74 +624,26 @@ where
 {
     type FiltrationT = M::FiltrationT;
 
-    fn filtration_value(&self, row: Self::RowT) -> Self::FiltrationT {
-        (*self).filtration_value(row)
-    }
-
-    fn same_filtration_value(&self, a: Self::RowT, b: Self::RowT) -> bool {
-        (*self).same_filtration_value(a, b)
-    }
-
-    fn column_pivot(
-        &self,
-        col: Self::ColT,
-    ) -> Option<ColumnEntry<Self::FiltrationT, Self::RowT, Self::CoefficientField>> {
-        (*self).column_pivot(col)
-    }
-
-    fn column_min(
-        &self,
-        col: Self::ColT,
-    ) -> Option<ColumnEntry<Self::FiltrationT, Self::RowT, Self::CoefficientField>> {
-        (*self).column_min(col)
-    }
-
-    fn first_column_in_row(&self, row: Self::RowT) -> Option<Self::ColT> {
-        (*self).first_column_in_row(row)
-    }
-
-    fn last_column_in_row(&self, row: Self::RowT) -> Option<Self::ColT> {
-        (*self).last_column_in_row(row)
-    }
-
-    fn sorted_column(
-        &self,
-        col: Self::ColT,
-    ) -> Option<
-        impl Iterator<Item = ColumnEntry<Self::FiltrationT, Self::RowT, Self::CoefficientField>>,
-    > {
-        (*self).sorted_column(col)
-    }
-
-    fn sorted_column_ascending(
-        &self,
-        col: Self::ColT,
-    ) -> Option<
-        impl Iterator<Item = ColumnEntry<Self::FiltrationT, Self::RowT, Self::CoefficientField>>,
-    > {
-        (*self).sorted_column_ascending(col)
-    }
-
-    fn row_ranks(&self) -> Option<RowRanks> {
-        (*self).row_ranks()
-    }
-    fn column_with_filtration(
-        &self,
-        col: Self::ColT,
-    ) -> impl Iterator<Item = ColumnEntry<Self::FiltrationT, Self::RowT, Self::CoefficientField>>
-    {
-        (*self).column_with_filtration(col)
-    }
-
-    fn empty_bhcol(&self) -> BHCol<Self::FiltrationT, Self::RowT, Self::CoefficientField> {
-        (*self).empty_bhcol()
-    }
-
-    fn build_bhcol(
-        &self,
-        col: Self::ColT,
-    ) -> BHCol<Self::FiltrationT, Self::RowT, Self::CoefficientField> {
-        (*self).build_bhcol(col)
+    delegate! {
+        to (*self) {
+            fn filtration_value(&self, row: Self::RowT) -> Self::FiltrationT;
+            fn same_filtration_value(&self, a: Self::RowT, b: Self::RowT) -> bool;
+            fn column_pivot(&self, col: Self::ColT)
+                -> Option<ColumnEntry<Self::FiltrationT, Self::RowT, Self::CoefficientField>>;
+            fn column_min(&self, col: Self::ColT)
+                -> Option<ColumnEntry<Self::FiltrationT, Self::RowT, Self::CoefficientField>>;
+            fn first_column_in_row(&self, row: Self::RowT) -> Option<Self::ColT>;
+            fn last_column_in_row(&self, row: Self::RowT) -> Option<Self::ColT>;
+            fn sorted_column(&self, col: Self::ColT)
+                -> Option<impl Iterator<Item = ColumnEntry<Self::FiltrationT, Self::RowT, Self::CoefficientField>>>;
+            fn sorted_column_ascending(&self, col: Self::ColT)
+                -> Option<impl Iterator<Item = ColumnEntry<Self::FiltrationT, Self::RowT, Self::CoefficientField>>>;
+            fn row_ranks(&self) -> Option<RowRanks>;
+            fn column_with_filtration(&self, col: Self::ColT)
+                -> impl Iterator<Item = ColumnEntry<Self::FiltrationT, Self::RowT, Self::CoefficientField>>;
+            fn empty_bhcol(&self) -> BHCol<Self::FiltrationT, Self::RowT, Self::CoefficientField>;
+            fn build_bhcol(&self, col: Self::ColT) -> BHCol<Self::FiltrationT, Self::RowT, Self::CoefficientField>;
+        }
     }
 }
 
@@ -772,14 +677,17 @@ impl<M: HasTranspose> HasTranspose for &M {
     where
         Self: 'a;
 
-    fn transpose(&self) -> Self::TransposeT<'_> {
-        (*self).transpose()
+    delegate! {
+        to (*self) {
+            fn transpose(&self) -> Self::TransposeT<'_>;
+        }
     }
 }
 
 // ======== Ordered basis on columns + arbitrary access ========
 
 /// Represents an indexable column basis (of a matrix), typically pre-computed and stored in memory.
+#[auto_impl(&)]
 pub trait ColBasis {
     /// The type of elements within the column basis.
     type ElemT: BasisElement;
@@ -800,6 +708,7 @@ pub trait ColBasis {
     }
 
     /// Borrow `self` (see [`MatrixOracle::by_ref`]): `basis.by_ref().reverse()` reverses a view of `basis`.
+    #[auto_impl(keep_default_for(&))]
     fn by_ref(&self) -> &Self
     where
         Self: Sized,
@@ -808,6 +717,7 @@ pub trait ColBasis {
     }
 
     /// Construct a basis with the opposite ordering so the element at position `index` in the new basis is in position `len - index` in `self`.
+    #[auto_impl(keep_default_for(&))]
     fn reverse(self) -> ReverseBasis<Self>
     where
         Self: Copy,
@@ -817,6 +727,7 @@ pub trait ColBasis {
 
     /// Essentially the inverse operation to [`reverse`](Self::reverse).
     /// You should call this if [`ElemT`](Self::ElemT) is a [`Reverse<T>`] and you would like a basis in which [`ElemT`](Self::ElemT) is `T`, rather than `Reverse<Reverse<T>>`.
+    #[auto_impl(keep_default_for(&))]
     fn unreverse<T>(self) -> UnreverseBasis<Self>
     where
         Self: Copy,
@@ -838,46 +749,6 @@ where
 
     fn size(&self) -> usize {
         self.len()
-    }
-}
-
-// Forwards every method (including those with defaults, which the inner matrix may override): clippy checks none is
-// missed, see `just lint-forwarding`
-#[deny(clippy::missing_trait_methods)]
-impl<T> ColBasis for &T
-where
-    T: ColBasis,
-{
-    type ElemT = T::ElemT;
-
-    fn element(&self, index: usize) -> Self::ElemT {
-        (*self).element(index)
-    }
-
-    fn size(&self) -> usize {
-        (*self).size()
-    }
-
-    fn construct_reverse_lookup(&self) -> HashMap<Self::ElemT, usize>
-    where
-        Self::ElemT: Hash,
-    {
-        (*self).construct_reverse_lookup()
-    }
-
-    fn by_ref(&self) -> &Self {
-        self
-    }
-
-    fn reverse(self) -> ReverseBasis<Self> {
-        ReverseBasis(self)
-    }
-
-    fn unreverse<U>(self) -> UnreverseBasis<Self>
-    where
-        Self: ColBasis<ElemT = Reverse<U>>,
-    {
-        UnreverseBasis(self)
     }
 }
 
@@ -910,8 +781,10 @@ where
     where
         Self: 'b;
 
-    fn basis(&self) -> Self::BasisT<'_> {
-        (*self).basis()
+    delegate! {
+        to (*self) {
+            fn basis(&self) -> Self::BasisT<'_>;
+        }
     }
 }
 
@@ -963,12 +836,11 @@ where
     where
         Self: 'b;
 
-    fn n_dimensions(&self) -> usize {
-        (*self).n_dimensions()
-    }
-
-    fn sub_basis(&self, dimension: usize) -> Self::SubBasisT<'_> {
-        (*self).sub_basis(dimension)
+    delegate! {
+        to (*self) {
+            fn n_dimensions(&self) -> usize;
+            fn sub_basis(&self, dimension: usize) -> Self::SubBasisT<'_>;
+        }
     }
 
     fn sub_matrix_in_dimension(self, dimension: usize) -> WithSubBasis<Self> {
