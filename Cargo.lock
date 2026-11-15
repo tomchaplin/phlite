@@ -21,6 +21,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "allocator-api2"
+version = "0.2.21"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "683d7910e743518b0e34f1186f92494becacb047c7b6bf616c96772180fef923"
+
+[[package]]
+name = "alphalpha"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a0907d618de533c642b9f5cc9f665f58431f7009d296d5d5372350fafa7438af"
+dependencies = [
+ "spade",
+]
+
+[[package]]
 name = "android_system_properties"
 version = "0.1.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -57,10 +72,57 @@ dependencies = [
 ]
 
 [[package]]
+name = "auto_impl"
+version = "1.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "683bf733a032aec4f8954e5c0ec9d5c2183c341c49d0939ad77acc0a19fa338a"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 3.0.10",
+]
+
+[[package]]
 name = "autocfg"
 version = "1.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f2032f911046de80f0a198e0901378627c33f59ea0ac00e363d481118bd70a53"
+
+[[package]]
+name = "axiolid-core"
+version = "0.3.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "95307b3fbb4e33d73bc3c1de078f328242535933ce1f778dfeaed923c3465a56"
+dependencies = [
+ "glam",
+]
+
+[[package]]
+name = "axiolid-guarantees"
+version = "0.3.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cb144a733e4399040857fbb95f72d9bbc59e6a47b0eca9647a280ba060f46d65"
+
+[[package]]
+name = "axiolid-predicates"
+version = "0.3.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "45093ccd9c212e21730d45a6561637f81a39020d7168af71e537d6134a3e0af0"
+dependencies = [
+ "axiolid-core",
+ "axiolid-guarantees",
+]
+
+[[package]]
+name = "axiolid-tetrahedralize"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f554de8065cc59919f5230aa7e34b2a0bdd90b02d9262630dc0dc40c24ec2109"
+dependencies = [
+ "axiolid-core",
+ "axiolid-guarantees",
+ "axiolid-predicates",
+]
 
 [[package]]
 name = "bit-set"
@@ -356,6 +418,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "delegate"
+version = "0.13.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "780eb241654bf097afb00fc5f054a09b687dad862e485fdcf8399bb056565370"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.119",
+]
+
+[[package]]
 name = "deranged"
 version = "0.5.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -414,6 +487,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d9c4f5dac5e15c24eb999c26181a6ca40b39fe946cbe4c263c7209467bc83af2"
 
 [[package]]
+name = "foldhash"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "77ce24cb58228fbb8aa041425bb1050850ac19177686ea6e0f41a70416f56fdb"
+
+[[package]]
 name = "futures-core"
 version = "0.3.34"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -470,6 +549,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "glam"
+version = "0.29.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8babf46d4c1c9d92deac9f7be466f76dfc4482b6452fc5024b5e8daf6ffeb3ee"
+
+[[package]]
 name = "half"
 version = "2.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -492,7 +577,18 @@ version = "0.15.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9229cfe53dfd69f0609a49f65461bd93001ea1ef889cd5529dd176593f5338a1"
 dependencies = [
- "foldhash",
+ "foldhash 0.1.5",
+]
+
+[[package]]
+name = "hashbrown"
+version = "0.16.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "841d1cc9bed7f9236f321df977030373f4a4163ae1a7dbfe1a51a2c1a51d9100"
+dependencies = [
+ "allocator-api2",
+ "equivalent",
+ "foldhash 0.2.0",
 ]
 
 [[package]]
@@ -879,8 +975,10 @@ name = "phlite"
 version = "0.1.0"
 dependencies = [
  "arc-swap",
+ "auto_impl",
  "dary_heap",
  "dashmap",
+ "delegate",
  "itertools 0.15.0",
  "num",
  "ordered-float",
@@ -891,30 +989,49 @@ dependencies = [
 ]
 
 [[package]]
-name = "phlite_grpph"
-version = "0.2.0"
+name = "phlite_bindings"
+version = "0.1.0"
 dependencies = [
- "criterion",
- "log",
  "ordered-float",
- "petgraph",
  "phlite",
- "phlite_pyutils",
+ "pyo3",
+ "pyo3-stub-gen",
+ "rayon",
+]
+
+[[package]]
+name = "phlite_clouds"
+version = "0.1.0"
+dependencies = [
+ "alphalpha",
+ "axiolid-tetrahedralize",
+ "criterion",
+ "csv",
+ "glam",
+ "num-bigint",
+ "num-traits",
+ "numpy",
+ "ordered-float",
+ "phlite",
+ "phlite_bindings",
+ "phlite_complexes",
  "pyo3",
  "pyo3-log",
  "pyo3-stub-gen",
  "rayon",
+ "robust",
  "rustc-hash 2.1.3",
+ "spade",
 ]
 
 [[package]]
-name = "phlite_py"
+name = "phlite_complexes"
 version = "0.1.0"
 dependencies = [
  "numpy",
  "ordered-float",
  "phlite",
- "phlite_pyutils",
+ "phlite_bindings",
  "proptest",
  "pyo3",
  "pyo3-log",
@@ -922,26 +1039,29 @@ dependencies = [
 ]
 
 [[package]]
-name = "phlite_pyutils"
+name = "phlite_images"
 version = "0.1.0"
 dependencies = [
+ "numpy",
  "ordered-float",
  "phlite",
+ "phlite_bindings",
  "pyo3",
+ "pyo3-log",
  "pyo3-stub-gen",
  "rayon",
 ]
 
 [[package]]
-name = "phlite_rips"
+name = "phlite_networks"
 version = "0.1.0"
 dependencies = [
  "criterion",
- "csv",
- "numpy",
+ "log",
  "ordered-float",
+ "petgraph",
  "phlite",
- "phlite_pyutils",
+ "phlite_bindings",
  "pyo3",
  "pyo3-log",
  "pyo3-stub-gen",
@@ -1299,6 +1419,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d6f6ff9a378485b298a5286656da665ba74413d36db0979633275d2e708145d4"
 
 [[package]]
+name = "robust"
+version = "1.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4e27ee8bb91ca0adcf0ecb116293afa12d393f9c2b9b9cd54d33e8078fe19839"
+
+[[package]]
 name = "rustc-hash"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1504,6 +1630,18 @@ name = "smallvec"
 version = "1.16.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "149309498a5f7334b12ddae0cad8aba81ce785fe91755068867e017cf98fee46"
+
+[[package]]
+name = "spade"
+version = "2.15.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9699399fd9349b00b184f5635b074f9ec93afffef30c853f8c875b32c0f8c7fa"
+dependencies = [
+ "hashbrown 0.16.1",
+ "num-traits",
+ "robust",
+ "smallvec",
+]
 
 [[package]]
 name = "static_assertions"

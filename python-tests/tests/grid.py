@@ -1,21 +1,31 @@
-"""Every algorithm and option of a `phlite` package's `Algorithm` class, shared by the fuzz tests of all three packages."""
+"""Every algorithm and option of `phlite.core.Algorithm`, shared by the fuzz tests of every pipeline."""
 
 import itertools
 
 COLUMNS = ["merged", "heap", "sorted", "pivot"]
 
 
-def algorithm_grid(Algorithm, top=None, threads=2):
-    """Every valid combination of algorithm, column representation, caching, skipping zero-length apparent pairs and (if
+def algorithm_grid(Algorithm, top=None, threads=2, row_ranks=True, union_find=False):
+    """With `union_find` (for pipelines that use union-find by default), each also with union-find turned off.
+
+    Every valid combination of algorithm, column representation, caching, skipping zero-length apparent pairs and (if
     `top`, the top dimension, is given) dimension order, plus storing R for serial clearing and the thread count and
-    storage of parallel clearing."""
+    storage of parallel clearing. `row_ranks`: whether the pipeline's matrices know their row ranks, without which
+    'pivot' columns are refused."""
+    if union_find:
+        for algorithm in algorithm_grid(Algorithm, top, threads, row_ranks):
+            yield algorithm
+            yield algorithm.with_union_find(False)
+        return
     bases = [Algorithm.standard(), Algorithm.clearing(), Algorithm.parallel_clearing()]
     orders = [None] if top is None else [None, list(range(top + 1)), list(range(top, -1, -1))]
     for base, columns, cache in itertools.product(bases, COLUMNS, [True, False]):
+        if columns == "pivot" and not row_ranks:
+            continue
         try:
             algorithm = base.with_columns(columns).with_cache(cache)
         except ValueError:
-            # 'pivot' columns: only for serial clearing, in packages whose matrices give row ranks
+            # 'pivot' columns: only for serial clearing
             continue
         if base.name == "standard":
             yield algorithm
@@ -30,3 +40,7 @@ def algorithm_grid(Algorithm, top=None, threads=2):
             if base.name == "parallel-clearing":
                 yield configured.with_threads(threads)
                 yield configured.with_storage("lock-free").with_threads(threads)
+    # The setup apart from the reduction: in parallel for a serial algorithm, and serially for a parallel one
+    yield Algorithm.serial().with_parallel_setup().with_threads(threads)
+    yield Algorithm.standard().with_parallel_setup()
+    yield Algorithm.parallel(threads).with_parallel_setup(False)

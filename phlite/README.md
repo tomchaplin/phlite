@@ -66,20 +66,20 @@ Most of `phlite`'s performance comes from optimisations we have adapted from Rip
 
 `phlite`'s contribution is making these available for any filtration, behind generic traits, rather than just Vietoris-Rips.
 
-With these, on the following benchmark, `phlite_rips` is several times faster than Ripser and uses a fraction of its
+With these, on the following benchmark, `phlite.clouds.rips` is several times faster than Ripser and uses a fraction of its
 memory, and up to 1.8× as fast as giotto-ph [[9]](#9) in dimension 2 with about the same memory. In dimension 1
 alone giotto-ph is faster.
 
 **Test case:** $n$ points sampled uniformly from the unit cube $[0, 1]^3$ (seed 0), with Euclidean distances (rounded to `float32`, so every implementation sees identical input),
 computing persistent homology in dimensions up to $d$ over $\mathbb{Z}/2$ by cohomology.
-We compare `phlite_rips` (`Algorithm.serial()`) with [ripser.py](https://github.com/scikit-tda/ripser.py) and giotto-ph
-on one thread, and `phlite_rips` (`Algorithm.parallel(threads=4)`) with giotto-ph (`n_threads=4`).
+We compare `phlite.clouds.rips` (`Algorithm.serial()`) with [ripser.py](https://github.com/scikit-tda/ripser.py) and giotto-ph
+on one thread, and `phlite.clouds.rips` (`Algorithm.parallel(threads=4)`) with giotto-ph (`n_threads=4`).
 Times are the best of 3 runs (one run for 1000 points), and peak memory is the most heap memory allocated at once during
 the computation (measured with [memray](https://bloomberg.github.io/memray/), including native allocations), on one
 8-core Linux machine; all implementations produced the same barcodes. Ripser ran out of memory (over 7 GB) on 1000
 points in dimension 2.
 
-| $n$ | $d$ | Ripser | giotto-ph (1 thread) | `phlite_rips` (serial) | giotto-ph (4 threads) | `phlite_rips` (4 threads) |
+| $n$ | $d$ | Ripser | giotto-ph (1 thread) | `phlite.clouds.rips` (serial) | giotto-ph (4 threads) | `phlite.clouds.rips` (4 threads) |
 |---|---|---|---|---|---|---|
 | 200 | 2 | 0.37s / 66 MB | 0.10s / 1.3 MB | 0.090s / 1.3 MB | 0.038s / 1.3 MB | 0.034s / 1.4 MB |
 | 300 | 2 | 1.61s / 260 MB | 0.39s / 4.8 MB | 0.33s / 4.2 MB | 0.13s / 4.8 MB | 0.13s / 4.5 MB |
@@ -89,7 +89,7 @@ points in dimension 2.
 
 These are a single family of inputs on a single machine, so treat them as indicative.
 To reproduce, run `just bench-py -k test_rips` (the Rips benchmarks, which include these cases).
-[`python-tests/BENCHMARKS.md`](../python-tests/BENCHMARKS.md) has benchmarks of all three Python bindings against their
+[`python-tests/BENCHMARKS.md`](../python-tests/BENCHMARKS.md) has benchmarks of every Python pipeline against their
 references (ripser and giotto-ph, grpphati, and PHAT and LoPHAT), and of the Rust reduction alone, regenerated with
 `just bench-docs`; `just bench-check` checks for performance regressions (see [`python-tests`](../python-tests/README.md)).
 
@@ -99,10 +99,19 @@ If you need support implementing `phlite` traits for your specific application, 
 ## Crates
 
 * `phlite` - Core library, matrix oracle traits, reduction algorithms, barcodes with representatives.
-* `phlite_rips` - Implementation of VR filtration, à la Ripser. Rust library + basic CLI + Python bindings via PyO3.
-* `phlite_grpph` - Implementation of GrPPH [[7]](#7). Rust library + Python bindings via PyO3.
-* `phlite_py` - Python bindings (the `phlite` Python package) for explicit sparse filtered chain complexes, à la PHAT/LoPHAT.
-* `phlite_pyutils` - Shared helpers for the Python bindings (the `Barcode` result type and argument handling).
+Each of these is a Rust library and, with its `python` feature, a Python package (via PyO3); `pip install phlite`
+installs every Python package. They share the namespace `phlite` (`from phlite.clouds import rips`):
+
+* `phlite_complexes` (`phlite.complexes`) - Explicit sparse filtered chain complexes, à la PHAT/LoPHAT.
+* `phlite_clouds` (`phlite.clouds`) - Point clouds: so far the VR filtration, à la Ripser (`rips`). Also a basic CLI.
+* `phlite_networks` (`phlite.networks`) - Networks: so far GrPPH [[7]](#7) (`grpph`). Also a basic CLI.
+* `phlite_images` (`phlite.images`) - Images (cubical complexes). A placeholder for now.
+* `phlite_bindings` (`phlite.core`) - What the Python packages share: the `Algorithm` and `Barcode` classes, and the
+  helpers their bindings use to reach them.
+
+Every crate and Python package is released together, on one version (`[workspace.package]` in `Cargo.toml`).
+`phlite.clouds` and `phlite.networks` were the Python packages `phlite_rips` and `phlite_grpph` (and their crates had
+those names), and the explicit complexes were the package `phlite` itself; there are no aliases for the old names.
 
 The `python-tests` folder holds fuzz tests and benchmarks of the Python bindings against ripser, giotto-ph and grpphati.
 

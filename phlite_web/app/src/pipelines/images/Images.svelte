@@ -3,11 +3,14 @@
   import SourceTabs, { type Source } from '../../components/SourceTabs.svelte';
   import FileDrop from '../../components/FileDrop.svelte';
   import Options from '../../components/Options.svelte';
+  import ComputeRow from '../../components/ComputeRow.svelte';
   import Results from '../../components/Results.svelte';
   import FiltrationSlider from '../../components/FiltrationSlider.svelte';
-  import ImageView from './ImageView.svelte';
+  import ImageView, { type Tool } from './ImageView.svelte';
+  import EditBar from '../../components/EditBar.svelte';
+  import { History } from '../../lib/history.svelte';
   import { Runner } from '../../lib/runner.svelte';
-  import { COMPLEX, defaultsFor } from '../../lib/options';
+  import { IMAGE, defaultsFor } from '../../lib/options';
   import { randomSeed } from '../../lib/random';
   import type { Job } from '../../lib/types';
   import { EXAMPLES, smoothNoise, loadImage, blur, type Img } from './data';
@@ -16,13 +19,29 @@
   let exampleId = $state(EXAMPLES[0].id);
   let img = $state.raw<Img>(EXAMPLES[0].make());
   let superlevel = $state(EXAMPLES[0].superlevel);
-  let options = $state(defaultsFor(COMPLEX));
+  let construction = $state<'T' | 'V'>('T');
+  let options = $state(defaultsFor(IMAGE));
   const runner = new Runner();
+
+  // ---- The image, with undo ----
+  const history = new History<Img>(40);
+  function replace(next: Img) {
+    history.commit(img);
+    img = next;
+  }
+  function undo() {
+    const previous = history.undo(img);
+    if (previous) img = previous;
+  }
+  function redo() {
+    const next = history.redo(img);
+    if (next) img = next;
+  }
 
   function useExample(id: string) {
     const ex = EXAMPLES.find((e) => e.id === id)!;
     exampleId = id;
-    img = ex.make();
+    replace(ex.make());
     superlevel = ex.superlevel;
   }
 
@@ -31,7 +50,7 @@
   let noiseSeed = $state(1);
   function useNoise(newSeed = false) {
     if (newSeed) noiseSeed = randomSeed();
-    img = smoothNoise(noiseSize, noiseScale, noiseSeed);
+    replace(smoothNoise(noiseSize, noiseScale, noiseSeed));
   }
 
   let maxSide = $state(96);
@@ -41,20 +60,29 @@
     if (!file) return;
     lastFile = file;
     try {
-      img = await loadImage(file, maxSide);
+      replace(await loadImage(file, maxSide));
       uploadError = null;
     } catch (e) {
       uploadError = `Couldn't read that image: ${(e as Error).message}`;
     }
   }
 
+  // ---- Editing ----
+  let tool = $state<Tool | null>(null);
   let brush = $state(4);
   let paintValue = $state(1);
   let canvasSize = $state(64);
+  const TOOLS: [Tool, string, string][] = [
+    ['paint', 'Paint', 'Paint the chosen value with a soft round brush'],
+    ['smooth', 'Smooth', 'Blur the image under the brush'],
+    ['pick', 'Pick', "Click a pixel to paint with its value"],
+  ];
   function blank(fill: number) {
-    img = { width: canvasSize, height: canvasSize, pixels: new Float64Array(canvasSize * canvasSize).fill(fill) };
+    replace({ width: canvasSize, height: canvasSize, pixels: new Float64Array(canvasSize * canvasSize).fill(fill) });
+    tool = 'paint';
+    paintValue = 1 - fill;
   }
-  const invert = () => (img = { ...img, pixels: img.pixels.map((v) => 1 - v) });
+  const invert = () => replace({ ...img, pixels: img.pixels.map((v) => 1 - v) });
 
   // ---- Computing ----
   const job = $derived<Job>({
@@ -63,6 +91,7 @@
     width: img.width,
     height: img.height,
     superlevel,
+    construction,
     options: $state.snapshot(options),
   });
   $effect(() => {
@@ -93,20 +122,56 @@
 <div class="layout">
   <div>
     <div class="panel">
-      <ImageView {img} t={runner.t} {superlevel} {bar} painting={source === 'draw'} {brush} value={paintValue} onpaint={(i) => (img = i)} />
+      <ImageView
+        {img}
+        t={runner.t}
+        {superlevel}
+        {construction}
+        {bar}
+        {tool}
+        {brush}
+        value={paintValue}
+        onstart={() => history.begin(img)}
+        onpaint={(i) => {
+          history.edited();
+          img = i;
+        }}
+        onpick={(v) => {
+          paintValue = Math.round(Math.min(1, Math.max(0, v)) * 100) / 100;
+          tool = 'paint';
+        }}
+      />
       <div style="margin-top: 0.6rem">
         <FiltrationSlider bind:t={runner.t} {domain} reversed={superlevel} label="Intensity" />
       </div>
       <div class="legend" style="margin-top: 0.4rem">
         <span>{img.width}×{img.height} pixels</span>
-        <span><i style="background: #4c78a8"></i>the {superlevel ? 'superlevel' : 'sublevel'} set at the slider's value</span>
+        <span><i style="background: var(--dim0)"></i>the {superlevel ? 'superlevel' : 'sublevel'} set at the slider's value</span>
         {#if bar}<span>coloured: the representative · red dashes: the cell that kills it</span>{/if}
       </div>
+      <EditBar
+        bind:tool
+        tools={TOOLS}
+        canUndo={history.past.length > 0}
+        canRedo={history.future.length > 0}
+        onundo={undo}
+        onredo={redo}
+      >
+        {#if tool === 'paint' || tool === 'smooth'}
+          <label class="field"><span>Brush</span><input type="range" min="0.5" max="16" step="0.5" bind:value={brush} /><span>{brush}px</span></label>
+        {/if}
+        {#if tool === 'paint'}
+          <label class="field"><span>Value</span><input type="range" min="0" max="1" step="0.05" bind:value={paintValue} />
+            <span class="swatch" style="background: rgb({paintValue * 255},{paintValue * 255},{paintValue * 255})"></span></label>
+        {/if}
+        <button onclick={() => replace(blur(img))}>Blur all</button>
+        <button onclick={invert}>Invert</button>
+      </EditBar>
     </div>
 
     <div class="panel secondary">
       <h3>Image</h3>
-      <SourceTabs bind:source drawLabel="Paint" />
+      <SourceTabs bind:source drawLabel="New" />
       {#if source === 'examples'}
         <div class="chips">
           {#each EXAMPLES as ex}
@@ -133,13 +198,11 @@
           <select bind:value={canvasSize}>
             {#each [32, 48, 64, 96, 128] as s}<option value={s}>{s}×{s}</option>{/each}
           </select>
-          <button onclick={() => (img = blur(img))}>Blur</button>
-          <button onclick={invert}>Invert</button>
         </div>
-        <label class="field"><span>Brush</span><input type="range" min="1" max="16" step="0.5" bind:value={brush} /><span>{brush}px</span></label>
-        <label class="field"><span>Paint value</span><input type="range" min="0" max="1" step="0.05" bind:value={paintValue} />
-          <span class="swatch" style="background: rgb({paintValue * 255},{paintValue * 255},{paintValue * 255})"></span></label>
-        <p class="note">Paint on the image below; the barcode follows.</p>
+        <p class="note">
+          A blank canvas to paint on with the editing tools under the image. Any image (an example, random terrain or
+          your own) can be painted on the same way.
+        </p>
       {/if}
     </div>
   </div>
@@ -167,15 +230,25 @@
           <button class:on={superlevel} onclick={() => (superlevel = true)}>Superlevel (bright first)</button>
         </div>
       </div>
-      <p class="note">
-        The cubical complex with a vertex per pixel, an edge between neighbouring pixels and a square for each 2×2 block;
-        each cell enters with the {superlevel ? 'darkest' : 'brightest'} of its pixels. Reduced as an explicit complex.
-      </p>
-      <Options bind:options defaults={COMPLEX} />
-      <div class="compute-row">
-        <button class="primary" onclick={() => runner.run(job)}>Compute</button>
-        <label><input type="checkbox" bind:checked={runner.auto} /> recompute on every change</label>
+      <div class="field"><span>Construction</span>
+        <div class="tools">
+          <button class:on={construction === 'T'} onclick={() => (construction = 'T')}>T: pixels as squares</button>
+          <button class:on={construction === 'V'} onclick={() => (construction = 'V')}>V: pixels as vertices</button>
+        </div>
       </div>
+      <p class="note">
+        {#if construction === 'T'}
+          The cubical complex with a square per pixel, entering at the pixel's value, and every edge and vertex entering
+          with the {superlevel ? 'brightest' : 'darkest'} square around it: pixels touching at a corner are connected.
+        {:else}
+          The cubical complex with a vertex per pixel, an edge between neighbouring pixels and a square for each 2×2 block;
+          each cell enters with the {superlevel ? 'darkest' : 'brightest'} of its pixels: only pixels sharing a side are
+          connected.
+        {/if}
+        Computed by <code>phlite_images</code>' cubical complexes, nothing stored but the image.
+      </p>
+      <Options bind:options defaults={IMAGE} />
+      <ComputeRow {runner} {job} />
     </div>
   </div>
 </div>

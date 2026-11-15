@@ -27,11 +27,11 @@ def _():
 
     import altair as alt
     import numpy as np
-    import phlite
+    from phlite import complexes
     import polars as pl
     from scipy.spatial import Delaunay
 
-    return Delaunay, alt, itertools, np, phlite, pl
+    return Delaunay, alt, complexes, itertools, np, pl
 
 
 @app.cell
@@ -81,13 +81,13 @@ def _(mo):
 
 
 @app.cell
-def _(edge_frame, edges, phlite, pl, points, simplices):
+def _(complexes, edge_frame, edges, pl, points, simplices):
     def boundary(simplex):
         if len(simplex) == 1:
             return {}
         return {simplex[:i] + simplex[i + 1 :]: (-1) ** i for i in range(len(simplex))}
 
-    chain = phlite.ChainComplex.from_cells(simplices, dimension=lambda s: len(s) - 1, boundary=boundary, modulus=3)
+    chain = complexes.ChainComplex.from_cells(simplices, dimension=lambda s: len(s) - 1, boundary=boundary, modulus=3)
     values = {(v,): 0.0 for v in range(len(points))}
     values.update(zip(edges, edge_frame["length"].to_list()))
     barcode = chain.filtration(values, extend=True).persistence(1, representatives=True)

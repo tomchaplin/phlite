@@ -13,6 +13,18 @@ export interface Bar {
 export interface Barcode {
   bars: Bar[];
   summary: string;
+  /** The filtration's edges, if the pipeline draws its complex (see `FiltrationEdges`). */
+  edges?: FiltrationEdges | null;
+}
+
+/**
+ * The edges of the filtration a barcode was computed from, by phlite, sorted by when they enter: `pairs[2k] →
+ * pairs[2k + 1]` at `values[k]`, with each point's birth if not every point is born at 0 (weighted Rips).
+ */
+export interface FiltrationEdges {
+  pairs: Uint32Array;
+  values: Float64Array;
+  births: Float64Array | null;
 }
 
 export interface RunResult {
@@ -31,13 +43,52 @@ export interface AlgoOptions {
   storage?: 'locking' | 'lock-free';
   method: 'cohomology' | 'homology';
   representatives: boolean;
+  /** Find dimension 0 by union-find (Rips and images). */
+  unionFind?: boolean;
+  /** Build the matrices in parallel (by default, exactly when the algorithm is parallel clearing). */
+  parallelSetup?: boolean;
 }
 
+export type Metric = 'euclidean' | 'manhattan' | 'chebyshev';
+
+/** The complexes of `phlite_web::network`. */
+export type NetworkKind = 'pph' | 'flag' | 'grounded-flag' | 'tuples' | 'dowker-sink' | 'dowker-source';
+
 export type Job =
-  | { pipeline: 'rips'; coords: Float64Array; pointDim: number; maxDim: number; threshold: number | null; options: AlgoOptions }
-  | { pipeline: 'alpha'; coords: Float64Array; options: AlgoOptions }
-  | { pipeline: 'grpph'; n: number; sources: Uint32Array; targets: Uint32Array; weights: Float64Array; options: AlgoOptions }
-  | { pipeline: 'image'; pixels: Float64Array; width: number; height: number; superlevel: boolean; options: AlgoOptions }
+  | {
+      pipeline: 'rips';
+      coords: Float64Array;
+      pointDim: number;
+      maxDim: number;
+      threshold: number | null;
+      metric: Metric;
+      /** DTM-Rips: weight each point by its distance to measure over this many nearest neighbours. */
+      dtmK: number | null;
+      options: AlgoOptions;
+    }
+  | { pipeline: 'delaunay'; coords: Float64Array; pointDim: number; cech: boolean; options: AlgoOptions }
+  | { pipeline: 'grpph'; n: number; sources: Uint32Array; targets: Uint32Array; weights: Float64Array; grounded: boolean; options: AlgoOptions }
+  | {
+      pipeline: 'network';
+      kind: NetworkKind;
+      /** Each pair at the length of the shortest path between them, rather than each edge at its weight. */
+      shortestPath: boolean;
+      n: number;
+      sources: Uint32Array;
+      targets: Uint32Array;
+      weights: Float64Array;
+      maxDim: number;
+      options: AlgoOptions;
+    }
+  | {
+      pipeline: 'image';
+      pixels: Float64Array;
+      width: number;
+      height: number;
+      superlevel: boolean;
+      construction: 'T' | 'V';
+      options: AlgoOptions;
+    }
   | {
       pipeline: 'complex';
       dimensions: Uint32Array;
@@ -52,6 +103,5 @@ export type Job =
   /** Crash on purpose, to test the recovery (`window.__phlite.run({pipeline: 'crash', how: 'pool'})`). */
   | { pipeline: 'crash'; how: 'panic' | 'pool' | 'oom' };
 
-/** Colours of homology dimensions 0, 1, 2, 3 (Tableau 10, as in the book's figures). */
-export const DIM_COLOURS = ['#4c78a8', '#f58518', '#54a24b', '#e45756', '#b279a2'];
-export const dimColour = (d: number) => DIM_COLOURS[Math.min(d, DIM_COLOURS.length - 1)];
+/** The colour of homology dimension `d` (Catppuccin, as the book's figures; see `palette.svelte.ts`). */
+export { dimColour } from './palette.svelte';

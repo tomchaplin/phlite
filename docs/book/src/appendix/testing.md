@@ -9,17 +9,17 @@ component.
 `python-tests/` generates random inputs with [Hypothesis](https://hypothesis.readthedocs.io/), which shrinks a failure
 to a minimal example.
 
-- **Explicit complexes** (`test_sparse.py`): random cellular complexes over Z/2 (multi-edges, loops, empty and long
+- **Explicit complexes** (`test_complexes_sparse.py`): random cellular complexes over Z/2 (multi-edges, loops, empty and long
   boundaries, few distinct values so many ties) against PHAT and LoPHAT, for **every configuration** in the grid
   (algorithm × columns × caching × skipping × dimension order × store R × threads × storage), both methods, every input
   format.
-- **Vietoris–Rips** (`test_rips.py`): random distance matrices (point clouds, small-integer matrices with ties, infinite
+- **Vietoris–Rips** (`test_clouds_rips.py`): random distance matrices (point clouds, small-integer matrices with ties, infinite
   entries) against ripser and giotto-ph.
-- **GrPPH** (`test_grpph.py`): random weighted digraphs against grpphati.
+- **GrPPH** (`test_networks_grpph.py`): random weighted digraphs against grpphati.
 
 ## Invariants (no reference needed)
 
-`test_invariants.py` uses cellular complexes over Z/2, Z/3 and Z/5 with cells listed **out of filtration order**, and
+`test_complexes_invariants.py` uses cellular complexes over Z/2, Z/3 and Z/5 with cells listed **out of filtration order**, and
 checks properties every barcode must have, with exact linear algebra over Z/p (`tests/modp.py`):
 
 - **The rank invariant**: for values \\(s \le t\\), the bars alive from \\(s\\) to \\(t\\) number
@@ -36,7 +36,7 @@ checks properties every barcode must have, with exact linear algebra over Z/p (`
 - Every **column representation**, driven through the whole column API by random operations, against a plain map from
   row to coefficient (Z/2 and Z/3, with and without row ranks, through `reverse()`).
 - `ElementMap` and `ElementSet` against `BTreeMap` and `BTreeSet`, for every storage.
-- phlite_py's **renumbering by rank** and every clearing configuration on random simplicial complexes.
+- phlite_complexes' **renumbering by rank** and every clearing configuration on random simplicial complexes.
 
 ## Running them
 

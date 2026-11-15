@@ -2,6 +2,25 @@
 
 [Introduction](introduction.md)
 
+# Python
+
+- [The Python packages](python/index.md)
+- [phlite.complexes: explicit complexes](python/complexes.md)
+- [phlite.clouds: point clouds](python/clouds.md)
+  - [Vietoris–Rips](python/clouds/rips.md)
+  - [Alpha complexes](python/clouds/alpha.md)
+  - [Weighted and Čech-like filtrations](python/clouds/weighted.md)
+- [phlite.networks: networks](python/networks.md)
+  - [Grounded path homology](python/networks/grpph.md)
+  - [Path homology](python/networks/pph.md)
+  - [Directed flag complexes](python/networks/directed_flag.md)
+  - [Dowker complexes](python/networks/dowker.md)
+  - [Directed Rips (ordered tuples)](python/networks/ordered_tuples.md)
+- [phlite.images: images](python/images.md)
+  - [Cubical complexes](python/images/cubical.md)
+- [Choosing an algorithm](python/algorithms.md)
+- [Example notebooks](python/notebooks.md)
+
 # Background
 
 - [Persistent homology in one chapter](background/persistence.md)
@@ -34,7 +53,7 @@
 # Inside phlite
 
 - [Bookkeeping: pivot tables and maps](internals/bookkeeping.md)
-- [Explicit complexes (phlite_py)](internals/explicit.md)
+- [Explicit complexes (phlite_complexes)](internals/explicit.md)
 - [Where the time goes](internals/performance.md)
 
 # Tutorial: your own filtration in Rust
@@ -47,15 +66,6 @@
 - [5. Cheaper pivots](tutorial/step5.md)
 - [6. Dense indices and pivot columns](tutorial/step6.md)
 - [7. Representatives and threads](tutorial/step7.md)
-
-# Python
-
-- [The three packages](python/index.md)
-- [phlite: explicit complexes](python/phlite.md)
-- [phlite_rips: Vietoris–Rips](python/rips.md)
-- [phlite_grpph: path homology of digraphs](python/grpph.md)
-- [Choosing an algorithm](python/algorithms.md)
-- [Example notebooks](python/notebooks.md)
 
 # Appendix
 

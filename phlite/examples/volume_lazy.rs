@@ -219,7 +219,7 @@ fn main() {
 
     // ANCHOR: step7
     // Step 7: representatives, by the involution, which needs the transpose (the boundary)
-    let delta_t = (&delta).with_transpose(Boundary(&volume));
+    let delta_t = delta.by_ref().with_transpose(Boundary(&volume));
     let with_reps = timed("... with representatives", || {
         barcode::cohomology_with_involution(&delta_t, Algorithm::Clearing(algorithm.clone()))
     });

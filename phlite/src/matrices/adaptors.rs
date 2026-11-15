@@ -7,6 +7,7 @@
 
 // ====== WithTrivialFiltration ================
 
+use delegate::delegate;
 use std::cmp::Reverse;
 
 use crate::columns::{BHCol, ColumnEntry};
@@ -276,6 +277,9 @@ where
     }
 }
 
+// Forwards every method (including those with defaults, which the inner matrix may override): clippy checks none is
+// missed, see `just lint-forwarding`
+#[deny(clippy::missing_trait_methods)]
 impl<M, B> HasRowFiltration for MatrixWithBasis<M, B>
 where
     M: MatrixOracle + HasRowFiltration,
@@ -283,64 +287,26 @@ where
 {
     type FiltrationT = M::FiltrationT;
 
-    fn filtration_value(&self, row: Self::RowT) -> Self::FiltrationT {
-        self.matrix.filtration_value(row)
-    }
-
-    fn same_filtration_value(&self, a: Self::RowT, b: Self::RowT) -> bool {
-        self.matrix.same_filtration_value(a, b)
-    }
-
-    fn column_with_filtration(
-        &self,
-        col: Self::ColT,
-    ) -> impl Iterator<Item = ColumnEntry<Self::FiltrationT, Self::RowT, Self::CoefficientField>>
-    {
-        self.matrix.column_with_filtration(col)
-    }
-
-    fn column_pivot(
-        &self,
-        col: Self::ColT,
-    ) -> Option<ColumnEntry<Self::FiltrationT, Self::RowT, Self::CoefficientField>> {
-        self.matrix.column_pivot(col)
-    }
-
-    fn column_min(
-        &self,
-        col: Self::ColT,
-    ) -> Option<ColumnEntry<Self::FiltrationT, Self::RowT, Self::CoefficientField>> {
-        self.matrix.column_min(col)
-    }
-
-    fn first_column_in_row(&self, row: Self::RowT) -> Option<Self::ColT> {
-        self.matrix.first_column_in_row(row)
-    }
-
-    fn last_column_in_row(&self, row: Self::RowT) -> Option<Self::ColT> {
-        self.matrix.last_column_in_row(row)
-    }
-
-    fn sorted_column(
-        &self,
-        col: Self::ColT,
-    ) -> Option<
-        impl Iterator<Item = ColumnEntry<Self::FiltrationT, Self::RowT, Self::CoefficientField>>,
-    > {
-        self.matrix.sorted_column(col)
-    }
-
-    fn sorted_column_ascending(
-        &self,
-        col: Self::ColT,
-    ) -> Option<
-        impl Iterator<Item = ColumnEntry<Self::FiltrationT, Self::RowT, Self::CoefficientField>>,
-    > {
-        self.matrix.sorted_column_ascending(col)
-    }
-
-    fn row_ranks(&self) -> Option<RowRanks> {
-        self.matrix.row_ranks()
+    delegate! {
+        to self.matrix {
+            fn filtration_value(&self, row: Self::RowT) -> Self::FiltrationT;
+            fn same_filtration_value(&self, a: Self::RowT, b: Self::RowT) -> bool;
+            fn column_with_filtration(&self, col: Self::ColT)
+                -> impl Iterator<Item = ColumnEntry<Self::FiltrationT, Self::RowT, Self::CoefficientField>>;
+            fn column_pivot(&self, col: Self::ColT)
+                -> Option<ColumnEntry<Self::FiltrationT, Self::RowT, Self::CoefficientField>>;
+            fn column_min(&self, col: Self::ColT)
+                -> Option<ColumnEntry<Self::FiltrationT, Self::RowT, Self::CoefficientField>>;
+            fn first_column_in_row(&self, row: Self::RowT) -> Option<Self::ColT>;
+            fn last_column_in_row(&self, row: Self::RowT) -> Option<Self::ColT>;
+            fn sorted_column(&self, col: Self::ColT)
+                -> Option<impl Iterator<Item = ColumnEntry<Self::FiltrationT, Self::RowT, Self::CoefficientField>>>;
+            fn sorted_column_ascending(&self, col: Self::ColT)
+                -> Option<impl Iterator<Item = ColumnEntry<Self::FiltrationT, Self::RowT, Self::CoefficientField>>>;
+            fn row_ranks(&self) -> Option<RowRanks>;
+            fn empty_bhcol(&self) -> BHCol<Self::FiltrationT, Self::RowT, Self::CoefficientField>;
+            fn build_bhcol(&self, col: Self::ColT) -> BHCol<Self::FiltrationT, Self::RowT, Self::CoefficientField>;
+        }
     }
 }
 
@@ -449,70 +415,35 @@ where
     }
 }
 
+// Forwards every method (including those with defaults, which the inner matrix may override): clippy checks none is
+// missed, see `just lint-forwarding`
+#[deny(clippy::missing_trait_methods)]
 impl<M> HasRowFiltration for WithSubBasis<M>
 where
     M: HasSplitColBasis + HasRowFiltration,
 {
     type FiltrationT = M::FiltrationT;
 
-    fn filtration_value(&self, row: Self::RowT) -> Self::FiltrationT {
-        self.oracle.filtration_value(row)
-    }
-
-    fn same_filtration_value(&self, a: Self::RowT, b: Self::RowT) -> bool {
-        self.oracle.same_filtration_value(a, b)
-    }
-
-    fn column_with_filtration(
-        &self,
-        col: Self::ColT,
-    ) -> impl Iterator<Item = ColumnEntry<Self::FiltrationT, Self::RowT, Self::CoefficientField>>
-    {
-        self.oracle.column_with_filtration(col)
-    }
-
-    fn column_pivot(
-        &self,
-        col: Self::ColT,
-    ) -> Option<ColumnEntry<Self::FiltrationT, Self::RowT, Self::CoefficientField>> {
-        self.oracle.column_pivot(col)
-    }
-
-    fn column_min(
-        &self,
-        col: Self::ColT,
-    ) -> Option<ColumnEntry<Self::FiltrationT, Self::RowT, Self::CoefficientField>> {
-        self.oracle.column_min(col)
-    }
-
-    fn first_column_in_row(&self, row: Self::RowT) -> Option<Self::ColT> {
-        self.oracle.first_column_in_row(row)
-    }
-
-    fn last_column_in_row(&self, row: Self::RowT) -> Option<Self::ColT> {
-        self.oracle.last_column_in_row(row)
-    }
-
-    fn sorted_column(
-        &self,
-        col: Self::ColT,
-    ) -> Option<
-        impl Iterator<Item = ColumnEntry<Self::FiltrationT, Self::RowT, Self::CoefficientField>>,
-    > {
-        self.oracle.sorted_column(col)
-    }
-
-    fn sorted_column_ascending(
-        &self,
-        col: Self::ColT,
-    ) -> Option<
-        impl Iterator<Item = ColumnEntry<Self::FiltrationT, Self::RowT, Self::CoefficientField>>,
-    > {
-        self.oracle.sorted_column_ascending(col)
-    }
-
-    fn row_ranks(&self) -> Option<RowRanks> {
-        self.oracle.row_ranks()
+    delegate! {
+        to self.oracle {
+            fn filtration_value(&self, row: Self::RowT) -> Self::FiltrationT;
+            fn same_filtration_value(&self, a: Self::RowT, b: Self::RowT) -> bool;
+            fn column_with_filtration(&self, col: Self::ColT)
+                -> impl Iterator<Item = ColumnEntry<Self::FiltrationT, Self::RowT, Self::CoefficientField>>;
+            fn column_pivot(&self, col: Self::ColT)
+                -> Option<ColumnEntry<Self::FiltrationT, Self::RowT, Self::CoefficientField>>;
+            fn column_min(&self, col: Self::ColT)
+                -> Option<ColumnEntry<Self::FiltrationT, Self::RowT, Self::CoefficientField>>;
+            fn first_column_in_row(&self, row: Self::RowT) -> Option<Self::ColT>;
+            fn last_column_in_row(&self, row: Self::RowT) -> Option<Self::ColT>;
+            fn sorted_column(&self, col: Self::ColT)
+                -> Option<impl Iterator<Item = ColumnEntry<Self::FiltrationT, Self::RowT, Self::CoefficientField>>>;
+            fn sorted_column_ascending(&self, col: Self::ColT)
+                -> Option<impl Iterator<Item = ColumnEntry<Self::FiltrationT, Self::RowT, Self::CoefficientField>>>;
+            fn row_ranks(&self) -> Option<RowRanks>;
+            fn empty_bhcol(&self) -> BHCol<Self::FiltrationT, Self::RowT, Self::CoefficientField>;
+            fn build_bhcol(&self, col: Self::ColT) -> BHCol<Self::FiltrationT, Self::RowT, Self::CoefficientField>;
+        }
     }
 }
 
@@ -1037,6 +968,9 @@ where
     }
 }
 
+// Forwards every method (including those with defaults, which the inner matrix may override): clippy checks none is
+// missed, see `just lint-forwarding`
+#[deny(clippy::missing_trait_methods)]
 impl<M, T> HasRowFiltration for WithTranspose<M, T>
 where
     M: HasRowFiltration + SquareMatrix,
@@ -1044,34 +978,24 @@ where
 {
     type FiltrationT = M::FiltrationT;
 
-    fn filtration_value(&self, row: Self::RowT) -> Self::FiltrationT {
-        self.matrix.filtration_value(row)
-    }
-
-    fn same_filtration_value(&self, a: Self::RowT, b: Self::RowT) -> bool {
-        self.matrix.same_filtration_value(a, b)
-    }
-
-    fn column_with_filtration(
-        &self,
-        col: Self::ColT,
-    ) -> impl Iterator<Item = ColumnEntry<Self::FiltrationT, Self::RowT, Self::CoefficientField>>
-    {
-        self.matrix.column_with_filtration(col)
-    }
-
-    fn column_pivot(
-        &self,
-        col: Self::ColT,
-    ) -> Option<ColumnEntry<Self::FiltrationT, Self::RowT, Self::CoefficientField>> {
-        self.matrix.column_pivot(col)
-    }
-
-    fn column_min(
-        &self,
-        col: Self::ColT,
-    ) -> Option<ColumnEntry<Self::FiltrationT, Self::RowT, Self::CoefficientField>> {
-        self.matrix.column_min(col)
+    delegate! {
+        to self.matrix {
+            fn filtration_value(&self, row: Self::RowT) -> Self::FiltrationT;
+            fn same_filtration_value(&self, a: Self::RowT, b: Self::RowT) -> bool;
+            fn column_with_filtration(&self, col: Self::ColT)
+                -> impl Iterator<Item = ColumnEntry<Self::FiltrationT, Self::RowT, Self::CoefficientField>>;
+            fn column_pivot(&self, col: Self::ColT)
+                -> Option<ColumnEntry<Self::FiltrationT, Self::RowT, Self::CoefficientField>>;
+            fn column_min(&self, col: Self::ColT)
+                -> Option<ColumnEntry<Self::FiltrationT, Self::RowT, Self::CoefficientField>>;
+            fn sorted_column(&self, col: Self::ColT)
+                -> Option<impl Iterator<Item = ColumnEntry<Self::FiltrationT, Self::RowT, Self::CoefficientField>>>;
+            fn sorted_column_ascending(&self, col: Self::ColT)
+                -> Option<impl Iterator<Item = ColumnEntry<Self::FiltrationT, Self::RowT, Self::CoefficientField>>>;
+            fn row_ranks(&self) -> Option<RowRanks>;
+            fn empty_bhcol(&self) -> BHCol<Self::FiltrationT, Self::RowT, Self::CoefficientField>;
+            fn build_bhcol(&self, col: Self::ColT) -> BHCol<Self::FiltrationT, Self::RowT, Self::CoefficientField>;
+        }
     }
 
     // Use the matrix's own (presumably faster) implementation if it has one, otherwise scan the transpose
@@ -1086,53 +1010,45 @@ where
             .last_column_in_row(row.clone())
             .or_else(|| self.extreme_column_in_row(row, true))
     }
-
-    fn sorted_column(
-        &self,
-        col: Self::ColT,
-    ) -> Option<
-        impl Iterator<Item = ColumnEntry<Self::FiltrationT, Self::RowT, Self::CoefficientField>>,
-    > {
-        self.matrix.sorted_column(col)
-    }
-
-    fn sorted_column_ascending(
-        &self,
-        col: Self::ColT,
-    ) -> Option<
-        impl Iterator<Item = ColumnEntry<Self::FiltrationT, Self::RowT, Self::CoefficientField>>,
-    > {
-        self.matrix.sorted_column_ascending(col)
-    }
-
-    fn row_ranks(&self) -> Option<RowRanks> {
-        self.matrix.row_ranks()
-    }
 }
 
+// Forwards every method (including those with defaults, which the inner matrix may override): clippy checks none is
+// missed, see `just lint-forwarding`
+#[deny(clippy::missing_trait_methods)]
 impl<M: HasColBasis, T> HasColBasis for WithTranspose<M, T> {
     type BasisT<'a>
         = M::BasisT<'a>
     where
         Self: 'a;
 
-    fn basis(&self) -> Self::BasisT<'_> {
-        self.matrix.basis()
+    delegate! {
+        to self.matrix {
+            fn basis(&self) -> Self::BasisT<'_>;
+        }
     }
 }
 
+// Forwards every method (including those with defaults, which the inner matrix may override): clippy checks none is
+// missed, see `just lint-forwarding`
+#[deny(clippy::missing_trait_methods)]
 impl<M: HasSplitColBasis, T> HasSplitColBasis for WithTranspose<M, T> {
     type SubBasisT<'a>
         = M::SubBasisT<'a>
     where
         Self: 'a;
 
-    fn sub_basis(&self, dimension: usize) -> Self::SubBasisT<'_> {
-        self.matrix.sub_basis(dimension)
+    delegate! {
+        to self.matrix {
+            fn sub_basis(&self, dimension: usize) -> Self::SubBasisT<'_>;
+            fn n_dimensions(&self) -> usize;
+        }
     }
 
-    fn n_dimensions(&self) -> usize {
-        self.matrix.n_dimensions()
+    fn sub_matrix_in_dimension(self, dimension: usize) -> WithSubBasis<Self> {
+        WithSubBasis {
+            oracle: self,
+            dimension,
+        }
     }
 }
 

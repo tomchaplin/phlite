@@ -3,6 +3,7 @@
   import SourceTabs, { type Source } from '../../components/SourceTabs.svelte';
   import FileDrop from '../../components/FileDrop.svelte';
   import Options from '../../components/Options.svelte';
+  import ComputeRow from '../../components/ComputeRow.svelte';
   import Results from '../../components/Results.svelte';
   import FiltrationSlider from '../../components/FiltrationSlider.svelte';
   import ComplexView, { type Tool } from './ComplexView.svelte';
@@ -241,10 +242,7 @@ abc 2 _ : ab bc -ac`}</pre>
         </select>
       </label>
       <Options bind:options defaults={COMPLEX} />
-      <div class="compute-row">
-        <button class="primary" disabled={!job} onclick={() => runner.run(job)}>Compute</button>
-        <label><input type="checkbox" bind:checked={runner.auto} /> recompute on every change</label>
-      </div>
+      <ComputeRow {runner} {job} />
     </div>
   </div>
 </div>

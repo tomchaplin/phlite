@@ -1,0 +1,142 @@
+/* Catppuccin (https://catppuccin.com/palette) for the whole book, as for the rest of the docs: Latte for the light
+   themes (light, rust, and before JavaScript loads), Macchiato for the dark ones (coal, navy, ayu). So whichever
+   theme a reader picks, and whichever their system prefers (book.toml's defaults), the book is Catppuccin. */
+
+.light, .rust, html:not(.js) {
+    --ctp-rosewater: #dc8a78;
+    --ctp-flamingo: #dd7878;
+    --ctp-pink: #ea76cb;
+    --ctp-mauve: #8839ef;
+    --ctp-red: #d20f39;
+    --ctp-maroon: #e64553;
+    --ctp-peach: #fe640b;
+    --ctp-yellow: #df8e1d;
+    --ctp-green: #40a02b;
+    --ctp-teal: #179299;
+    --ctp-sky: #04a5e5;
+    --ctp-sapphire: #209fb5;
+    --ctp-blue: #1e66f5;
+    --ctp-lavender: #7287fd;
+    --ctp-text: #4c4f69;
+    --ctp-subtext1: #5c5f77;
+    --ctp-subtext0: #6c6f85;
+    --ctp-overlay2: #7c7f93;
+    --ctp-overlay1: #8c8fa1;
+    --ctp-overlay0: #9ca0b0;
+    --ctp-surface2: #acb0be;
+    --ctp-surface1: #bcc0cc;
+    --ctp-surface0: #ccd0da;
+    --ctp-base: #eff1f5;
+    --ctp-mantle: #e6e9ef;
+    --ctp-crust: #dce0e8;
+    --color-scheme: light;
+    /* The icons are drawn as images, so recoloured by filters: subtext0, and blue on hover */
+    --copy-button-filter: invert(42%) sepia(9%) saturate(841%) hue-rotate(194deg) brightness(93%) contrast(88%);
+    --copy-button-filter-hover: invert(31%) sepia(92%) saturate(3836%) hue-rotate(216deg) brightness(99%) contrast(95%);
+}
+
+.coal, .navy, .ayu {
+    --ctp-rosewater: #f4dbd6;
+    --ctp-flamingo: #f0c6c6;
+    --ctp-pink: #f5bde6;
+    --ctp-mauve: #c6a0f6;
+    --ctp-red: #ed8796;
+    --ctp-maroon: #ee99a0;
+    --ctp-peach: #f5a97f;
+    --ctp-yellow: #eed49f;
+    --ctp-green: #a6da95;
+    --ctp-teal: #8bd5ca;
+    --ctp-sky: #91d7e3;
+    --ctp-sapphire: #7dc4e4;
+    --ctp-blue: #8aadf4;
+    --ctp-lavender: #b7bdf8;
+    --ctp-text: #cad3f5;
+    --ctp-subtext1: #b8c0e0;
+    --ctp-subtext0: #a5adcb;
+    --ctp-overlay2: #939ab7;
+    --ctp-overlay1: #8087a2;
+    --ctp-overlay0: #6e738d;
+    --ctp-surface2: #5b6078;
+    --ctp-surface1: #494d64;
+    --ctp-surface0: #363a4f;
+    --ctp-base: #24273a;
+    --ctp-mantle: #1e2030;
+    --ctp-crust: #181926;
+    --color-scheme: dark;
+    --copy-button-filter: invert(78%) sepia(9%) saturate(626%) hue-rotate(191deg) brightness(89%) contrast(88%);
+    --copy-button-filter-hover: invert(70%) sepia(23%) saturate(1048%) hue-rotate(189deg) brightness(101%) contrast(92%);
+}
+
+/* mdBook's variables, from the palette */
+.light, .rust, .coal, .navy, .ayu, html:not(.js) {
+    --bg: var(--ctp-base);
+    --fg: var(--ctp-text);
+
+    --sidebar-bg: var(--ctp-mantle);
+    --sidebar-fg: var(--ctp-subtext1);
+    --sidebar-non-existant: var(--ctp-overlay0);
+    --sidebar-active: var(--ctp-blue);
+    --sidebar-spacer: var(--ctp-surface0);
+    --sidebar-header-border-color: var(--ctp-blue);
+
+    --scrollbar: var(--ctp-surface2);
+
+    --icons: var(--ctp-subtext0);
+    --icons-hover: var(--ctp-blue);
+
+    --links: var(--ctp-blue);
+
+    --inline-code-color: var(--ctp-text);
+
+    --theme-popup-bg: var(--ctp-mantle);
+    --theme-popup-border: var(--ctp-surface1);
+    --theme-hover: var(--ctp-surface0);
+
+    --quote-bg: var(--ctp-mantle);
+    --quote-border: var(--ctp-surface0);
+
+    --warning-border: var(--ctp-peach);
+
+    --table-border-color: var(--ctp-surface0);
+    --table-header-bg: var(--ctp-surface0);
+    --table-alternate-bg: var(--ctp-mantle);
+
+    --searchbar-border-color: var(--ctp-surface1);
+    --searchbar-bg: var(--ctp-mantle);
+    --searchbar-fg: var(--ctp-text);
+    --searchbar-shadow-color: var(--ctp-crust);
+    --searchresults-header-fg: var(--ctp-subtext0);
+    --searchresults-border-color: var(--ctp-surface1);
+    --searchresults-li-bg: var(--ctp-mantle);
+    --search-mark-bg: var(--ctp-yellow);
+
+    --footnote-highlight: var(--ctp-blue);
+    --overlay-bg: color-mix(in srgb, var(--ctp-crust) 40%, transparent);
+
+    --blockquote-note-color: var(--ctp-blue);
+    --blockquote-tip-color: var(--ctp-green);
+    --blockquote-important-color: var(--ctp-mauve);
+    --blockquote-warning-color: var(--ctp-yellow);
+    --blockquote-caution-color: var(--ctp-red);
+}
+
+/* Code: Catppuccin's syntax colours (keywords mauve, strings green, numbers peach, functions blue, types yellow, ...),
+   over all three of mdBook's highlight.js themes ("html" outranks their selectors) */
+html .hljs { background: var(--ctp-mantle); color: var(--ctp-text); }
+html :not(pre) > .hljs { background: var(--ctp-mantle); }
+html .hljs-comment, html .hljs-quote { color: var(--ctp-overlay2); font-style: italic; }
+html .hljs-keyword, html .hljs-selector-tag { color: var(--ctp-mauve); }
+html .hljs-string, html .hljs-char.escape_, html .hljs-regexp { color: var(--ctp-green); }
+html .hljs-number, html .hljs-literal { color: var(--ctp-peach); }
+html .hljs-title, html .hljs-title.function_, html .hljs-section { color: var(--ctp-blue); }
+html .hljs-title.class_, html .hljs-type, html .hljs-built_in, html .hljs-builtin-name { color: var(--ctp-yellow); }
+html .hljs-params, html .hljs-variable, html .hljs-template-variable { color: var(--ctp-maroon); }
+html .hljs-attr, html .hljs-attribute { color: var(--ctp-yellow); }
+html .hljs-meta, html .hljs-meta .hljs-keyword { color: var(--ctp-peach); }
+html .hljs-symbol, html .hljs-bullet, html .hljs-link { color: var(--ctp-rosewater); }
+html .hljs-tag, html .hljs-name, html .hljs-selector-id, html .hljs-selector-class { color: var(--ctp-blue); }
+html .hljs-operator, html .hljs-punctuation { color: var(--ctp-sky); }
+html .hljs-addition { color: var(--ctp-green); background: color-mix(in srgb, var(--ctp-green) 12%, transparent); }
+html .hljs-deletion { color: var(--ctp-red); background: color-mix(in srgb, var(--ctp-red) 12%, transparent); }
+html .hljs-emphasis { font-style: italic; }
+html .hljs-strong { font-weight: bold; }

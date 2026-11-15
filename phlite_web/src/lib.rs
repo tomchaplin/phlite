@@ -1,15 +1,16 @@
 #![feature(alloc_error_hook)]
 //! phlite compiled to WebAssembly for the browser playground.
 //!
-//! Four pipelines, each taking plain arrays and an [`Options`] object and returning a [`Barcode`]:
+//! The pipelines, each taking plain arrays and an [`Options`] object and returning a [`Barcode`]:
 //!
-//! * [`rips`]: Vietoris–Rips persistence of a point cloud (any dimension) or a distance matrix, by `phlite_rips`;
-//! * [`grpph`]: grounded persistent path homology of a weighted digraph, by `phlite_grpph`;
-//! * [`image`]: persistence of a greyscale image (its cubical complex, pixels as vertices, sublevel or superlevel
-//!   sets), by `phlite_py`'s explicit complexes;
-//! * [`alpha`]: alpha persistence of points in the plane (the Delaunay triangulation filtered by `alphalpha`), by
-//!   `phlite_py`'s explicit complexes;
-//! * [`complex`]: persistence of an explicit filtered chain complex over Z/2, Z/3, Z/5 or Z/7, by `phlite_py`.
+//! * [`rips`]: Vietoris–Rips persistence of a point cloud (any dimension) or a distance matrix, optionally DTM-weighted,
+//!   by `phlite_clouds`;
+//! * [`delaunay`]: alpha or Delaunay–Čech persistence of points in the plane or in space, by `phlite_clouds`;
+//! * [`grpph`]: (grounded) persistent path homology of a weighted digraph, by `phlite_networks`;
+//! * [`network`]: directed flag, ordered-tuple and Dowker complexes of a weighted digraph, by `phlite_networks`;
+//! * [`image`]: persistence of a greyscale image (its cubical complex, T- or V-construction, sublevel or superlevel
+//!   sets), by `phlite_images`;
+//! * [`complex`]: persistence of an explicit filtered chain complex over Z/2, Z/3, Z/5 or Z/7, by `phlite_complexes`.
 //!
 //! With the `threads` feature (the default), the parallel algorithm runs on the global rayon pool, which
 //! [`init_thread_pool`] starts on Web Workers (`wasm-bindgen-rayon`): the page must be cross-origin isolated (COOP/COEP
@@ -27,7 +28,7 @@ use phlite::{
     fields::{Z2, Z3, Z5, Z7},
     reduction::{Clearing, Standard, Storage},
 };
-use phlite_py::{
+use phlite_complexes::{
     complex::{Chain, Complex, RawChain},
     field::IntField,
 };
@@ -114,7 +115,7 @@ pub fn crash_for_testing(how: &str) {
 // ---- Options ----
 
 /// How to compute: the reduction algorithm and its options, the method and whether to compute representatives.
-/// Every field is optional; a missing one takes the pipeline's default (the same as its Python package's
+/// Every field is optional; a missing one takes the pipeline's default (the same as its Python pipeline's
 /// `Algorithm.serial()`, or `Algorithm.parallel()` for the parallel algorithm).
 #[derive(Debug, Default, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
@@ -131,6 +132,10 @@ pub struct Options {
     /// `"cohomology"` (the default) or `"homology"`.
     pub method: Option<String>,
     pub representatives: bool,
+    /// Find dimension 0 by union-find (Rips and images only; the default there).
+    pub union_find: Option<bool>,
+    /// Build the matrices in parallel (by default, exactly when the algorithm is parallel clearing).
+    pub parallel_setup: Option<bool>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -148,7 +153,7 @@ enum Columns {
     Pivot,
 }
 
-/// A pipeline's defaults, as in its Python package.
+/// A pipeline's defaults, as in Python (`phlite.core.defaults()`).
 #[derive(Debug, Clone, Copy)]
 struct Defaults {
     columns: Columns,
@@ -156,6 +161,10 @@ struct Defaults {
     store_r: bool,
     /// Whether the matrices know the rank of every row, which pivot columns need.
     row_ranks: bool,
+    /// Whether dimension 0 is found by union-find by default, or `None` if the pipeline can't.
+    union_find: Option<bool>,
+    /// Whether the pipeline can build its matrices in parallel.
+    parallel_setup: bool,
 }
 
 const RIPS_DEFAULTS: Defaults = Defaults {
@@ -163,18 +172,41 @@ const RIPS_DEFAULTS: Defaults = Defaults {
     cache: false,
     store_r: false,
     row_ranks: false,
+    union_find: Some(true),
+    parallel_setup: true,
 };
 const GRPPH_DEFAULTS: Defaults = Defaults {
     columns: Columns::Merged,
     cache: true,
     store_r: false,
     row_ranks: false,
+    union_find: None,
+    parallel_setup: false,
+};
+/// The lazy network complexes' (directed flag, ordered tuples, Dowker), as `phlite.networks`'.
+const NETWORK_DEFAULTS: Defaults = Defaults {
+    columns: Columns::Merged,
+    cache: true,
+    store_r: false,
+    row_ranks: false,
+    union_find: None,
+    parallel_setup: true,
+};
+const IMAGE_DEFAULTS: Defaults = Defaults {
+    columns: Columns::Merged,
+    cache: false,
+    store_r: true,
+    row_ranks: false,
+    union_find: Some(true),
+    parallel_setup: true,
 };
 const COMPLEX_DEFAULTS: Defaults = Defaults {
     columns: Columns::Pivot,
     cache: false,
     store_r: true,
     row_ranks: true,
+    union_find: None,
+    parallel_setup: false,
 };
 
 /// The resolved configuration.
@@ -188,6 +220,10 @@ struct Config {
     storage: Storage,
     method: Method,
     representatives: bool,
+    union_find: bool,
+    parallel_setup: bool,
+    /// Whether the pipeline has a choice of setup (to describe).
+    has_setup: bool,
 }
 
 fn err(message: impl Into<String>) -> JsError {
@@ -256,6 +292,18 @@ impl Config {
             "homology" => Method::Homology,
             other => return Err(err(format!("Unknown method {other:?}"))),
         };
+        let union_find = match (options.union_find, defaults.union_find) {
+            (Some(true), None) => return Err(err("This pipeline has no union-find for dimension 0")),
+            (Some(u), Some(_)) => u,
+            (_, d) => d.unwrap_or(false),
+        };
+        let parallel_setup = options.parallel_setup.unwrap_or(kind == Kind::Parallel);
+        if parallel_setup && !defaults.parallel_setup {
+            return Err(err("This pipeline has no parallel setup"));
+        }
+        if parallel_setup && !threaded() {
+            return Err(err("A parallel setup needs threads, which this page has not got"));
+        }
         Ok(Self {
             kind,
             columns,
@@ -265,6 +313,9 @@ impl Config {
             storage,
             method,
             representatives: options.representatives,
+            union_find,
+            parallel_setup,
+            has_setup: defaults.parallel_setup,
         })
     }
 
@@ -327,12 +378,68 @@ pub struct Barcode {
     pub bars: Vec<OutBar>,
     /// What was computed, in words (sizes and the resolved algorithm).
     pub summary: String,
+    /// The filtration's edges, to draw the complex at any value (as typed arrays, see [`FiltrationEdges`]).
+    #[serde(skip)]
+    pub edges: Option<FiltrationEdges>,
 }
 
+/// The edges of the filtration a barcode was computed from, sorted by when they enter, so that the page can draw the
+/// complex at any value from the very values phlite used: the edge `pairs[2k] → pairs[2k + 1]` at `values[k]` (both
+/// ways round for a flag filtration of points; one way for a digraph's), with each point's birth if not all are born
+/// at 0 (weighted Rips). Edges that never enter are left out.
+#[derive(Debug, Default)]
+pub struct FiltrationEdges {
+    pairs: Vec<u32>,
+    values: Vec<f64>,
+    births: Option<Vec<f64>>,
+}
+
+impl FiltrationEdges {
+    fn from_unsorted(mut edges: Vec<(u32, u32, f64)>, births: Option<Vec<f64>>) -> Self {
+        edges.retain(|e| e.2.is_finite());
+        edges.sort_by(|a, b| a.2.total_cmp(&b.2));
+        Self {
+            pairs: edges.iter().flat_map(|&(a, b, _)| [a, b]).collect(),
+            values: edges.iter().map(|e| e.2).collect(),
+            births,
+        }
+    }
+
+    /// Every pair of points of a (weighted) Rips filtration.
+    fn flag<D: phlite_clouds::rips::Distances>(distances: &D) -> Self {
+        let n = distances.n_points();
+        let edges = (0..n)
+            .flat_map(|i| (i + 1..n).map(move |j| (i as u32, j as u32, distances.distance(i, j).into_inner())))
+            .collect();
+        let births = D::HAS_BIRTHS.then(|| (0..n).map(|v| distances.birth(v).into_inner()).collect());
+        Self::from_unsorted(edges, births)
+    }
+
+    fn to_js(&self) -> JsValue {
+        js_sys_object(&[
+            ("pairs", js_sys::Uint32Array::from(&self.pairs[..]).into()),
+            ("values", js_sys::Float64Array::from(&self.values[..]).into()),
+            (
+                "births",
+                self.births
+                    .as_ref()
+                    .map_or(JsValue::NULL, |b| js_sys::Float64Array::from(&b[..]).into()),
+            ),
+        ])
+    }
+}
+
+/// Filtrations with more points than this aren't drawn (and their edges not sent).
+const DRAWN_POINTS: usize = 1200;
+
 fn to_js(barcode: Barcode) -> Result<JsValue, JsError> {
-    barcode
+    let value = barcode
         .serialize(&serde_wasm_bindgen::Serializer::json_compatible())
-        .map_err(|e| err(e.to_string()))
+        .map_err(|e| err(e.to_string()))?;
+    if let Some(edges) = &barcode.edges {
+        let _ = js_sys::Reflect::set(&value, &JsValue::from_str("edges"), &edges.to_js());
+    }
+    Ok(value)
 }
 
 /// Translate bars, dropping those of length zero, with `cell` describing a cell, `dim` its dimension and `value`
@@ -385,6 +492,12 @@ fn describe(config: &Config) -> String {
     if config.store_r {
         s += ", storing R";
     }
+    if config.union_find {
+        s += ", union-find in dimension 0";
+    }
+    if config.has_setup && config.parallel_setup != (config.kind == Kind::Parallel) {
+        s += if config.parallel_setup { ", parallel setup" } else { ", serial setup" };
+    }
     if config.kind == Kind::Parallel {
         s += &format!(
             ", {} storage on {}",
@@ -409,15 +522,28 @@ fn describe(config: &Config) -> String {
 ///   distance matrix (row by row, symmetric).
 /// * `max_dim`: the top dimension of homology.
 /// * `threshold`: only build the complex up to this diameter (`undefined` or infinite for no limit).
+/// * `metric`: for coordinates, `"euclidean"`, `"manhattan"` or `"chebyshev"`.
+/// * `dtm_k`: if given, DTM-Rips: weighted Rips with each point weighted by its distance to measure over its `dtm_k`
+///   nearest neighbours (itself included, `q = 2`), as `phlite.clouds.rips(weights=dtm(k=dtm_k))`.
 #[wasm_bindgen]
 pub fn rips(
     coords: &[f64],
     point_dim: usize,
     max_dim: usize,
     threshold: Option<f64>,
+    metric: &str,
+    dtm_k: Option<usize>,
     options: JsValue,
 ) -> Result<JsValue, JsError> {
     let config = Config::resolve(options, RIPS_DEFAULTS)?;
+    use phlite_clouds::rips::Metric;
+    let metric_name = metric;
+    let metric = match metric {
+        "euclidean" => Metric::Euclidean,
+        "manhattan" => Metric::Manhattan,
+        "chebyshev" => Metric::Chebyshev,
+        other => return Err(err(format!("Unknown metric {other:?}"))),
+    };
     let distances = if point_dim == 0 {
         let n = (coords.len() as f64).sqrt() as usize;
         if n * n != coords.len() {
@@ -430,68 +556,84 @@ pub fn rips(
         if !coords.len().is_multiple_of(point_dim) {
             return Err(err("The coordinates don't divide into points"));
         }
+        if !coords.iter().all(|x| x.is_finite()) {
+            return Err(err("Coordinates must be finite"));
+        }
         let points: Vec<&[f64]> = coords.chunks(point_dim).collect();
         points
             .iter()
-            .map(|p| {
-                points
-                    .iter()
-                    .map(|q| {
-                        not_nan(
-                            p.iter()
-                                .zip(*q)
-                                .map(|(a, b)| (a - b) * (a - b))
-                                .sum::<f64>()
-                                .sqrt(),
-                        )
-                    })
-                    .collect()
-            })
-            .collect::<Result<Vec<Vec<_>>, _>>()?
+            .map(|p| points.iter().map(|q| metric.distance(p, q)).collect())
+            .collect::<Vec<Vec<_>>>()
     };
     let n = distances.len();
     if n == 0 {
         return to_js(Barcode {
             bars: vec![],
             summary: "No points".into(),
+            edges: None,
         });
     }
     // usize is 32 bits here, so index simplices by u64: up to 65 534 points for H₂ rather than 254
-    if !phlite_rips::RipsIndex::<u64>::fits(n, max_dim + 1) {
+    if !phlite_clouds::rips::RipsIndex::<u64>::fits(n, max_dim + 1) {
         return Err(err(format!(
             "Too many points ({n}) for simplices of dimension {}",
             max_dim + 1
         )));
     }
     let threshold = not_nan(threshold.unwrap_or(f64::INFINITY))?;
+    let weights = match dtm_k {
+        None => None,
+        Some(k) => Some(
+            phlite_clouds::rips::distance_to_measure(
+                n,
+                |i| distances[i].iter().map(|d| d.into_inner()).collect(),
+                k,
+                2.0,
+            )
+            .map_err(err)?,
+        ),
+    };
 
-    struct V {
-        distances: Vec<Vec<NotNan<f64>>>,
+    struct V<D> {
+        distances: D,
         max_dim: usize,
         threshold: NotNan<f64>,
         method: Method,
         representatives: bool,
+        union_find: bool,
+        parallel_setup: bool,
     }
-    impl Visitor for V {
-        type Output = Vec<phlite_rips::RipsBar<u64>>;
+    impl<D: phlite_clouds::rips::Distances> Visitor for V<D> {
+        type Output = Vec<phlite_clouds::rips::RipsBar<u64>>;
         fn visit<R: ColumnRepresentation>(self, algorithm: Algorithm<'_, R>) -> Self::Output {
-            phlite_rips::rips_barcode::<_, u64>(
+            phlite_clouds::rips::rips_barcode_with::<_, u64, _>(
                 self.distances,
                 self.max_dim,
                 self.threshold,
                 self.method,
                 algorithm,
                 self.representatives,
+                self.union_find,
+                self.parallel_setup,
             )
         }
     }
-    let bars = config.run(V {
-        distances,
-        max_dim,
-        threshold,
-        method: config.method,
-        representatives: config.representatives,
-    });
+    let (method, representatives) = (config.method, config.representatives);
+    let (union_find, parallel_setup) = (config.union_find, config.parallel_setup);
+    // The filtration's edges, from the distances the barcode is computed from
+    let drawn = n <= DRAWN_POINTS;
+    let (bars, edges) = match &weights {
+        None => {
+            let edges = drawn.then(|| FiltrationEdges::flag(&distances));
+            (config.run(V { distances, max_dim, threshold, method, representatives, union_find, parallel_setup }), edges)
+        }
+        Some(weights) => {
+            let distances = phlite_clouds::rips::Weighted::new(distances, weights).map_err(err)?;
+            let edges = drawn.then(|| FiltrationEdges::flag(&distances));
+            let v = V { distances, max_dim, threshold, method, representatives, union_find, parallel_setup };
+            (config.run(v), edges)
+        }
+    };
     let bars = translate::<_, Z2>(
         bars,
         |s| s.dimension(n),
@@ -500,7 +642,13 @@ pub fn rips(
     );
     to_js(Barcode {
         bars,
-        summary: format!("{n} points, dimensions 0–{max_dim}; {}", describe(&config)),
+        summary: format!(
+            "{n} points, dimensions 0–{max_dim}{}{}; {}",
+            if point_dim > 0 && metric_name != "euclidean" { format!(", {metric_name} metric") } else { String::new() },
+            dtm_k.map_or(String::new(), |k| format!(", DTM-weighted (k = {k})")),
+            describe(&config)
+        ),
+        edges,
     })
 }
 
@@ -510,17 +658,13 @@ fn not_nan(x: f64) -> Result<NotNan<f64>, JsError> {
 
 // ---- GrPPH ----
 
-/// Grounded persistent path homology of a weighted digraph with `n_vertices` nodes and edges
-/// `sources[i] → targets[i]` of weight `weights[i]`.
-#[wasm_bindgen]
-pub fn grpph(
+/// The edges `sources[i] → targets[i]` of weight `weights[i]`, checked.
+fn read_edges(
     n_vertices: u32,
     sources: &[u32],
     targets: &[u32],
     weights: &[f64],
-    options: JsValue,
-) -> Result<JsValue, JsError> {
-    let config = Config::resolve(options, GRPPH_DEFAULTS)?;
+) -> Result<Vec<(u32, u32, f64)>, JsError> {
     if sources.len() != targets.len() || sources.len() != weights.len() {
         return Err(err(
             "sources, targets and weights must have the same length",
@@ -544,20 +688,53 @@ pub fn grpph(
         }
         edges.push((s, t, w));
     }
-    let filtration = phlite_grpph::build_filtration(n_vertices, &edges);
-    let edge_set = phlite_grpph::build_edge_set(&edges);
+    Ok(edges)
+}
+
+/// Grounded persistent path homology (or, not `grounded`, persistent path homology) of a weighted digraph with
+/// `n_vertices` nodes and edges `sources[i] → targets[i]` of weight `weights[i]`.
+#[wasm_bindgen]
+pub fn grpph(
+    n_vertices: u32,
+    sources: &[u32],
+    targets: &[u32],
+    weights: &[f64],
+    grounded: bool,
+    options: JsValue,
+) -> Result<JsValue, JsError> {
+    let config = Config::resolve(options, GRPPH_DEFAULTS)?;
+    let edges = read_edges(n_vertices, sources, targets, weights)?;
+    let filtration = phlite_networks::grpph::build_filtration(n_vertices, &edges);
+    let drawn = FiltrationEdges::from_unsorted(
+        filtration
+            .iter()
+            .enumerate()
+            .flat_map(|(a, row)| {
+                row.iter()
+                    .enumerate()
+                    .filter(move |&(b, _)| a != b)
+                    .filter_map(move |(b, d)| d.map(|d| (a as u32, b as u32, d.into_inner())))
+            })
+            .collect(),
+        None,
+    );
+    let edge_set = if grounded {
+        phlite_networks::grpph::build_edge_set(&edges)
+    } else {
+        phlite_networks::grpph::coboundary::DigraphEdgeSet::default()
+    };
 
     struct V<'a> {
-        filtration: &'a phlite_grpph::coboundary::VecDigraphFiltration,
-        edge_set: &'a phlite_grpph::coboundary::DigraphEdgeSet,
+        filtration: &'a phlite_networks::grpph::coboundary::VecDigraphFiltration,
+        edge_set: &'a phlite_networks::grpph::coboundary::DigraphEdgeSet,
         n: u16,
         method: Method,
         representatives: bool,
     }
     impl Visitor for V<'_> {
-        type Output = Vec<phlite_grpph::GrPPHBar>;
+        type Output = Vec<phlite_networks::grpph::GrPPHBar>;
         fn visit<R: ColumnRepresentation>(self, algorithm: Algorithm<'_, R>) -> Self::Output {
-            phlite_grpph::grpph_barcode(
+            phlite_networks::grpph::grpph_barcode(
                 self.filtration,
                 self.edge_set,
                 self.n,
@@ -574,7 +751,7 @@ pub fn grpph(
         method: config.method,
         representatives: config.representatives,
     });
-    use phlite_grpph::coboundary::{PathHom2Cell, PathHomCell};
+    use phlite_networks::grpph::coboundary::{PathHom2Cell, PathHomCell};
     let bars = translate::<_, Z2>(
         bars,
         |c: PathHomCell| c.dimension(),
@@ -596,16 +773,259 @@ pub fn grpph(
     to_js(Barcode {
         bars,
         summary: format!(
-            "{n_vertices} nodes, {} edges, dimensions 0–1; {}",
+            "{n_vertices} nodes, {} edges, dimensions 0–1, {}; {}",
             edges.len(),
+            if grounded { "grounded" } else { "not grounded" },
             describe(&config)
         ),
+        edges: Some(drawn),
     })
+}
+
+// ---- Directed flag, ordered-tuple and Dowker complexes ----
+
+/// Persistence of a complex of a weighted digraph (edges as for [`grpph`]), in dimensions `0..=max_dim`, cells given
+/// by their nodes. `kind` is one of
+/// * `"flag"`: the directed flag complex, each edge at its weight (flagser's);
+/// * `"flag-sp"`: the directed flag complex, each pair at the length of the shortest path;
+/// * `"grounded-flag"`: the directed flag complex grounded at the digraph's edges (dimensions 0 and 1);
+/// * `"tuples"`: the ordered-tuple complex (directed Rips), each edge at its weight;
+/// * `"dowker-sink"`, `"dowker-source"`: the Dowker sink or source complex;
+/// * `"pph"`: persistent path homology (Chowdhury and Mémoli), by `phlite_networks::pph` (cells are regular paths).
+///
+/// With `shortest_path`, each pair `a → b` enters at the length of the shortest path from `a` to `b` rather than with
+/// the edge's weight (as `filtration='shortest_path'` in Python; the grounded flag complex always does).
+#[wasm_bindgen]
+#[allow(clippy::too_many_arguments)]
+pub fn network(
+    kind: &str,
+    shortest_path: bool,
+    n_vertices: u32,
+    sources: &[u32],
+    targets: &[u32],
+    weights: &[f64],
+    max_dim: usize,
+    options: JsValue,
+) -> Result<JsValue, JsError> {
+    use phlite_networks::digraph::{Digraph, Distances};
+    let config = Config::resolve(options, NETWORK_DEFAULTS)?;
+    let edges = read_edges(n_vertices, sources, targets, weights)?;
+    let distances = if shortest_path { Distances::ShortestPath } else { Distances::Weight };
+    let with = || Digraph::with_distances(n_vertices, &edges, distances);
+    let digraph_edges = |g: &Digraph| {
+        FiltrationEdges::from_unsorted(g.edges().map(|(a, b, w)| (a, b, w.into_inner())).collect(), None)
+    };
+    let drawn = match kind {
+        "grounded-flag" => digraph_edges(&Digraph::shortest_paths(n_vertices, &edges)),
+        "pph" => FiltrationEdges::default(), // from the PPH network itself, below
+        _ => digraph_edges(&with()),
+    };
+    let (bars, sizes, drawn) = match kind {
+        "pph" => pph_bars(n_vertices, &edges, shortest_path, max_dim, &config)?,
+        _ => {
+            let (bars, sizes) = network_bars(kind, n_vertices, &edges, &with, max_dim, &config)?;
+            (bars, sizes, drawn)
+        }
+    };
+    to_js(Barcode {
+        bars,
+        summary: format!(
+            "{n_vertices} nodes, {} edges, {sizes}{}; {}",
+            edges.len(),
+            if shortest_path || kind == "grounded-flag" { ", shortest-path filtration" } else { "" },
+            describe(&config)
+        ),
+        edges: Some(drawn),
+    })
+}
+
+/// The barcode of a lazy complex of a digraph (every kind of [`network`] but PPH).
+fn network_bars(
+    kind: &str,
+    n_vertices: u32,
+    edges: &[(u32, u32, f64)],
+    with: &dyn Fn() -> phlite_networks::digraph::Digraph,
+    max_dim: usize,
+    config: &Config,
+) -> Result<(Vec<OutBar>, String), JsError> {
+    use phlite_networks::{
+        digraph::Digraph,
+        dowker::{DowkerComplex, Side},
+        flag::{FlagComplex, Kind as FlagKind},
+    };
+    Ok(match kind {
+        "flag" => lazy_bars(&FlagComplex::new(FlagKind::DirectedFlag, with()), max_dim, &config)?,
+        "grounded-flag" => lazy_bars(
+            &FlagComplex::grounded(
+                FlagKind::DirectedFlag,
+                Digraph::shortest_paths(n_vertices, &edges),
+                edges.iter().map(|&(a, b, _)| (a, b)),
+            ),
+            max_dim.min(1),
+            &config,
+        )?,
+        "tuples" => lazy_bars(&FlagComplex::new(FlagKind::OrderedTuples, with()), max_dim, &config)?,
+        "dowker-sink" => lazy_bars(&DowkerComplex::new(&with(), Side::Sink), max_dim, &config)?,
+        "dowker-source" => lazy_bars(&DowkerComplex::new(&with(), Side::Source), max_dim, &config)?,
+        other => return Err(err(format!("Unknown network complex {other:?}"))),
+    })
+}
+
+/// Persistent path homology in dimensions `0..=max_dim`, cells as their vertices.
+fn pph_bars(
+    n_vertices: u32,
+    edges: &[(u32, u32, f64)],
+    shortest_path: bool,
+    max_dim: usize,
+    config: &Config,
+) -> Result<(Vec<OutBar>, String, FiltrationEdges), JsError> {
+    use phlite_networks::pph::{pph_barcode_with, Network, PPHBar};
+    let edges: Vec<(u16, u16, f64)> = if shortest_path {
+        // Every pair joined by a path, at the length of the shortest one
+        phlite_networks::grpph::build_filtration(n_vertices, edges)
+            .iter()
+            .enumerate()
+            .flat_map(|(a, row)| {
+                row.iter()
+                    .enumerate()
+                    .filter_map(move |(b, d)| d.map(|d| (a as u16, b as u16, d.into_inner())))
+            })
+            .collect()
+    } else {
+        edges.iter().map(|&(a, b, w)| (a as u16, b as u16, w)).collect()
+    };
+    let network = Network::from_edges(n_vertices as u16, &edges);
+    let n = n_vertices as u16;
+    let drawn = FiltrationEdges::from_unsorted(
+        (0..n)
+            .flat_map(|a| (0..n).filter(move |&b| b != a).map(move |b| (a, b)))
+            .filter_map(|(a, b)| network.edge_time(a, b).map(|t| (a as u32, b as u32, t.into_inner())))
+            .collect(),
+        None,
+    );
+    if max_dim >= network.max_dimension() {
+        return Err(err(format!(
+            "Too many nodes ({n_vertices}) for paths of dimension {}",
+            max_dim + 1
+        )));
+    }
+    struct V<'a> {
+        network: &'a Network,
+        max_dim: usize,
+        method: Method,
+        representatives: bool,
+        parallel_setup: bool,
+    }
+    impl Visitor for V<'_> {
+        type Output = Vec<PPHBar<Z2>>;
+        fn visit<R: ColumnRepresentation>(self, algorithm: Algorithm<'_, R>) -> Self::Output {
+            pph_barcode_with(
+                self.network,
+                self.max_dim,
+                self.method,
+                algorithm,
+                self.representatives,
+                self.parallel_setup,
+            )
+        }
+    }
+    let bars = config.run(V {
+        network: &network,
+        max_dim,
+        method: config.method,
+        representatives: config.representatives,
+        parallel_setup: config.parallel_setup,
+    });
+    let bars = translate::<_, Z2>(
+        bars,
+        |p| p.dimension(),
+        |p| network.vertices(p).into_iter().map(u32::from).collect(),
+        |v| v,
+    );
+    Ok((bars, format!("dimensions 0–{max_dim}, regular paths"), drawn))
+}
+
+/// The barcode of a lazy complex in dimensions `0..=max_dim`, cells as their vertices.
+fn lazy_bars<K: phlite_networks::lazy::LazyComplex>(
+    complex: &K,
+    max_dim: usize,
+    config: &Config,
+) -> Result<(Vec<OutBar>, String), JsError> {
+    use phlite_networks::lazy::{barcode_with, fits};
+    if !fits(complex, max_dim) {
+        return Err(err(format!(
+            "Too many nodes ({}) for simplices of dimension {}",
+            complex.n_vertices(),
+            max_dim + 1
+        )));
+    }
+    struct V<'a, K> {
+        complex: &'a K,
+        max_dim: usize,
+        method: Method,
+        representatives: bool,
+        parallel_setup: bool,
+    }
+    impl<K: phlite_networks::lazy::LazyComplex> Visitor for V<'_, K> {
+        type Output = Vec<Bar<phlite_networks::simplex::Simplex, NotNan<f64>, Z2>>;
+        fn visit<R: ColumnRepresentation>(self, algorithm: Algorithm<'_, R>) -> Self::Output {
+            barcode_with(
+                self.complex,
+                self.max_dim,
+                self.method,
+                algorithm,
+                self.representatives,
+                self.parallel_setup,
+            )
+        }
+    }
+    let bars = config.run(V {
+        complex,
+        max_dim,
+        method: config.method,
+        representatives: config.representatives,
+        parallel_setup: config.parallel_setup,
+    });
+    let codec = complex.codec();
+    let bars = translate::<_, Z2>(
+        bars,
+        |s| s.dimension(),
+        |s| codec.vertices(s).to_vec(),
+        |v| v,
+    );
+    Ok((bars, format!("dimensions 0–{max_dim}")))
 }
 
 // ---- Explicit complexes ----
 
 /// The barcode of `chain` filtered by `values` (with `NaN` for a value to fill in from the cell's faces).
+/// The barcode of a filtered complex with whichever algorithm `config` chose.
+fn complex_barcode<CF: IntField + Send + Sync + 'static>(
+    complex: &Complex<CF>,
+    max_dim: Option<usize>,
+    config: &Config,
+) -> Vec<Bar<phlite_complexes::complex::Cell, NotNan<f64>, CF>> {
+    struct V<'a, CF> {
+        complex: &'a Complex<CF>,
+        max_dim: Option<usize>,
+        method: Method,
+        representatives: bool,
+    }
+    impl<CF: IntField + Send + Sync + 'static> Visitor for V<'_, CF> {
+        type Output = Vec<Bar<phlite_complexes::complex::Cell, NotNan<f64>, CF>>;
+        fn visit<R: ColumnRepresentation>(self, algorithm: Algorithm<'_, R>) -> Self::Output {
+            self.complex
+                .barcode(self.max_dim, self.method, algorithm, self.representatives)
+        }
+    }
+    config.run(V {
+        complex,
+        max_dim,
+        method: config.method,
+        representatives: config.representatives,
+    })
+}
+
 fn complex_bars<CF: IntField + Send + Sync + 'static>(
     raw: RawChain,
     values: Option<Vec<f64>>,
@@ -627,26 +1047,7 @@ fn complex_bars<CF: IntField + Send + Sync + 'static>(
         ),
     };
     let complex = chain.filter(values).map_err(|e| err(e.to_string()))?;
-
-    struct V<'a, CF> {
-        complex: &'a Complex<CF>,
-        max_dim: Option<usize>,
-        method: Method,
-        representatives: bool,
-    }
-    impl<CF: IntField + Send + Sync + 'static> Visitor for V<'_, CF> {
-        type Output = Vec<Bar<phlite_py::complex::Cell, NotNan<f64>, CF>>;
-        fn visit<R: ColumnRepresentation>(self, algorithm: Algorithm<'_, R>) -> Self::Output {
-            self.complex
-                .barcode(self.max_dim, self.method, algorithm, self.representatives)
-        }
-    }
-    let bars = config.run(V {
-        complex: &complex,
-        max_dim,
-        method: config.method,
-        representatives: config.representatives,
-    });
+    let bars = complex_barcode(&complex, max_dim, config);
     let bars = translate(bars, |c| complex.dimension(c), |c| vec![c.0], |v| v);
     let summary = format!(
         "{} cells, {} boundary entries",
@@ -699,233 +1100,137 @@ pub fn complex(
     to_js(Barcode {
         bars,
         summary: format!("{sizes}, over Z/{modulus}; {}", describe(&config)),
+        edges: None,
     })
 }
 
-// ---- Alpha ----
+// ---- Alpha and Delaunay–Čech ----
 
-/// Alpha persistence of points in the plane (`coords` as `x0, y0, x1, y1, ...`): the Delaunay triangulation filtered
-/// by the alpha filtration, with values the radii (not squared radii) at which cells appear. Cells are given by their
-/// vertices (input point indices); repeated points are merged into the first.
+/// Alpha (or, with `cech`, Delaunay–Čech) persistence of points in the plane or in space (`coords` row by row, with
+/// `point_dim` 2 or 3 coordinates each), by `phlite_clouds::alpha`: the exact Delaunay triangulation filtered by
+/// radii (not squared radii). Cells are given by their vertices (input point indices); repeated points are merged into
+/// the first.
 #[wasm_bindgen]
-pub fn alpha(coords: &[f64], options: JsValue) -> Result<JsValue, JsError> {
-    use spade::{Point2, Triangulation};
-    use std::collections::HashMap;
+pub fn delaunay(coords: &[f64], point_dim: usize, cech: bool, options: JsValue) -> Result<JsValue, JsError> {
+    use phlite_clouds::alpha::{filtered_delaunay, vertices, DelaunayFiltration};
     let config = Config::resolve(options, COMPLEX_DEFAULTS)?;
-    if coords.len() % 2 != 0 {
-        return Err(err("Alpha persistence needs points in the plane"));
+    if !(point_dim == 2 || point_dim == 3) || !coords.len().is_multiple_of(point_dim) {
+        return Err(err("Alpha and Delaunay–Čech persistence need points in the plane or in space"));
     }
-    if coords.iter().any(|c| !c.is_finite()) {
-        return Err(err("Coordinates must be finite"));
-    }
-    let n = coords.len() / 2;
-    if n < 3 {
-        return Err(err("Alpha persistence needs at least three points"));
-    }
-    let points: Vec<Point2<f64>> = coords.chunks(2).map(|p| Point2::new(p[0], p[1])).collect();
-    // spade numbers vertices its own way (and merges repeats), so find each one's input point by position
-    let mut by_position: HashMap<(u64, u64), u32> = HashMap::new();
-    for (i, p) in points.iter().enumerate() {
-        by_position
-            .entry((p.x.to_bits(), p.y.to_bits()))
-            .or_insert(i as u32);
-    }
-    let filtration = alphalpha::alpha_filtration(points);
-    let input_index = |v: spade::handles::FixedVertexHandle| {
-        let p = filtration.vertex(v).position();
-        by_position[&(p.x.to_bits(), p.y.to_bits())]
-    };
-
-    // The complex: vertices, then edges, then triangles, each cell's vertices kept for the output
-    let mut cells: Vec<Vec<u32>> = vec![];
-    let mut raw = RawChain {
-        indptr: vec![0],
-        ..RawChain::default()
-    };
-    let mut values = vec![];
-    let mut vertex_cell = HashMap::new();
-    for v in filtration.fixed_vertices() {
-        vertex_cell.insert(v, cells.len() as i64);
-        cells.push(vec![input_index(v)]);
-        raw.dimensions.push(0);
-        raw.indptr.push(raw.indices.len() as i64);
-        values.push(0.0);
-    }
-    let mut edge_cell = HashMap::new();
-    for e in filtration.fixed_undirected_edges() {
-        let edge = filtration.undirected_edge(e);
-        let [a, b] = edge.vertices().map(|v| v.fix());
-        edge_cell.insert(e, cells.len() as i64);
-        let mut vs = vec![input_index(a), input_index(b)];
-        vs.sort_unstable();
-        cells.push(vs);
-        raw.dimensions.push(1);
-        raw.indices.extend([vertex_cell[&a], vertex_cell[&b]]);
-        raw.indptr.push(raw.indices.len() as i64);
-        values.push(edge.data().filtration.max(0.0).sqrt());
-    }
-    for f in filtration.fixed_inner_faces() {
-        let face = filtration.face(f);
-        let mut vs: Vec<u32> = face
-            .vertices()
-            .iter()
-            .map(|v| input_index(v.fix()))
-            .collect();
-        vs.sort_unstable();
-        cells.push(vs);
-        raw.dimensions.push(2);
-        raw.indices.extend(
-            face.adjacent_edges()
-                .iter()
-                .map(|e| edge_cell[&e.as_undirected().fix()]),
-        );
-        raw.indptr.push(raw.indices.len() as i64);
-        values.push(face.data().filtration.max(0.0).sqrt());
-    }
-    let n_cells = cells.len();
-    let (mut bars, _) = complex_bars::<Z2>(raw, Some(values), Some(1), &config)?;
-    let vertices = |c: &mut Vec<u32>| *c = cells[c[0] as usize].clone();
-    for bar in &mut bars {
-        vertices(&mut bar.birth_cell);
-        if let Some(c) = &mut bar.death_cell {
-            vertices(c);
-        }
-        if let Some(rep) = &mut bar.rep {
-            for (_, c) in rep {
-                vertices(c);
-            }
-        }
-    }
+    let n = coords.len() / point_dim;
+    let points: Vec<Vec<f64>> = coords.chunks(point_dim).map(|p| p.to_vec()).collect();
+    let filtration = if cech { DelaunayFiltration::DelaunayCech } else { DelaunayFiltration::Alpha };
+    let complex = filtered_delaunay(&points, filtration).map_err(err)?;
+    let max_dim = point_dim - 1;
+    let filtered = complex.filtered(false);
+    let bars = complex_barcode(&filtered, Some(max_dim), &config);
+    let bars = translate(
+        bars,
+        |c| complex.cell(c).0,
+        |c| vertices(complex.cell(c).1).to_vec(),
+        |v| v,
+    );
     to_js(Barcode {
         bars,
         summary: format!(
-            "{n} points, Delaunay triangulation of {n_cells} cells, dimensions 0–1, alpha radii; {}",
+            "{n} points, Delaunay triangulation of {} cells, dimensions 0–{max_dim}, {} radii; {}",
+            complex.n_simplices(),
+            if cech { "Delaunay–Čech" } else { "alpha" },
             describe(&config)
         ),
+        edges: None,
     })
 }
 
 // ---- Images ----
 
-/// The cubical complex of a `width × height` image, with pixels as vertices: cells at the points of the doubled grid
-/// of size `(2·width − 1) × (2·height − 1)`, a cell's dimension being how many of its coordinates are odd.
-///
-/// Cells are numbered by dimension (vertices, then edges, then squares), so that every face comes before its cofaces:
-/// phlite breaks ties between equal values by number, and a face must enter first. Returns the chain and, for every
-/// cell, its position `y · (2·width − 1) + x` on the doubled grid.
-fn cubical_chain(width: usize, height: usize) -> (RawChain, Vec<u32>) {
-    let (w2, h2) = (2 * width - 1, 2 * height - 1);
-    let n = w2 * h2;
-    let dim = |pos: usize| ((pos % w2) % 2 + (pos / w2) % 2) as i64;
-    let mut position: Vec<u32> = (0..n as u32).collect();
-    position.sort_by_key(|&pos| dim(pos as usize));
-    let mut number = vec![0i64; n];
-    for (cell, &pos) in position.iter().enumerate() {
-        number[pos as usize] = cell as i64;
-    }
-    let mut raw = RawChain {
-        dimensions: Vec::with_capacity(n),
-        indptr: Vec::with_capacity(n + 1),
-        indices: Vec::with_capacity(2 * n),
-        coefficients: None,
-    };
-    raw.indptr.push(0);
-    for &pos in &position {
-        let pos = pos as usize;
-        let (x, y) = (pos % w2, pos / w2);
-        let id = |x: usize, y: usize| number[y * w2 + x];
-        raw.dimensions.push(dim(pos));
-        if x % 2 == 1 {
-            raw.indices.extend([id(x - 1, y), id(x + 1, y)]);
-        }
-        if y % 2 == 1 {
-            raw.indices.extend([id(x, y - 1), id(x, y + 1)]);
-        }
-        raw.indptr.push(raw.indices.len() as i64);
-    }
-    (raw, position)
-}
-
-/// Persistence of a greyscale image (`pixels` row by row), by the cubical complex with pixels as vertices.
-/// With `superlevel`, bright features come first (the filtration is by decreasing intensity, and the values returned
-/// are intensities, so bars run downwards). Representatives and cells are doubled grid coordinates `[x, y]`.
+/// Persistence of a greyscale image (`pixels` row by row), by its cubical complex (`phlite_images::cubical`): with
+/// `construction` `"T"`, pixels are squares (8-connected); with `"V"`, pixels are vertices (4-connected). With
+/// `superlevel`, bright features come first (the filtration is by decreasing intensity, and the values returned are
+/// intensities, so bars run downwards). Representatives and cells are doubled grid coordinates `[x, y]`: in the
+/// T-construction pixel `(x, y)` is the square `[2x + 1, 2y + 1]`, in the V-construction the vertex `[2x, 2y]`.
 #[wasm_bindgen]
 pub fn image(
     pixels: &[f64],
     width: usize,
     height: usize,
     superlevel: bool,
+    construction: &str,
     options: JsValue,
 ) -> Result<JsValue, JsError> {
-    let config = Config::resolve(options, COMPLEX_DEFAULTS)?;
+    use phlite_images::cubical::{filtration_barcode, Construction, CubicalComplex, Filtration};
+    let config = Config::resolve(options, IMAGE_DEFAULTS)?;
     if width == 0 || height == 0 || pixels.len() != width * height {
         return Err(err("The image size doesn't match its pixels"));
     }
-    let w2 = 2 * width - 1;
+    let construction = match construction {
+        "T" => Construction::T,
+        "V" => Construction::V,
+        other => return Err(err(format!("Unknown construction {other:?}"))),
+    };
+    let filtration = if superlevel { Filtration::Superlevel } else { Filtration::Sublevel };
+    let complex = CubicalComplex::new(pixels.to_vec(), [height, width], construction, filtration)
+        .map_err(|e| err(e.to_string()))?;
+    struct V<'a> {
+        complex: &'a CubicalComplex<2>,
+        method: Method,
+        representatives: bool,
+        union_find: bool,
+        parallel_setup: bool,
+    }
+    impl Visitor for V<'_> {
+        type Output = Vec<phlite_images::cubical::CubicalBar>;
+        fn visit<R: ColumnRepresentation>(self, algorithm: Algorithm<'_, R>) -> Self::Output {
+            // In the sublevel filtration's values, so that classes born at +inf (never) are told from those born at
+            // -inf (first, for superlevel sets)
+            filtration_barcode(
+                self.complex,
+                1,
+                self.method,
+                algorithm,
+                self.representatives,
+                false,
+                self.union_find,
+                self.parallel_setup,
+            )
+        }
+    }
+    let bars = config.run(V {
+        complex: &complex,
+        method: config.method,
+        representatives: config.representatives,
+        union_find: config.union_find,
+        parallel_setup: config.parallel_setup,
+    });
     let sign = if superlevel { -1.0 } else { 1.0 };
-    let (chain, position) = cubical_chain(width, height);
-    // Values for the vertices (pixels); the other cells take the largest of their faces'
-    let mut values = vec![f64::NAN; position.len()];
-    for (cell, &pos) in position.iter().enumerate() {
-        let (x, y) = (pos as usize % w2, pos as usize / w2);
-        if x % 2 == 0 && y % 2 == 0 {
-            let v = pixels[(y / 2) * width + x / 2];
-            if v.is_nan() {
-                return Err(err("NaN pixel"));
+    let bars = bars
+        .into_iter()
+        .filter(|bar| bar.birth_value.into_inner() != f64::INFINITY)
+        .map(|mut bar| {
+            if bar.death.is_some_and(|(_, d)| d.into_inner() == f64::INFINITY) {
+                bar.death = None;
             }
-            values[cell] = sign * v;
-        }
-    }
-    let (mut bars, _) = complex_bars::<Z2>(chain, Some(values), Some(1), &config)?;
-    for bar in &mut bars {
-        bar.birth *= sign;
-        bar.death = bar.death.map(|d| d * sign);
-        let coords = |c: &mut Vec<u32>| {
-            let pos = position[c[0] as usize] as usize;
-            *c = vec![(pos % w2) as u32, (pos / w2) as u32];
-        };
-        coords(&mut bar.birth_cell);
-        if let Some(c) = &mut bar.death_cell {
-            coords(c);
-        }
-        if let Some(rep) = &mut bar.rep {
-            for (_, c) in rep {
-                coords(c);
-            }
-        }
-    }
+            bar
+        })
+        .collect();
+    let bars = translate::<_, Z2>(
+        bars,
+        |c| complex.dimension(c),
+        |c| {
+            let [row, column] = complex.coordinates(c);
+            vec![column, row]
+        },
+        |v| sign * v,
+    );
     to_js(Barcode {
         bars,
         summary: format!(
-            "{width}×{height} image, {} cells, {} sets; {}",
-            w2 * (2 * height - 1),
+            "{width}×{height} image, {} cells ({}-construction), {} sets; {}",
+            complex.n_cells(),
+            if construction == Construction::T { "T" } else { "V" },
             if superlevel { "superlevel" } else { "sublevel" },
             describe(&config)
         ),
+        edges: None,
     })
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn cubical_two_by_two_is_a_square() {
-        let (raw, position) = cubical_chain(2, 2);
-        assert_eq!(raw.dimensions, vec![0, 0, 0, 0, 1, 1, 1, 1, 2]);
-        assert_eq!(position, vec![0, 2, 6, 8, 1, 3, 5, 7, 4]);
-        // Every face comes before its cofaces
-        for cell in 0..raw.dimensions.len() {
-            let faces = &raw.indices[raw.indptr[cell] as usize..raw.indptr[cell + 1] as usize];
-            assert!(faces.iter().all(|&f| (f as usize) < cell));
-        }
-        let chain = Chain::<Z2>::from_raw(raw).unwrap();
-        assert_eq!(chain.n_entries(), 4 * 2 + 4);
-        // A constant image: all values tie, so this only works if faces come first
-        let values = (0..9)
-            .map(|c| if c < 4 { Some(0.0) } else { None })
-            .collect();
-        let values = chain.extend(values).unwrap();
-        chain.filter(Some(values)).unwrap();
-    }
 }

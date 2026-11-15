@@ -1,0 +1,27 @@
+[build-system]
+requires = ["maturin>=1.9,<2.0"]
+build-backend = "maturin"
+
+[project]
+name = "phlite-clouds"
+description = "Persistent homology of point clouds and distance matrices, computed with phlite"
+requires-python = ">=3.9"
+license = "MIT"
+classifiers = [
+    "Programming Language :: Rust",
+    "Programming Language :: Python :: Implementation :: CPython",
+    "Programming Language :: Python :: Implementation :: PyPy",
+    "Topic :: Scientific/Engineering :: Mathematics",
+]
+# Every phlite package is released on the same version (phlite_bindings' tests check this pin)
+dependencies = ["phlite-core==0.1.0", "numpy"]
+dynamic = ["version"]
+
+[tool.maturin]
+features = ["python", "pyo3/extension-module"]
+# `phlite` is a namespace package shared by every phlite package, so python/phlite has no __init__.py: only this
+# package's own module, phlite/clouds, which re-exports the extension module `phlite.clouds._clouds`
+python-source = "python"
+module-name = "phlite.clouds._clouds"
+# Bytecode left by local runs (from python-source) doesn't belong in the wheel
+exclude = ["**/__pycache__/**"]

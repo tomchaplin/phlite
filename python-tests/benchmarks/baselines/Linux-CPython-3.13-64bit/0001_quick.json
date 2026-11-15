@@ -214,7 +214,7 @@
         {
             "group": "rips n=100 dim\u22642",
             "name": "test_sparse[rips n=100 dim\\u22642-phat (twist)]",
-            "fullname": "benchmarks/bench_sparse.py::test_sparse[rips n=100 dim\\u22642-phat (twist)]",
+            "fullname": "benchmarks/bench_complexes.py::test_sparse[rips n=100 dim\\u22642-phat (twist)]",
             "params": {
                 "case": {
                     "kind": "rips",
@@ -280,7 +280,7 @@
         {
             "group": "rips n=100 dim\u22642",
             "name": "test_sparse[rips n=100 dim\\u22642-phat (twist, reduce)]",
-            "fullname": "benchmarks/bench_sparse.py::test_sparse[rips n=100 dim\\u22642-phat (twist, reduce)]",
+            "fullname": "benchmarks/bench_complexes.py::test_sparse[rips n=100 dim\\u22642-phat (twist, reduce)]",
             "params": {
                 "case": {
                     "kind": "rips",
@@ -346,7 +346,7 @@
         {
             "group": "rips n=100 dim\u22642",
             "name": "test_sparse[rips n=100 dim\\u22642-phat (chunk)]",
-            "fullname": "benchmarks/bench_sparse.py::test_sparse[rips n=100 dim\\u22642-phat (chunk)]",
+            "fullname": "benchmarks/bench_complexes.py::test_sparse[rips n=100 dim\\u22642-phat (chunk)]",
             "params": {
                 "case": {
                     "kind": "rips",
@@ -412,7 +412,7 @@
         {
             "group": "rips n=100 dim\u22642",
             "name": "test_sparse[rips n=100 dim\\u22642-phat (standard, vector_vector)]",
-            "fullname": "benchmarks/bench_sparse.py::test_sparse[rips n=100 dim\\u22642-phat (standard, vector_vector)]",
+            "fullname": "benchmarks/bench_complexes.py::test_sparse[rips n=100 dim\\u22642-phat (standard, vector_vector)]",
             "params": {
                 "case": {
                     "kind": "rips",
@@ -478,7 +478,7 @@
         {
             "group": "rips n=100 dim\u22642",
             "name": "test_sparse[rips n=100 dim\\u22642-lophat (1 thread)]",
-            "fullname": "benchmarks/bench_sparse.py::test_sparse[rips n=100 dim\\u22642-lophat (1 thread)]",
+            "fullname": "benchmarks/bench_complexes.py::test_sparse[rips n=100 dim\\u22642-lophat (1 thread)]",
             "params": {
                 "case": {
                     "kind": "rips",
@@ -544,7 +544,7 @@
         {
             "group": "rips n=100 dim\u22642",
             "name": "test_sparse[rips n=100 dim\\u22642-lophat (parallel)]",
-            "fullname": "benchmarks/bench_sparse.py::test_sparse[rips n=100 dim\\u22642-lophat (parallel)]",
+            "fullname": "benchmarks/bench_complexes.py::test_sparse[rips n=100 dim\\u22642-lophat (parallel)]",
             "params": {
                 "case": {
                     "kind": "rips",
@@ -610,7 +610,7 @@
         {
             "group": "rips n=100 dim\u22642",
             "name": "test_sparse[rips n=100 dim\\u22642-phlite (serial)]",
-            "fullname": "benchmarks/bench_sparse.py::test_sparse[rips n=100 dim\\u22642-phlite (serial)]",
+            "fullname": "benchmarks/bench_complexes.py::test_sparse[rips n=100 dim\\u22642-phlite (serial)]",
             "params": {
                 "case": {
                     "kind": "rips",
@@ -676,7 +676,7 @@
         {
             "group": "rips n=100 dim\u22642",
             "name": "test_sparse[rips n=100 dim\\u22642-phlite (serial, csc)]",
-            "fullname": "benchmarks/bench_sparse.py::test_sparse[rips n=100 dim\\u22642-phlite (serial, csc)]",
+            "fullname": "benchmarks/bench_complexes.py::test_sparse[rips n=100 dim\\u22642-phlite (serial, csc)]",
             "params": {
                 "case": {
                     "kind": "rips",
@@ -742,7 +742,7 @@
         {
             "group": "rips n=100 dim\u22642",
             "name": "test_sparse[rips n=100 dim\\u22642-phlite (serial, reduce)]",
-            "fullname": "benchmarks/bench_sparse.py::test_sparse[rips n=100 dim\\u22642-phlite (serial, reduce)]",
+            "fullname": "benchmarks/bench_complexes.py::test_sparse[rips n=100 dim\\u22642-phlite (serial, reduce)]",
             "params": {
                 "case": {
                     "kind": "rips",
@@ -808,7 +808,7 @@
         {
             "group": "rips n=100 dim\u22642",
             "name": "test_sparse[rips n=100 dim\\u22642-phlite (parallel)]",
-            "fullname": "benchmarks/bench_sparse.py::test_sparse[rips n=100 dim\\u22642-phlite (parallel)]",
+            "fullname": "benchmarks/bench_complexes.py::test_sparse[rips n=100 dim\\u22642-phlite (parallel)]",
             "params": {
                 "case": {
                     "kind": "rips",
@@ -874,7 +874,7 @@
         {
             "group": "rips n=100 dim\u22642",
             "name": "test_sparse[rips n=100 dim\\u22642-phlite (parallel, reduce)]",
-            "fullname": "benchmarks/bench_sparse.py::test_sparse[rips n=100 dim\\u22642-phlite (parallel, reduce)]",
+            "fullname": "benchmarks/bench_complexes.py::test_sparse[rips n=100 dim\\u22642-phlite (parallel, reduce)]",
             "params": {
                 "case": {
                     "kind": "rips",
@@ -940,7 +940,7 @@
         {
             "group": "rips n=100 dim\u22642",
             "name": "test_sparse[rips n=100 dim\\u22642-phlite (homology, reduce)]",
-            "fullname": "benchmarks/bench_sparse.py::test_sparse[rips n=100 dim\\u22642-phlite (homology, reduce)]",
+            "fullname": "benchmarks/bench_complexes.py::test_sparse[rips n=100 dim\\u22642-phlite (homology, reduce)]",
             "params": {
                 "case": {
                     "kind": "rips",
@@ -1006,7 +1006,7 @@
         {
             "group": "rips n=100 dim\u22642",
             "name": "test_sparse[rips n=100 dim\\u22642-phlite (homology, parallel, reduce)]",
-            "fullname": "benchmarks/bench_sparse.py::test_sparse[rips n=100 dim\\u22642-phlite (homology, parallel, reduce)]",
+            "fullname": "benchmarks/bench_complexes.py::test_sparse[rips n=100 dim\\u22642-phlite (homology, parallel, reduce)]",
             "params": {
                 "case": {
                     "kind": "rips",
@@ -1072,7 +1072,7 @@
         {
             "group": "rips n=100 dim\u22642",
             "name": "test_sparse[rips n=100 dim\\u22642-phlite (uncached, reduce)]",
-            "fullname": "benchmarks/bench_sparse.py::test_sparse[rips n=100 dim\\u22642-phlite (uncached, reduce)]",
+            "fullname": "benchmarks/bench_complexes.py::test_sparse[rips n=100 dim\\u22642-phlite (uncached, reduce)]",
             "params": {
                 "case": {
                     "kind": "rips",
@@ -1138,7 +1138,7 @@
         {
             "group": "rips n=100 dim\u22642",
             "name": "test_sparse[rips n=100 dim\\u22642-phlite (heap, uncached, reduce)]",
-            "fullname": "benchmarks/bench_sparse.py::test_sparse[rips n=100 dim\\u22642-phlite (heap, uncached, reduce)]",
+            "fullname": "benchmarks/bench_complexes.py::test_sparse[rips n=100 dim\\u22642-phlite (heap, uncached, reduce)]",
             "params": {
                 "case": {
                     "kind": "rips",
@@ -1204,7 +1204,7 @@
         {
             "group": "rips n=100 dim\u22642",
             "name": "test_sparse[rips n=100 dim\\u22642-phlite (sorted, uncached, reduce)]",
-            "fullname": "benchmarks/bench_sparse.py::test_sparse[rips n=100 dim\\u22642-phlite (sorted, uncached, reduce)]",
+            "fullname": "benchmarks/bench_complexes.py::test_sparse[rips n=100 dim\\u22642-phlite (sorted, uncached, reduce)]",
             "params": {
                 "case": {
                     "kind": "rips",
@@ -1270,7 +1270,7 @@
         {
             "group": "rips n=100 dim\u22642",
             "name": "test_sparse[rips n=100 dim\\u22642-phlite (V only, reduce)]",
-            "fullname": "benchmarks/bench_sparse.py::test_sparse[rips n=100 dim\\u22642-phlite (V only, reduce)]",
+            "fullname": "benchmarks/bench_complexes.py::test_sparse[rips n=100 dim\\u22642-phlite (V only, reduce)]",
             "params": {
                 "case": {
                     "kind": "rips",
@@ -1336,7 +1336,7 @@
         {
             "group": "rips n=100 dim\u22642",
             "name": "test_sparse[rips n=100 dim\\u22642-phlite (V only, uncached, reduce)]",
-            "fullname": "benchmarks/bench_sparse.py::test_sparse[rips n=100 dim\\u22642-phlite (V only, uncached, reduce)]",
+            "fullname": "benchmarks/bench_complexes.py::test_sparse[rips n=100 dim\\u22642-phlite (V only, uncached, reduce)]",
             "params": {
                 "case": {
                     "kind": "rips",
@@ -1402,7 +1402,7 @@
         {
             "group": "rips n=100 dim\u22642",
             "name": "test_sparse[rips n=100 dim\\u22642-phlite (V only, heap, reduce)]",
-            "fullname": "benchmarks/bench_sparse.py::test_sparse[rips n=100 dim\\u22642-phlite (V only, heap, reduce)]",
+            "fullname": "benchmarks/bench_complexes.py::test_sparse[rips n=100 dim\\u22642-phlite (V only, heap, reduce)]",
             "params": {
                 "case": {
                     "kind": "rips",
@@ -1468,7 +1468,7 @@
         {
             "group": "rips n=100 dim\u22642",
             "name": "test_sparse[rips n=100 dim\\u22642-phlite (V only, heap, uncached, reduce)]",
-            "fullname": "benchmarks/bench_sparse.py::test_sparse[rips n=100 dim\\u22642-phlite (V only, heap, uncached, reduce)]",
+            "fullname": "benchmarks/bench_complexes.py::test_sparse[rips n=100 dim\\u22642-phlite (V only, heap, uncached, reduce)]",
             "params": {
                 "case": {
                     "kind": "rips",
@@ -1534,7 +1534,7 @@
         {
             "group": "rips n=100 dim\u22642",
             "name": "test_sparse[rips n=100 dim\\u22642-phlite (V only, sorted, reduce)]",
-            "fullname": "benchmarks/bench_sparse.py::test_sparse[rips n=100 dim\\u22642-phlite (V only, sorted, reduce)]",
+            "fullname": "benchmarks/bench_complexes.py::test_sparse[rips n=100 dim\\u22642-phlite (V only, sorted, reduce)]",
             "params": {
                 "case": {
                     "kind": "rips",
@@ -1600,7 +1600,7 @@
         {
             "group": "rips n=100 dim\u22642",
             "name": "test_sparse[rips n=100 dim\\u22642-phlite (V only, sorted, uncached, reduce)]",
-            "fullname": "benchmarks/bench_sparse.py::test_sparse[rips n=100 dim\\u22642-phlite (V only, sorted, uncached, reduce)]",
+            "fullname": "benchmarks/bench_complexes.py::test_sparse[rips n=100 dim\\u22642-phlite (V only, sorted, uncached, reduce)]",
             "params": {
                 "case": {
                     "kind": "rips",
@@ -1666,7 +1666,7 @@
         {
             "group": "rips n=100 dim\u22642",
             "name": "test_sparse[rips n=100 dim\\u22642-phlite (homology, uncached, reduce)]",
-            "fullname": "benchmarks/bench_sparse.py::test_sparse[rips n=100 dim\\u22642-phlite (homology, uncached, reduce)]",
+            "fullname": "benchmarks/bench_complexes.py::test_sparse[rips n=100 dim\\u22642-phlite (homology, uncached, reduce)]",
             "params": {
                 "case": {
                     "kind": "rips",
@@ -1732,7 +1732,7 @@
         {
             "group": "rips n=100 dim\u22642",
             "name": "test_sparse[rips n=100 dim\\u22642-phlite (homology, heap, uncached, reduce)]",
-            "fullname": "benchmarks/bench_sparse.py::test_sparse[rips n=100 dim\\u22642-phlite (homology, heap, uncached, reduce)]",
+            "fullname": "benchmarks/bench_complexes.py::test_sparse[rips n=100 dim\\u22642-phlite (homology, heap, uncached, reduce)]",
             "params": {
                 "case": {
                     "kind": "rips",
@@ -1798,7 +1798,7 @@
         {
             "group": "rips n=100 dim\u22642",
             "name": "test_sparse[rips n=100 dim\\u22642-phlite (homology, sorted, uncached, reduce)]",
-            "fullname": "benchmarks/bench_sparse.py::test_sparse[rips n=100 dim\\u22642-phlite (homology, sorted, uncached, reduce)]",
+            "fullname": "benchmarks/bench_complexes.py::test_sparse[rips n=100 dim\\u22642-phlite (homology, sorted, uncached, reduce)]",
             "params": {
                 "case": {
                     "kind": "rips",
@@ -1864,7 +1864,7 @@
         {
             "group": "rips n=100 dim\u22642",
             "name": "test_sparse[rips n=100 dim\\u22642-phlite (homology, V only, reduce)]",
-            "fullname": "benchmarks/bench_sparse.py::test_sparse[rips n=100 dim\\u22642-phlite (homology, V only, reduce)]",
+            "fullname": "benchmarks/bench_complexes.py::test_sparse[rips n=100 dim\\u22642-phlite (homology, V only, reduce)]",
             "params": {
                 "case": {
                     "kind": "rips",
@@ -1930,7 +1930,7 @@
         {
             "group": "rips n=100 dim\u22642",
             "name": "test_sparse[rips n=100 dim\\u22642-phlite (homology, V only, uncached, reduce)]",
-            "fullname": "benchmarks/bench_sparse.py::test_sparse[rips n=100 dim\\u22642-phlite (homology, V only, uncached, reduce)]",
+            "fullname": "benchmarks/bench_complexes.py::test_sparse[rips n=100 dim\\u22642-phlite (homology, V only, uncached, reduce)]",
             "params": {
                 "case": {
                     "kind": "rips",
@@ -1996,7 +1996,7 @@
         {
             "group": "rips n=100 dim\u22642",
             "name": "test_sparse[rips n=100 dim\\u22642-phlite (homology, V only, heap, reduce)]",
-            "fullname": "benchmarks/bench_sparse.py::test_sparse[rips n=100 dim\\u22642-phlite (homology, V only, heap, reduce)]",
+            "fullname": "benchmarks/bench_complexes.py::test_sparse[rips n=100 dim\\u22642-phlite (homology, V only, heap, reduce)]",
             "params": {
                 "case": {
                     "kind": "rips",
@@ -2062,7 +2062,7 @@
         {
             "group": "rips n=100 dim\u22642",
             "name": "test_sparse[rips n=100 dim\\u22642-phlite (homology, V only, heap, uncached, reduce)]",
-            "fullname": "benchmarks/bench_sparse.py::test_sparse[rips n=100 dim\\u22642-phlite (homology, V only, heap, uncached, reduce)]",
+            "fullname": "benchmarks/bench_complexes.py::test_sparse[rips n=100 dim\\u22642-phlite (homology, V only, heap, uncached, reduce)]",
             "params": {
                 "case": {
                     "kind": "rips",
@@ -2128,7 +2128,7 @@
         {
             "group": "rips n=100 dim\u22642",
             "name": "test_sparse[rips n=100 dim\\u22642-phlite (homology, V only, sorted, reduce)]",
-            "fullname": "benchmarks/bench_sparse.py::test_sparse[rips n=100 dim\\u22642-phlite (homology, V only, sorted, reduce)]",
+            "fullname": "benchmarks/bench_complexes.py::test_sparse[rips n=100 dim\\u22642-phlite (homology, V only, sorted, reduce)]",
             "params": {
                 "case": {
                     "kind": "rips",
@@ -2194,7 +2194,7 @@
         {
             "group": "rips n=100 dim\u22642",
             "name": "test_sparse[rips n=100 dim\\u22642-phlite (homology, V only, sorted, uncached, reduce)]",
-            "fullname": "benchmarks/bench_sparse.py::test_sparse[rips n=100 dim\\u22642-phlite (homology, V only, sorted, uncached, reduce)]",
+            "fullname": "benchmarks/bench_complexes.py::test_sparse[rips n=100 dim\\u22642-phlite (homology, V only, sorted, uncached, reduce)]",
             "params": {
                 "case": {
                     "kind": "rips",
@@ -2260,7 +2260,7 @@
         {
             "group": "rips n=100 dim\u22642",
             "name": "test_sparse[rips n=100 dim\\u22642-phlite (no skipping, reduce)]",
-            "fullname": "benchmarks/bench_sparse.py::test_sparse[rips n=100 dim\\u22642-phlite (no skipping, reduce)]",
+            "fullname": "benchmarks/bench_complexes.py::test_sparse[rips n=100 dim\\u22642-phlite (no skipping, reduce)]",
             "params": {
                 "case": {
                     "kind": "rips",
@@ -2326,7 +2326,7 @@
         {
             "group": "rips n=100 dim\u22642",
             "name": "test_sparse[rips n=100 dim\\u22642-phlite (standard, reduce)]",
-            "fullname": "benchmarks/bench_sparse.py::test_sparse[rips n=100 dim\\u22642-phlite (standard, reduce)]",
+            "fullname": "benchmarks/bench_complexes.py::test_sparse[rips n=100 dim\\u22642-phlite (standard, reduce)]",
             "params": {
                 "case": {
                     "kind": "rips",
@@ -2392,7 +2392,7 @@
         {
             "group": "rips n=100 dim\u22642",
             "name": "test_sparse[rips n=100 dim\\u22642-phlite (reps, reduce)]",
-            "fullname": "benchmarks/bench_sparse.py::test_sparse[rips n=100 dim\\u22642-phlite (reps, reduce)]",
+            "fullname": "benchmarks/bench_complexes.py::test_sparse[rips n=100 dim\\u22642-phlite (reps, reduce)]",
             "params": {
                 "case": {
                     "kind": "rips",
@@ -2458,7 +2458,7 @@
         {
             "group": "grid 300x300",
             "name": "test_sparse[grid 300x300-phat (twist)]",
-            "fullname": "benchmarks/bench_sparse.py::test_sparse[grid 300x300-phat (twist)]",
+            "fullname": "benchmarks/bench_complexes.py::test_sparse[grid 300x300-phat (twist)]",
             "params": {
                 "case": {
                     "kind": "grid",
@@ -2524,7 +2524,7 @@
         {
             "group": "grid 300x300",
             "name": "test_sparse[grid 300x300-phat (twist, reduce)]",
-            "fullname": "benchmarks/bench_sparse.py::test_sparse[grid 300x300-phat (twist, reduce)]",
+            "fullname": "benchmarks/bench_complexes.py::test_sparse[grid 300x300-phat (twist, reduce)]",
             "params": {
                 "case": {
                     "kind": "grid",
@@ -2590,7 +2590,7 @@
         {
             "group": "grid 300x300",
             "name": "test_sparse[grid 300x300-phat (chunk)]",
-            "fullname": "benchmarks/bench_sparse.py::test_sparse[grid 300x300-phat (chunk)]",
+            "fullname": "benchmarks/bench_complexes.py::test_sparse[grid 300x300-phat (chunk)]",
             "params": {
                 "case": {
                     "kind": "grid",
@@ -2656,7 +2656,7 @@
         {
             "group": "grid 300x300",
             "name": "test_sparse[grid 300x300-phat (standard, vector_vector)]",
-            "fullname": "benchmarks/bench_sparse.py::test_sparse[grid 300x300-phat (standard, vector_vector)]",
+            "fullname": "benchmarks/bench_complexes.py::test_sparse[grid 300x300-phat (standard, vector_vector)]",
             "params": {
                 "case": {
                     "kind": "grid",
@@ -2722,7 +2722,7 @@
         {
             "group": "grid 300x300",
             "name": "test_sparse[grid 300x300-lophat (1 thread)]",
-            "fullname": "benchmarks/bench_sparse.py::test_sparse[grid 300x300-lophat (1 thread)]",
+            "fullname": "benchmarks/bench_complexes.py::test_sparse[grid 300x300-lophat (1 thread)]",
             "params": {
                 "case": {
                     "kind": "grid",
@@ -2788,7 +2788,7 @@
         {
             "group": "grid 300x300",
             "name": "test_sparse[grid 300x300-lophat (parallel)]",
-            "fullname": "benchmarks/bench_sparse.py::test_sparse[grid 300x300-lophat (parallel)]",
+            "fullname": "benchmarks/bench_complexes.py::test_sparse[grid 300x300-lophat (parallel)]",
             "params": {
                 "case": {
                     "kind": "grid",
@@ -2854,7 +2854,7 @@
         {
             "group": "grid 300x300",
             "name": "test_sparse[grid 300x300-phlite (serial)]",
-            "fullname": "benchmarks/bench_sparse.py::test_sparse[grid 300x300-phlite (serial)]",
+            "fullname": "benchmarks/bench_complexes.py::test_sparse[grid 300x300-phlite (serial)]",
             "params": {
                 "case": {
                     "kind": "grid",
@@ -2920,7 +2920,7 @@
         {
             "group": "grid 300x300",
             "name": "test_sparse[grid 300x300-phlite (serial, csc)]",
-            "fullname": "benchmarks/bench_sparse.py::test_sparse[grid 300x300-phlite (serial, csc)]",
+            "fullname": "benchmarks/bench_complexes.py::test_sparse[grid 300x300-phlite (serial, csc)]",
             "params": {
                 "case": {
                     "kind": "grid",
@@ -2986,7 +2986,7 @@
         {
             "group": "grid 300x300",
             "name": "test_sparse[grid 300x300-phlite (serial, reduce)]",
-            "fullname": "benchmarks/bench_sparse.py::test_sparse[grid 300x300-phlite (serial, reduce)]",
+            "fullname": "benchmarks/bench_complexes.py::test_sparse[grid 300x300-phlite (serial, reduce)]",
             "params": {
                 "case": {
                     "kind": "grid",
@@ -3052,7 +3052,7 @@
         {
             "group": "grid 300x300",
             "name": "test_sparse[grid 300x300-phlite (parallel)]",
-            "fullname": "benchmarks/bench_sparse.py::test_sparse[grid 300x300-phlite (parallel)]",
+            "fullname": "benchmarks/bench_complexes.py::test_sparse[grid 300x300-phlite (parallel)]",
             "params": {
                 "case": {
                     "kind": "grid",
@@ -3118,7 +3118,7 @@
         {
             "group": "grid 300x300",
             "name": "test_sparse[grid 300x300-phlite (parallel, reduce)]",
-            "fullname": "benchmarks/bench_sparse.py::test_sparse[grid 300x300-phlite (parallel, reduce)]",
+            "fullname": "benchmarks/bench_complexes.py::test_sparse[grid 300x300-phlite (parallel, reduce)]",
             "params": {
                 "case": {
                     "kind": "grid",
@@ -3184,7 +3184,7 @@
         {
             "group": "grid 300x300",
             "name": "test_sparse[grid 300x300-phlite (homology, reduce)]",
-            "fullname": "benchmarks/bench_sparse.py::test_sparse[grid 300x300-phlite (homology, reduce)]",
+            "fullname": "benchmarks/bench_complexes.py::test_sparse[grid 300x300-phlite (homology, reduce)]",
             "params": {
                 "case": {
                     "kind": "grid",
@@ -3250,7 +3250,7 @@
         {
             "group": "grid 300x300",
             "name": "test_sparse[grid 300x300-phlite (homology, parallel, reduce)]",
-            "fullname": "benchmarks/bench_sparse.py::test_sparse[grid 300x300-phlite (homology, parallel, reduce)]",
+            "fullname": "benchmarks/bench_complexes.py::test_sparse[grid 300x300-phlite (homology, parallel, reduce)]",
             "params": {
                 "case": {
                     "kind": "grid",
@@ -3316,7 +3316,7 @@
         {
             "group": "grid 300x300",
             "name": "test_sparse[grid 300x300-phlite (uncached, reduce)]",
-            "fullname": "benchmarks/bench_sparse.py::test_sparse[grid 300x300-phlite (uncached, reduce)]",
+            "fullname": "benchmarks/bench_complexes.py::test_sparse[grid 300x300-phlite (uncached, reduce)]",
             "params": {
                 "case": {
                     "kind": "grid",
@@ -3382,7 +3382,7 @@
         {
             "group": "grid 300x300",
             "name": "test_sparse[grid 300x300-phlite (heap, uncached, reduce)]",
-            "fullname": "benchmarks/bench_sparse.py::test_sparse[grid 300x300-phlite (heap, uncached, reduce)]",
+            "fullname": "benchmarks/bench_complexes.py::test_sparse[grid 300x300-phlite (heap, uncached, reduce)]",
             "params": {
                 "case": {
                     "kind": "grid",
@@ -3448,7 +3448,7 @@
         {
             "group": "grid 300x300",
             "name": "test_sparse[grid 300x300-phlite (sorted, uncached, reduce)]",
-            "fullname": "benchmarks/bench_sparse.py::test_sparse[grid 300x300-phlite (sorted, uncached, reduce)]",
+            "fullname": "benchmarks/bench_complexes.py::test_sparse[grid 300x300-phlite (sorted, uncached, reduce)]",
             "params": {
                 "case": {
                     "kind": "grid",
@@ -3514,7 +3514,7 @@
         {
             "group": "grid 300x300",
             "name": "test_sparse[grid 300x300-phlite (V only, reduce)]",
-            "fullname": "benchmarks/bench_sparse.py::test_sparse[grid 300x300-phlite (V only, reduce)]",
+            "fullname": "benchmarks/bench_complexes.py::test_sparse[grid 300x300-phlite (V only, reduce)]",
             "params": {
                 "case": {
                     "kind": "grid",
@@ -3580,7 +3580,7 @@
         {
             "group": "grid 300x300",
             "name": "test_sparse[grid 300x300-phlite (V only, uncached, reduce)]",
-            "fullname": "benchmarks/bench_sparse.py::test_sparse[grid 300x300-phlite (V only, uncached, reduce)]",
+            "fullname": "benchmarks/bench_complexes.py::test_sparse[grid 300x300-phlite (V only, uncached, reduce)]",
             "params": {
                 "case": {
                     "kind": "grid",
@@ -3646,7 +3646,7 @@
         {
             "group": "grid 300x300",
             "name": "test_sparse[grid 300x300-phlite (V only, heap, reduce)]",
-            "fullname": "benchmarks/bench_sparse.py::test_sparse[grid 300x300-phlite (V only, heap, reduce)]",
+            "fullname": "benchmarks/bench_complexes.py::test_sparse[grid 300x300-phlite (V only, heap, reduce)]",
             "params": {
                 "case": {
                     "kind": "grid",
@@ -3712,7 +3712,7 @@
         {
             "group": "grid 300x300",
             "name": "test_sparse[grid 300x300-phlite (V only, heap, uncached, reduce)]",
-            "fullname": "benchmarks/bench_sparse.py::test_sparse[grid 300x300-phlite (V only, heap, uncached, reduce)]",
+            "fullname": "benchmarks/bench_complexes.py::test_sparse[grid 300x300-phlite (V only, heap, uncached, reduce)]",
             "params": {
                 "case": {
                     "kind": "grid",
@@ -3778,7 +3778,7 @@
         {
             "group": "grid 300x300",
             "name": "test_sparse[grid 300x300-phlite (V only, sorted, reduce)]",
-            "fullname": "benchmarks/bench_sparse.py::test_sparse[grid 300x300-phlite (V only, sorted, reduce)]",
+            "fullname": "benchmarks/bench_complexes.py::test_sparse[grid 300x300-phlite (V only, sorted, reduce)]",
             "params": {
                 "case": {
                     "kind": "grid",
@@ -3844,7 +3844,7 @@
         {
             "group": "grid 300x300",
             "name": "test_sparse[grid 300x300-phlite (V only, sorted, uncached, reduce)]",
-            "fullname": "benchmarks/bench_sparse.py::test_sparse[grid 300x300-phlite (V only, sorted, uncached, reduce)]",
+            "fullname": "benchmarks/bench_complexes.py::test_sparse[grid 300x300-phlite (V only, sorted, uncached, reduce)]",
             "params": {
                 "case": {
                     "kind": "grid",
@@ -3910,7 +3910,7 @@
         {
             "group": "grid 300x300",
             "name": "test_sparse[grid 300x300-phlite (homology, uncached, reduce)]",
-            "fullname": "benchmarks/bench_sparse.py::test_sparse[grid 300x300-phlite (homology, uncached, reduce)]",
+            "fullname": "benchmarks/bench_complexes.py::test_sparse[grid 300x300-phlite (homology, uncached, reduce)]",
             "params": {
                 "case": {
                     "kind": "grid",
@@ -3976,7 +3976,7 @@
         {
             "group": "grid 300x300",
             "name": "test_sparse[grid 300x300-phlite (homology, heap, uncached, reduce)]",
-            "fullname": "benchmarks/bench_sparse.py::test_sparse[grid 300x300-phlite (homology, heap, uncached, reduce)]",
+            "fullname": "benchmarks/bench_complexes.py::test_sparse[grid 300x300-phlite (homology, heap, uncached, reduce)]",
             "params": {
                 "case": {
                     "kind": "grid",
@@ -4042,7 +4042,7 @@
         {
             "group": "grid 300x300",
             "name": "test_sparse[grid 300x300-phlite (homology, sorted, uncached, reduce)]",
-            "fullname": "benchmarks/bench_sparse.py::test_sparse[grid 300x300-phlite (homology, sorted, uncached, reduce)]",
+            "fullname": "benchmarks/bench_complexes.py::test_sparse[grid 300x300-phlite (homology, sorted, uncached, reduce)]",
             "params": {
                 "case": {
                     "kind": "grid",
@@ -4108,7 +4108,7 @@
         {
             "group": "grid 300x300",
             "name": "test_sparse[grid 300x300-phlite (homology, V only, reduce)]",
-            "fullname": "benchmarks/bench_sparse.py::test_sparse[grid 300x300-phlite (homology, V only, reduce)]",
+            "fullname": "benchmarks/bench_complexes.py::test_sparse[grid 300x300-phlite (homology, V only, reduce)]",
             "params": {
                 "case": {
                     "kind": "grid",
@@ -4174,7 +4174,7 @@
         {
             "group": "grid 300x300",
             "name": "test_sparse[grid 300x300-phlite (homology, V only, uncached, reduce)]",
-            "fullname": "benchmarks/bench_sparse.py::test_sparse[grid 300x300-phlite (homology, V only, uncached, reduce)]",
+            "fullname": "benchmarks/bench_complexes.py::test_sparse[grid 300x300-phlite (homology, V only, uncached, reduce)]",
             "params": {
                 "case": {
                     "kind": "grid",
@@ -4240,7 +4240,7 @@
         {
             "group": "grid 300x300",
             "name": "test_sparse[grid 300x300-phlite (homology, V only, heap, reduce)]",
-            "fullname": "benchmarks/bench_sparse.py::test_sparse[grid 300x300-phlite (homology, V only, heap, reduce)]",
+            "fullname": "benchmarks/bench_complexes.py::test_sparse[grid 300x300-phlite (homology, V only, heap, reduce)]",
             "params": {
                 "case": {
                     "kind": "grid",
@@ -4306,7 +4306,7 @@
         {
             "group": "grid 300x300",
             "name": "test_sparse[grid 300x300-phlite (homology, V only, heap, uncached, reduce)]",
-            "fullname": "benchmarks/bench_sparse.py::test_sparse[grid 300x300-phlite (homology, V only, heap, uncached, reduce)]",
+            "fullname": "benchmarks/bench_complexes.py::test_sparse[grid 300x300-phlite (homology, V only, heap, uncached, reduce)]",
             "params": {
                 "case": {
                     "kind": "grid",
@@ -4372,7 +4372,7 @@
         {
             "group": "grid 300x300",
             "name": "test_sparse[grid 300x300-phlite (homology, V only, sorted, reduce)]",
-            "fullname": "benchmarks/bench_sparse.py::test_sparse[grid 300x300-phlite (homology, V only, sorted, reduce)]",
+            "fullname": "benchmarks/bench_complexes.py::test_sparse[grid 300x300-phlite (homology, V only, sorted, reduce)]",
             "params": {
                 "case": {
                     "kind": "grid",
@@ -4438,7 +4438,7 @@
         {
             "group": "grid 300x300",
             "name": "test_sparse[grid 300x300-phlite (homology, V only, sorted, uncached, reduce)]",
-            "fullname": "benchmarks/bench_sparse.py::test_sparse[grid 300x300-phlite (homology, V only, sorted, uncached, reduce)]",
+            "fullname": "benchmarks/bench_complexes.py::test_sparse[grid 300x300-phlite (homology, V only, sorted, uncached, reduce)]",
             "params": {
                 "case": {
                     "kind": "grid",
@@ -4504,7 +4504,7 @@
         {
             "group": "grid 300x300",
             "name": "test_sparse[grid 300x300-phlite (no skipping, reduce)]",
-            "fullname": "benchmarks/bench_sparse.py::test_sparse[grid 300x300-phlite (no skipping, reduce)]",
+            "fullname": "benchmarks/bench_complexes.py::test_sparse[grid 300x300-phlite (no skipping, reduce)]",
             "params": {
                 "case": {
                     "kind": "grid",
@@ -4570,7 +4570,7 @@
         {
             "group": "grid 300x300",
             "name": "test_sparse[grid 300x300-phlite (standard, reduce)]",
-            "fullname": "benchmarks/bench_sparse.py::test_sparse[grid 300x300-phlite (standard, reduce)]",
+            "fullname": "benchmarks/bench_complexes.py::test_sparse[grid 300x300-phlite (standard, reduce)]",
             "params": {
                 "case": {
                     "kind": "grid",
@@ -4636,7 +4636,7 @@
         {
             "group": "grid 300x300",
             "name": "test_sparse[grid 300x300-phlite (reps, reduce)]",
-            "fullname": "benchmarks/bench_sparse.py::test_sparse[grid 300x300-phlite (reps, reduce)]",
+            "fullname": "benchmarks/bench_complexes.py::test_sparse[grid 300x300-phlite (reps, reduce)]",
             "params": {
                 "case": {
                     "kind": "grid",
@@ -4702,7 +4702,7 @@
         {
             "group": "cells n=3000",
             "name": "test_sparse[cells n=3000-phat (twist)]",
-            "fullname": "benchmarks/bench_sparse.py::test_sparse[cells n=3000-phat (twist)]",
+            "fullname": "benchmarks/bench_complexes.py::test_sparse[cells n=3000-phat (twist)]",
             "params": {
                 "case": {
                     "kind": "cells",
@@ -4773,7 +4773,7 @@
         {
             "group": "cells n=3000",
             "name": "test_sparse[cells n=3000-phat (twist, reduce)]",
-            "fullname": "benchmarks/bench_sparse.py::test_sparse[cells n=3000-phat (twist, reduce)]",
+            "fullname": "benchmarks/bench_complexes.py::test_sparse[cells n=3000-phat (twist, reduce)]",
             "params": {
                 "case": {
                     "kind": "cells",
@@ -4844,7 +4844,7 @@
         {
             "group": "cells n=3000",
             "name": "test_sparse[cells n=3000-phat (chunk)]",
-            "fullname": "benchmarks/bench_sparse.py::test_sparse[cells n=3000-phat (chunk)]",
+            "fullname": "benchmarks/bench_complexes.py::test_sparse[cells n=3000-phat (chunk)]",
             "params": {
                 "case": {
                     "kind": "cells",
@@ -4915,7 +4915,7 @@
         {
             "group": "cells n=3000",
             "name": "test_sparse[cells n=3000-phat (standard, vector_vector)]",
-            "fullname": "benchmarks/bench_sparse.py::test_sparse[cells n=3000-phat (standard, vector_vector)]",
+            "fullname": "benchmarks/bench_complexes.py::test_sparse[cells n=3000-phat (standard, vector_vector)]",
             "params": {
                 "case": {
                     "kind": "cells",
@@ -4986,7 +4986,7 @@
         {
             "group": "cells n=3000",
             "name": "test_sparse[cells n=3000-lophat (1 thread)]",
-            "fullname": "benchmarks/bench_sparse.py::test_sparse[cells n=3000-lophat (1 thread)]",
+            "fullname": "benchmarks/bench_complexes.py::test_sparse[cells n=3000-lophat (1 thread)]",
             "params": {
                 "case": {
                     "kind": "cells",
@@ -5057,7 +5057,7 @@
         {
             "group": "cells n=3000",
             "name": "test_sparse[cells n=3000-lophat (parallel)]",
-            "fullname": "benchmarks/bench_sparse.py::test_sparse[cells n=3000-lophat (parallel)]",
+            "fullname": "benchmarks/bench_complexes.py::test_sparse[cells n=3000-lophat (parallel)]",
             "params": {
                 "case": {
                     "kind": "cells",
@@ -5128,7 +5128,7 @@
         {
             "group": "cells n=3000",
             "name": "test_sparse[cells n=3000-phlite (serial)]",
-            "fullname": "benchmarks/bench_sparse.py::test_sparse[cells n=3000-phlite (serial)]",
+            "fullname": "benchmarks/bench_complexes.py::test_sparse[cells n=3000-phlite (serial)]",
             "params": {
                 "case": {
                     "kind": "cells",
@@ -5199,7 +5199,7 @@
         {
             "group": "cells n=3000",
             "name": "test_sparse[cells n=3000-phlite (serial, csc)]",
-            "fullname": "benchmarks/bench_sparse.py::test_sparse[cells n=3000-phlite (serial, csc)]",
+            "fullname": "benchmarks/bench_complexes.py::test_sparse[cells n=3000-phlite (serial, csc)]",
             "params": {
                 "case": {
                     "kind": "cells",
@@ -5270,7 +5270,7 @@
         {
             "group": "cells n=3000",
             "name": "test_sparse[cells n=3000-phlite (serial, reduce)]",
-            "fullname": "benchmarks/bench_sparse.py::test_sparse[cells n=3000-phlite (serial, reduce)]",
+            "fullname": "benchmarks/bench_complexes.py::test_sparse[cells n=3000-phlite (serial, reduce)]",
             "params": {
                 "case": {
                     "kind": "cells",
@@ -5341,7 +5341,7 @@
         {
             "group": "cells n=3000",
             "name": "test_sparse[cells n=3000-phlite (parallel)]",
-            "fullname": "benchmarks/bench_sparse.py::test_sparse[cells n=3000-phlite (parallel)]",
+            "fullname": "benchmarks/bench_complexes.py::test_sparse[cells n=3000-phlite (parallel)]",
             "params": {
                 "case": {
                     "kind": "cells",
@@ -5412,7 +5412,7 @@
         {
             "group": "cells n=3000",
             "name": "test_sparse[cells n=3000-phlite (parallel, reduce)]",
-            "fullname": "benchmarks/bench_sparse.py::test_sparse[cells n=3000-phlite (parallel, reduce)]",
+            "fullname": "benchmarks/bench_complexes.py::test_sparse[cells n=3000-phlite (parallel, reduce)]",
             "params": {
                 "case": {
                     "kind": "cells",
@@ -5483,7 +5483,7 @@
         {
             "group": "cells n=3000",
             "name": "test_sparse[cells n=3000-phlite (homology, reduce)]",
-            "fullname": "benchmarks/bench_sparse.py::test_sparse[cells n=3000-phlite (homology, reduce)]",
+            "fullname": "benchmarks/bench_complexes.py::test_sparse[cells n=3000-phlite (homology, reduce)]",
             "params": {
                 "case": {
                     "kind": "cells",
@@ -5554,7 +5554,7 @@
         {
             "group": "cells n=3000",
             "name": "test_sparse[cells n=3000-phlite (homology, parallel, reduce)]",
-            "fullname": "benchmarks/bench_sparse.py::test_sparse[cells n=3000-phlite (homology, parallel, reduce)]",
+            "fullname": "benchmarks/bench_complexes.py::test_sparse[cells n=3000-phlite (homology, parallel, reduce)]",
             "params": {
                 "case": {
                     "kind": "cells",
@@ -5625,7 +5625,7 @@
         {
             "group": "cells n=3000",
             "name": "test_sparse[cells n=3000-phlite (uncached, reduce)]",
-            "fullname": "benchmarks/bench_sparse.py::test_sparse[cells n=3000-phlite (uncached, reduce)]",
+            "fullname": "benchmarks/bench_complexes.py::test_sparse[cells n=3000-phlite (uncached, reduce)]",
             "params": {
                 "case": {
                     "kind": "cells",
@@ -5696,7 +5696,7 @@
         {
             "group": "cells n=3000",
             "name": "test_sparse[cells n=3000-phlite (heap, uncached, reduce)]",
-            "fullname": "benchmarks/bench_sparse.py::test_sparse[cells n=3000-phlite (heap, uncached, reduce)]",
+            "fullname": "benchmarks/bench_complexes.py::test_sparse[cells n=3000-phlite (heap, uncached, reduce)]",
             "params": {
                 "case": {
                     "kind": "cells",
@@ -5767,7 +5767,7 @@
         {
             "group": "cells n=3000",
             "name": "test_sparse[cells n=3000-phlite (sorted, uncached, reduce)]",
-            "fullname": "benchmarks/bench_sparse.py::test_sparse[cells n=3000-phlite (sorted, uncached, reduce)]",
+            "fullname": "benchmarks/bench_complexes.py::test_sparse[cells n=3000-phlite (sorted, uncached, reduce)]",
             "params": {
                 "case": {
                     "kind": "cells",
@@ -5838,7 +5838,7 @@
         {
             "group": "cells n=3000",
             "name": "test_sparse[cells n=3000-phlite (V only, reduce)]",
-            "fullname": "benchmarks/bench_sparse.py::test_sparse[cells n=3000-phlite (V only, reduce)]",
+            "fullname": "benchmarks/bench_complexes.py::test_sparse[cells n=3000-phlite (V only, reduce)]",
             "params": {
                 "case": {
                     "kind": "cells",
@@ -5909,7 +5909,7 @@
         {
             "group": "cells n=3000",
             "name": "test_sparse[cells n=3000-phlite (V only, uncached, reduce)]",
-            "fullname": "benchmarks/bench_sparse.py::test_sparse[cells n=3000-phlite (V only, uncached, reduce)]",
+            "fullname": "benchmarks/bench_complexes.py::test_sparse[cells n=3000-phlite (V only, uncached, reduce)]",
             "params": {
                 "case": {
                     "kind": "cells",
@@ -5980,7 +5980,7 @@
         {
             "group": "cells n=3000",
             "name": "test_sparse[cells n=3000-phlite (V only, heap, reduce)]",
-            "fullname": "benchmarks/bench_sparse.py::test_sparse[cells n=3000-phlite (V only, heap, reduce)]",
+            "fullname": "benchmarks/bench_complexes.py::test_sparse[cells n=3000-phlite (V only, heap, reduce)]",
             "params": {
                 "case": {
                     "kind": "cells",
@@ -6051,7 +6051,7 @@
         {
             "group": "cells n=3000",
             "name": "test_sparse[cells n=3000-phlite (V only, heap, uncached, reduce)]",
-            "fullname": "benchmarks/bench_sparse.py::test_sparse[cells n=3000-phlite (V only, heap, uncached, reduce)]",
+            "fullname": "benchmarks/bench_complexes.py::test_sparse[cells n=3000-phlite (V only, heap, uncached, reduce)]",
             "params": {
                 "case": {
                     "kind": "cells",
@@ -6122,7 +6122,7 @@
         {
             "group": "cells n=3000",
             "name": "test_sparse[cells n=3000-phlite (V only, sorted, reduce)]",
-            "fullname": "benchmarks/bench_sparse.py::test_sparse[cells n=3000-phlite (V only, sorted, reduce)]",
+            "fullname": "benchmarks/bench_complexes.py::test_sparse[cells n=3000-phlite (V only, sorted, reduce)]",
             "params": {
                 "case": {
                     "kind": "cells",
@@ -6193,7 +6193,7 @@
         {
             "group": "cells n=3000",
             "name": "test_sparse[cells n=3000-phlite (V only, sorted, uncached, reduce)]",
-            "fullname": "benchmarks/bench_sparse.py::test_sparse[cells n=3000-phlite (V only, sorted, uncached, reduce)]",
+            "fullname": "benchmarks/bench_complexes.py::test_sparse[cells n=3000-phlite (V only, sorted, uncached, reduce)]",
             "params": {
                 "case": {
                     "kind": "cells",
@@ -6264,7 +6264,7 @@
         {
             "group": "cells n=3000",
             "name": "test_sparse[cells n=3000-phlite (homology, uncached, reduce)]",
-            "fullname": "benchmarks/bench_sparse.py::test_sparse[cells n=3000-phlite (homology, uncached, reduce)]",
+            "fullname": "benchmarks/bench_complexes.py::test_sparse[cells n=3000-phlite (homology, uncached, reduce)]",
             "params": {
                 "case": {
                     "kind": "cells",
@@ -6335,7 +6335,7 @@
         {
             "group": "cells n=3000",
             "name": "test_sparse[cells n=3000-phlite (homology, heap, uncached, reduce)]",
-            "fullname": "benchmarks/bench_sparse.py::test_sparse[cells n=3000-phlite (homology, heap, uncached, reduce)]",
+            "fullname": "benchmarks/bench_complexes.py::test_sparse[cells n=3000-phlite (homology, heap, uncached, reduce)]",
             "params": {
                 "case": {
                     "kind": "cells",
@@ -6406,7 +6406,7 @@
         {
             "group": "cells n=3000",
             "name": "test_sparse[cells n=3000-phlite (homology, sorted, uncached, reduce)]",
-            "fullname": "benchmarks/bench_sparse.py::test_sparse[cells n=3000-phlite (homology, sorted, uncached, reduce)]",
+            "fullname": "benchmarks/bench_complexes.py::test_sparse[cells n=3000-phlite (homology, sorted, uncached, reduce)]",
             "params": {
                 "case": {
                     "kind": "cells",
@@ -6477,7 +6477,7 @@
         {
             "group": "cells n=3000",
             "name": "test_sparse[cells n=3000-phlite (homology, V only, reduce)]",
-            "fullname": "benchmarks/bench_sparse.py::test_sparse[cells n=3000-phlite (homology, V only, reduce)]",
+            "fullname": "benchmarks/bench_complexes.py::test_sparse[cells n=3000-phlite (homology, V only, reduce)]",
             "params": {
                 "case": {
                     "kind": "cells",
@@ -6548,7 +6548,7 @@
         {
             "group": "cells n=3000",
             "name": "test_sparse[cells n=3000-phlite (homology, V only, uncached, reduce)]",
-            "fullname": "benchmarks/bench_sparse.py::test_sparse[cells n=3000-phlite (homology, V only, uncached, reduce)]",
+            "fullname": "benchmarks/bench_complexes.py::test_sparse[cells n=3000-phlite (homology, V only, uncached, reduce)]",
             "params": {
                 "case": {
                     "kind": "cells",
@@ -6619,7 +6619,7 @@
         {
             "group": "cells n=3000",
             "name": "test_sparse[cells n=3000-phlite (homology, V only, heap, reduce)]",
-            "fullname": "benchmarks/bench_sparse.py::test_sparse[cells n=3000-phlite (homology, V only, heap, reduce)]",
+            "fullname": "benchmarks/bench_complexes.py::test_sparse[cells n=3000-phlite (homology, V only, heap, reduce)]",
             "params": {
                 "case": {
                     "kind": "cells",
@@ -6690,7 +6690,7 @@
         {
             "group": "cells n=3000",
             "name": "test_sparse[cells n=3000-phlite (homology, V only, heap, uncached, reduce)]",
-            "fullname": "benchmarks/bench_sparse.py::test_sparse[cells n=3000-phlite (homology, V only, heap, uncached, reduce)]",
+            "fullname": "benchmarks/bench_complexes.py::test_sparse[cells n=3000-phlite (homology, V only, heap, uncached, reduce)]",
             "params": {
                 "case": {
                     "kind": "cells",
@@ -6761,7 +6761,7 @@
         {
             "group": "cells n=3000",
             "name": "test_sparse[cells n=3000-phlite (homology, V only, sorted, reduce)]",
-            "fullname": "benchmarks/bench_sparse.py::test_sparse[cells n=3000-phlite (homology, V only, sorted, reduce)]",
+            "fullname": "benchmarks/bench_complexes.py::test_sparse[cells n=3000-phlite (homology, V only, sorted, reduce)]",
             "params": {
                 "case": {
                     "kind": "cells",
@@ -6832,7 +6832,7 @@
         {
             "group": "cells n=3000",
             "name": "test_sparse[cells n=3000-phlite (homology, V only, sorted, uncached, reduce)]",
-            "fullname": "benchmarks/bench_sparse.py::test_sparse[cells n=3000-phlite (homology, V only, sorted, uncached, reduce)]",
+            "fullname": "benchmarks/bench_complexes.py::test_sparse[cells n=3000-phlite (homology, V only, sorted, uncached, reduce)]",
             "params": {
                 "case": {
                     "kind": "cells",
@@ -6903,7 +6903,7 @@
         {
             "group": "cells n=3000",
             "name": "test_sparse[cells n=3000-phlite (no skipping, reduce)]",
-            "fullname": "benchmarks/bench_sparse.py::test_sparse[cells n=3000-phlite (no skipping, reduce)]",
+            "fullname": "benchmarks/bench_complexes.py::test_sparse[cells n=3000-phlite (no skipping, reduce)]",
             "params": {
                 "case": {
                     "kind": "cells",
@@ -6974,7 +6974,7 @@
         {
             "group": "cells n=3000",
             "name": "test_sparse[cells n=3000-phlite (standard, reduce)]",
-            "fullname": "benchmarks/bench_sparse.py::test_sparse[cells n=3000-phlite (standard, reduce)]",
+            "fullname": "benchmarks/bench_complexes.py::test_sparse[cells n=3000-phlite (standard, reduce)]",
             "params": {
                 "case": {
                     "kind": "cells",
@@ -7045,7 +7045,7 @@
         {
             "group": "cells n=3000",
             "name": "test_sparse[cells n=3000-phlite (reps, reduce)]",
-            "fullname": "benchmarks/bench_sparse.py::test_sparse[cells n=3000-phlite (reps, reduce)]",
+            "fullname": "benchmarks/bench_complexes.py::test_sparse[cells n=3000-phlite (reps, reduce)]",
             "params": {
                 "case": {
                     "kind": "cells",
@@ -7116,7 +7116,7 @@
         {
             "group": "dense n=100 p=0.3",
             "name": "test_sparse[dense n=100 p=0.3-phat (twist)]",
-            "fullname": "benchmarks/bench_sparse.py::test_sparse[dense n=100 p=0.3-phat (twist)]",
+            "fullname": "benchmarks/bench_complexes.py::test_sparse[dense n=100 p=0.3-phat (twist)]",
             "params": {
                 "case": {
                     "kind": "dense",
@@ -7187,7 +7187,7 @@
         {
             "group": "dense n=100 p=0.3",
             "name": "test_sparse[dense n=100 p=0.3-phat (twist, reduce)]",
-            "fullname": "benchmarks/bench_sparse.py::test_sparse[dense n=100 p=0.3-phat (twist, reduce)]",
+            "fullname": "benchmarks/bench_complexes.py::test_sparse[dense n=100 p=0.3-phat (twist, reduce)]",
             "params": {
                 "case": {
                     "kind": "dense",
@@ -7258,7 +7258,7 @@
         {
             "group": "dense n=100 p=0.3",
             "name": "test_sparse[dense n=100 p=0.3-phat (chunk)]",
-            "fullname": "benchmarks/bench_sparse.py::test_sparse[dense n=100 p=0.3-phat (chunk)]",
+            "fullname": "benchmarks/bench_complexes.py::test_sparse[dense n=100 p=0.3-phat (chunk)]",
             "params": {
                 "case": {
                     "kind": "dense",
@@ -7329,7 +7329,7 @@
         {
             "group": "dense n=100 p=0.3",
             "name": "test_sparse[dense n=100 p=0.3-phat (standard, vector_vector)]",
-            "fullname": "benchmarks/bench_sparse.py::test_sparse[dense n=100 p=0.3-phat (standard, vector_vector)]",
+            "fullname": "benchmarks/bench_complexes.py::test_sparse[dense n=100 p=0.3-phat (standard, vector_vector)]",
             "params": {
                 "case": {
                     "kind": "dense",
@@ -7400,7 +7400,7 @@
         {
             "group": "dense n=100 p=0.3",
             "name": "test_sparse[dense n=100 p=0.3-lophat (1 thread)]",
-            "fullname": "benchmarks/bench_sparse.py::test_sparse[dense n=100 p=0.3-lophat (1 thread)]",
+            "fullname": "benchmarks/bench_complexes.py::test_sparse[dense n=100 p=0.3-lophat (1 thread)]",
             "params": {
                 "case": {
                     "kind": "dense",
@@ -7471,7 +7471,7 @@
         {
             "group": "dense n=100 p=0.3",
             "name": "test_sparse[dense n=100 p=0.3-lophat (parallel)]",
-            "fullname": "benchmarks/bench_sparse.py::test_sparse[dense n=100 p=0.3-lophat (parallel)]",
+            "fullname": "benchmarks/bench_complexes.py::test_sparse[dense n=100 p=0.3-lophat (parallel)]",
             "params": {
                 "case": {
                     "kind": "dense",
@@ -7542,7 +7542,7 @@
         {
             "group": "dense n=100 p=0.3",
             "name": "test_sparse[dense n=100 p=0.3-phlite (serial)]",
-            "fullname": "benchmarks/bench_sparse.py::test_sparse[dense n=100 p=0.3-phlite (serial)]",
+            "fullname": "benchmarks/bench_complexes.py::test_sparse[dense n=100 p=0.3-phlite (serial)]",
             "params": {
                 "case": {
                     "kind": "dense",
@@ -7613,7 +7613,7 @@
         {
             "group": "dense n=100 p=0.3",
             "name": "test_sparse[dense n=100 p=0.3-phlite (serial, csc)]",
-            "fullname": "benchmarks/bench_sparse.py::test_sparse[dense n=100 p=0.3-phlite (serial, csc)]",
+            "fullname": "benchmarks/bench_complexes.py::test_sparse[dense n=100 p=0.3-phlite (serial, csc)]",
             "params": {
                 "case": {
                     "kind": "dense",
@@ -7684,7 +7684,7 @@
         {
             "group": "dense n=100 p=0.3",
             "name": "test_sparse[dense n=100 p=0.3-phlite (serial, reduce)]",
-            "fullname": "benchmarks/bench_sparse.py::test_sparse[dense n=100 p=0.3-phlite (serial, reduce)]",
+            "fullname": "benchmarks/bench_complexes.py::test_sparse[dense n=100 p=0.3-phlite (serial, reduce)]",
             "params": {
                 "case": {
                     "kind": "dense",
@@ -7755,7 +7755,7 @@
         {
             "group": "dense n=100 p=0.3",
             "name": "test_sparse[dense n=100 p=0.3-phlite (parallel)]",
-            "fullname": "benchmarks/bench_sparse.py::test_sparse[dense n=100 p=0.3-phlite (parallel)]",
+            "fullname": "benchmarks/bench_complexes.py::test_sparse[dense n=100 p=0.3-phlite (parallel)]",
             "params": {
                 "case": {
                     "kind": "dense",
@@ -7826,7 +7826,7 @@
         {
             "group": "dense n=100 p=0.3",
             "name": "test_sparse[dense n=100 p=0.3-phlite (parallel, reduce)]",
-            "fullname": "benchmarks/bench_sparse.py::test_sparse[dense n=100 p=0.3-phlite (parallel, reduce)]",
+            "fullname": "benchmarks/bench_complexes.py::test_sparse[dense n=100 p=0.3-phlite (parallel, reduce)]",
             "params": {
                 "case": {
                     "kind": "dense",
@@ -7897,7 +7897,7 @@
         {
             "group": "dense n=100 p=0.3",
             "name": "test_sparse[dense n=100 p=0.3-phlite (homology, reduce)]",
-            "fullname": "benchmarks/bench_sparse.py::test_sparse[dense n=100 p=0.3-phlite (homology, reduce)]",
+            "fullname": "benchmarks/bench_complexes.py::test_sparse[dense n=100 p=0.3-phlite (homology, reduce)]",
             "params": {
                 "case": {
                     "kind": "dense",
@@ -7968,7 +7968,7 @@
         {
             "group": "dense n=100 p=0.3",
             "name": "test_sparse[dense n=100 p=0.3-phlite (homology, parallel, reduce)]",
-            "fullname": "benchmarks/bench_sparse.py::test_sparse[dense n=100 p=0.3-phlite (homology, parallel, reduce)]",
+            "fullname": "benchmarks/bench_complexes.py::test_sparse[dense n=100 p=0.3-phlite (homology, parallel, reduce)]",
             "params": {
                 "case": {
                     "kind": "dense",
@@ -8039,7 +8039,7 @@
         {
             "group": "dense n=100 p=0.3",
             "name": "test_sparse[dense n=100 p=0.3-phlite (uncached, reduce)]",
-            "fullname": "benchmarks/bench_sparse.py::test_sparse[dense n=100 p=0.3-phlite (uncached, reduce)]",
+            "fullname": "benchmarks/bench_complexes.py::test_sparse[dense n=100 p=0.3-phlite (uncached, reduce)]",
             "params": {
                 "case": {
                     "kind": "dense",
@@ -8110,7 +8110,7 @@
         {
             "group": "dense n=100 p=0.3",
             "name": "test_sparse[dense n=100 p=0.3-phlite (heap, uncached, reduce)]",
-            "fullname": "benchmarks/bench_sparse.py::test_sparse[dense n=100 p=0.3-phlite (heap, uncached, reduce)]",
+            "fullname": "benchmarks/bench_complexes.py::test_sparse[dense n=100 p=0.3-phlite (heap, uncached, reduce)]",
             "params": {
                 "case": {
                     "kind": "dense",
@@ -8181,7 +8181,7 @@
         {
             "group": "dense n=100 p=0.3",
             "name": "test_sparse[dense n=100 p=0.3-phlite (sorted, uncached, reduce)]",
-            "fullname": "benchmarks/bench_sparse.py::test_sparse[dense n=100 p=0.3-phlite (sorted, uncached, reduce)]",
+            "fullname": "benchmarks/bench_complexes.py::test_sparse[dense n=100 p=0.3-phlite (sorted, uncached, reduce)]",
             "params": {
                 "case": {
                     "kind": "dense",
@@ -8252,7 +8252,7 @@
         {
             "group": "dense n=100 p=0.3",
             "name": "test_sparse[dense n=100 p=0.3-phlite (V only, reduce)]",
-            "fullname": "benchmarks/bench_sparse.py::test_sparse[dense n=100 p=0.3-phlite (V only, reduce)]",
+            "fullname": "benchmarks/bench_complexes.py::test_sparse[dense n=100 p=0.3-phlite (V only, reduce)]",
             "params": {
                 "case": {
                     "kind": "dense",
@@ -8323,7 +8323,7 @@
         {
             "group": "dense n=100 p=0.3",
             "name": "test_sparse[dense n=100 p=0.3-phlite (V only, uncached, reduce)]",
-            "fullname": "benchmarks/bench_sparse.py::test_sparse[dense n=100 p=0.3-phlite (V only, uncached, reduce)]",
+            "fullname": "benchmarks/bench_complexes.py::test_sparse[dense n=100 p=0.3-phlite (V only, uncached, reduce)]",
             "params": {
                 "case": {
                     "kind": "dense",
@@ -8394,7 +8394,7 @@
         {
             "group": "dense n=100 p=0.3",
             "name": "test_sparse[dense n=100 p=0.3-phlite (V only, heap, reduce)]",
-            "fullname": "benchmarks/bench_sparse.py::test_sparse[dense n=100 p=0.3-phlite (V only, heap, reduce)]",
+            "fullname": "benchmarks/bench_complexes.py::test_sparse[dense n=100 p=0.3-phlite (V only, heap, reduce)]",
             "params": {
                 "case": {
                     "kind": "dense",
@@ -8465,7 +8465,7 @@
         {
             "group": "dense n=100 p=0.3",
             "name": "test_sparse[dense n=100 p=0.3-phlite (V only, heap, uncached, reduce)]",
-            "fullname": "benchmarks/bench_sparse.py::test_sparse[dense n=100 p=0.3-phlite (V only, heap, uncached, reduce)]",
+            "fullname": "benchmarks/bench_complexes.py::test_sparse[dense n=100 p=0.3-phlite (V only, heap, uncached, reduce)]",
             "params": {
                 "case": {
                     "kind": "dense",
@@ -8536,7 +8536,7 @@
         {
             "group": "dense n=100 p=0.3",
             "name": "test_sparse[dense n=100 p=0.3-phlite (V only, sorted, reduce)]",
-            "fullname": "benchmarks/bench_sparse.py::test_sparse[dense n=100 p=0.3-phlite (V only, sorted, reduce)]",
+            "fullname": "benchmarks/bench_complexes.py::test_sparse[dense n=100 p=0.3-phlite (V only, sorted, reduce)]",
             "params": {
                 "case": {
                     "kind": "dense",
@@ -8607,7 +8607,7 @@
         {
             "group": "dense n=100 p=0.3",
             "name": "test_sparse[dense n=100 p=0.3-phlite (V only, sorted, uncached, reduce)]",
-            "fullname": "benchmarks/bench_sparse.py::test_sparse[dense n=100 p=0.3-phlite (V only, sorted, uncached, reduce)]",
+            "fullname": "benchmarks/bench_complexes.py::test_sparse[dense n=100 p=0.3-phlite (V only, sorted, uncached, reduce)]",
             "params": {
                 "case": {
                     "kind": "dense",
@@ -8678,7 +8678,7 @@
         {
             "group": "dense n=100 p=0.3",
             "name": "test_sparse[dense n=100 p=0.3-phlite (homology, uncached, reduce)]",
-            "fullname": "benchmarks/bench_sparse.py::test_sparse[dense n=100 p=0.3-phlite (homology, uncached, reduce)]",
+            "fullname": "benchmarks/bench_complexes.py::test_sparse[dense n=100 p=0.3-phlite (homology, uncached, reduce)]",
             "params": {
                 "case": {
                     "kind": "dense",
@@ -8749,7 +8749,7 @@
         {
             "group": "dense n=100 p=0.3",
             "name": "test_sparse[dense n=100 p=0.3-phlite (homology, heap, uncached, reduce)]",
-            "fullname": "benchmarks/bench_sparse.py::test_sparse[dense n=100 p=0.3-phlite (homology, heap, uncached, reduce)]",
+            "fullname": "benchmarks/bench_complexes.py::test_sparse[dense n=100 p=0.3-phlite (homology, heap, uncached, reduce)]",
             "params": {
                 "case": {
                     "kind": "dense",
@@ -8820,7 +8820,7 @@
         {
             "group": "dense n=100 p=0.3",
             "name": "test_sparse[dense n=100 p=0.3-phlite (homology, sorted, uncached, reduce)]",
-            "fullname": "benchmarks/bench_sparse.py::test_sparse[dense n=100 p=0.3-phlite (homology, sorted, uncached, reduce)]",
+            "fullname": "benchmarks/bench_complexes.py::test_sparse[dense n=100 p=0.3-phlite (homology, sorted, uncached, reduce)]",
             "params": {
                 "case": {
                     "kind": "dense",
@@ -8891,7 +8891,7 @@
         {
             "group": "dense n=100 p=0.3",
             "name": "test_sparse[dense n=100 p=0.3-phlite (homology, V only, reduce)]",
-            "fullname": "benchmarks/bench_sparse.py::test_sparse[dense n=100 p=0.3-phlite (homology, V only, reduce)]",
+            "fullname": "benchmarks/bench_complexes.py::test_sparse[dense n=100 p=0.3-phlite (homology, V only, reduce)]",
             "params": {
                 "case": {
                     "kind": "dense",
@@ -8962,7 +8962,7 @@
         {
             "group": "dense n=100 p=0.3",
             "name": "test_sparse[dense n=100 p=0.3-phlite (homology, V only, uncached, reduce)]",
-            "fullname": "benchmarks/bench_sparse.py::test_sparse[dense n=100 p=0.3-phlite (homology, V only, uncached, reduce)]",
+            "fullname": "benchmarks/bench_complexes.py::test_sparse[dense n=100 p=0.3-phlite (homology, V only, uncached, reduce)]",
             "params": {
                 "case": {
                     "kind": "dense",
@@ -9033,7 +9033,7 @@
         {
             "group": "dense n=100 p=0.3",
             "name": "test_sparse[dense n=100 p=0.3-phlite (homology, V only, heap, reduce)]",
-            "fullname": "benchmarks/bench_sparse.py::test_sparse[dense n=100 p=0.3-phlite (homology, V only, heap, reduce)]",
+            "fullname": "benchmarks/bench_complexes.py::test_sparse[dense n=100 p=0.3-phlite (homology, V only, heap, reduce)]",
             "params": {
                 "case": {
                     "kind": "dense",
@@ -9104,7 +9104,7 @@
         {
             "group": "dense n=100 p=0.3",
             "name": "test_sparse[dense n=100 p=0.3-phlite (homology, V only, heap, uncached, reduce)]",
-            "fullname": "benchmarks/bench_sparse.py::test_sparse[dense n=100 p=0.3-phlite (homology, V only, heap, uncached, reduce)]",
+            "fullname": "benchmarks/bench_complexes.py::test_sparse[dense n=100 p=0.3-phlite (homology, V only, heap, uncached, reduce)]",
             "params": {
                 "case": {
                     "kind": "dense",
@@ -9175,7 +9175,7 @@
         {
             "group": "dense n=100 p=0.3",
             "name": "test_sparse[dense n=100 p=0.3-phlite (homology, V only, sorted, reduce)]",
-            "fullname": "benchmarks/bench_sparse.py::test_sparse[dense n=100 p=0.3-phlite (homology, V only, sorted, reduce)]",
+            "fullname": "benchmarks/bench_complexes.py::test_sparse[dense n=100 p=0.3-phlite (homology, V only, sorted, reduce)]",
             "params": {
                 "case": {
                     "kind": "dense",
@@ -9246,7 +9246,7 @@
         {
             "group": "dense n=100 p=0.3",
             "name": "test_sparse[dense n=100 p=0.3-phlite (homology, V only, sorted, uncached, reduce)]",
-            "fullname": "benchmarks/bench_sparse.py::test_sparse[dense n=100 p=0.3-phlite (homology, V only, sorted, uncached, reduce)]",
+            "fullname": "benchmarks/bench_complexes.py::test_sparse[dense n=100 p=0.3-phlite (homology, V only, sorted, uncached, reduce)]",
             "params": {
                 "case": {
                     "kind": "dense",
@@ -9317,7 +9317,7 @@
         {
             "group": "dense n=100 p=0.3",
             "name": "test_sparse[dense n=100 p=0.3-phlite (no skipping, reduce)]",
-            "fullname": "benchmarks/bench_sparse.py::test_sparse[dense n=100 p=0.3-phlite (no skipping, reduce)]",
+            "fullname": "benchmarks/bench_complexes.py::test_sparse[dense n=100 p=0.3-phlite (no skipping, reduce)]",
             "params": {
                 "case": {
                     "kind": "dense",
@@ -9388,7 +9388,7 @@
         {
             "group": "dense n=100 p=0.3",
             "name": "test_sparse[dense n=100 p=0.3-phlite (standard, reduce)]",
-            "fullname": "benchmarks/bench_sparse.py::test_sparse[dense n=100 p=0.3-phlite (standard, reduce)]",
+            "fullname": "benchmarks/bench_complexes.py::test_sparse[dense n=100 p=0.3-phlite (standard, reduce)]",
             "params": {
                 "case": {
                     "kind": "dense",
@@ -9459,7 +9459,7 @@
         {
             "group": "dense n=100 p=0.3",
             "name": "test_sparse[dense n=100 p=0.3-phlite (reps, reduce)]",
-            "fullname": "benchmarks/bench_sparse.py::test_sparse[dense n=100 p=0.3-phlite (reps, reduce)]",
+            "fullname": "benchmarks/bench_complexes.py::test_sparse[dense n=100 p=0.3-phlite (reps, reduce)]",
             "params": {
                 "case": {
                     "kind": "dense",

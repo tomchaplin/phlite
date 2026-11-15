@@ -1,19 +1,21 @@
 <!-- The landing page's barcode, with its bars growing and shrinking: shown while phlite computes. -->
 <script lang="ts">
+  import { dimColour } from '../lib/palette.svelte';
+
   let { size = 26 }: { size?: number } = $props();
-  // [x, y, width, colour, opacity] as on the landing page, scaled to a 44 × 24 box
-  const bars: [number, number, number, string, number][] = [
-    [0, 0, 40, '#4c78a8', 1],
-    [0, 4.5, 14, '#4c78a8', 0.75],
-    [0, 9, 7, '#4c78a8', 0.55],
-    [11, 14, 26, '#f58518', 1],
-    [19, 18.5, 8, '#f58518', 0.6],
+  // [x, y, width, dimension, opacity] as on the landing page, scaled to a 44 × 24 box
+  const bars: [number, number, number, number, number][] = [
+    [0, 0, 40, 0, 1],
+    [0, 4.5, 14, 0, 0.75],
+    [0, 9, 7, 0, 0.55],
+    [11, 14, 26, 1, 1],
+    [19, 18.5, 8, 1, 0.6],
   ];
 </script>
 
 <svg class="spinner" width={size * (44 / 24)} height={size} viewBox="0 0 44 24" role="img" aria-label="Computing">
-  {#each bars as [x, y, w, fill, opacity], i}
-    <rect {x} {y} width={w} height="3" rx="1" {fill} {opacity} style="animation-delay: {i * -0.22}s; transform-origin: {x}px {y}px" />
+  {#each bars as [x, y, w, dim, opacity], i}
+    <rect {x} {y} width={w} height="3" rx="1" fill={dimColour(dim)} {opacity} style="animation-delay: {i * -0.22}s; transform-origin: {x}px {y}px" />
   {/each}
 </svg>
 

@@ -5,17 +5,25 @@ the page sends the data to a Web Worker, which runs phlite's reductions on a poo
 [wasm-bindgen-rayon](https://github.com/RReverser/wasm-bindgen-rayon)). There is no server-side code.
 
 * `src/lib.rs`: the WebAssembly API, one function per pipeline:
-  * `rips` (Vietoris–Rips, by `phlite_rips` with 64-bit simplex indices);
-  * `alpha` (the Delaunay alpha filtration from `alphalpha`, reduced as an explicit complex);
-  * `grpph` (`phlite_grpph`);
-  * `image` (cubical complexes);
-  * `complex` (explicit complexes over Z/2, 3, 5 or 7, by `phlite_py`'s explicit complexes).
-  Each takes an options object (missing options take the pipeline's Python defaults) and returns the bars, with
-  representatives if asked for.
+  * `rips` (Vietoris–Rips in the Euclidean, Manhattan or Chebyshev metric, optionally DTM-weighted, by
+    `phlite_clouds` with 64-bit simplex indices);
+  * `delaunay` (alpha and Delaunay–Čech filtrations of points in the plane or in space, by `phlite_clouds::alpha`);
+  * `grpph` (GrPPH, and PPH of the shortest-path filtration in dimensions 0 and 1, by `phlite_networks`);
+  * `network` (PPH in any dimension, directed flag complexes, grounded or not, ordered tuples and Dowker complexes, by
+    `phlite_networks`, each by edge weights or shortest paths);
+  * `image` (cubical complexes, T- or V-construction, by `phlite_images`);
+  * `complex` (explicit complexes over Z/2, 3, 5 or 7, by `phlite_complexes`'s explicit complexes).
+  Each takes an options object (missing options take the pipeline's Python defaults, union-find and parallel setup
+  included) and returns the bars, with representatives if asked for. The Rips, GrPPH and network pipelines also
+  return their filtration's edges, from the very distances the barcode was computed from, so that the app draws the
+  complex at any value without computing a filtration itself.
 * `app/`: the Svelte + TypeScript app (Vite). `src/lib/worker.ts` owns the WebAssembly module, and
   `src/lib/engine.svelte.ts` talks to it, cancelling a computation by restarting the worker. Each pipeline lives in
   `src/pipelines/<name>/` (its data sources, view and page), and shares the barcode, diagram and options components in
-  `src/components/`.
+  `src/components/`. Every dataset can be edited in its view, whatever it came from (select, move, add, spray and erase
+  points; paint, smooth and pick on images; add, move and delete nodes and edges), with the toolbar in
+  `src/components/EditBar.svelte` and undo by `src/lib/history.svelte.ts`. With "live" on, the barcode is recomputed
+  while you edit, each computation running to the end before the latest edit is computed (`src/lib/runner.svelte.ts`).
 
 ## Building
 
@@ -73,4 +81,4 @@ everywhere at the playground's sizes (8 threads, Chromium, median of 5):
 Parallel clearing can't use pivot columns or store R, which is what makes serial clearing fast on explicit complexes.
 
 One more thing: `usize` is 32 bits in WebAssembly, so the playground indexes Rips simplices with `u64`
-(`phlite_rips::rips_barcode::<_, u64>`). With `usize` it could only handle 254 points for H₂.
+(`phlite_clouds::rips::rips_barcode::<_, u64>`). With `usize` it could only handle 254 points for H₂.

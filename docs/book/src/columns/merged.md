@@ -1,6 +1,6 @@
 # Merged columns
 
-`MergedColumns` (the default in the Rust library and `phlite_grpph`) **never builds the working column**. It keeps the
+`MergedColumns` (the default in the Rust library and `phlite.networks.grpph`) **never builds the working column**. It keeps the
 columns added so far, each **sorted largest first** (a `SortedRun`), and a small heap of **cursors**, one per column.
 
 <img class="figure" src="../figures/merged.svg" alt="Merged columns: sorted runs and a heap of cursors">

@@ -38,7 +38,7 @@ apparent pairs switched on: their owners are recognised through the coboundary, 
   available. On filtrations with very many bars (random point clouds in high dimension) it can cost as much as the
   cohomology itself.
 - The reduction in step 2 uses a **restricted basis**, so it must *not* assume that every column is in the basis: in
-  particular phlite_py's single-lookup pivot table (`full_basis`) is switched off for it (see
+  particular phlite_complexes' single-lookup pivot table (`full_basis`) is switched off for it (see
   [bookkeeping](../internals/bookkeeping.md#full-basis)). A bug where it wasn't was found by the fuzz tests.
 
 Representatives in `phlite` are reported as lists of `(cell, coefficient)` in decreasing filtration order, so the

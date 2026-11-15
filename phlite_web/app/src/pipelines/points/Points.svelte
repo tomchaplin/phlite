@@ -3,34 +3,52 @@
   import SourceTabs, { type Source } from '../../components/SourceTabs.svelte';
   import FileDrop from '../../components/FileDrop.svelte';
   import Options from '../../components/Options.svelte';
+  import ComputeRow from '../../components/ComputeRow.svelte';
   import Results from '../../components/Results.svelte';
   import FiltrationSlider from '../../components/FiltrationSlider.svelte';
+  import EditBar from '../../components/EditBar.svelte';
+  import { History } from '../../lib/history.svelte';
   import View2D, { type Tool } from './View2D.svelte';
   import View3D from './View3D.svelte';
   import { Runner } from '../../lib/runner.svelte';
   import { RIPS, COMPLEX, defaultsFor } from '../../lib/options';
   import { barDomain } from '../../lib/scale';
   import { randomSeed } from '../../lib/random';
-  import type { Job } from '../../lib/types';
-  import { EXAMPLES, RANDOM_KINDS, randomCloud, parseCloud, sortedEdges, flatten, type Cloud, type RandomKind } from './data';
+  import type { Job, Metric } from '../../lib/types';
+  import { EXAMPLES, RANDOM_KINDS, randomCloud, parseCloud, flatten, type Cloud, type RandomKind } from './data';
 
   let source = $state<Source>('examples');
   let exampleId = $state(EXAMPLES[0].id);
   let cloud = $state.raw<Cloud>(EXAMPLES[0].make());
-  let filtration = $state<'rips' | 'alpha'>('rips');
+  /** Bumped whenever the cloud is replaced rather than edited, to fit the view to it. */
+  let fitKey = $state(0);
+  const history = new History<Cloud>();
+  /** Replace the cloud (undoably). */
+  function replace(next: Cloud) {
+    history.commit(cloud);
+    cloud = next;
+    selection = [];
+    fitKey++;
+  }
+  type Filtration = 'rips' | 'dtm' | 'alpha' | 'cech';
+  let filtration = $state<Filtration>('rips');
+  let dtmK = $state(10);
+  const isDelaunay = $derived(filtration === 'alpha' || filtration === 'cech');
   let maxDim = $state(EXAMPLES[0].maxDim);
   let threshold = $state('');
+  let metric = $state<Metric>('euclidean');
   let options = $state(defaultsFor(RIPS));
   let showBalls = $state(false);
+  /** Balls show the complex for Rips in the Euclidean metric, alpha and Čech. */
+  const ballsShow = $derived(isDelaunay || (filtration === 'rips' && metric === 'euclidean'));
   const runner = new Runner();
 
   // ---- Data sources ----
   function useExample(id: string) {
     const ex = EXAMPLES.find((e) => e.id === id)!;
     exampleId = id;
-    cloud = ex.make();
+    replace(ex.make());
     maxDim = ex.maxDim;
-    if (cloud.dim === 3 && filtration === 'alpha') setFiltration('rips');
   }
 
   let randomKind = $state<RandomKind>('uniform');
@@ -39,66 +57,94 @@
   let randomSeedValue = $state(1);
   function useRandom(newSeed = false) {
     if (newSeed) randomSeedValue = randomSeed();
-    cloud = randomCloud(randomKind, randomN, randomNoise, randomSeedValue);
-    if (cloud.dim === 3 && filtration === 'alpha') setFiltration('rips');
+    replace(randomCloud(randomKind, randomN, randomNoise, randomSeedValue));
   }
 
   let uploadError = $state<string | null>(null);
   async function upload(file: File) {
     try {
-      cloud = parseCloud(await file.text());
+      replace(parseCloud(await file.text()));
       uploadError = null;
-      if (cloud.dim === 3 && filtration === 'alpha') setFiltration('rips');
     } catch (e) {
       uploadError = (e as Error).message;
     }
   }
 
-  let tool = $state<Tool>('spray');
-  let brush = $state(0.08);
-  let drawBox = $state<number[] | null>(null);
-  function startDrawing() {
-    if (cloud.dim === 3) cloud = { dim: 2, points: [] };
-    // Fix the view while drawing, so it doesn't move under the brush
-    const ps = cloud.points;
-    if (ps.length < 2) drawBox = [-1.25, -1, 1.25, 1];
-    else {
-      const xs = ps.map((p) => p[0]);
-      const ys = ps.map((p) => p[1]);
-      const [x0, x1, y0, y1] = [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)];
-      const pad = Math.max(x1 - x0, y1 - y0) * 0.15;
-      drawBox = [x0 - pad, y0 - pad, x1 + pad, y1 + pad];
+  // ---- Editing (points in the plane) ----
+  let tool = $state<Tool | null>(null);
+  let brush = $state(0.035);
+  let selection = $state<number[]>([]);
+  const TOOLS: [Tool, string, string][] = [
+    ['select', 'Select / move', 'Click or drag a box to select points (shift adds); drag a selected point to move them all'],
+    ['add', 'Add', 'Click to add a point; keep the button down to drag it into place'],
+    ['spray', 'Spray', 'Spray points with a round brush'],
+    ['erase', 'Erase', 'Erase the points under a round brush'],
+  ];
+  function edited(points: number[][]) {
+    history.edited();
+    cloud = { dim: 2, points };
+  }
+  function deleteSelected() {
+    if (selection.length === 0) return;
+    const gone = new Set(selection);
+    history.commit(cloud);
+    cloud = { dim: cloud.dim, points: cloud.points.filter((_, i) => !gone.has(i)) };
+    selection = [];
+  }
+  function undo() {
+    const previous = history.undo(cloud);
+    if (previous) {
+      cloud = previous;
+      selection = [];
     }
-    const span = Math.max(drawBox[2] - drawBox[0], drawBox[3] - drawBox[1]);
-    brush = span * 0.035;
+  }
+  function redo() {
+    const next = history.redo(cloud);
+    if (next) {
+      cloud = next;
+      selection = [];
+    }
+  }
+  // A new cloud: an empty plane to draw on
+  function blank() {
+    replace({ dim: 2, points: [] });
+    tool = 'spray';
   }
   $effect(() => {
-    if (source === 'draw') untrack(startDrawing);
-    else drawBox = null;
+    if (cloud.dim !== 2) untrack(() => (tool = null));
   });
 
-  function setFiltration(f: 'rips' | 'alpha') {
+  function setFiltration(f: Filtration) {
     filtration = f;
-    options = defaultsFor(f === 'rips' ? RIPS : COMPLEX);
-    showBalls = f === 'alpha';
+    options = defaultsFor(f === 'rips' || f === 'dtm' ? RIPS : COMPLEX);
+    showBalls = f === 'alpha' || f === 'cech';
   }
 
   // ---- Computing ----
   const thresholdValue = $derived(threshold.trim() === '' ? null : Number(threshold));
   const problem = $derived.by(() => {
     if (cloud.points.length === 0) return 'No points yet.';
-    if (filtration === 'alpha' && cloud.dim !== 2) return 'Alpha persistence is only for points in the plane.';
-    if (filtration === 'alpha' && cloud.points.length < 3) return 'Alpha persistence needs at least three points.';
+    if (isDelaunay && cloud.dim !== 2 && cloud.dim !== 3) return 'Alpha and Delaunay–Čech persistence are for points in the plane or in space.';
     if (thresholdValue !== null && !(thresholdValue > 0)) return 'The threshold must be a positive number.';
-    if (options.algorithm === 'standard' && filtration === 'rips' && cloud.points.length > 120)
+    if (filtration === 'dtm' && !(dtmK >= 1 && dtmK <= cloud.points.length)) return `k must be between 1 and the number of points (${cloud.points.length}).`;
+    if (options.algorithm === 'standard' && !isDelaunay && cloud.points.length > 120)
       return 'The standard algorithm builds every simplex, which takes a very long time for more than about 120 points. Compute anyway?';
     return null;
   });
   const job = $derived.by((): Job | null => {
-    if (cloud.points.length === 0 || (filtration === 'alpha' && cloud.dim !== 2)) return null;
+    if (cloud.points.length === 0) return null;
     const opts = $state.snapshot(options);
-    if (filtration === 'alpha') return { pipeline: 'alpha', coords: flatten(cloud), options: opts };
-    return { pipeline: 'rips', coords: flatten(cloud), pointDim: cloud.dim, maxDim, threshold: thresholdValue, options: opts };
+    if (isDelaunay) return { pipeline: 'delaunay', coords: flatten(cloud), pointDim: cloud.dim, cech: filtration === 'cech', options: opts };
+    return {
+      pipeline: 'rips',
+      coords: flatten(cloud),
+      pointDim: cloud.dim,
+      maxDim,
+      threshold: thresholdValue,
+      metric,
+      dtmK: filtration === 'dtm' ? Math.min(dtmK, cloud.points.length) : null,
+      options: opts,
+    };
   });
   const blocked = $derived(problem !== null && !problem.endsWith('anyway?'));
   const risky = $derived(problem?.endsWith('anyway?') ?? false);
@@ -108,7 +154,17 @@
   });
 
   // ---- Viewing ----
-  const edges = $derived(filtration === 'rips' && cloud.points.length <= 1200 ? sortedEdges(cloud.points) : null);
+  // Rips and DTM-Rips filter the complete complex on the points (a flag filtration): draw its complex at t
+  const isFlag = $derived(filtration === 'rips' || filtration === 'dtm');
+  // The edges are phlite's, sent with the barcode, so the complex drawn is the one computed. Only while the result is
+  // for these points (live, a result one edit behind with the same number of points is drawn on the moved points)
+  const edges = $derived.by(() => {
+    const job = runner.resultJob;
+    const edges = runner.result?.barcode.edges;
+    if (!isFlag || !edges || job?.pipeline !== 'rips') return null;
+    if (job.coords.length !== cloud.points.length * cloud.dim) return null;
+    return edges;
+  });
   const domain = $derived(barDomain(runner.result?.barcode.bars ?? [], [0]));
   const bar = $derived(runner.selected === null ? null : (runner.result?.barcode.bars[runner.selected] ?? null));
   const describe = (cell: number[]) => (cell.length === 1 ? `point ${cell[0]}` : `[${cell.join(' ')}]`);
@@ -121,32 +177,56 @@
         <View2D
           points={cloud.points}
           t={runner.t}
-          {filtration}
+          filtration={isDelaunay ? 'alpha' : 'rips'}
           {bar}
-          balls={showBalls}
+          balls={showBalls && ballsShow}
           {edges}
-          tool={source === 'draw' ? tool : null}
+          {tool}
           {brush}
-          box={source === 'draw' ? drawBox : null}
-          onedit={(points) => (cloud = { dim: 2, points })}
+          bind:selection
+          {fitKey}
+          onstart={() => history.begin(cloud)}
+          onedit={edited}
         />
       {:else}
-        <View3D points={cloud.points} t={runner.t} {bar} edges={filtration === 'rips' ? edges : null} />
+        <View3D points={cloud.points} t={runner.t} {bar} {edges} />
       {/if}
       <div style="margin-top: 0.6rem">
-        <FiltrationSlider bind:t={runner.t} {domain} label={filtration === 'rips' ? 'Diameter' : 'Radius'} />
+        <FiltrationSlider bind:t={runner.t} {domain} label={isDelaunay ? 'Radius' : 'Diameter'} />
       </div>
       <div class="legend" style="margin-top: 0.4rem">
         <span>{cloud.points.length} points{cloud.dim === 3 ? ' in space' : ''}</span>
-        {#if cloud.dim === 2}<label><input type="checkbox" bind:checked={showBalls} /> balls of radius {filtration === 'rips' ? 'd/2' : 'r'}</label>{/if}
-        {#if filtration === 'rips'}<span>edges: pairs within the diameter</span>{/if}
+        {#if cloud.dim === 2 && ballsShow}<label><input type="checkbox" bind:checked={showBalls} /> balls of radius {filtration === 'rips' ? 'd/2' : 'r'}</label>{/if}
+        {#if isFlag && edges}<span><i style="background: var(--edges)"></i>the complex at the slider's value: edges and (shaded) triangles{filtration === 'dtm' ? '; hollow points are not yet born' : ''}</span>{/if}
         {#if bar}<span>coloured: the representative · dashed: the simplex that kills it</span>{/if}
       </div>
+      <EditBar
+        bind:tool
+        tools={cloud.dim === 2 ? TOOLS : []}
+        canUndo={history.past.length > 0}
+        canRedo={history.future.length > 0}
+        onundo={undo}
+        onredo={redo}
+        ondelete={deleteSelected}
+      >
+        {#if cloud.dim !== 2}
+          <span class="note">Editing is for clouds in the plane; this one is in space.</span>
+        {:else if tool === 'spray' || tool === 'erase'}
+          <label class="field"><span>Brush size</span><input type="range" min="0.005" max="0.12" step="any" bind:value={brush} /></label>
+        {:else if tool === 'select'}
+          <span class="note">{selection.length} selected</span>
+          <button disabled={selection.length === 0} onclick={deleteSelected}>Delete selected</button>
+          <button disabled={cloud.points.length === 0} onclick={() => (selection = cloud.points.map((_, i) => i))}>Select all</button>
+        {/if}
+        {#if cloud.dim === 2 && tool}
+          <button disabled={cloud.points.length === 0} onclick={() => replace({ dim: 2, points: [] })}>Clear</button>
+        {/if}
+      </EditBar>
     </div>
 
     <div class="panel secondary">
       <h3>Point cloud</h3>
-      <SourceTabs bind:source drawLabel="Brush" />
+      <SourceTabs bind:source drawLabel="New" />
       {#if source === 'examples'}
         <div class="chips">
           {#each EXAMPLES as ex}
@@ -174,15 +254,12 @@
         {#if uploadError}<p class="error">{uploadError}</p>{/if}
       {:else}
         <div class="tools">
-          <button class:on={tool === 'spray'} onclick={() => (tool = 'spray')}>Spray</button>
-          <button class:on={tool === 'point'} onclick={() => (tool = 'point')}>Single points</button>
-          <button class:on={tool === 'erase'} onclick={() => (tool = 'erase')}>Erase</button>
-          <button onclick={() => (cloud = { dim: 2, points: [] })}>Clear</button>
+          <button onclick={blank}>Empty plane</button>
         </div>
-        {#if tool !== 'point' && drawBox}
-          <label class="field"><span>Brush size</span><input type="range" min={(drawBox[2] - drawBox[0]) * 0.005} max={(drawBox[2] - drawBox[0]) * 0.12} step="any" bind:value={brush} /></label>
-        {/if}
-        <p class="note">Draw on the canvas below. The barcode updates as you go.</p>
+        <p class="note">
+          Start from nothing and draw a cloud with the editing tools under the view. Any cloud in the plane (an example, a
+          random sample or your own) can be edited the same way.
+        </p>
       {/if}
     </div>
   </div>
@@ -206,24 +283,40 @@
       <div class="field"><span>Filtration</span>
         <div class="tools">
           <button class:on={filtration === 'rips'} onclick={() => setFiltration('rips')}>Vietoris–Rips</button>
-          <button class:on={filtration === 'alpha'} disabled={cloud.dim !== 2} onclick={() => setFiltration('alpha')}>Alpha (2D)</button>
+          <button class:on={filtration === 'dtm'} onclick={() => setFiltration('dtm')}>DTM-Rips</button>
+          <button class:on={filtration === 'alpha'} onclick={() => setFiltration('alpha')}>Alpha</button>
+          <button class:on={filtration === 'cech'} onclick={() => setFiltration('cech')}>Delaunay–Čech</button>
         </div>
       </div>
-      {#if filtration === 'rips'}
+      {#if !isDelaunay}
         <label class="field"><span>Up to dimension</span>
           <select bind:value={maxDim}>
             <option value={0}>H₀</option><option value={1}>H₁</option><option value={2}>H₂</option><option value={3}>H₃</option>
           </select>
         </label>
+        <label class="field"><span>Metric</span>
+          <select bind:value={metric}>
+            <option value="euclidean">Euclidean</option>
+            <option value="manhattan">Manhattan (L¹)</option>
+            <option value="chebyshev">Chebyshev (L∞)</option>
+          </select>
+        </label>
         <label class="field"><span>Threshold</span><input type="text" placeholder="none (the enclosing radius)" bind:value={threshold} /></label>
+        {#if filtration === 'dtm'}
+          <label class="field"><span>DTM neighbours k</span><input type="range" min="1" max={Math.max(1, Math.min(50, cloud.points.length))} bind:value={dtmK} /><span>{dtmK}</span></label>
+          <p class="note">
+            Weighted Rips, each point weighted by its distance to measure (the root mean square distance to its k nearest
+            neighbours, itself included): a point appears at twice its weight, and an edge when the balls about its ends,
+            of radius the scale less the weights, meet. Outliers come late, so noise matters less.
+          </p>
+        {/if}
+      {:else if filtration === 'alpha'}
+        <p class="note">The exact Delaunay triangulation (in the plane or in space), each cell entering at the radius of its smallest empty circumsphere: the same barcode as the Čech filtration, from a small complex.</p>
       {:else}
-        <p class="note">The Delaunay triangulation, each cell entering at the radius of its smallest empty circumcircle (via <code>alphalpha</code>), reduced as an explicit complex.</p>
+        <p class="note">The exact Delaunay triangulation (in the plane or in space), each cell entering at the radius of its minimal enclosing ball, when the balls about its vertices first meet.</p>
       {/if}
-      <Options bind:options defaults={filtration === 'rips' ? RIPS : COMPLEX} />
-      <div class="compute-row">
-        <button class="primary" disabled={!job || blocked} onclick={() => runner.run(job)}>Compute</button>
-        <label><input type="checkbox" bind:checked={runner.auto} /> recompute on every change</label>
-      </div>
+      <Options bind:options defaults={isDelaunay ? COMPLEX : RIPS} />
+      <ComputeRow {runner} {job} disabled={blocked} />
       {#if problem}<p class="note" class:error={blocked}>{problem}</p>{/if}
     </div>
   </div>

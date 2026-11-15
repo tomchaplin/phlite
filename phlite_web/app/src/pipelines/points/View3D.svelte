@@ -2,8 +2,9 @@
   import * as THREE from 'three';
   import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
   import { onMount } from 'svelte';
-  import { dimColour, type Bar } from '../../lib/types';
-  import { countUpTo } from './data';
+  import { dimColour, type Bar, type FiltrationEdges } from '../../lib/types';
+  import { cssColour } from '../../lib/palette.svelte';
+  import { activeComplex } from './data';
 
   let {
     points,
@@ -14,7 +15,8 @@
     points: number[][];
     t: number | null;
     bar: Bar | null;
-    edges: { pairs: Uint32Array; lengths: Float64Array } | null;
+    /** A flag filtration's edges (Rips, DTM-Rips), to draw its complex at t: edges and triangles. */
+    edges: FiltrationEdges | null;
   } = $props();
 
   let width = $state(500);
@@ -80,7 +82,7 @@
     clear(groups.points);
     const { r } = centre;
     const geometry = new THREE.SphereGeometry(r * (points.length > 500 ? 0.008 : 0.014), 8, 6);
-    const material = new THREE.MeshLambertMaterial({ color: 0x555b66 });
+    const material = new THREE.MeshLambertMaterial({ color: new THREE.Color(cssColour('--points')) });
     const mesh = new THREE.InstancedMesh(geometry, material, points.length);
     const m = new THREE.Matrix4();
     points.forEach((p, i) => mesh.setMatrixAt(i, m.makeTranslation(p[0], p[1], p[2])));
@@ -88,11 +90,31 @@
     render();
   });
 
-  // The Rips edges at t
+  // The complex at t: its edges and (translucent) triangles
   $effect(() => {
     clear(groups.complex);
     if (t !== null && edges) {
-      const count = Math.min(countUpTo(edges.lengths, t), EDGE_LIMIT);
+      const complex = activeComplex(edges, points.length, t, 20000);
+      const tri = complex.triangles;
+      if (tri.length > 0) {
+        const corners = new Float32Array(tri.length * 3);
+        for (let k = 0; k < tri.length; k++) corners.set(points[tri[k]].slice(0, 3), 3 * k);
+        const surface = new THREE.BufferGeometry();
+        surface.setAttribute('position', new THREE.BufferAttribute(corners, 3));
+        groups.complex.add(
+          new THREE.Mesh(
+            surface,
+            new THREE.MeshBasicMaterial({
+              color: new THREE.Color(cssColour('--edges')),
+              transparent: true,
+              opacity: tri.length / 3 > 2000 ? 0.08 : 0.2,
+              side: THREE.DoubleSide,
+              depthWrite: false,
+            }),
+          ),
+        );
+      }
+      const count = Math.min(complex.m, EDGE_LIMIT);
       const positions = new Float32Array(count * 6);
       for (let k = 0; k < count; k++) {
         const a = points[edges.pairs[2 * k]];
@@ -102,7 +124,7 @@
       const geometry = new THREE.BufferGeometry();
       geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
       groups.complex.add(
-        new THREE.LineSegments(geometry, new THREE.LineBasicMaterial({ color: 0x8a919c, transparent: true, opacity: count > 3000 ? 0.18 : 0.4 })),
+        new THREE.LineSegments(geometry, new THREE.LineBasicMaterial({ color: new THREE.Color(cssColour('--edges')), transparent: true, opacity: count > 3000 ? 0.18 : 0.4 })),
       );
     }
     render();

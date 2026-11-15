@@ -175,7 +175,7 @@ fn main() {
 
     // ANCHOR: step4
     // Step 4: attach the transpose, so that apparent pairs need no reduction, and zero-length ones aren't recorded
-    let delta_t = (&delta).with_transpose(Boundary(&volume));
+    let delta_t = delta.by_ref().with_transpose(Boundary(&volume));
     let apparent = timed("cohomology, clearing, apparent pairs", || {
         barcode::cohomology(&delta_t, Algorithm::Clearing(Clearing::new()))
     });

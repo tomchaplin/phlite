@@ -5,17 +5,22 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>phlite</title>
 <meta name="description" content="phlite: fast, lazy persistent homology in Rust, with Python bindings and an in-browser playground.">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect x='1' y='3' width='9' height='2.5' rx='1' fill='%234c78a8'/%3E%3Crect x='4' y='7' width='11' height='2.5' rx='1' fill='%23f58518'/%3E%3Crect x='2' y='11' width='6' height='2.5' rx='1' fill='%2354a24b'/%3E%3C/svg%3E">
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
 <style>
+  /* Catppuccin (https://catppuccin.com/palette): Latte in light mode, Macchiato in dark, as the rest of the docs */
   :root {
-    --bg: #f7f7f5; --panel: #ffffff; --fg: #1d1f24; --muted: #646a73; --line: #d9d9d4; --accent: #4c78a8;
-    --green: #287900; --plane-light: #f7f7f7; --plane-dark: #ebebeb;
+    --bg: #e6e9ef; --panel: #eff1f5; --fg: #4c4f69; --muted: #6c6f85; --line: #bcc0cc; --accent: #1e66f5;
+    --green: #40a02b; --mauve: #8839ef; --plane-light: #eff1f5; --plane-dark: #ccd0da;
+    --dim0: #1e66f5; --dim1: #fe640b; --dim2: #40a02b; --dim3: #d20f39; --dim4: #8839ef;
     color-scheme: light;
   }
   @media (prefers-color-scheme: dark) {
-    :root { --bg: #15171b; --panel: #1d2026; --fg: #e7e9ec; --muted: #9aa1ab; --line: #353a43; --accent: #7aa6d6;
-      --green: #6cc644; --plane-light: #2a2e36; --plane-dark: #353a43; color-scheme: dark; }
+    :root { --bg: #181926; --panel: #24273a; --fg: #cad3f5; --muted: #a5adcb; --line: #494d64; --accent: #8aadf4;
+      --green: #a6da95; --mauve: #c6a0f6; --plane-light: #363a4f; --plane-dark: #494d64;
+      --dim0: #8aadf4; --dim1: #f5a97f; --dim2: #a6da95; --dim3: #ed8796; --dim4: #c6a0f6; color-scheme: dark; }
   }
+  .f0 { fill: var(--dim0); } .f1 { fill: var(--dim1); } .f2 { fill: var(--dim2); } .f3 { fill: var(--dim3); } .f4 { fill: var(--dim4); }
+  .s0 { stroke: var(--dim0); } .s1 { stroke: var(--dim1); } .s2 { stroke: var(--dim2); } .s3 { stroke: var(--dim3); } .s4 { stroke: var(--dim4); }
   * { box-sizing: border-box; }
   body { margin: 0; background: var(--bg); color: var(--fg); font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
   main { max-width: 1040px; margin: 0 auto; padding: 4rem 16px 3rem; }
@@ -82,16 +87,16 @@
             </g>
             <g transform="matrix(0.461508,0,0,0.461508,390.773,514.461)">
                 <g transform="matrix(361.135,0,0,361.135,924.25,724.981)">
-                    <rect x="0.092" y="-0.756" width="0.068" height="0.756" style="fill:var(--green);fill-rule:nonzero;"/>
+                    <rect x="0.092" y="-0.756" width="0.068" height="0.756" style="fill:var(--mauve);fill-rule:nonzero;"/>
                 </g>
                 <g transform="matrix(361.135,0,0,361.135,1015.26,724.981)">
-                    <path d="M0.159,-0L0.091,-0L0.091,-0.468L0.159,-0.468L0.159,-0ZM0.173,-0.648C0.173,-0.634 0.168,-0.623 0.158,-0.614C0.148,-0.604 0.137,-0.6 0.125,-0.6C0.113,-0.6 0.102,-0.604 0.092,-0.614C0.082,-0.623 0.077,-0.634 0.077,-0.648C0.077,-0.662 0.082,-0.674 0.092,-0.683C0.102,-0.692 0.113,-0.696 0.125,-0.696C0.137,-0.696 0.148,-0.692 0.158,-0.683C0.168,-0.674 0.173,-0.662 0.173,-0.648Z" style="fill:var(--green);fill-rule:nonzero;"/>
+                    <path d="M0.159,-0L0.091,-0L0.091,-0.468L0.159,-0.468L0.159,-0ZM0.173,-0.648C0.173,-0.634 0.168,-0.623 0.158,-0.614C0.148,-0.604 0.137,-0.6 0.125,-0.6C0.113,-0.6 0.102,-0.604 0.092,-0.614C0.082,-0.623 0.077,-0.634 0.077,-0.648C0.077,-0.662 0.082,-0.674 0.092,-0.683C0.102,-0.692 0.113,-0.696 0.125,-0.696C0.137,-0.696 0.148,-0.692 0.158,-0.683C0.168,-0.674 0.173,-0.662 0.173,-0.648Z" style="fill:var(--mauve);fill-rule:nonzero;"/>
                 </g>
                 <g transform="matrix(361.135,0,0,361.135,1105.54,724.981)">
-                    <path d="M0.301,-0.411L0.169,-0.411L0.169,-0.138C0.169,-0.121 0.171,-0.106 0.174,-0.095C0.177,-0.084 0.182,-0.075 0.189,-0.069C0.195,-0.062 0.202,-0.058 0.211,-0.056C0.22,-0.053 0.229,-0.052 0.239,-0.052C0.248,-0.052 0.258,-0.053 0.269,-0.056C0.279,-0.059 0.289,-0.062 0.298,-0.067L0.301,-0.008C0.289,-0.003 0.277,0 0.264,0.003C0.251,0.005 0.236,0.006 0.221,0.006C0.208,0.006 0.195,0.004 0.181,0.001C0.167,-0.002 0.154,-0.009 0.142,-0.018C0.13,-0.027 0.12,-0.04 0.113,-0.056C0.105,-0.072 0.101,-0.093 0.101,-0.119L0.101,-0.411L0.004,-0.411L0.004,-0.468L0.101,-0.468L0.101,-0.6L0.169,-0.6L0.169,-0.468L0.301,-0.468L0.301,-0.411Z" style="fill:var(--green);fill-rule:nonzero;"/>
+                    <path d="M0.301,-0.411L0.169,-0.411L0.169,-0.138C0.169,-0.121 0.171,-0.106 0.174,-0.095C0.177,-0.084 0.182,-0.075 0.189,-0.069C0.195,-0.062 0.202,-0.058 0.211,-0.056C0.22,-0.053 0.229,-0.052 0.239,-0.052C0.248,-0.052 0.258,-0.053 0.269,-0.056C0.279,-0.059 0.289,-0.062 0.298,-0.067L0.301,-0.008C0.289,-0.003 0.277,0 0.264,0.003C0.251,0.005 0.236,0.006 0.221,0.006C0.208,0.006 0.195,0.004 0.181,0.001C0.167,-0.002 0.154,-0.009 0.142,-0.018C0.13,-0.027 0.12,-0.04 0.113,-0.056C0.105,-0.072 0.101,-0.093 0.101,-0.119L0.101,-0.411L0.004,-0.411L0.004,-0.468L0.101,-0.468L0.101,-0.6L0.169,-0.6L0.169,-0.468L0.301,-0.468L0.301,-0.411Z" style="fill:var(--mauve);fill-rule:nonzero;"/>
                 </g>
                 <g transform="matrix(361.135,0,0,361.135,1220.02,724.981)">
-                    <path d="M0.447,-0.27C0.445,-0.314 0.431,-0.351 0.405,-0.38C0.378,-0.409 0.341,-0.423 0.292,-0.423C0.269,-0.423 0.248,-0.419 0.229,-0.411C0.21,-0.402 0.193,-0.391 0.178,-0.377C0.163,-0.362 0.152,-0.346 0.143,-0.328C0.134,-0.309 0.129,-0.29 0.128,-0.27L0.447,-0.27ZM0.516,-0.248L0.516,-0.233C0.516,-0.228 0.516,-0.222 0.515,-0.216L0.127,-0.216C0.128,-0.193 0.132,-0.171 0.141,-0.15C0.15,-0.129 0.162,-0.111 0.177,-0.096C0.192,-0.081 0.21,-0.068 0.231,-0.06C0.252,-0.05 0.274,-0.046 0.298,-0.046C0.333,-0.046 0.364,-0.054 0.39,-0.071C0.415,-0.087 0.435,-0.106 0.448,-0.127L0.499,-0.087C0.471,-0.052 0.44,-0.026 0.407,-0.011C0.373,0.004 0.337,0.012 0.298,0.012C0.263,0.012 0.231,0.006 0.202,-0.007C0.172,-0.019 0.146,-0.036 0.125,-0.058C0.104,-0.08 0.087,-0.106 0.075,-0.136C0.062,-0.166 0.056,-0.199 0.056,-0.234C0.056,-0.269 0.062,-0.302 0.074,-0.332C0.086,-0.362 0.103,-0.388 0.124,-0.41C0.145,-0.432 0.17,-0.449 0.199,-0.462C0.228,-0.474 0.259,-0.48 0.292,-0.48C0.329,-0.48 0.361,-0.474 0.389,-0.462C0.417,-0.449 0.44,-0.433 0.459,-0.412C0.478,-0.391 0.492,-0.366 0.502,-0.338C0.511,-0.31 0.516,-0.28 0.516,-0.248Z" style="fill:var(--green);fill-rule:nonzero;"/>
+                    <path d="M0.447,-0.27C0.445,-0.314 0.431,-0.351 0.405,-0.38C0.378,-0.409 0.341,-0.423 0.292,-0.423C0.269,-0.423 0.248,-0.419 0.229,-0.411C0.21,-0.402 0.193,-0.391 0.178,-0.377C0.163,-0.362 0.152,-0.346 0.143,-0.328C0.134,-0.309 0.129,-0.29 0.128,-0.27L0.447,-0.27ZM0.516,-0.248L0.516,-0.233C0.516,-0.228 0.516,-0.222 0.515,-0.216L0.127,-0.216C0.128,-0.193 0.132,-0.171 0.141,-0.15C0.15,-0.129 0.162,-0.111 0.177,-0.096C0.192,-0.081 0.21,-0.068 0.231,-0.06C0.252,-0.05 0.274,-0.046 0.298,-0.046C0.333,-0.046 0.364,-0.054 0.39,-0.071C0.415,-0.087 0.435,-0.106 0.448,-0.127L0.499,-0.087C0.471,-0.052 0.44,-0.026 0.407,-0.011C0.373,0.004 0.337,0.012 0.298,0.012C0.263,0.012 0.231,0.006 0.202,-0.007C0.172,-0.019 0.146,-0.036 0.125,-0.058C0.104,-0.08 0.087,-0.106 0.075,-0.136C0.062,-0.166 0.056,-0.199 0.056,-0.234C0.056,-0.269 0.062,-0.302 0.074,-0.332C0.086,-0.362 0.103,-0.388 0.124,-0.41C0.145,-0.432 0.17,-0.449 0.199,-0.462C0.228,-0.474 0.259,-0.48 0.292,-0.48C0.329,-0.48 0.361,-0.474 0.389,-0.462C0.417,-0.449 0.44,-0.433 0.459,-0.412C0.478,-0.391 0.492,-0.366 0.502,-0.338C0.511,-0.31 0.516,-0.28 0.516,-0.248Z" style="fill:var(--mauve);fill-rule:nonzero;"/>
                 </g>
             </g>
         </g>
@@ -103,21 +108,21 @@
 
   <nav class="tiles">
     <a class="tile" href="playground/">
-      <svg viewBox="0 0 44 44" aria-hidden="true"><circle cx="12" cy="30" r="4" fill="#4c78a8"/><circle cx="22" cy="12" r="4" fill="#4c78a8"/><circle cx="33" cy="28" r="4" fill="#4c78a8"/><path d="M12 30 L22 12 L33 28 Z" fill="#f58518" fill-opacity="0.25" stroke="#f58518" stroke-width="2.5" stroke-linejoin="round"/></svg>
+      <svg viewBox="0 0 44 44" aria-hidden="true"><circle class="f0" cx="12" cy="30" r="4"/><circle class="f0" cx="22" cy="12" r="4"/><circle class="f0" cx="33" cy="28" r="4"/><path class="f1 s1" d="M12 30 L22 12 L33 28 Z" fill-opacity="0.25" stroke-width="2.5" stroke-linejoin="round"/></svg>
       <h2>Playground</h2>
       <p>Barcodes of point clouds, images, networks and chain complexes, computed in your browser.</p>
       <span class="go">Open the playground →</span>
     </a>
     <a class="tile" href="book/">
-      <svg viewBox="0 0 44 44" aria-hidden="true"><path d="M8 9 h12 a4 4 0 0 1 4 4 v23 a3 3 0 0 0 -3 -3 H8 Z" fill="none" stroke="#4c78a8" stroke-width="2.5" stroke-linejoin="round"/><path d="M36 9 h-12 a4 4 0 0 0 -4 4 v23 a3 3 0 0 1 3 -3 H36 Z" fill="none" stroke="#54a24b" stroke-width="2.5" stroke-linejoin="round"/></svg>
+      <svg viewBox="0 0 44 44" aria-hidden="true"><path class="s0" d="M8 9 h12 a4 4 0 0 1 4 4 v23 a3 3 0 0 0 -3 -3 H8 Z" fill="none" stroke-width="2.5" stroke-linejoin="round"/><path class="s2" d="M36 9 h-12 a4 4 0 0 0 -4 4 v23 a3 3 0 0 1 3 -3 H36 Z" fill="none" stroke-width="2.5" stroke-linejoin="round"/></svg>
       <h2>Book</h2>
       <p>How phlite works, when each optimisation helps, and how to write your own filtration.</p>
       <span class="go">Read the book →</span>
     </a>
     <a class="tile" href="api/">
-      <svg viewBox="0 0 44 44" aria-hidden="true"><path d="M15 10 L6 22 L15 34" fill="none" stroke="#e45756" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M29 10 L38 22 L29 34" fill="none" stroke="#e45756" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M25 8 L19 36" stroke="#b279a2" stroke-width="2.5" stroke-linecap="round"/></svg>
+      <svg viewBox="0 0 44 44" aria-hidden="true"><path class="s3" d="M15 10 L6 22 L15 34" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/><path class="s3" d="M29 10 L38 22 L29 34" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/><path class="s4" d="M25 8 L19 36" stroke-width="2.5" stroke-linecap="round"/></svg>
       <h2>API reference</h2>
-      <p>The Python packages: <code>phlite</code>, <code>phlite_rips</code> and <code>phlite_grpph</code>.</p>
+      <p>The Python packages: <code>phlite.complexes</code>, <code>phlite.clouds</code>, <code>phlite.networks</code>, <code>phlite.images</code> and <code>phlite.core</code>.</p>
       <span class="go">Browse the API →</span>
     </a>
   </nav>

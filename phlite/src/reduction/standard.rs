@@ -118,7 +118,7 @@ where
 
         let basis_element = boundary.basis().element(i);
 
-        let mut v_i = (&boundary).with_trivial_filtration().empty_bhcol();
+        let mut v_i = boundary.by_ref().with_trivial_filtration().empty_bhcol();
         v_i.add_tuple((M::CoefficientField::one(), basis_element.clone(), ()));
         let mut r_i = C::Column::default();
         columns.add_matrix_column(

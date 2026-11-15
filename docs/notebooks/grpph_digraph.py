@@ -10,7 +10,7 @@ def _():
 
     mo.md(
         r"""
-        # Path homology of a digraph with `phlite_grpph`
+        # Path homology of a digraph with `phlite.networks`
 
         Grounded persistent path homology (GrPPH) tells apart cycles that an undirected method would treat alike:
         a long directed cycle lives longer than a short one, a square of two parallel paths dies quickly, and a
@@ -28,7 +28,7 @@ def _():
     import altair as alt
     import networkx as nx
     import polars as pl
-    from phlite_grpph import grpph
+    from phlite.networks import grpph
 
     return alt, grpph, math, nx, pl
 

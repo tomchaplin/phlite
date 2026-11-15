@@ -42,7 +42,7 @@
 //!    or to one of the functions in [`barcode`] to get the barcode (and representatives) directly.
 //!
 //! As you can see, `phlite` takes a "bring your own `*`" approach where `*` matches matrix representation/basis representation/matrix index types/filtration types.
-//! To see an example implementation of Vietoris-Rips persitent homology, with a step-by-step tutorial, have a look at the [`phlite_rips`](https://github.com/tomchaplin/phlite/tree/main/phlite_rips) crate.
+//! To see an example implementation of Vietoris-Rips persitent homology, with a step-by-step tutorial, have a look at the `rips` module of the [`phlite_clouds`](https://github.com/tomchaplin/phlite/tree/main/phlite_clouds) crate.
 
 pub mod barcode;
 pub mod bookkeeping;

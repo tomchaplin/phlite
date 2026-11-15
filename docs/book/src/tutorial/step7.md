@@ -35,10 +35,10 @@ since most columns finish at their pivot.
 `phlite` also has PHAT's tricks: [dense indices](../internals/bookkeeping.md) for vector bookkeeping,
 [pivot columns](../columns/pivot.md) and [stored R](../algorithms/store-r.md). They need an array over every cell,
 which is exactly what this oracle avoids, and they pay when many columns need genuine reduction, which isn't the
-case here. If your complex is like that, build it explicitly with the [`phlite` Python package](../python/phlite.md),
+case here. If your complex is like that, build it explicitly with [`phlite.complexes`](../python/complexes.md),
 which applies them all.
 
 ## Next
 
-The same ideas, applied to Vietoris–Rips with much more care over enumerating cofacets, are `phlite_rips`; its source
-(`phlite_rips/src/lib.rs` onwards, comments marked `TUTORIAL`) is a good next read.
+The same ideas, applied to Vietoris–Rips with much more care over enumerating cofacets, are `phlite_clouds::rips`; its source
+(`phlite_clouds/src/rips/mod.rs` onwards, comments marked `TUTORIAL`) is a good next read.

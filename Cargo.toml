@@ -3,10 +3,26 @@ resolver = "2"
 
 members = [
   "phlite",
-  "phlite_grpph",
-  "phlite_rips",
-  "phlite_pyutils",
-  "phlite_py",
+  "phlite_bindings",
+  "phlite_complexes",
+  "phlite_clouds",
+  "phlite_networks",
+  "phlite_images",
 ]
 # The browser build (WebAssembly with threads) has its own toolchain and target, see phlite_web/README.md
 exclude = ["phlite_web"]
+
+# Every crate and every Python package is released in lockstep on this version (maturin takes the wheels' versions
+# from here): bump it here and in phlite_meta/pyproject.toml (whose pins phlite_bindings' tests check), then build and
+# release everything.
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+repository = "https://github.com/tomchaplin/phlite"
+
+# Each extension module's hot code is generic code from phlite instantiated with its own types, plus non-generic
+# helpers from other crates, which only LTO can inline across crates (it was worth 1.5-2x for Rips and GrPPH when their
+# bindings were in another crate).
+[profile.release]
+lto = "thin"

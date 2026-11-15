@@ -4,7 +4,8 @@
 
 RESULTS_DIR (and BASELINE_DIR, from the latest run on main) hold pytest-benchmark JSON files. Shared CI machines vary
 from run to run, so absolute times are only a rough guide; what is reported is each phlite time *divided by a
-reference implementation's time in the same run* (ripser, grpphati, PHAT), which is far more stable. Against the
+reference implementation's time in the same run* (the first of its suite's `light_references` that ran, see
+suites.py: ripser, grpphati, PHAT, ...), which is far more stable. Against the
 baseline, a ratio that grows by more than `--threshold` (default 25%) is flagged. Nothing fails.
 """
 
@@ -13,26 +14,28 @@ import glob
 import json
 import os
 
-# The reference for each case: the first of these that was run
-REFERENCES = ["ripser", "giotto-ph (1 thread)", "grpphati (GrPPH)", "phat (twist)"]
+from suites import load_suite, suite_name
+
 PHLITE = ["phlite (serial)", "phlite (parallel)"]
 
 
 def load(directory):
-    """{case: {implementation: fastest time in seconds}} from every JSON file in `directory`."""
-    times = {}
+    """{case: {implementation: fastest time in seconds}} and {case: suite} from every JSON file in `directory`."""
+    times, suites = {}, {}
     for path in sorted(glob.glob(os.path.join(directory, "*.json"))):
         for bench in json.load(open(path))["benchmarks"]:
             implementation = bench["params"]["implementation"]
             times.setdefault(bench["group"], {})[implementation] = bench["stats"]["min"]
-    return times
+            suites[bench["group"]] = suite_name(bench)
+    return times, suites
 
 
-def ratios(times):
+def ratios(times, suites):
     """{(case, phlite implementation): (reference, time / reference's time)}."""
     out = {}
     for case, by_impl in times.items():
-        reference = next((r for r in REFERENCES if r in by_impl), None)
+        references = load_suite(suites[case])["light_references"]
+        reference = next((r for r in references if r in by_impl), None)
         if reference is None:
             continue
         for implementation in PHLITE:
@@ -53,9 +56,9 @@ def main():
     parser.add_argument("--out", required=True)
     args = parser.parse_args()
 
-    times = load(args.results)
-    now = ratios(times)
-    base = ratios(load(args.baseline)) if args.baseline and os.path.isdir(args.baseline) else {}
+    times, suites = load(args.results)
+    now = ratios(times, suites)
+    base = ratios(*load(args.baseline)) if args.baseline and os.path.isdir(args.baseline) else {}
 
     lines = [
         "## Light benchmark",
