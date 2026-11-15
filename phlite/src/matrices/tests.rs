@@ -79,7 +79,7 @@ fn test_matrix_bhcol_interface() {
     assert_eq!(column.pop_pivot(), None);
 
     // Opposite filtration
-    let opp_matrix = (&matrix).with_filtration(|idx| -(matrix.filtration_value(idx) as isize));
+    let opp_matrix = matrix.by_ref().with_filtration(|idx| -(matrix.filtration_value(idx) as isize));
     let opp_add = |column: &mut BHCol<_, _, _>, index| {
         column.add_entries(opp_matrix.column_with_filtration(index));
     };
@@ -157,8 +157,8 @@ fn test_basis_reverse() {
         vec![1, 2, 4, 4],
     ]);
     let base_matrix = base_matrix.with_basis(vec![0, 1, 3]);
-    let rev_matrix = (&base_matrix).reverse();
-    let unrev_matrix = (&rev_matrix).unreverse();
+    let rev_matrix = base_matrix.by_ref().reverse();
+    let unrev_matrix = rev_matrix.by_ref().unreverse();
 
     let base_elem = base_matrix.basis().element(0);
     assert_eq!(base_elem, 0);
@@ -222,8 +222,8 @@ fn test_split_basis_views() {
 #[test]
 fn test_split_basis_reverse_unreverse() {
     let base_matrix = SimpleZ2Matrix::new_all_one(vec![vec![]; 6]).with_basis(split_basis());
-    let rev_matrix = (&base_matrix).reverse();
-    let unrev_matrix = (&rev_matrix).unreverse();
+    let rev_matrix = base_matrix.by_ref().reverse();
+    let unrev_matrix = rev_matrix.by_ref().unreverse();
 
     // Reversal acts within each dimension and keeps the dimension labels
     let rev_dim0: Vec<_> = (0..3)
@@ -248,12 +248,12 @@ fn test_split_basis_reverse_unreverse() {
 fn test_sub_matrix_in_dimension() {
     let base_matrix = SimpleZ2Matrix::new_all_one(vec![vec![]; 6]).with_basis(split_basis());
     // Works on a borrowed matrix, and the sub-basis re-indexes from 0
-    let sub = (&base_matrix).sub_matrix_in_dimension(1);
+    let sub = base_matrix.by_ref().sub_matrix_in_dimension(1);
     assert_eq!(sub.basis().size(), 2);
     assert_eq!(sub.basis().element(0), 2);
     assert_eq!(sub.basis().element(1), 5);
     // Reversing a sub-matrix also works
-    let rev_sub = (&sub).reverse();
+    let rev_sub = sub.by_ref().reverse();
     assert_eq!(rev_sub.basis().element(0), Reverse(5));
 }
 
@@ -270,7 +270,7 @@ fn column_pivot_and_min() {
     assert_eq!(row(matrix.column_min(1)), None);
     assert_eq!(row(matrix.column_pivot(2)), None);
     // Reversing swaps them
-    let reversed = (&matrix).reverse();
+    let reversed = matrix.by_ref().reverse();
     let rev_row = |entry: Option<ColumnEntry<Reverse<usize>, Reverse<usize>, Z2>>| {
         entry.map(|e| e.row_index.0)
     };

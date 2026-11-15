@@ -372,8 +372,8 @@ mod tests {
         for distances in [circle, ties] {
             let boundary = RipsBoundary::<Z2>::new(distances.clone());
             let coboundary = build_rips_coboundary_matrix::<Z2>(distances, 2);
-            let with_t = (&coboundary).with_transpose(&boundary);
-            let anti = (&with_t).reverse();
+            let with_t = coboundary.by_ref().with_transpose(&boundary);
+            let anti = with_t.by_ref().reverse();
             let full = Clearing::new()
                 .skip_zero_apparent_pairs(false)
                 .reduce(&anti)

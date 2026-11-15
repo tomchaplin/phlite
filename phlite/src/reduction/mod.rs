@@ -174,7 +174,7 @@ mod tests {
             vec![3, 4, 5],
         ]);
         let matrix_v = Standard::new()
-            .reduce((&matrix_d).with_trivial_filtration())
+            .reduce(matrix_d.by_ref().with_trivial_filtration())
             .v;
         let matrix_r = product(&matrix_d, &matrix_v);
         let true_matrix_r = SimpleZ2Matrix::new_all_one(vec![

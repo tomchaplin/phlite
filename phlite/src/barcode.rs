@@ -413,8 +413,8 @@ where
     let boundary = coboundary
         .transpose()
         .with_filtration(|cell: C| coboundary.filtration_value(cell));
-    let boundary = (&boundary).with_transpose(coboundary);
-    let restricted = (&boundary).with_basis(SplitBasis::from_dimensions([involution_basis]));
+    let boundary = boundary.by_ref().with_transpose(coboundary);
+    let restricted = boundary.by_ref().with_basis(SplitBasis::from_dimensions([involution_basis]));
     let Reduction { v, diagram: _ } = Clearing::new().reduce(&restricted);
     let r = product(&restricted, &v);
 
@@ -428,7 +428,7 @@ where
                 );
                 rep
             }
-            None => collect_column((&v).with_trivial_filtration(), bar.birth.clone()),
+            None => collect_column(v.by_ref().with_trivial_filtration(), bar.birth.clone()),
         };
         bar.representative = Some(representative);
     }
@@ -532,9 +532,9 @@ mod tests {
     fn homology_and_cohomology_agree_with<R: ColumnRepresentation>() {
         // Filtration value = index
         let d = boundary().with_filtration(|i| i);
-        let d = (&d).with_basis(basis(2));
+        let d = d.by_ref().with_basis(basis(2));
         let delta = coboundary().with_filtration(|i| i);
-        let delta = (&delta).with_basis(basis(1));
+        let delta = delta.by_ref().with_basis(basis(1));
         let expected = vec![
             (1, Some(4)),
             (2, Some(5)),
@@ -553,7 +553,7 @@ mod tests {
             let cohom = cohomology(&delta, algorithm.clone());
             assert_eq!(summary(&cohom), expected);
             let b = boundary();
-            let invol = cohomology_with_involution((&delta).with_transpose(&b), algorithm);
+            let invol = cohomology_with_involution(delta.by_ref().with_transpose(&b), algorithm);
             assert_eq!(summary(&invol), expected);
 
             for bars in [&hom, &invol] {
@@ -577,13 +577,13 @@ mod tests {
         use crate::matrices::HasRowFiltration;
         // Rows of the coboundary are the cofaces, so the columns in row 7 (the triangle) are its edges 4, 5, 6
         let co = coboundary();
-        let delta = (&co).with_filtration(|i| i);
+        let delta = co.by_ref().with_filtration(|i| i);
         let b = boundary();
-        let with_t = (&delta).with_transpose(&b);
+        let with_t = delta.by_ref().with_transpose(&b);
         assert_eq!(with_t.first_column_in_row(7), Some(4));
         assert_eq!(with_t.last_column_in_row(7), Some(6));
         // And reversing swaps them
-        let rev = (&with_t).reverse();
+        let rev = with_t.by_ref().reverse();
         assert_eq!(rev.first_column_in_row(Reverse(7)), Some(Reverse(6)));
         assert_eq!(rev.last_column_in_row(Reverse(7)), Some(Reverse(4)));
         // Without a transpose nothing is known
@@ -600,12 +600,12 @@ mod tests {
     fn transposes_give_same_bars_with<R: ColumnRepresentation>() {
         let b = boundary();
         let co = coboundary();
-        let d = (&b).with_filtration(|i| i);
-        let d = (&d).with_basis(basis(2));
-        let d = (&d).with_transpose(&co);
-        let delta = (&co).with_filtration(|i| i);
-        let delta = (&delta).with_basis(basis(1));
-        let delta = (&delta).with_transpose(&b);
+        let d = b.by_ref().with_filtration(|i| i);
+        let d = d.by_ref().with_basis(basis(2));
+        let d = d.by_ref().with_transpose(&co);
+        let delta = co.by_ref().with_filtration(|i| i);
+        let delta = delta.by_ref().with_basis(basis(1));
+        let delta = delta.by_ref().with_transpose(&b);
         let expected = {
             let mut e = vec![
                 (1, Some(4)),
@@ -647,13 +647,13 @@ mod tests {
         let value = |i: usize| [0usize, 0, 0, 0, 0, 0, 1, 2][i];
         let b = boundary();
         let co = coboundary();
-        let d = (&b).with_filtration(value);
-        let d = (&d).with_basis(basis(2));
-        let d = (&d).with_transpose(&co);
-        let delta = (&co).with_filtration(value);
-        let delta = (&delta).with_basis(basis(2));
-        let delta = (&delta).with_transpose(&b);
-        let anti = (&delta).reverse();
+        let d = b.by_ref().with_filtration(value);
+        let d = d.by_ref().with_basis(basis(2));
+        let d = d.by_ref().with_transpose(&co);
+        let delta = co.by_ref().with_filtration(value);
+        let delta = delta.by_ref().with_basis(basis(2));
+        let delta = delta.by_ref().with_transpose(&b);
+        let anti = delta.by_ref().reverse();
 
         fn check<T: Eq + std::fmt::Debug>(full: &Diagram<T>, skipped: &Diagram<T>, context: &str) {
             assert_eq!(skipped.essential, full.essential, "{context}");

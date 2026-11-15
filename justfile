@@ -14,6 +14,12 @@ test:
     cargo test --workspace --all-features
     cd python-tests && just test
 
+# Check that the impls forwarding a trait to an inner matrix (`&M`, `WithTranspose`, `MatrixWithBasis`, ...) forward
+# every method, those with defaults included: a missed one would silently drop the inner matrix's override (a
+# performance hook, say). They are marked `#[deny(clippy::missing_trait_methods)]`; every other lint is allowed here.
+lint-forwarding:
+    cargo clippy -p phlite --all-features --all-targets -- -A clippy::all
+
 # Fuzz for longer, e.g. `just fuzz 20000`: that many cases per Rust property test (proptest), then examples per
 # Python test (Hypothesis)
 fuzz examples="5000":

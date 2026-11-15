@@ -758,7 +758,7 @@ pub fn rips_barcode_with<R: ColumnRepresentation, I: RipsInt, D: Distances>(
                 let coboundary = RipsCoboundary::<Z2, I, _>::new(&distances)
                     .with_threshold(threshold)
                     .with_basis(basis);
-                let coboundary = (&coboundary).with_transpose(&boundary);
+                let coboundary = coboundary.by_ref().with_transpose(&boundary);
                 bars.extend(if representatives {
                     barcode::cohomology_with_involution(coboundary, algorithm)
                 } else {
@@ -773,7 +773,7 @@ pub fn rips_barcode_with<R: ColumnRepresentation, I: RipsInt, D: Distances>(
             let coboundary = RipsCoboundary::<Z2, I, _>::new(&distances)
                 .with_threshold(threshold)
                 .with_basis(basis);
-            let coboundary = (&coboundary).with_transpose(&boundary);
+            let coboundary = coboundary.by_ref().with_transpose(&boundary);
             if representatives {
                 barcode::cohomology_with_involution(coboundary, algorithm)
             } else {
@@ -787,7 +787,7 @@ pub fn rips_barcode_with<R: ColumnRepresentation, I: RipsInt, D: Distances>(
             let boundary = RipsBoundary::<Z2, I, _>::new(&distances)
                 .with_threshold(threshold)
                 .with_basis(basis);
-            let boundary = (&boundary).with_transpose(&coboundary);
+            let boundary = boundary.by_ref().with_transpose(&coboundary);
             let mut bars = barcode::homology(boundary, algorithm, representatives);
             // Nothing can kill the top dimensional simplices, so they look essential but are not bars we computed
             bars.retain(|bar| bar.birth.dimension(n_points) <= max_dim);

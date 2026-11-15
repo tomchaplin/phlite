@@ -794,7 +794,7 @@ mod tests {
             for seed in 0..6 {
                 let (filtration, edge_set) = random_digraph(n, p, seed);
                 let d = GrPPHCoboundary::<CF, _>::build(&filtration, &edge_set, n);
-                let d = (&d).reverse();
+                let d = d.by_ref().reverse();
                 let heap = Clearing::new()
                     .with_columns(HeapColumns)
                     .reduce(&d)
@@ -862,7 +862,7 @@ mod tests {
         }
 
         let d = GrPPHCoboundary::<Z2, _>::build(&filtration, &edge_set, n);
-        let d = (&d).reverse();
+        let d = d.by_ref().reverse();
 
         let diagram = Clearing::new().reduce(&d).diagram.sorted();
 

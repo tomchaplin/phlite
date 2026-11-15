@@ -695,13 +695,13 @@ where
     let coboundary = PPHCoboundary::<CF>::new(network);
     let bars = match method {
         Method::Homology => {
-            let boundary = (&boundary).with_basis(homology_basis(network, max_dim, parallel));
-            let boundary = (&boundary).with_transpose(&coboundary);
+            let boundary = boundary.by_ref().with_basis(homology_basis(network, max_dim, parallel));
+            let boundary = boundary.by_ref().with_transpose(&coboundary);
             barcode::homology(boundary, algorithm, representatives)
         }
         Method::Cohomology => {
-            let coboundary = (&coboundary).with_basis(cohomology_basis(network, max_dim, parallel));
-            let coboundary = (&coboundary).with_transpose(&boundary);
+            let coboundary = coboundary.by_ref().with_basis(cohomology_basis(network, max_dim, parallel));
+            let coboundary = coboundary.by_ref().with_transpose(&boundary);
             if representatives {
                 barcode::cohomology_with_involution(coboundary, algorithm)
             } else {

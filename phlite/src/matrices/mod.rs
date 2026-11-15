@@ -273,8 +273,15 @@ pub trait MatrixOracle {
         equal(self_col_sorted, other_col_sorted)
     }
 
-    // TODO: Change all these to accept &self
-    // Then implement constructors for each of the structs so we can consume self if we want to.
+    /// Borrow `self`, as [`Iterator::by_ref`] does: the adaptors below consume their matrix, and `&M` is a matrix
+    /// too, so `matrix.by_ref().with_basis(basis)` wraps a reference and leaves `matrix` usable (the same as
+    /// `(&matrix).with_basis(basis)`).
+    fn by_ref(&self) -> &Self
+    where
+        Self: Sized,
+    {
+        self
+    }
 
     /// Endows `self` with a filtration in which all rows have the same filtration value: `()`.
     fn with_trivial_filtration(self) -> WithTrivialFiltration<Self>
@@ -655,6 +662,9 @@ pub trait HasRowFiltration: MatrixOracle {
     }
 }
 
+// Forwards every method (including those with defaults, which the inner matrix may override): clippy checks none is
+// missed, see `just lint-forwarding`
+#[deny(clippy::missing_trait_methods)]
 impl<M> HasRowFiltration for &M
 where
     M: HasRowFiltration,
@@ -719,6 +729,17 @@ where
     {
         (*self).column_with_filtration(col)
     }
+
+    fn empty_bhcol(&self) -> BHCol<Self::FiltrationT, Self::RowT, Self::CoefficientField> {
+        (*self).empty_bhcol()
+    }
+
+    fn build_bhcol(
+        &self,
+        col: Self::ColT,
+    ) -> BHCol<Self::FiltrationT, Self::RowT, Self::CoefficientField> {
+        (*self).build_bhcol(col)
+    }
 }
 
 // ======== Access to the transpose ============================
@@ -742,6 +763,9 @@ pub trait HasTranspose: MatrixOracle {
     fn transpose(&self) -> Self::TransposeT<'_>;
 }
 
+// Forwards every method (including those with defaults, which the inner matrix may override): clippy checks none is
+// missed, see `just lint-forwarding`
+#[deny(clippy::missing_trait_methods)]
 impl<M: HasTranspose> HasTranspose for &M {
     type TransposeT<'a>
         = M::TransposeT<'a>
@@ -773,6 +797,14 @@ pub trait ColBasis {
         (0..(self.size()))
             .map(|idx| (self.element(idx), idx))
             .collect()
+    }
+
+    /// Borrow `self` (see [`MatrixOracle::by_ref`]): `basis.by_ref().reverse()` reverses a view of `basis`.
+    fn by_ref(&self) -> &Self
+    where
+        Self: Sized,
+    {
+        self
     }
 
     /// Construct a basis with the opposite ordering so the element at position `index` in the new basis is in position `len - index` in `self`.
@@ -809,6 +841,9 @@ where
     }
 }
 
+// Forwards every method (including those with defaults, which the inner matrix may override): clippy checks none is
+// missed, see `just lint-forwarding`
+#[deny(clippy::missing_trait_methods)]
 impl<T> ColBasis for &T
 where
     T: ColBasis,
@@ -821,6 +856,28 @@ where
 
     fn size(&self) -> usize {
         (*self).size()
+    }
+
+    fn construct_reverse_lookup(&self) -> HashMap<Self::ElemT, usize>
+    where
+        Self::ElemT: Hash,
+    {
+        (*self).construct_reverse_lookup()
+    }
+
+    fn by_ref(&self) -> &Self {
+        self
+    }
+
+    fn reverse(self) -> ReverseBasis<Self> {
+        ReverseBasis(self)
+    }
+
+    fn unreverse<U>(self) -> UnreverseBasis<Self>
+    where
+        Self: ColBasis<ElemT = Reverse<U>>,
+    {
+        UnreverseBasis(self)
     }
 }
 
@@ -841,6 +898,9 @@ pub trait HasColBasis: MatrixOracle {
     fn basis(&self) -> Self::BasisT<'_>;
 }
 
+// Forwards every method (including those with defaults, which the inner matrix may override): clippy checks none is
+// missed, see `just lint-forwarding`
+#[deny(clippy::missing_trait_methods)]
 impl<T> HasColBasis for &T
 where
     T: HasColBasis,
@@ -891,6 +951,9 @@ pub trait HasSplitColBasis: HasColBasis {
     }
 }
 
+// Forwards every method (including those with defaults, which the inner matrix may override): clippy checks none is
+// missed, see `just lint-forwarding`
+#[deny(clippy::missing_trait_methods)]
 impl<T> HasSplitColBasis for &T
 where
     T: HasSplitColBasis,
@@ -906,6 +969,13 @@ where
 
     fn sub_basis(&self, dimension: usize) -> Self::SubBasisT<'_> {
         (*self).sub_basis(dimension)
+    }
+
+    fn sub_matrix_in_dimension(self, dimension: usize) -> WithSubBasis<Self> {
+        WithSubBasis {
+            oracle: self,
+            dimension,
+        }
     }
 }
 

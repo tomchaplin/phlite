@@ -77,11 +77,11 @@ fn storages() -> Vec<Storage> {
 fn check(n: u16, p: f64, seed: u64, storage: Storage) {
     let (filtration, edge_set) = random_digraph(n, p, seed);
     let d = GrPPHCoboundary::<Z2, _>::build(&filtration, &edge_set, n);
-    check_matrix((&d).reverse(), storage);
+    check_matrix(d.by_ref().reverse(), storage);
     // With the transpose attached, apparent pairs are skipped by the reduction (and V refers to columns outside it)
     let boundary = GrPPHBoundary::<Z2, _>::new(&filtration, &edge_set);
-    let with_t = (&d).with_transpose(&boundary);
-    check_matrix((&with_t).reverse(), storage);
+    let with_t = d.by_ref().with_transpose(&boundary);
+    check_matrix(with_t.by_ref().reverse(), storage);
 }
 
 fn check_matrix<M>(d_rev: M, storage: Storage)
@@ -109,7 +109,7 @@ where
     assert_same_diagram(&serial, &parallel);
 
     // Independently check that V really reduces D: recompute R = D V and read the pairing off its pivots
-    let v_trivial = (&v_par).with_trivial_filtration();
+    let v_trivial = v_par.by_ref().with_trivial_filtration();
     let r = product(d_rev, &v_trivial);
     let mut pivot_of_row: FxHashMap<_, _> = FxHashMap::default();
     let mut essential = FxHashSet::default();
@@ -169,7 +169,7 @@ fn parallel_agrees_with_serial_on_random_digraphs() {
 fn parallel_is_stable_across_runs() {
     let (filtration, edge_set) = random_digraph(24, 0.35, 7);
     let d = GrPPHCoboundary::<Z2, _>::build(&filtration, &edge_set, 24);
-    let d_rev = (&d).reverse();
+    let d_rev = d.by_ref().reverse();
     let serial = Clearing::new().reduce(&d_rev).diagram;
     for _ in 0..50 {
         for storage in storages() {

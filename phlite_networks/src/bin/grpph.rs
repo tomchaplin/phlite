@@ -49,7 +49,7 @@ fn main() {
         .collect();
 
     let d = GrPPHCoboundary::<Z2, _>::build(&filtration, &edge_set, n as u16);
-    let d_rev = (&d).reverse();
+    let d_rev = d.by_ref().reverse();
 
     println!("Built coboundary matrix");
 

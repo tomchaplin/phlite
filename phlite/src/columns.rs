@@ -1864,7 +1864,7 @@ mod representation_props {
             macro_rules! each {
                 ($r:expr) => {
                     if reversed {
-                        run(&$r, &(&m).reverse(), cached, ops)
+                        run(&$r, &m.by_ref().reverse(), cached, ops)
                     } else {
                         run(&$r, &m, cached, ops)
                     }

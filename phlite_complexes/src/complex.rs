@@ -767,7 +767,7 @@ impl<CF: IntField> Complex<CF> {
             Method::Cohomology => {
                 // Columns in dimensions 0..=max_dim, rows up to max_dim + 1
                 let coboundary = self.coboundary().with_basis(self.basis(max_dim));
-                let coboundary = (&coboundary).with_transpose(self.boundary());
+                let coboundary = coboundary.by_ref().with_transpose(self.boundary());
                 if representatives {
                     barcode::cohomology_with_involution(coboundary, algorithm)
                 } else {
@@ -777,7 +777,7 @@ impl<CF: IntField> Complex<CF> {
             Method::Homology => {
                 // Classes in dimension max_dim are killed by cells in dimension max_dim + 1
                 let boundary = self.boundary().with_basis(self.basis(max_dim + 1));
-                let boundary = (&boundary).with_transpose(self.coboundary());
+                let boundary = boundary.by_ref().with_transpose(self.coboundary());
                 let mut bars = barcode::homology(boundary, algorithm, representatives);
                 bars.retain(|bar| self.ranked[bar.birth.idx()].dimension as usize <= max_dim);
                 bars
@@ -1330,12 +1330,12 @@ mod tests {
         let bars: Vec<Bar<Cell, u32, CF>> = match method {
             Method::Cohomology => {
                 let coboundary = complex.coboundary().with_basis(complex.basis(top));
-                barcode::cohomology((&coboundary).with_transpose(complex.boundary()), algorithm)
+                barcode::cohomology(coboundary.by_ref().with_transpose(complex.boundary()), algorithm)
             }
             Method::Homology => {
                 let boundary = complex.boundary().with_basis(complex.basis(top));
                 barcode::homology(
-                    (&boundary).with_transpose(complex.coboundary()),
+                    boundary.by_ref().with_transpose(complex.coboundary()),
                     algorithm,
                     false,
                 )

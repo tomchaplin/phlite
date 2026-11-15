@@ -1007,7 +1007,7 @@ pub fn filtration_barcode<R: ColumnRepresentation, const D: usize>(
             // columns, which needs the edges that kill components: so reduce dimension 0 too
             let basis = build_bases(complex, max_dim, skip_apparent, parallel);
             let coboundary = coboundary.with_basis(basis);
-            let coboundary = (&coboundary).with_transpose(boundary);
+            let coboundary = coboundary.by_ref().with_transpose(boundary);
             barcode::cohomology_with_involution(coboundary, algorithm)
         }
         Method::Cohomology => {
@@ -1032,7 +1032,7 @@ pub fn filtration_barcode<R: ColumnRepresentation, const D: usize>(
             if middle >= 1 {
                 let basis = build_bases_from(complex, 1, middle, skip_apparent, parallel, &deaths);
                 let coboundary = coboundary.with_basis(basis);
-                let coboundary = (&coboundary).with_transpose(boundary);
+                let coboundary = coboundary.by_ref().with_transpose(boundary);
                 bars.extend(if representatives {
                     barcode::cohomology_with_involution(coboundary, algorithm)
                 } else {
@@ -1044,7 +1044,7 @@ pub fn filtration_barcode<R: ColumnRepresentation, const D: usize>(
         Method::Homology => {
             let basis = build_bases(complex, max_dim + 1, skip_apparent, parallel);
             let boundary = boundary.with_basis(basis);
-            let boundary = (&boundary).with_transpose(coboundary);
+            let boundary = boundary.by_ref().with_transpose(coboundary);
             let mut bars = barcode::homology(boundary, algorithm, representatives);
             // Nothing can kill the cells of the top dimension of the basis, so they look essential but are not bars
             // we computed

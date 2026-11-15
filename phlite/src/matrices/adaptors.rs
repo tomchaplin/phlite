@@ -276,6 +276,9 @@ where
     }
 }
 
+// Forwards every method (including those with defaults, which the inner matrix may override): clippy checks none is
+// missed, see `just lint-forwarding`
+#[deny(clippy::missing_trait_methods)]
 impl<M, B> HasRowFiltration for MatrixWithBasis<M, B>
 where
     M: MatrixOracle + HasRowFiltration,
@@ -341,6 +344,17 @@ where
 
     fn row_ranks(&self) -> Option<RowRanks> {
         self.matrix.row_ranks()
+    }
+
+    fn empty_bhcol(&self) -> BHCol<Self::FiltrationT, Self::RowT, Self::CoefficientField> {
+        self.matrix.empty_bhcol()
+    }
+
+    fn build_bhcol(
+        &self,
+        col: Self::ColT,
+    ) -> BHCol<Self::FiltrationT, Self::RowT, Self::CoefficientField> {
+        self.matrix.build_bhcol(col)
     }
 }
 
@@ -449,6 +463,9 @@ where
     }
 }
 
+// Forwards every method (including those with defaults, which the inner matrix may override): clippy checks none is
+// missed, see `just lint-forwarding`
+#[deny(clippy::missing_trait_methods)]
 impl<M> HasRowFiltration for WithSubBasis<M>
 where
     M: HasSplitColBasis + HasRowFiltration,
@@ -513,6 +530,17 @@ where
 
     fn row_ranks(&self) -> Option<RowRanks> {
         self.oracle.row_ranks()
+    }
+
+    fn empty_bhcol(&self) -> BHCol<Self::FiltrationT, Self::RowT, Self::CoefficientField> {
+        self.oracle.empty_bhcol()
+    }
+
+    fn build_bhcol(
+        &self,
+        col: Self::ColT,
+    ) -> BHCol<Self::FiltrationT, Self::RowT, Self::CoefficientField> {
+        self.oracle.build_bhcol(col)
     }
 }
 
@@ -1037,6 +1065,9 @@ where
     }
 }
 
+// Forwards every method (including those with defaults, which the inner matrix may override): clippy checks none is
+// missed, see `just lint-forwarding`
+#[deny(clippy::missing_trait_methods)]
 impl<M, T> HasRowFiltration for WithTranspose<M, T>
 where
     M: HasRowFiltration + SquareMatrix,
@@ -1108,8 +1139,22 @@ where
     fn row_ranks(&self) -> Option<RowRanks> {
         self.matrix.row_ranks()
     }
+
+    fn empty_bhcol(&self) -> BHCol<Self::FiltrationT, Self::RowT, Self::CoefficientField> {
+        self.matrix.empty_bhcol()
+    }
+
+    fn build_bhcol(
+        &self,
+        col: Self::ColT,
+    ) -> BHCol<Self::FiltrationT, Self::RowT, Self::CoefficientField> {
+        self.matrix.build_bhcol(col)
+    }
 }
 
+// Forwards every method (including those with defaults, which the inner matrix may override): clippy checks none is
+// missed, see `just lint-forwarding`
+#[deny(clippy::missing_trait_methods)]
 impl<M: HasColBasis, T> HasColBasis for WithTranspose<M, T> {
     type BasisT<'a>
         = M::BasisT<'a>
@@ -1121,6 +1166,9 @@ impl<M: HasColBasis, T> HasColBasis for WithTranspose<M, T> {
     }
 }
 
+// Forwards every method (including those with defaults, which the inner matrix may override): clippy checks none is
+// missed, see `just lint-forwarding`
+#[deny(clippy::missing_trait_methods)]
 impl<M: HasSplitColBasis, T> HasSplitColBasis for WithTranspose<M, T> {
     type SubBasisT<'a>
         = M::SubBasisT<'a>
@@ -1133,6 +1181,13 @@ impl<M: HasSplitColBasis, T> HasSplitColBasis for WithTranspose<M, T> {
 
     fn n_dimensions(&self) -> usize {
         self.matrix.n_dimensions()
+    }
+
+    fn sub_matrix_in_dimension(self, dimension: usize) -> WithSubBasis<Self> {
+        WithSubBasis {
+            oracle: self,
+            dimension,
+        }
     }
 }
 

@@ -37,6 +37,8 @@ jobs:
       - uses: actions/checkout@v4
 
       - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
 
       - uses: Swatinem/rust-cache@v2
 
@@ -55,6 +57,9 @@ jobs:
         run: |
           cargo nextest run --release --workspace --all-features --profile ci
           cargo test --doc --workspace --all-features
+
+      - name: Every forwarding impl forwards every method
+        run: just lint-forwarding
 
       # `pip install phlite`: no files, only the other packages' pins (which `cargo test -p phlite_bindings` checks)
       - name: Build the metapackage

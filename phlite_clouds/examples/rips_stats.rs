@@ -49,7 +49,7 @@ fn main() {
 
     let boundary = RipsBoundary::<Z2>::new(dist.clone());
     let coboundary = build_rips_coboundary_matrix::<Z2>(dist, max_dim);
-    let anti = (&coboundary).reverse();
+    let anti = coboundary.by_ref().reverse();
     let diagram = Clearing::new().reduce(&anti).diagram;
     // Final pivot of each paired column: (death row, birth column) in the anti-transpose
     let final_pivot: FxHashMap<_, _> = diagram

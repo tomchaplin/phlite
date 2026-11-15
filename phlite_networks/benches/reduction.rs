@@ -61,7 +61,7 @@ fn reduction(c: &mut Criterion) {
         let filtration = build_filtration(n, &edges);
         let edge_set = build_edge_set(&edges);
         let coboundary = GrPPHCoboundary::<Z2, _>::build(&filtration, &edge_set, n as u16);
-        let matrix = (&coboundary).reverse();
+        let matrix = coboundary.by_ref().reverse();
         let mut group = c.benchmark_group(format!("grpph n={n} p={p}"));
         group.sample_size(10);
 

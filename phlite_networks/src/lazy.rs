@@ -397,7 +397,7 @@ pub fn barcode_with<K: LazyComplex, R: ColumnRepresentation>(
         Method::Cohomology => {
             let basis = build_bases(complex, max_dim, skip, true, parallel);
             let coboundary = coboundary.with_basis(basis);
-            let coboundary = (&coboundary).with_transpose(&boundary);
+            let coboundary = coboundary.by_ref().with_transpose(&boundary);
             if representatives {
                 barcode::cohomology_with_involution(coboundary, algorithm)
             } else {
@@ -408,7 +408,7 @@ pub fn barcode_with<K: LazyComplex, R: ColumnRepresentation>(
             // The cofacets of the top dimension (max_dim + 1) might not fit, so don't look at them
             let basis = build_bases(complex, max_dim + 1, skip, false, parallel);
             let boundary = boundary.with_basis(basis);
-            let boundary = (&boundary).with_transpose(&coboundary);
+            let boundary = boundary.by_ref().with_transpose(&coboundary);
             let mut bars = barcode::homology(boundary, algorithm, representatives);
             // Nothing kills the top-dimensional simplices, so they look essential, but we didn't compute that dimension
             bars.retain(|bar| bar.birth.dimension() <= max_dim);

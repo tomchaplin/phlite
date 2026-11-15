@@ -43,8 +43,8 @@ fn main() {
     let edge_set = build_edge_set(&edges);
     let coboundary = GrPPHCoboundary::<Z2, _>::build(&filtration, &edge_set, n as u16);
     let boundary = GrPPHBoundary::<Z2, _>::new(&filtration, &edge_set);
-    let with_t = (&coboundary).with_transpose(&boundary);
-    let anti = (&with_t).reverse();
+    let with_t = coboundary.by_ref().with_transpose(&boundary);
+    let anti = with_t.by_ref().reverse();
 
     let start = std::time::Instant::now();
     // Keep zero-length apparent pairs, since the classification below needs every pair
