@@ -619,6 +619,110 @@ impl<FilT: FiltrationValue, RowT: BasisElement, CF: NonZeroCoefficient>
     }
 }
 
+/// A [`BHCol`] that, once its heap reaches a threshold, keeps each row in the heap at most once, as flagser's
+/// working column does: a hash map then holds the sum of the terms of each row in the heap, and a term whose row is
+/// already there is added to that sum rather than pushed.
+///
+/// Below the threshold this is a plain heap (no hashing). Columns that grow long because the same rows are added over
+/// and over then stay as long as the number of distinct rows, rather than the number of terms added.
+pub struct DynHeapCol<FilT: FiltrationValue, RowT: BasisElement, CF> {
+    /// Below the threshold, every term added; above it, one entry per row, whose coefficient is stale (see `sums`)
+    heap: Heap<ColumnEntry<FilT, RowT, CF>>,
+    /// Once deduplicating, the sum of the terms of each row in the heap (`None` if they cancel), else empty
+    sums: rustc_hash::FxHashMap<RowT, Option<CF>>,
+    deduplicating: bool,
+    threshold: usize,
+}
+
+impl<FilT: FiltrationValue, RowT: BasisElement, CF> DynHeapCol<FilT, RowT, CF> {
+    /// An empty column that starts deduplicating once its heap holds `threshold` terms
+    pub fn with_threshold(threshold: usize) -> Self {
+        Self {
+            heap: Heap::default(),
+            sums: Default::default(),
+            deduplicating: false,
+            threshold,
+        }
+    }
+
+    /// Whether the column has switched to keeping each row at most once
+    pub fn is_deduplicating(&self) -> bool {
+        self.deduplicating
+    }
+}
+
+impl<FilT: FiltrationValue, RowT: BasisElement, CF> Default for DynHeapCol<FilT, RowT, CF> {
+    fn default() -> Self {
+        Self::with_threshold(DynamicHeapColumns::DEFAULT_THRESHOLD)
+    }
+}
+
+impl<FilT: FiltrationValue, RowT: BasisElement + Hash, CF: NonZeroCoefficient> DynHeapCol<FilT, RowT, CF> {
+    /// Consolidate the heap (one entry per row, cancelled rows dropped) and start deduplicating
+    fn start_deduplicating(&mut self) {
+        let mut consolidated = BHCol {
+            heap: std::mem::take(&mut self.heap),
+        };
+        let mut entries = Vec::with_capacity(consolidated.heap.len());
+        while let Some(entry) = consolidated.pop_pivot() {
+            self.sums.insert(entry.row_index.clone(), Some(entry.coeff));
+            entries.push(entry);
+        }
+        // Largest first is already a valid heap (heapifying it is linear)
+        self.heap = Heap::from(entries);
+        self.deduplicating = true;
+    }
+}
+
+impl<FilT: FiltrationValue, RowT: BasisElement + Hash, CF: NonZeroCoefficient> WorkingColumn<FilT, RowT, CF>
+    for DynHeapCol<FilT, RowT, CF>
+{
+    fn add_entry(&mut self, entry: ColumnEntry<FilT, RowT, CF>) {
+        if self.deduplicating {
+            match self.sums.get_mut(&entry.row_index) {
+                Some(sum) => *sum = entry.coeff + *sum,
+                None => {
+                    self.sums.insert(entry.row_index.clone(), Some(entry.coeff));
+                    self.heap.push(entry);
+                }
+            }
+        } else {
+            self.heap.push(entry);
+            if self.heap.len() >= self.threshold {
+                self.start_deduplicating();
+            }
+        }
+    }
+
+    fn pop_pivot(&mut self) -> Option<ColumnEntry<FilT, RowT, CF>> {
+        if !self.deduplicating {
+            let mut heap = BHCol {
+                heap: std::mem::take(&mut self.heap),
+            };
+            let pivot = heap.pop_pivot();
+            self.heap = heap.heap;
+            return pivot;
+        }
+        loop {
+            let mut entry = self.heap.pop()?;
+            let sum = self
+                .sums
+                .remove(&entry.row_index)
+                .expect("every row in the heap has a sum");
+            if let Some(coeff) = sum {
+                entry.coeff = coeff;
+                return Some(entry);
+            }
+        }
+    }
+
+    fn clear(&mut self) {
+        self.heap.clear();
+        self.sums.clear();
+        self.deduplicating = false;
+    }
+}
+
 /// Filtration values usable by every [`ColumnRepresentation`] (blanket implemented).
 pub trait ColumnFiltration: FiltrationValue + Send + Sync {}
 impl<T: FiltrationValue + Send + Sync> ColumnFiltration for T {}
@@ -780,6 +884,65 @@ impl ColumnRepresentation for HeapColumns {
         multiple: CF,
     ) {
         column.add_entries(run.iter().map(|entry| entry.clone() * multiple));
+    }
+}
+
+/// Represent columns as [`DynHeapCol`]s: as [`HeapColumns`], until a column's heap reaches `threshold` terms, after
+/// which it keeps each row at most once (flagser's working column).
+///
+/// For matrices on which [`HeapColumns`] does well but a few columns have the same rows added many times. See the
+/// [module docs](self) for how the representations compare.
+#[derive(Debug, Clone, Copy)]
+pub struct DynamicHeapColumns {
+    /// The number of terms in a column's heap at which it starts deduplicating
+    pub threshold: usize,
+}
+
+impl DynamicHeapColumns {
+    /// The threshold of [`Default::default`]
+    pub const DEFAULT_THRESHOLD: usize = 4096;
+}
+
+impl Default for DynamicHeapColumns {
+    fn default() -> Self {
+        Self {
+            threshold: Self::DEFAULT_THRESHOLD,
+        }
+    }
+}
+
+impl ColumnRepresentation for DynamicHeapColumns {
+    type Column<FilT: ColumnFiltration, RowT: ColumnRow, CF: ColumnCoefficient> =
+        DynHeapCol<FilT, RowT, CF>;
+
+    fn new_column<M>(&self, _matrix: &M) -> Self::Column<M::FiltrationT, M::RowT, M::CoefficientField>
+    where
+        M: HasRowFiltration,
+        M::FiltrationT: ColumnFiltration,
+        M::RowT: ColumnRow,
+        M::CoefficientField: ColumnCoefficient,
+    {
+        DynHeapCol::with_threshold(self.threshold)
+    }
+
+    fn add_entries<FilT: ColumnFiltration, RowT: ColumnRow, CF: ColumnCoefficient>(
+        &self,
+        column: &mut DynHeapCol<FilT, RowT, CF>,
+        entries: impl Iterator<Item = ColumnEntry<FilT, RowT, CF>>,
+        multiple: CF,
+    ) {
+        column.threshold = self.threshold;
+        entries.for_each(|entry| column.add_entry(entry * multiple));
+    }
+
+    fn add_run<FilT: ColumnFiltration, RowT: ColumnRow, CF: ColumnCoefficient>(
+        &self,
+        column: &mut DynHeapCol<FilT, RowT, CF>,
+        run: &SortedRun<FilT, RowT, CF>,
+        multiple: CF,
+    ) {
+        column.threshold = self.threshold;
+        run.iter().for_each(|entry| column.add_entry(entry.clone() * multiple));
     }
 }
 
@@ -1871,6 +2034,8 @@ mod representation_props {
                 };
             }
             each!(HeapColumns);
+            // A tiny threshold, so that columns switch to deduplicating part way through
+            each!(DynamicHeapColumns { threshold: 3 });
             each!(MergedColumns);
             each!(SortedColumns);
             each!(PivotColumns);
