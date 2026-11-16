@@ -10,12 +10,12 @@ use std::time::Instant;
 
 use ordered_float::NotNan;
 use phlite::{
-    fields::Z2,
+    columns::{ColumnCoefficient, ColumnFiltration, ColumnRow},
+    fields::{Invertible, Z2},
     matrices::{HasRowFiltration, HasSplitColBasis, MatrixOracle, SquareMatrix},
     reduction::{
-        parallel::experiments::{PivotTableKind, SlotKind},
-        parallel::ParallelClearing,
-        Clearing, ReductionAlgorithm, Storage,
+        parallel::experiments::{reduce_with, PivotTableKind, SlotKind},
+        Clearing, ReductionAlgorithm,
     },
 };
 use phlite_clouds::rips::{
@@ -69,8 +69,10 @@ fn run<M>(case: &str, matrix: M, repeats: usize)
 where
     M: MatrixOracle + SquareMatrix + HasRowFiltration + HasSplitColBasis + Sync + Send + Copy,
     M::ColT: Ord,
+    M::CoefficientField: Invertible + ColumnCoefficient + 'static,
+    M::RowT: ColumnRow + 'static,
+    M::FiltrationT: ColumnFiltration,
     Clearing: ReductionAlgorithm<M>,
-    for<'p> ParallelClearing<'p>: ReductionAlgorithm<M>,
 {
     let start = Instant::now();
     let expected = Clearing::new().reduce(matrix).diagram.sorted();
@@ -82,11 +84,7 @@ where
                 let mut best = f64::INFINITY;
                 for _ in 0..repeats {
                     let start = Instant::now();
-                    let reduction = Clearing::new()
-                        .parallel()
-                        .in_pool(&pool)
-                        .storage(Storage::Custom(table, slots))
-                        .reduce(matrix);
+                    let reduction = reduce_with(Clearing::new().parallel().in_pool(&pool), matrix, table, slots);
                     best = best.min(start.elapsed().as_secs_f64());
                     assert!(reduction.diagram.sorted() == expected, "{case} {table:?} {slots:?} {threads}");
                 }

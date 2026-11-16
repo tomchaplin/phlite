@@ -376,10 +376,6 @@ pub enum Storage {
     /// In our benchmarks this was no faster than [`Locking`](Storage::Locking).
     #[cfg(feature = "lock-free")]
     LockFree,
-    /// Any pivot table with any slots, for benchmarking them against each other (feature `storage-experiments`)
-    #[doc(hidden)]
-    #[cfg(feature = "storage-experiments")]
-    Custom(experiments::PivotTableKind, experiments::SlotKind),
 }
 
 /// The [`Clearing`] algorithm with the columns of each dimension reduced in parallel, see the [module docs](self).
@@ -506,29 +502,6 @@ where
         Storage::Locking => with!(DashTable, RwLockSlots),
         #[cfg(feature = "lock-free")]
         Storage::LockFree => with!(PapayaTable, ArcSwapSlots),
-        #[cfg(feature = "storage-experiments")]
-        Storage::Custom(table, slots) => {
-            use experiments::{PivotTableKind as T, SlotKind as S};
-            use storage::{MutexShardsTable, MutexSlots, RetainingSlots, SccTable};
-            match (table, slots) {
-                (T::DashMap, S::RwLock) => with!(DashTable, RwLockSlots),
-                (T::DashMap, S::Mutex) => with!(DashTable, MutexSlots),
-                (T::DashMap, S::ArcSwap) => with!(DashTable, ArcSwapSlots),
-                (T::DashMap, S::Retaining) => with!(DashTable, RetainingSlots),
-                (T::Papaya, S::RwLock) => with!(PapayaTable, RwLockSlots),
-                (T::Papaya, S::Mutex) => with!(PapayaTable, MutexSlots),
-                (T::Papaya, S::ArcSwap) => with!(PapayaTable, ArcSwapSlots),
-                (T::Papaya, S::Retaining) => with!(PapayaTable, RetainingSlots),
-                (T::Scc, S::RwLock) => with!(SccTable, RwLockSlots),
-                (T::Scc, S::Mutex) => with!(SccTable, MutexSlots),
-                (T::Scc, S::ArcSwap) => with!(SccTable, ArcSwapSlots),
-                (T::Scc, S::Retaining) => with!(SccTable, RetainingSlots),
-                (T::MutexShards, S::RwLock) => with!(MutexShardsTable, RwLockSlots),
-                (T::MutexShards, S::Mutex) => with!(MutexShardsTable, MutexSlots),
-                (T::MutexShards, S::ArcSwap) => with!(MutexShardsTable, ArcSwapSlots),
-                (T::MutexShards, S::Retaining) => with!(MutexShardsTable, RetainingSlots),
-            }
-        }
     }
 }
 

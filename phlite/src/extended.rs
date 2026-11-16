@@ -196,10 +196,8 @@ where
         for (rank, (_, cell)) in cells.iter().enumerate() {
             table[cell.dense_index()] = u32::try_from(rank).expect("fewer than 2^32 cells");
         }
-        let mut next = cells.len() as u32;
-        for rank in table.iter_mut().filter(|rank| **rank == u32::MAX) {
-            *rank = next;
-            next += 1;
+        for (rank, unused) in table.iter_mut().filter(|rank| **rank == u32::MAX).zip(cells.len() as u32..) {
+            *rank = unused;
         }
         RowRanks::new(table.into())
     }

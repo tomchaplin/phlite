@@ -32,7 +32,7 @@ auto_impl = "1.4.0"
 parallel = ["dep:rayon"]
 # Lock-free storage backend for the parallel reduction (see `reduction::parallel`)
 lock-free = ["parallel", "dep:papaya", "dep:arc-swap"]
-# Every concurrent pivot table and slot for the parallel reduction, to benchmark them (`Storage::Custom`, unstable)
+# Every concurrent pivot table and slot for the parallel reduction, to benchmark them (`parallel::experiments`, unstable)
 storage-experiments = ["lock-free", "dep:scc"]
 
 [dev-dependencies]
