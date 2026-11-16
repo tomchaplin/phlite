@@ -38,7 +38,7 @@
 //!   This keeps the memory profile of the serial algorithm (and lets us return a [`ClearedReductionMatrix`]).
 //! * **Two storage backends**, sharing all of the reduction logic:
 //!   * *Locking* ([`Storage::Locking`], the default):
-//!     the pivot table is a [`dashmap::DashMap`] (sharded [`RwLock`]s) and published columns are [`Arc`] snapshots behind a [`RwLock`],
+//!     the pivot table is a [`dashmap::DashMap`] (sharded [`RwLock`](std::sync::RwLock)s) and published columns are [`Arc`](std::sync::Arc) snapshots behind a [`RwLock`](std::sync::RwLock),
 //!     all held only briefly.
 //!   * *Lock-free* (`Storage::LockFree`, feature `lock-free`):
 //!     the pivot table is a [`papaya`](https://docs.rs/papaya) concurrent hash map updated by compare-and-swap,
@@ -369,7 +369,7 @@ impl<C> Classified<C> {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 #[non_exhaustive]
 pub enum Storage {
-    /// A [`DashMap`] for pivots and a [`RwLock`] around each published column, all held only briefly.
+    /// A [`DashMap`](dashmap::DashMap) for pivots and a [`RwLock`](std::sync::RwLock) around each published column, all held only briefly.
     #[default]
     Locking,
     /// A [`papaya`](https://docs.rs/papaya) map for pivots and [`arc_swap`](https://docs.rs/arc-swap) slots for columns: no thread ever waits on a lock.
