@@ -22,7 +22,9 @@ def pipeline_function(name):
     if name == "complexes":
         return importlib.import_module("phlite.complexes").FilteredComplex.persistence
     area, function = name.split(".")
-    return getattr(importlib.import_module(f"phlite.{area}"), function)
+    # A function with two ways of computing (`networks.flag`, listed explicitly or not) has a pipeline for each, the
+    # second `<function>_implicit`
+    return getattr(importlib.import_module(f"phlite.{area}"), function.removesuffix("_implicit"))
 
 
 def test_namespace_package():
@@ -84,7 +86,9 @@ def test_book_table_matches_the_registry():
     for name, (function, columns, cache, store_r, parallel_columns, parallel_cache, union_find) in table.items():
         serial, parallel = registry[name]["serial"], registry[name]["parallel"]
         expected_function = (
-            "phlite.complexes.FilteredComplex.persistence" if name == "complexes" else f"phlite.{name}"
+            "phlite.complexes.FilteredComplex.persistence"
+            if name == "complexes"
+            else f"phlite.{name}".removesuffix("_implicit")
         )
         assert function == expected_function
         assert [columns, cache, store_r] == [repr(serial.columns), repr(serial.cache), repr(serial.store_r)]
@@ -224,5 +228,5 @@ def test_modules_and_names():
 
     assert rips.__module__ == "phlite.clouds" and grpph.__module__ == "phlite.networks"
     assert Algorithm.__module__ == "phlite.core" and Barcode.__module__ == "phlite.core"
-    assert {"Algorithm", "Barcode", "defaults"} == set(phlite.core.__all__)
+    assert {"Algorithm", "Barcode", "ExtendedBarcode", "defaults"} == set(phlite.core.__all__)
     assert isinstance(phlite.core.__version__, str)

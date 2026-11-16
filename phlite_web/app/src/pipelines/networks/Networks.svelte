@@ -10,16 +10,17 @@
   import { History } from '../../lib/history.svelte';
   import GraphView, { type Tool } from './GraphView.svelte';
   import { Runner } from '../../lib/runner.svelte';
-  import { GRPPH, NETWORK, defaultsFor } from '../../lib/options';
+  import { GRPPH, NETWORK, COMPLEX, RIPS, defaultsFor } from '../../lib/options';
   import { barDomain } from '../../lib/scale';
   import { randomSeed } from '../../lib/random';
-  import type { Job, NetworkKind } from '../../lib/types';
+  import type { GraphKind, Job, NetworkKind } from '../../lib/types';
   import { EXAMPLES, randomDigraph, parseEdges, layout, type Digraph } from './data';
 
   let source = $state<Source>('examples');
   let exampleId = $state(EXAMPLES[0].id);
   let g = $state.raw<Digraph>(EXAMPLES[0].make());
-  type Complex = 'grpph' | NetworkKind;
+  /** The digraph's complexes, and (`u-`) those of the graph with its edges undirected. */
+  type Complex = 'grpph' | NetworkKind | 'u-flag';
   const COMPLEXES: { id: Complex; name: string; about: string }[] = [
     {
       id: 'grpph',
@@ -62,29 +63,40 @@
       name: 'Dowker source',
       about: 'The Dowker source complex: as the sink complex with the edges reversed. By Dowker duality, the same barcode as the sink complex.',
     },
+    {
+      id: 'u-flag',
+      name: 'Flag (undirected)',
+      about:
+        "The flag (clique) complex of the graph with its edges undirected (an edge given both ways keeps its smaller weight): a simplex for every clique, entering with its heaviest edge, or, by shortest paths, Rips of the graph's metric. phlite.networks.flag.",
+    },
   ];
   let complex = $state<Complex>('grpph');
   let maxDim = $state(1);
   /** Each pair at the length of the shortest path between them, rather than each edge at its weight. */
   let pathFiltration = $state(false);
   /** Whether the complex has a choice of filtration (GrPPH and the grounded flag complex are by shortest paths). */
+  const undirected = $derived(complex.startsWith('u-'));
   const choosesFiltration = $derived(complex !== 'grpph' && complex !== 'grounded-flag');
   const pathHomology = $derived(complex === 'grpph' || complex === 'pph');
-  const shortestPath = $derived(!choosesFiltration || pathFiltration);
+  const shortestPath = $derived(complex === 'grpph' || complex === 'grounded-flag' || (choosesFiltration && pathFiltration));
   /** PPH of the shortest-path filtration in H₀ and H₁ is GrPPH without the grounding (as Python's `pph`). */
   const viaGrpph = $derived(complex === 'grpph' || (complex === 'pph' && pathFiltration && maxDim <= 1));
-  const defaults = $derived(viaGrpph ? GRPPH : NETWORK);
+  /** The undirected flag complex is listed explicitly (as phlite.complexes), but by shortest paths by Rips' machinery. */
+  const defaultsOf = (c: Complex, paths: boolean) =>
+    c === 'grpph' ? GRPPH : c === 'u-flag' && paths ? RIPS : c.startsWith('u-') ? COMPLEX : NETWORK;
+  const defaults = $derived(viaGrpph ? GRPPH : defaultsOf(complex, pathFiltration));
   let options = $state(defaultsFor(GRPPH));
   const runner = new Runner();
   function setComplex(c: Complex) {
     complex = c;
-    options = defaultsFor(c === 'grpph' ? GRPPH : NETWORK);
+    options = defaultsFor(defaultsOf(c, pathFiltration));
   }
   $effect(() => {
     // Keep the options to what the pipeline that runs supports
     const d = defaults;
     untrack(() => {
       if (!d.parallelSetup && options.parallelSetup) options.parallelSetup = false;
+      if ((!d.pivot && options.columns === 'pivot') || (d.unionFind === undefined && options.unionFind)) options = defaultsFor(d);
     });
   });
 
@@ -166,6 +178,10 @@
       options: $state.snapshot(options),
     };
     if (viaGrpph) return { pipeline: 'grpph', grounded: complex === 'grpph', ...graph };
+    if (undirected) {
+      const kind: GraphKind = pathFiltration ? 'flag-sp' : 'flag';
+      return { pipeline: 'graph', kind, maxDim, ...graph };
+    }
     return {
       pipeline: 'network',
       kind: complex as NetworkKind,
@@ -197,7 +213,7 @@
   const label = (v: number) => g.nodes[v]?.label ?? String(v);
   const describe = (c: number[]) => {
     if (c.length === 1) return `node ${label(c[0])}`;
-    if (complex === 'dowker-sink' || complex === 'dowker-source') return `{${c.map(label).join(', ')}}`;
+    if (undirected || complex === 'dowker-sink' || complex === 'dowker-source') return `{${c.map(label).join(', ')}}`;
     if (!pathHomology) return `(${c.map(label).join(', ')})`;
     if (complex === 'pph') return `path ${c.map(label).join('→')}`;
     if (c.length === 2) return `${label(c[0])}→${label(c[1])}`;
@@ -217,6 +233,7 @@
         {dist}
         {tool}
         {newWeight}
+        {undirected}
         bind:selectedEdge
         onstart={() => history.begin(g)}
         onedit={(next) => {

@@ -3,7 +3,7 @@
   import Diagram from './Diagram.svelte';
   import BarsSpinner from './BarsSpinner.svelte';
   import { dimColour, type Bar, type RunResult } from '../lib/types';
-  import { H, persistence } from '../lib/scale';
+  import { H, KINDS, groupName, persistence } from '../lib/scale';
   import { fmt, duration, download } from '../lib/format';
   import { engine } from '../lib/engine.svelte';
 
@@ -102,15 +102,21 @@
       <div class="detail">
         {#if bar}
           <div>
-            <strong style="color: {dimColour(bar.dim)}">{H(bar.dim)}</strong>
+            <strong style="color: {dimColour(bar.dim)}">{groupName(bar.dim, bar.kind)}</strong>
             [{fmt(bar.birth, 4)}, {fmt(bar.death, 4)}) · persistence {fmt(persistence(bar), 4)}
             <button class="link" onclick={() => (t = bar.birth)}>go to birth</button>
             {#if bar.death !== null}<button class="link" onclick={() => (t = bar.death)}>go to death</button>{/if}
           </div>
-          <div class="muted">
-            born with {describe(bar.birth_cell, bar.dim)}{bar.death_cell ? `, killed by ${describe(bar.death_cell, bar.dim + 1)}` : ', never dies'}
-          </div>
-          {#if bar.rep}
+          {#if bar.kind}
+            <div class="muted">{KINDS[bar.kind].name}: {KINDS[bar.kind].about}</div>
+          {:else}
+            <div class="muted">
+              born with {describe(bar.birth_cell, bar.dim)}{bar.death_cell ? `, killed by ${describe(bar.death_cell, bar.dim + 1)}` : ', never dies'}
+            </div>
+          {/if}
+          {#if bar.kind}
+            <!-- (extended persistence has no representatives here) -->
+          {:else if bar.rep}
             <div class="rep"><span class="muted">Representative ({bar.rep.length} cell{bar.rep.length === 1 ? '' : 's'}):</span> {repText(bar)}</div>
           {:else}
             <div class="muted">Turn on representatives to see a cycle for this bar.</div>

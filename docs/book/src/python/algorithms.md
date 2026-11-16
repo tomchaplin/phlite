@@ -62,6 +62,8 @@ pipelines that can (Vietoris–Rips and cubical complexes, `—` below for the o
 | `networks.directed_flag` | `phlite.networks.directed_flag` | `'merged'` | `True` | `False` | `'merged'` | `True` | — |
 | `networks.ordered_tuples` | `phlite.networks.ordered_tuples` | `'merged'` | `True` | `False` | `'merged'` | `True` | — |
 | `networks.dowker` | `phlite.networks.dowker` | `'merged'` | `True` | `False` | `'merged'` | `True` | — |
+| `networks.flag` | `phlite.networks.flag` | `'pivot'` | `False` | `True` | `'merged'` | `False` | — |
+| `networks.flag_implicit` | `phlite.networks.flag` | `'heap'` | `False` | `False` | `'heap'` | `False` | `True` |
 | `images.cubical` | `phlite.images.cubical` | `'merged'` | `False` | `True` | `'merged'` | `False` | `True` |
 <!-- defaults:end -->
 

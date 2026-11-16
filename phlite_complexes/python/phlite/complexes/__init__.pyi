@@ -298,6 +298,27 @@ class FilteredComplex:
         Returns:
             The barcode. Bars of length zero (birth and death at the same filtration value) are omitted.
         """
+    def extended_persistence(self, *, method: typing.Literal['cohomology', 'homology'] = "cohomology", algorithm: typing.Optional[core.Algorithm] = None) -> core.ExtendedBarcode:
+        r"""
+        Compute the extended persistence (Cohen-Steiner, Edelsbrunner and Harer) of this filtration: up through the
+        filtration, then back down through the pairs (complex, superlevel subcomplex), so that every class dies, each
+        bar being ordinary, relative, extended+ or extended- (see `ExtendedBarcode`). As GUDHI's
+        `SimplexTree.extend_filtration` and `extended_persistence`, with exact values (GUDHI rescales them).
+        
+        Going down, each cell enters at the least value of it and its faces, so the superlevel subcomplexes are the
+        largest subcomplexes of the superlevel sets. For the classical setting, values on the vertices of a complex,
+        make the filtration with `chain.filtration(values, extend=True)` (values for the vertices, `None` elsewhere):
+        each cell then enters at its highest vertex going up, and its lowest going down.
+        
+        Args:
+            method: `'cohomology'` (the default) or `'homology'`.
+            algorithm: The reduction algorithm and its options, as a `phlite.core.Algorithm` (default:
+                `Algorithm.serial()`), filled in with the pipeline defaults (`'complexes'`).
+        
+        Returns:
+            A `phlite.core.ExtendedBarcode`, cells as this complex's. The cone vertex's component, the only essential class, and bars of length zero are
+            left out (as GUDHI's, with its default `min_persistence=0`).
+        """
     def value(self, cell: typing.Any) -> builtins.float:
         r"""
         The filtration value of `cell`.

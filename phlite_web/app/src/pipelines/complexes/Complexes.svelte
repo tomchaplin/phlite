@@ -20,6 +20,8 @@
   let c = $state.raw<Complex>(EXAMPLES[0].make());
   let modulus = $state(2);
   let maxDim = $state<number | null>(null);
+  /** Extended persistence instead: up through the filtration, then back down. */
+  let extended = $state(false);
   let options = $state(defaultsFor(COMPLEX));
   const runner = new Runner();
 
@@ -115,11 +117,12 @@
       values: Float64Array.from(c.map((x) => x.value ?? NaN)),
       modulus,
       maxDim,
+      extended,
       options: $state.snapshot(options),
     };
   });
   // Moving a vertex only changes values when they come from lengths or heights
-  const jobKey = $derived(JSON.stringify([c.map((x) => [x.dim, x.faces, x.value]), modulus, maxDim, options]));
+  const jobKey = $derived(JSON.stringify([c.map((x) => [x.dim, x.faces, x.value]), modulus, maxDim, extended, options]));
   $effect(() => {
     jobKey;
     const j = untrack(() => job);
@@ -241,6 +244,18 @@ abc 2 _ : ab bc -ac`}</pre>
           {#each Array.from({ length: topDim + 1 }, (_, d) => d) as d}<option value={d}>{d}</option>{/each}
         </select>
       </label>
+      <label class="field"><span>Extended</span>
+        <span><input type="checkbox" bind:checked={extended} /> extended persistence</span>
+      </label>
+      {#if extended}
+        <p class="note">
+          Up through the filtration, then back down (each cell at the least value of it and its faces), so every class
+          dies: ordinary and relative bars, and extended bars for the whole complex's homology (Ext⁺ for a component,
+          from its lowest value to its highest; Ext⁻ for a loop of a graph, from its highest to its lowest). With
+          vertex heights, the classical setting: lower-star up, upper-star down. phlite.complexes'
+          <code>extended_persistence</code>.
+        </p>
+      {/if}
       <Options bind:options defaults={COMPLEX} />
       <ComputeRow {runner} {job} />
     </div>

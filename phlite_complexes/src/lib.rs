@@ -14,6 +14,7 @@
 //! Materialising the complex once and reducing it in Rust avoids all of that.
 
 pub mod complex;
+pub mod extended;
 pub mod field;
 #[cfg(feature = "python")]
 mod python;

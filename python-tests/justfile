@@ -14,7 +14,8 @@ set positional-arguments
 # new pipeline's tests need no change to this file. test_core.py checks phlite.core: `Algorithm`, the namespace
 # package, and the registry of pipelines' defaults (against the docstrings and the book). phlite_complexes' test
 # against grpphati's own columns needs grpphati, so runs in the main environment (and skips in latest).
-main_tests := `shopt -s nullglob; echo tests/test_core.py tests/test_{clouds,networks,images}*.py` + " ../phlite_complexes/tests/test_cells.py::test_real_grpphati"
+# (test_extended_persistence.py tests phlite.complexes against GUDHI, which only the main environment has)
+main_tests := `shopt -s nullglob; echo tests/test_core.py tests/test_{clouds,networks,images}*.py tests/test_extended_persistence.py` + " ../phlite_complexes/tests/test_cells.py::test_real_grpphati"
 latest_tests := `shopt -s nullglob; echo tests/test_complexes*.py` + " ../phlite_complexes/tests"
 latest := "uv run --no-sync --project latest"
 
@@ -71,7 +72,8 @@ _pytest *pytest_args:
 # The pytest-benchmark suites for each environment, and where the quick baselines are saved. As for the tests, each
 # submodule's suites are `benchmarks/bench_<submodule>_<pipeline>.py` (e.g. bench_clouds_rips.py), all picked up here;
 # each describes itself for the reports in a `SUITE` dict (see benchmarks/suites.py).
-main_benches := `shopt -s nullglob; echo benchmarks/bench_{clouds,networks,images}*.py`
+# (bench_extended_persistence.py benchmarks phlite.complexes against GUDHI, which only the main environment has)
+main_benches := `shopt -s nullglob; echo benchmarks/bench_{clouds,networks,images}*.py benchmarks/bench_extended_persistence.py`
 latest_benches := `shopt -s nullglob; echo benchmarks/bench_complexes*.py`
 storage := "--benchmark-storage=file://benchmarks/baselines"
 

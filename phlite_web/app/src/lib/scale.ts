@@ -39,4 +39,15 @@ export function alive(bar: Bar, t: number, reversed = false): boolean {
 export const persistence = (bar: Bar) => (bar.death === null ? Infinity : Math.abs(bar.death - bar.birth));
 
 export const SUB = ['₀', '₁', '₂', '₃', '₄', '₅', '₆', '₇', '₈', '₉'];
+/** Extended persistence's kinds of bar, in the order shown, with their names and what each is. */
+export const KINDS: Record<string, { order: number; name: string; about: string }> = {
+  ordinary: { order: 0, name: 'Ord', about: 'born and dying going up, as in ordinary persistence' },
+  'extended+': { order: 1, name: 'Ext⁺', about: 'born going up, dying going down above its birth: a component, from its lowest point to its highest' },
+  'extended-': { order: 2, name: 'Ext⁻', about: 'born going up, dying going down below its birth: a loop, from its highest point to its lowest' },
+  relative: { order: 3, name: 'Rel', about: 'born and dying going down, in the pairs (graph, superlevel set)' },
+};
+
+/** The heading of a group of bars: its dimension, and its kind if any. */
+export const groupName = (dim: number, kind?: string) => (kind ? `${KINDS[kind].name} ${H(dim)}` : H(dim));
+
 export const H = (d: number) => `H${String(d).split('').map((c) => SUB[+c]).join('')}`;
