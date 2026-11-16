@@ -32,7 +32,7 @@ use crate::{
     barcode::{cohomology, homology, Algorithm, Cell, Field, Method},
     columns::ColumnRepresentation,
     fields::NonZeroCoefficient,
-    matrices::{bases::SplitBasis, BasisElement, FiltrationValue, HasRowFiltration, MatrixOracle},
+    matrices::{bases::SplitBasis, BasisElement, FiltrationValue, HasRowFiltration, MatrixOracle, RowRanks},
 };
 
 /// A cell of the coned complex: the cone vertex, a cell of the complex, or the cone on one. The derived order (apex,
@@ -47,7 +47,29 @@ pub enum ConeCell<C> {
     Down(C),
 }
 
-impl<C: BasisElement> BasisElement for ConeCell<C> {}
+/// Densely numbered when the complex's cells are: the apex 0, then `2i + 1` going up and `2i + 2` for the cone, where
+/// `i` is the cell's own number.
+impl<C: BasisElement> BasisElement for ConeCell<C> {
+    const DENSE_INDEX: bool = C::DENSE_INDEX;
+
+    #[inline]
+    fn dense_index(&self) -> usize {
+        match self {
+            ConeCell::Apex => 0,
+            ConeCell::Up(c) => 2 * c.dense_index() + 1,
+            ConeCell::Down(c) => 2 * c.dense_index() + 2,
+        }
+    }
+
+    #[inline]
+    fn from_dense_index(index: usize) -> Self {
+        match index {
+            0 => ConeCell::Apex,
+            i if i % 2 == 1 => ConeCell::Up(C::from_dense_index(i / 2)),
+            i => ConeCell::Down(C::from_dense_index(i / 2 - 1)),
+        }
+    }
+}
 
 /// When a cell of the coned complex enters: the apex first, then the complex by its own values, then the cones by
 /// decreasing reverse value (so the derived order is the filtration order).
@@ -106,6 +128,9 @@ pub struct Coned<M, T, G, C> {
     dimensions: HashMap<C, usize>,
     /// The coned complex's cells, by dimension, in filtration order
     basis: SplitBasis<ConeCell<C>>,
+    /// If the cells are densely numbered, each cone cell's rank in the order on (value, cell), by dense index: so
+    /// that [`PivotColumns`](crate::columns::PivotColumns) can reduce the coned complex
+    ranks: Option<RowRanks>,
 }
 
 impl<C, F, M, T, G> Coned<M, T, G, C>
@@ -146,7 +171,37 @@ where
             cones.sort_by(|a, b| down(b.clone()).cmp(&down(a.clone())).then(a.cmp(b)));
             dims[d + 1].extend(cones.into_iter().map(ConeCell::Down));
         }
-        Self { boundary, coboundary, down, vertices, dimensions, basis: SplitBasis::from_dimensions(dims) }
+        let mut coned = Self {
+            boundary,
+            coboundary,
+            down,
+            vertices,
+            dimensions,
+            basis: SplitBasis::from_dimensions(dims.clone()),
+            ranks: None,
+        };
+        if C::DENSE_INDEX {
+            coned.ranks = Some(coned.rank_table(dims.into_iter().flatten()));
+        }
+        coned
+    }
+
+    /// The rank of every cone cell in the order on (value, cell), as a table by dense index. Numbers that are no cell's
+    /// get the ranks after every cell's, so that the ranks are distinct.
+    fn rank_table(&self, cells: impl Iterator<Item = ConeCell<C>>) -> RowRanks {
+        let mut cells: Vec<(ConeValue<F>, ConeCell<C>)> = cells.map(|cell| (self.value(&cell), cell)).collect();
+        cells.sort_unstable();
+        let size = cells.iter().map(|(_, cell)| cell.dense_index() + 1).max().unwrap_or(0);
+        let mut table = vec![u32::MAX; size];
+        for (rank, (_, cell)) in cells.iter().enumerate() {
+            table[cell.dense_index()] = u32::try_from(rank).expect("fewer than 2^32 cells");
+        }
+        let mut next = cells.len() as u32;
+        for rank in table.iter_mut().filter(|rank| **rank == u32::MAX) {
+            *rank = next;
+            next += 1;
+        }
+        RowRanks::new(table.into())
     }
 
     /// The coned complex's boundary matrix, ready for [`homology`].
@@ -268,6 +323,9 @@ where
     fn filtration_value(&self, row: ConeCell<C>) -> ConeValue<F> {
         self.0.value(&row)
     }
+    fn row_ranks(&self) -> Option<RowRanks> {
+        self.0.ranks.clone()
+    }
 }
 
 impl<C, F, M, T, G> HasRowFiltration for ConedCoboundary<'_, M, T, G, C>
@@ -281,6 +339,9 @@ where
     type FiltrationT = ConeValue<F>;
     fn filtration_value(&self, row: ConeCell<C>) -> ConeValue<F> {
         self.0.value(&row)
+    }
+    fn row_ranks(&self) -> Option<RowRanks> {
+        self.0.ranks.clone()
     }
 }
 

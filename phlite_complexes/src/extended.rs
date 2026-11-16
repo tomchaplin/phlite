@@ -108,6 +108,57 @@ mod tests {
         }
     }
 
+    /// The cone of a lower-star filtered complex passes the contract checks (its row ranks included, since the
+    /// complex's cells are densely numbered), and pivot columns storing R give the same bars as merged columns
+    #[test]
+    fn the_cone_keeps_the_contract_and_pivot_columns_agree() {
+        use phlite::columns::{MergedColumns, PivotColumns};
+        use phlite::matrices::contract::{check_boundary, check_coboundary, check_split_basis, check_transposes, Direction};
+        use phlite::matrices::HasRowFiltration;
+        // Two triangles (as loops) sharing an edge, and a separate square: every kind of bar, and ties
+        let values = [0.0, 2.0, 1.0, 3.0, 1.0, 4.0, 2.0, 0.5];
+        let edges = [(0, 1), (1, 2), (2, 0), (2, 3), (3, 1), (4, 5), (5, 6), (6, 7), (7, 4)];
+        fn check<CF: IntField>(complex: &Complex<CF>) {
+            let n = complex.n_cells();
+            let mut up = vec![];
+            let mut down: Vec<NotNan<f64>> = vec![];
+            let mut by_dimension: Vec<Vec<Cell>> = vec![vec![]; complex.top_dimension().unwrap_or(0) + 1];
+            for rank in 0..n as u32 {
+                let (_, value, dimension) = complex.at_rank(Cell(rank));
+                let value = NotNan::new(value).unwrap();
+                down.push(complex.boundary().column(Cell(rank)).map(|(_, f)| down[f.idx()]).fold(value, NotNan::min));
+                up.push(value);
+                by_dimension[dimension].push(Cell(rank));
+            }
+            let filtered = complex.boundary().with_filtration(move |rank: Cell| up[rank.idx()]);
+            let coned = Coned::new(filtered, complex.coboundary(), &by_dimension, |rank: Cell| down[rank.idx()]);
+            let b = coned.boundary().with_basis(coned.basis().clone());
+            let c = coned.coboundary().with_basis(coned.basis().clone());
+            assert!(b.row_ranks().is_some(), "dense cells give the cone ranks");
+            assert_eq!(check_boundary(&b), Ok(()));
+            assert_eq!(check_split_basis(&b, Direction::Boundary), Ok(()));
+            assert_eq!(check_coboundary(&c), Ok(()));
+            assert_eq!(check_split_basis(&c, Direction::Coboundary), Ok(()));
+            assert_eq!(check_transposes(&b, coned.coboundary()), Ok(()));
+            for method in [Method::Cohomology, Method::Homology] {
+                let sorted = |bars: Vec<ExtendedBar<Cell, f64>>| {
+                    let mut bars: Vec<_> = bars.into_iter().map(|b| (b.kind, b.dimension, b.birth, b.death)).collect();
+                    bars.sort_by(|a, b| a.partial_cmp(b).unwrap());
+                    bars
+                };
+                let pivot = Algorithm::Clearing(Clearing::new().with_columns(PivotColumns).store_r(true));
+                let merged = Algorithm::Clearing(Clearing::new().with_columns(MergedColumns));
+                assert_eq!(
+                    sorted(extended_persistence(complex, method, pivot)),
+                    sorted(extended_persistence(complex, method, merged)),
+                    "{method:?}"
+                );
+            }
+        }
+        check(&graph::<Z2>(&values, &edges));
+        check(&graph::<Z3>(&values, &edges));
+    }
+
     #[test]
     fn two_components() {
         let bars = run(&graph::<Z2>(&[0.0, 1.0, 5.0, 7.0], &[(0, 1), (2, 3)]), Method::Cohomology);

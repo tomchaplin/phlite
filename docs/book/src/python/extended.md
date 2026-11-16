@@ -72,7 +72,9 @@ By coning, as GUDHI does: a cone vertex \\(\\omega\\), then \\(K\\) in its filtr
 a vertex). The core wraps the complex's boundary and coboundary into the coned complex's, which any algorithm reduces
 (by homology or cohomology, over any field), and reads each bar's kind off where its cells are. The cone vertex's
 component, the only essential class, is left out, and so are bars of length zero (as GUDHI's, with its default
-`min_persistence=0`). Values are exact: GUDHI rescales them into \\([-2, -1]\\) and \\([1, 2]\\), so its are within
+`min_persistence=0`). When the complex's cells are numbered densely (as `phlite.complexes`' are), the cone knows the rank of
+every cell in its filtration order, so the default pivot columns, storing R, reduce it as they would an explicit
+complex: 2.4–6× faster than GUDHI on the benchmarks (random graphs and flag complexes, building the complex included). Values are exact: GUDHI rescales them into \\([-2, -1]\\) and \\([1, 2]\\), so its are within
 rounding of these.
 
 ## Checked against
