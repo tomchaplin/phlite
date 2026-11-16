@@ -10,7 +10,7 @@ import functools
 
 import numpy as np
 import pytest
-from common import THREADS, fingerprint, run
+from common import THREADS, fingerprint, run, sweep
 import datasets
 
 # Import everything up front, so that import costs are not counted
@@ -83,6 +83,7 @@ IMPLEMENTATIONS = {
     "phlite (serial, store R)": phlite(lambda: Algorithm.serial().with_store_r()),
     "phlite (parallel, lock-free)": phlite(lambda: Algorithm.parallel(THREADS).with_storage("lock-free")),
 }
+IMPLEMENTATIONS.update(sweep(phlite))
 
 # (shape, n, max_dim)
 CASES = [

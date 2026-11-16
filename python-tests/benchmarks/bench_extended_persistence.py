@@ -11,7 +11,7 @@ import random
 
 import gudhi
 import pytest
-from common import THREADS, run
+from common import THREADS, run, sweep
 
 from phlite.complexes import ChainComplex
 from phlite.core import Algorithm
@@ -85,6 +85,7 @@ IMPLEMENTATIONS = {
     "phlite (serial)": phlite_extended(),
     "phlite (parallel)": phlite_extended(lambda: Algorithm.parallel(THREADS)),
 }
+IMPLEMENTATIONS.update(sweep(phlite_extended))
 
 # (kind, n, p)
 CASES = [("graph", 2000, 0.002), ("graph", 300, 0.05), ("flag", 300, 0.05)]

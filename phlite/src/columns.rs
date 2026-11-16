@@ -619,29 +619,41 @@ impl<FilT: FiltrationValue, RowT: BasisElement, CF: NonZeroCoefficient>
     }
 }
 
-/// A [`BHCol`] that, once its heap reaches a threshold, keeps each row in the heap at most once, as flagser's
-/// working column does: a hash map then holds the sum of the terms of each row in the heap, and a term whose row is
-/// already there is added to that sum rather than pushed.
+/// A [`BHCol`] that switches to keeping each row in the heap at most once, as flagser's working column does, when it
+/// is both big and full of repeated rows: a hash map then holds the sum of the terms of each row in the heap, and a
+/// term whose row is already there is added to that sum rather than pushed.
 ///
-/// Below the threshold this is a plain heap (no hashing). Columns that grow long because the same rows are added over
-/// and over then stay as long as the number of distinct rows, rather than the number of terms added.
+/// Hashing every term costs more than pushing it onto the heap, so deduplicating only pays when most terms repeat a
+/// row already in the column (the heap would otherwise grow far beyond the number of distinct rows). Columns where
+/// most terms are distinct and lie below the pivot, which a heap never touches, are better left alone. So the column
+/// counts, for free as it pops pivots, how many terms each row popped had: once the heap reaches its limit
+/// (`threshold`, at first), it switches if the rows popped so far averaged at least `repeats` terms each, and
+/// otherwise doubles its limit and carries on as a plain heap.
 pub struct DynHeapCol<FilT: FiltrationValue, RowT: BasisElement, CF> {
-    /// Below the threshold, every term added; above it, one entry per row, whose coefficient is stale (see `sums`)
+    /// Before switching, every term added; after, one entry per row, whose coefficient is stale (see `sums`)
     heap: Heap<ColumnEntry<FilT, RowT, CF>>,
     /// Once deduplicating, the sum of the terms of each row in the heap (`None` if they cancel), else empty
     sums: rustc_hash::FxHashMap<RowT, Option<CF>>,
     deduplicating: bool,
-    threshold: usize,
+    /// The heap size at which to next consider switching
+    limit: usize,
+    /// Terms, and distinct rows, popped while a plain heap
+    popped_terms: usize,
+    popped_rows: usize,
+    config: DynamicHeapColumns,
 }
 
 impl<FilT: FiltrationValue, RowT: BasisElement, CF> DynHeapCol<FilT, RowT, CF> {
-    /// An empty column that starts deduplicating once its heap holds `threshold` terms
-    pub fn with_threshold(threshold: usize) -> Self {
+    /// An empty column, switching as `config` says
+    pub fn new(config: DynamicHeapColumns) -> Self {
         Self {
             heap: Heap::default(),
             sums: Default::default(),
             deduplicating: false,
-            threshold,
+            limit: config.threshold,
+            popped_terms: 0,
+            popped_rows: 0,
+            config,
         }
     }
 
@@ -649,28 +661,84 @@ impl<FilT: FiltrationValue, RowT: BasisElement, CF> DynHeapCol<FilT, RowT, CF> {
     pub fn is_deduplicating(&self) -> bool {
         self.deduplicating
     }
+
+    /// Use `config` from now on (the parallel and standard algorithms make their columns with [`Default`])
+    fn configure(&mut self, config: DynamicHeapColumns) {
+        if self.config != config {
+            self.config = config;
+            self.limit = self.limit.max(config.threshold);
+        }
+    }
 }
 
 impl<FilT: FiltrationValue, RowT: BasisElement, CF> Default for DynHeapCol<FilT, RowT, CF> {
     fn default() -> Self {
-        Self::with_threshold(DynamicHeapColumns::DEFAULT_THRESHOLD)
+        Self::new(DynamicHeapColumns::default())
     }
 }
 
 impl<FilT: FiltrationValue, RowT: BasisElement + Hash, CF: NonZeroCoefficient> DynHeapCol<FilT, RowT, CF> {
-    /// Consolidate the heap (one entry per row, cancelled rows dropped) and start deduplicating
-    fn start_deduplicating(&mut self) {
-        let mut consolidated = BHCol {
-            heap: std::mem::take(&mut self.heap),
-        };
-        let mut entries = Vec::with_capacity(consolidated.heap.len());
-        while let Some(entry) = consolidated.pop_pivot() {
-            self.sums.insert(entry.row_index.clone(), Some(entry.coeff));
-            entries.push(entry);
+    /// The heap has reached its limit: switch if the rows popped so far repeated enough, else double the limit
+    fn reached_limit(&mut self) {
+        // Too few rows popped to judge from count as no repeats (a column that is only ever added to never switches)
+        let repeats = self.popped_terms as f64 / self.popped_rows.max(1) as f64;
+        if self.popped_rows >= 8 && repeats >= self.config.repeats {
+            self.start_deduplicating();
+        } else {
+            self.limit = self.limit.saturating_mul(2);
         }
-        // Largest first is already a valid heap (heapifying it is linear)
-        self.heap = Heap::from(entries);
+    }
+
+    /// Start deduplicating: one pass over the heap's terms sums those of each row into `sums`, keeping the first
+    /// term of each row in the heap (rows that cancel stay until they are popped), then a linear heapify
+    fn start_deduplicating(&mut self) {
+        use std::collections::hash_map::Entry;
+        let terms = std::mem::take(&mut self.heap).into_vec();
+        let mut unique = Vec::with_capacity(terms.len());
+        for term in terms {
+            match self.sums.entry(term.row_index.clone()) {
+                Entry::Occupied(mut sum) => {
+                    let sum = sum.get_mut();
+                    *sum = term.coeff + *sum;
+                }
+                Entry::Vacant(sum) => {
+                    sum.insert(Some(term.coeff));
+                    unique.push(term);
+                }
+            }
+        }
+        self.heap = Heap::from(unique);
         self.deduplicating = true;
+    }
+
+    /// As [`BHCol::pop_pivot`], counting the terms and rows popped
+    fn pop_pivot_counting(&mut self) -> Option<ColumnEntry<FilT, RowT, CF>> {
+        let first = self.heap.pop()?;
+        self.popped_terms += 1;
+        self.popped_rows += 1;
+        let mut row = first.row_index;
+        let mut sum = Some(first.coeff);
+        let mut value = first.filtration_value;
+        while let Some(next) = self.heap.peek() {
+            if next.row_index != row {
+                if sum.is_some() {
+                    break;
+                }
+                // The row cancelled: start on the next
+                row = next.row_index.clone();
+                value = next.filtration_value.clone();
+                sum = None;
+                self.popped_rows += 1;
+            }
+            let next = self.heap.pop().expect("peeked");
+            self.popped_terms += 1;
+            sum = next.coeff + sum;
+        }
+        sum.map(|coeff| ColumnEntry {
+            row_index: row,
+            filtration_value: value,
+            coeff,
+        })
     }
 }
 
@@ -688,20 +756,15 @@ impl<FilT: FiltrationValue, RowT: BasisElement + Hash, CF: NonZeroCoefficient> W
             }
         } else {
             self.heap.push(entry);
-            if self.heap.len() >= self.threshold {
-                self.start_deduplicating();
+            if self.heap.len() >= self.limit {
+                self.reached_limit();
             }
         }
     }
 
     fn pop_pivot(&mut self) -> Option<ColumnEntry<FilT, RowT, CF>> {
         if !self.deduplicating {
-            let mut heap = BHCol {
-                heap: std::mem::take(&mut self.heap),
-            };
-            let pivot = heap.pop_pivot();
-            self.heap = heap.heap;
-            return pivot;
+            return self.pop_pivot_counting();
         }
         loop {
             let mut entry = self.heap.pop()?;
@@ -716,10 +779,44 @@ impl<FilT: FiltrationValue, RowT: BasisElement + Hash, CF: NonZeroCoefficient> W
         }
     }
 
+    fn clone_pivot(&mut self) -> Option<ColumnEntry<FilT, RowT, CF>>
+    where
+        ColumnEntry<FilT, RowT, CF>: Clone,
+    {
+        if !self.deduplicating {
+            let pivot = self.pop_pivot_counting()?;
+            // The copy put back will be popped with the pivot's row again: don't count it as a repeat
+            self.popped_terms = self.popped_terms.saturating_sub(1);
+            self.add_entry(pivot.clone());
+            return Some(pivot);
+        }
+        // Each row is in the heap once, so the pivot is the top, unless its terms cancel: no need to take it out
+        loop {
+            let top = self.heap.peek()?;
+            match self.sums.get(&top.row_index).expect("every row in the heap has a sum") {
+                Some(coeff) => {
+                    let mut pivot = top.clone();
+                    pivot.coeff = *coeff;
+                    return Some(pivot);
+                }
+                None => {
+                    let top = self.heap.pop().expect("peeked");
+                    self.sums.remove(&top.row_index);
+                }
+            }
+        }
+    }
+
     fn clear(&mut self) {
         self.heap.clear();
-        self.sums.clear();
-        self.deduplicating = false;
+        // Clearing a hash map costs its whole capacity, empty or not, so only the columns that used it pay
+        if self.deduplicating {
+            self.sums.clear();
+            self.deduplicating = false;
+        }
+        self.limit = self.config.threshold;
+        self.popped_terms = 0;
+        self.popped_rows = 0;
     }
 }
 
@@ -887,26 +984,32 @@ impl ColumnRepresentation for HeapColumns {
     }
 }
 
-/// Represent columns as [`DynHeapCol`]s: as [`HeapColumns`], until a column's heap reaches `threshold` terms, after
-/// which it keeps each row at most once (flagser's working column).
+/// Represent columns as [`DynHeapCol`]s: as [`HeapColumns`], until a column's heap is big (at least `threshold`
+/// terms) and the rows popped from it have averaged at least `repeats` terms each; from then on it keeps each row at
+/// most once (flagser's working column). See [`DynHeapCol`].
 ///
-/// For matrices on which [`HeapColumns`] does well but a few columns have the same rows added many times. See the
+/// For matrices on which [`HeapColumns`] does well but a few columns have the same rows added over and over. See the
 /// [module docs](self) for how the representations compare.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct DynamicHeapColumns {
-    /// The number of terms in a column's heap at which it starts deduplicating
+    /// The fewest terms in a column's heap at which it may switch
     pub threshold: usize,
+    /// The fewest terms per row popped (on average) at which it switches; at most 1 switches at `threshold` regardless
+    pub repeats: f64,
 }
 
 impl DynamicHeapColumns {
     /// The threshold of [`Default::default`]
     pub const DEFAULT_THRESHOLD: usize = 4096;
+    /// The repeats of [`Default::default`]
+    pub const DEFAULT_REPEATS: f64 = 2.0;
 }
 
 impl Default for DynamicHeapColumns {
     fn default() -> Self {
         Self {
             threshold: Self::DEFAULT_THRESHOLD,
+            repeats: Self::DEFAULT_REPEATS,
         }
     }
 }
@@ -922,7 +1025,7 @@ impl ColumnRepresentation for DynamicHeapColumns {
         M::RowT: ColumnRow,
         M::CoefficientField: ColumnCoefficient,
     {
-        DynHeapCol::with_threshold(self.threshold)
+        DynHeapCol::new(*self)
     }
 
     fn add_entries<FilT: ColumnFiltration, RowT: ColumnRow, CF: ColumnCoefficient>(
@@ -931,7 +1034,7 @@ impl ColumnRepresentation for DynamicHeapColumns {
         entries: impl Iterator<Item = ColumnEntry<FilT, RowT, CF>>,
         multiple: CF,
     ) {
-        column.threshold = self.threshold;
+        column.configure(*self);
         entries.for_each(|entry| column.add_entry(entry * multiple));
     }
 
@@ -941,7 +1044,7 @@ impl ColumnRepresentation for DynamicHeapColumns {
         run: &SortedRun<FilT, RowT, CF>,
         multiple: CF,
     ) {
-        column.threshold = self.threshold;
+        column.configure(*self);
         run.iter().for_each(|entry| column.add_entry(entry.clone() * multiple));
     }
 }
@@ -2034,8 +2137,9 @@ mod representation_props {
                 };
             }
             each!(HeapColumns);
-            // A tiny threshold, so that columns switch to deduplicating part way through
-            each!(DynamicHeapColumns { threshold: 3 });
+            // Tiny thresholds, so that columns switch to deduplicating part way through
+            each!(DynamicHeapColumns { threshold: 3, repeats: 0.0 });
+            each!(DynamicHeapColumns { threshold: 3, repeats: 1.5 });
             each!(MergedColumns);
             each!(SortedColumns);
             each!(PivotColumns);

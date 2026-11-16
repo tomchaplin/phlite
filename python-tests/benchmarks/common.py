@@ -11,8 +11,9 @@ Every benchmark is one implementation on one case. `run(benchmark, ...)`:
    implementations reduce their input in place.
 
 Environment variables: `PHLITE_BENCH_THREADS` (threads for parallel implementations, default min(4, cores)),
-`PHLITE_BENCH_ROUNDS` (timed runs per benchmark, default 3) and `PHLITE_BENCH_TIMEOUT` (the time limit on the first run
-of each benchmark, in seconds, default 600; 0 for none).
+`PHLITE_BENCH_ROUNDS` (timed runs per benchmark, default 3), `PHLITE_BENCH_TIMEOUT` (the time limit on the first run
+of each benchmark, in seconds, default 600; 0 for none) and `PHLITE_BENCH_SWEEP` (column representations to add to
+every suite's serial phlite, see `sweep`).
 """
 
 import math
@@ -32,6 +33,27 @@ import memray
 THREADS = int(os.environ.get("PHLITE_BENCH_THREADS", min(4, os.cpu_count() or 1)))
 ROUNDS = int(os.environ.get("PHLITE_BENCH_ROUNDS", 3))
 TIMEOUT = float(os.environ.get("PHLITE_BENCH_TIMEOUT", 600))
+
+
+# ====== Sweeps ===========================================================
+
+
+def sweep(make, suffix=""):
+    """Extra implementations: serial phlite with each column representation in `PHLITE_BENCH_SWEEP`, separated by
+    commas, each `merged`, `heap`, `sorted`, `pivot`, `dynamic` or `dynamic:<threshold>`, plus `default` (the
+    pipeline's own), named `phlite (sweep <representation><suffix>)`. Every other option is the pipeline's default.
+    `make(algorithm)` makes the implementation from a function returning the `Algorithm`. Select them with
+    `PHLITE_BENCH_ONLY` or `-k sweep`."""
+    from phlite.core import Algorithm
+
+    def algorithm(columns):
+        if columns == "default":
+            return Algorithm.serial
+        name, _, threshold = columns.partition(":")
+        return lambda: Algorithm.serial().with_columns(name, threshold=int(threshold) if threshold else None)
+
+    names = [c.strip() for c in os.environ.get("PHLITE_BENCH_SWEEP", "").split(",") if c.strip()]
+    return {f"phlite (sweep {columns}{suffix})": make(algorithm(columns)) for columns in names}
 
 
 # ====== Peak memory ======================================================

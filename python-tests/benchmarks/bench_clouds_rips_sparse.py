@@ -13,7 +13,7 @@ import numpy as np
 import pytest
 import scipy.sparse
 import scipy.spatial
-from common import THREADS, fingerprint, run
+from common import THREADS, fingerprint, run, sweep
 
 # Import everything up front, so that import costs are not counted
 from gph import ripser_parallel
@@ -76,6 +76,7 @@ IMPLEMENTATIONS = {
     "phlite (serial, merged)": phlite(lambda: Algorithm.serial().with_columns("merged").with_cache(True)),
     "phlite (points)": phlite_points,
 }
+IMPLEMENTATIONS.update(sweep(phlite))
 
 # (n, degree, max_dim)
 CASES = [(2000, 20, 2), (5000, 20, 2), (10000, 10, 2), (20000, 20, 1)]

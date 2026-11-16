@@ -12,7 +12,7 @@ import random
 import gudhi
 import networkx as nx
 import pytest
-from common import THREADS, fingerprint, run
+from common import THREADS, fingerprint, run, sweep
 
 from phlite.core import Algorithm
 from phlite.networks import flag
@@ -90,6 +90,8 @@ IMPLEMENTATIONS = {
     }
     for kind in ["weight", "lower star", "shortest path"]
 }
+for kind, implementations in IMPLEMENTATIONS.items():
+    implementations.update(sweep(lambda algorithm, kind=kind: phlite_flag(kind, algorithm)))
 
 # (kind, n, p, max_dim)
 CASES = [

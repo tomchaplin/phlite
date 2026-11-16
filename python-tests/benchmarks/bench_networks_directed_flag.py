@@ -8,7 +8,7 @@ import functools
 
 import pytest
 import pyflagser
-from common import THREADS, fingerprint, run
+from common import THREADS, fingerprint, run, sweep
 from digraphs import adjacency, random_digraph
 
 from phlite.core import Algorithm
@@ -51,6 +51,7 @@ IMPLEMENTATIONS = {
     "phlite (parallel)": phlite(lambda: Algorithm.parallel(THREADS)),
     "phlite (serial, merged)": phlite(lambda: Algorithm.serial().with_columns("merged").with_cache(True)),
 }
+IMPLEMENTATIONS.update(sweep(phlite))
 
 # (n, p, max_dim)
 CASES = [(100, 0.2, 2), (200, 0.1, 2), (60, 0.3, 3), (500, 0.05, 2)]

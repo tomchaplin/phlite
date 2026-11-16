@@ -11,7 +11,9 @@
 
 use phlite::{
     barcode::Algorithm,
-    columns::{ColumnRepresentation, HeapColumns, MergedColumns, PivotColumns, SortedColumns},
+    columns::{
+        ColumnRepresentation, DynamicHeapColumns, HeapColumns, MergedColumns, PivotColumns, SortedColumns,
+    },
     reduction::{Clearing, Standard, Storage},
 };
 
@@ -59,6 +61,8 @@ pub enum Columns {
     Sorted,
     /// [`PivotColumns`]
     Pivot,
+    /// [`DynamicHeapColumns`], with the threshold [`AlgorithmSpec::threshold`]
+    Dynamic,
 }
 
 impl Columns {
@@ -69,6 +73,7 @@ impl Columns {
             Self::Heap => "heap",
             Self::Sorted => "sorted",
             Self::Pivot => "pivot",
+            Self::Dynamic => "dynamic",
         }
     }
 
@@ -78,8 +83,9 @@ impl Columns {
             "heap" => Ok(Self::Heap),
             "sorted" => Ok(Self::Sorted),
             "pivot" => Ok(Self::Pivot),
+            "dynamic" => Ok(Self::Dynamic),
             other => Err(AlgorithmError(format!(
-                "Unknown columns {other:?}, expected 'merged', 'heap', 'sorted' or 'pivot'"
+                "Unknown columns {other:?}, expected 'merged', 'heap', 'sorted', 'pivot' or 'dynamic'"
             ))),
         }
     }
@@ -142,6 +148,9 @@ pub struct AlgorithmDefaults {
 pub struct AlgorithmSpec {
     pub kind: Kind,
     pub columns: Option<Columns>,
+    /// For [`Columns::Dynamic`]: the size of heap at which a column starts deduplicating, `None` for
+    /// [`DynamicHeapColumns::DEFAULT_THRESHOLD`]. Only allowed with dynamic columns.
+    pub threshold: Option<usize>,
     pub cache: Option<bool>,
     pub store_r: Option<bool>,
     /// The default (skip, except for the standard algorithm) depends only on the algorithm, so is always set.
@@ -164,6 +173,7 @@ impl AlgorithmSpec {
         Self {
             kind,
             columns: None,
+            threshold: None,
             cache: None,
             store_r: None,
             // The barcode omits zero-length bars anyway, so there's no point recording them
@@ -246,6 +256,12 @@ impl AlgorithmSpec {
             None if defaults.columns == Columns::Pivot && self.kind != Kind::Clearing => Columns::Merged,
             None => defaults.columns,
         };
+        if self.threshold.is_some() && columns != Columns::Dynamic {
+            return Err(AlgorithmError(format!(
+                "A threshold is only used by 'dynamic' columns, not '{}'",
+                columns.name()
+            )));
+        }
         let union_find = match (self.union_find, defaults.union_find) {
             (Some(true), None) => {
                 return Err(AlgorithmError(format!(
@@ -261,6 +277,7 @@ impl AlgorithmSpec {
             union_find,
             parallel_setup: self.parallel_setup,
             columns,
+            threshold: self.threshold,
             cache: self.cache.unwrap_or(defaults.cache),
             store_r: self
                 .store_r
@@ -294,6 +311,8 @@ pub trait AlgorithmVisitor: Send {
 pub struct ResolvedAlgorithm {
     pub kind: Kind,
     pub columns: Columns,
+    /// As set (`None`: the default), for [`Columns::Dynamic`]
+    pub threshold: Option<usize>,
     pub cache: bool,
     pub store_r: bool,
     pub skip_zero_apparent_pairs: bool,
@@ -312,6 +331,7 @@ impl ResolvedAlgorithm {
         AlgorithmSpec {
             kind: self.kind,
             columns: Some(self.columns),
+            threshold: self.threshold,
             cache: Some(self.cache),
             store_r: Some(self.store_r),
             skip_zero_apparent_pairs: self.skip_zero_apparent_pairs,
@@ -343,6 +363,13 @@ impl ResolvedAlgorithm {
             Columns::Heap => self.run_with(HeapColumns, visitor),
             Columns::Sorted => self.run_with(SortedColumns, visitor),
             Columns::Pivot => self.run_with(PivotColumns, visitor),
+            Columns::Dynamic => self.run_with(
+                DynamicHeapColumns {
+                    threshold: self.threshold.unwrap_or(DynamicHeapColumns::DEFAULT_THRESHOLD),
+                    ..DynamicHeapColumns::default()
+                },
+                visitor,
+            ),
         }
     }
 

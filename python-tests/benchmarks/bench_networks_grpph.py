@@ -15,7 +15,7 @@ import functools
 
 import numpy as np
 import pytest
-from common import THREADS, fingerprint, run
+from common import THREADS, fingerprint, run, sweep
 
 # Import everything up front, so that import costs are not counted
 import networkx as nx
@@ -86,6 +86,7 @@ IMPLEMENTATIONS = {
     "phlite (serial, store R)": phlite(lambda: Algorithm.serial().with_store_r()),
     "phlite (parallel, lock-free)": phlite(lambda: Algorithm.parallel(THREADS).with_storage("lock-free")),
 }
+IMPLEMENTATIONS.update(sweep(phlite))
 
 # (kind, n)
 CASES = [("random", 25), ("random", 50), ("random", 100), ("ring", 100), ("lattice", 15)]
