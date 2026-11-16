@@ -47,6 +47,7 @@
 pub mod barcode;
 pub mod bookkeeping;
 pub mod columns;
+pub mod extended;
 pub mod fields;
 mod hash;
 pub mod matrices;

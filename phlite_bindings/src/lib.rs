@@ -55,6 +55,33 @@ pub use algorithm::{
     ResolvedAlgorithm,
 };
 pub use bars::SortedBars;
+
+/// A `phlite.core.ExtendedBarcode` of `bars` (from `phlite::extended::extended_bars`, with values in `f64` and cells
+/// already turned into Python objects by the caller), computed by `algorithm`.
+pub fn extended_into_python<'py>(
+    py: Python<'py>,
+    bars: Vec<phlite::extended::ExtendedBar<Bound<'py, PyAny>, f64>>,
+    algorithm: &ResolvedAlgorithm,
+) -> PyResult<Bound<'py, PyAny>> {
+    let items = bars
+        .into_iter()
+        .map(|b| {
+            pyo3::types::PyTuple::new(
+                py,
+                [
+                    b.kind.name().into_pyobject(py)?.into_any(),
+                    b.dimension.into_pyobject(py)?.into_any(),
+                    b.birth.into_pyobject(py)?.into_any(),
+                    b.death.into_pyobject(py)?.into_any(),
+                    b.birth_cell,
+                    b.death_cell,
+                ],
+            )
+        })
+        .collect::<PyResult<Vec<_>>>()?;
+    core_attribute(py, CoreAttribute::ExtendedFromParts)?
+        .call1((pyo3::types::PyList::new(py, items)?, spec::spec_to_dict(py, &algorithm.to_spec())?))
+}
 use spec::{spec_from_dict, spec_to_dict};
 
 /// The version every phlite package is released on (the workspace's).
@@ -74,14 +101,16 @@ pub(crate) enum CoreAttribute {
     BarcodeFromParts,
     AlgorithmFromSpec,
     RegisterPipeline,
+    ExtendedFromParts,
 }
 
 pub(crate) fn core_attribute(py: Python<'_>, attribute: CoreAttribute) -> PyResult<&Bound<'_, PyAny>> {
-    static CELLS: [PyOnceLock<Py<PyAny>>; 3] = [PyOnceLock::new(), PyOnceLock::new(), PyOnceLock::new()];
+    static CELLS: [PyOnceLock<Py<PyAny>>; 4] = [PyOnceLock::new(), PyOnceLock::new(), PyOnceLock::new(), PyOnceLock::new()];
     let path: &[&str] = match attribute {
         CoreAttribute::BarcodeFromParts => &["Barcode", "_from_parts"],
         CoreAttribute::AlgorithmFromSpec => &["Algorithm", "_from_spec"],
         CoreAttribute::RegisterPipeline => &["_register_pipeline"],
+        CoreAttribute::ExtendedFromParts => &["ExtendedBarcode", "_from_parts"],
     };
     CELLS[attribute as usize]
         .get_or_try_init(py, || {

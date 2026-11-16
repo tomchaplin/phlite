@@ -17,7 +17,6 @@
   - [Dowker complexes](python/networks/dowker.md)
   - [Directed Rips (ordered tuples)](python/networks/ordered_tuples.md)
   - [Flag complexes of graphs](python/networks/flag.md)
-  - [Extended persistence](python/networks/extended.md)
 - [phlite.images: images](python/images.md)
   - [Cubical complexes](python/images/cubical.md)
 - [Choosing an algorithm](python/algorithms.md)

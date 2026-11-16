@@ -8,7 +8,6 @@
 //! * [`dowker`]: Dowker sink and source complexes.
 //! * [`undirected`]: flag (clique) complexes of undirected graphs, filtered by edge weights, node values (lower-star)
 //!   or both, by `phlite_clouds`' Rips machinery.
-//! * [`extended`]: extended persistence of node values on a graph (or its flag complex).
 //!
 //! [`flag`] and [`dowker`] are built on [`lazy`], which turns a complex described by its simplices' cofacets and facets
 //! into coboundary and boundary oracles with Ripser's optimisations, on the digraphs of [`digraph`] and the packed
@@ -28,7 +27,6 @@
 pub mod digraph;
 pub mod dowker;
 pub mod error;
-pub mod extended;
 pub mod flag;
 pub mod grpph;
 pub mod lazy;

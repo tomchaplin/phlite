@@ -14,7 +14,8 @@ set positional-arguments
 # new pipeline's tests need no change to this file. test_core.py checks phlite.core: `Algorithm`, the namespace
 # package, and the registry of pipelines' defaults (against the docstrings and the book). phlite_complexes' test
 # against grpphati's own columns needs grpphati, so runs in the main environment (and skips in latest).
-main_tests := `shopt -s nullglob; echo tests/test_core.py tests/test_{clouds,networks,images}*.py` + " ../phlite_complexes/tests/test_cells.py::test_real_grpphati"
+# (test_extended_persistence.py tests phlite.complexes against GUDHI, which only the main environment has)
+main_tests := `shopt -s nullglob; echo tests/test_core.py tests/test_{clouds,networks,images}*.py tests/test_extended_persistence.py` + " ../phlite_complexes/tests/test_cells.py::test_real_grpphati"
 latest_tests := `shopt -s nullglob; echo tests/test_complexes*.py` + " ../phlite_complexes/tests"
 latest := "uv run --no-sync --project latest"
 
