@@ -15,10 +15,7 @@ use phlite::{
     values::INFINITY,
 };
 use phlite_complexes::complex::{Chain, RawChain};
-use phlite_networks::{
-    extended::cliques,
-    undirected::{flag_barcode, Graph},
-};
+use phlite_networks::undirected::{cliques_within, flag_barcode, Graph};
 use phlite_clouds::rips::Distances;
 
 fn main() {
@@ -59,7 +56,11 @@ fn main() {
     println!("implicit (Rips' machinery): {:>8.3}s, {} bars", start.elapsed().as_secs_f64(), bars.len());
 
     let start = Instant::now();
-    let simplices = cliques(&graph, max_dim + 1);
+    let simplices: Vec<Vec<u32>> = cliques_within(&graph, max_dim + 1, INFINITY, usize::MAX)
+        .expect("no budget")
+        .into_iter()
+        .map(|(_, simplex)| simplex)
+        .collect();
     let value = |s: &[u32]| -> f64 {
         let mut v = 0.0f64;
         for i in 0..s.len() {
