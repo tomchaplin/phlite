@@ -47,6 +47,7 @@
 
 - [The working column](columns/overview.md)
 - [Heap columns](columns/heap.md)
+- [Dynamic heap columns](columns/dynamic.md)
 - [Merged columns](columns/merged.md)
 - [Sorted columns](columns/sorted.md)
 - [Pivot columns](columns/pivot.md)

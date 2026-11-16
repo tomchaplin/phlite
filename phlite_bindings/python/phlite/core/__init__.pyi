@@ -54,7 +54,12 @@ class Algorithm:
     @property
     def columns(self) -> typing.Optional[builtins.str]:
         r"""
-        `'merged'`, `'heap'`, `'sorted'` or `'pivot'`, or `None` for the pipeline's default.
+        `'merged'`, `'heap'`, `'sorted'`, `'pivot'` or `'dynamic'`, or `None` for the pipeline's default.
+        """
+    @property
+    def threshold(self) -> typing.Optional[builtins.int]:
+        r"""
+        The threshold of `'dynamic'` columns, or `None` for the default.
         """
     @property
     def cache(self) -> typing.Optional[builtins.bool]:
@@ -116,7 +121,7 @@ class Algorithm:
         Clearing, with the columns of each dimension reduced in parallel.
         Skips zero-length apparent pairs by default, and uses all cores and locking storage.
         """
-    def with_columns(self, columns: typing.Optional[typing.Literal['merged', 'heap', 'sorted', 'pivot']]) -> Algorithm:
+    def with_columns(self, columns: typing.Optional[typing.Literal['merged', 'heap', 'sorted', 'pivot', 'dynamic']], threshold: typing.Optional[builtins.int] = None) -> Algorithm:
         r"""
         How the column being reduced is represented: `'merged'`, `'heap'`, `'sorted'` or `'pivot'`, or `None` for the
         pipeline's default: `'pivot'` for serial clearing in `phlite.complexes` (otherwise `'merged'`), `'heap'` in
@@ -139,6 +144,11 @@ class Algorithm:
           matrix that knows the rank of every row in filtration order (`phlite`'s explicit complexes do, Vietoris–Rips
           and GrPPH don't), and only serial clearing uses it: otherwise using it is an error (for an algorithm other
           than serial clearing, as soon as it is asked for; for a pipeline without row ranks, when it runs).
+        * `'dynamic'` is `'heap'` until a column's heap holds at least `threshold` terms (`None`: 4096) and the rows
+          popped from it so far averaged at least two terms each, after which each row is kept in it at most once, a
+          hash map holding the sum of its terms (flagser's working column). Opt-in: only worth it when columns pile up
+          the same rows over and over, as in very large directed flag complexes (24% faster than `'merged'` on one);
+          elsewhere it is slightly slower than `'heap'` and slower than `'merged'` where that wins.
         """
     def with_cache(self, cache: typing.Optional[builtins.bool] = True) -> Algorithm:
         r"""

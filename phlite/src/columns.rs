@@ -28,6 +28,14 @@
 //! * Bad when many terms are added: the heap holds every term, cancelled or not, including all those below the
 //!   eventual pivot, and once it outgrows the cache every operation slows down.
 //!
+//! **[`DynamicHeapColumns`]** (opt-in) is [`HeapColumns`] until a column is both big and full of repeated rows (the
+//! rows popped so far averaged at least two terms each), after which it keeps each row in the heap at most once,
+//! summing terms in a hash map, as flagser's working column does ([`DynHeapCol`]).
+//! * Good when columns pile up the same rows over and over: on a large directed flag complex it was 24% faster than
+//!   [`MergedColumns`].
+//! * Elsewhere slightly slower than [`HeapColumns`] (1–7%, for counting repeats) and slower than [`MergedColumns`]
+//!   where that wins, so no pipeline uses it by default.
+//!
 //! **[`SortedColumns`]** builds the working column as one vector, sorted ascending so the pivot is the last entry.
 //! Columns added are collected unsorted, then at the next pivot query sorted together (they are usually few and
 //! short) and merged into the vector, starting from their smallest entry: entries of the vector below that stay put,
@@ -80,6 +88,7 @@
 //! # The column types
 //!
 //! * [`BHCol`] stores every term in a heap.
+//! * [`DynHeapCol`] stores every term in a heap, or each row once.
 //! * [`MergeCol`] lazily merges sorted runs of terms, keeping one heap slot per run.
 //! * [`SortedCol`] keeps its terms in a sorted vector.
 //! * [`PivotCol`] keeps its terms in a dense array over row ranks ([`BitCol`]), or merges them.

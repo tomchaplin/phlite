@@ -108,9 +108,11 @@ impl AlgorithmConfig {
     ///   matrix that knows the rank of every row in filtration order (`phlite`'s explicit complexes do, Vietoris–Rips
     ///   and GrPPH don't), and only serial clearing uses it: otherwise using it is an error (for an algorithm other
     ///   than serial clearing, as soon as it is asked for; for a pipeline without row ranks, when it runs).
-    /// * `'dynamic'` is `'heap'` until a column's heap holds `threshold` terms, after which each row is kept in it
-    ///   at most once, a hash map holding the sum of its terms (flagser's working column). `threshold=None` is the
-    ///   default (4096).
+    /// * `'dynamic'` is `'heap'` until a column's heap holds at least `threshold` terms (`None`: 4096) and the rows
+    ///   popped from it so far averaged at least two terms each, after which each row is kept in it at most once, a
+    ///   hash map holding the sum of its terms (flagser's working column). Opt-in: only worth it when columns pile up
+    ///   the same rows over and over, as in very large directed flag complexes (24% faster than `'merged'` on one);
+    ///   elsewhere it is slightly slower than `'heap'` and slower than `'merged'` where that wins.
     #[pyo3(signature = (columns, threshold = None))]
     fn with_columns(
         &self,
