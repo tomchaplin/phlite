@@ -32,6 +32,7 @@
 
 pub mod cohomology;
 pub mod distances;
+pub mod explicit;
 pub mod homology;
 
 pub use distances::{distance_to_measure, Distances, Metric, SparseDistances, Weighted};

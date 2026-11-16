@@ -23,6 +23,8 @@ use phlite::{
     values::{INFINITY, ZERO},
 };
 use phlite_clouds::rips::{rips_barcode_with, Distances, RipsBar, RipsInt};
+// Listing a small flag complex and reducing it explicitly (shared with `phlite.clouds.rips` on sparse input)
+pub use phlite_clouds::rips::explicit::{cliques_within, explicit_flag_barcode};
 
 use crate::NetworkError;
 
@@ -212,103 +214,6 @@ pub fn flag_barcode<R: ColumnRepresentation, I: RipsInt>(
     parallel_setup: bool,
 ) -> Vec<RipsBar<I>> {
     rips_barcode_with(graph, max_dim, threshold, method, algorithm, representatives, union_find, parallel_setup)
-}
-
-/// The cliques of `graph` (its flag complex's simplices) of dimension at most `top` and value at most `threshold`,
-/// with their values, nodes first; or `None` if there are more than `budget`.
-///
-/// A simplex above the threshold has every coface above it too, so they aren't enumerated.
-pub fn cliques_within(
-    graph: &Graph,
-    top: usize,
-    threshold: NotNan<f64>,
-    budget: usize,
-) -> Option<Vec<(NotNan<f64>, Vec<u32>)>> {
-    let n = graph.n_points();
-    let mut all: Vec<(NotNan<f64>, Vec<u32>)> = (0..n as u32)
-        .map(|v| (graph.birth(v as usize), vec![v]))
-        .filter(|(value, _)| *value <= threshold)
-        .collect();
-    if all.len() > budget {
-        return None;
-    }
-    let mut current: Vec<usize> = (0..all.len()).collect();
-    for _ in 0..top {
-        let mut next = vec![];
-        for &i in &current {
-            let (value, simplex) = &all[i];
-            let (value, simplex) = (*value, simplex.clone());
-            let last = *simplex.last().expect("a simplex has a node") as usize;
-            for w in graph.neighbours(last, last + 1) {
-                // The new edges' values (each at least both nodes' births)
-                let mut longer_value = value;
-                for &v in &simplex {
-                    longer_value = longer_value.max(graph.distance(v as usize, w));
-                }
-                // (A missing edge is at infinity: not a clique, whatever the threshold)
-                if longer_value.is_finite() && longer_value <= threshold {
-                    let mut longer = simplex.clone();
-                    longer.push(w as u32);
-                    all.push((longer_value, longer));
-                    next.push(all.len() - 1);
-                    if all.len() > budget {
-                        return None;
-                    }
-                }
-            }
-        }
-        current = next;
-    }
-    Some(all)
-}
-
-/// The barcode of the flag complex given by its simplices (with their values, as [`cliques_within`] gives them, every
-/// face of each included) in dimensions `0..=max_dim`, by listing them as an explicit complex and reducing it with
-/// `phlite_complexes`: much faster than [`flag_barcode`] when there are few simplices (a sparse graph, or a low
-/// threshold), as each column is built once rather than recomputed. Bars are on the simplices' nodes; those still
-/// alive at the largest value listed are essential.
-pub fn explicit_flag_barcode<R: ColumnRepresentation>(
-    simplices: &[(NotNan<f64>, Vec<u32>)],
-    max_dim: usize,
-    method: Method,
-    algorithm: Algorithm<'_, R>,
-    representatives: bool,
-) -> Vec<phlite::barcode::Bar<Vec<u32>, NotNan<f64>, phlite::fields::Z2>> {
-    use phlite_complexes::complex::{Chain, RawChain};
-    use std::collections::HashMap;
-    // In filtration order, faces first (a face's value is at most its coface's, and it has fewer nodes)
-    let mut order: Vec<&(NotNan<f64>, Vec<u32>)> = simplices.iter().collect();
-    order.sort_by(|a, b| (a.0, a.1.len(), &a.1).cmp(&(b.0, b.1.len(), &b.1)));
-    let index: HashMap<&[u32], i64> = order.iter().enumerate().map(|(i, (_, s))| (s.as_slice(), i as i64)).collect();
-    let mut raw = RawChain { dimensions: Vec::with_capacity(order.len()), indptr: vec![0], indices: vec![], coefficients: None };
-    let mut face = Vec::new();
-    for (_, s) in &order {
-        raw.dimensions.push(s.len() as i64 - 1);
-        if s.len() > 1 {
-            for i in 0..s.len() {
-                face.clear();
-                face.extend(s.iter().enumerate().filter(|&(j, _)| j != i).map(|(_, &v)| v));
-                raw.indices.push(index[face.as_slice()]);
-            }
-        }
-        raw.indptr.push(raw.indices.len() as i64);
-    }
-    let values: Vec<f64> = order.iter().map(|(v, _)| v.into_inner()).collect();
-    let complex = Chain::<phlite::fields::Z2>::from_raw(raw)
-        .expect("a flag complex is a valid chain complex")
-        .filter(Some(values))
-        .expect("faces enter no later than their cofaces");
-    let cell = |c: phlite_complexes::complex::Cell| order[c.0 as usize].1.clone();
-    complex
-        .barcode(Some(max_dim), method, algorithm, representatives)
-        .into_iter()
-        .map(|bar| phlite::barcode::Bar {
-            birth: cell(bar.birth),
-            birth_value: bar.birth_value,
-            death: bar.death.map(|(c, v)| (cell(c), v)),
-            representative: bar.representative.map(|rep| rep.into_iter().map(|(a, c)| (a, cell(c))).collect()),
-        })
-        .collect()
 }
 
 #[cfg(test)]

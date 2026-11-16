@@ -55,6 +55,7 @@ pipelines that can (Vietoris–Rips and cubical complexes, `—` below for the o
 |---|---|---|---|---|---|---|---|
 | `complexes` | `phlite.complexes.FilteredComplex.persistence` | `'pivot'` | `False` | `True` | `'merged'` | `False` | — |
 | `clouds.rips` | `phlite.clouds.rips` | `'heap'` | `False` | `False` | `'heap'` | `False` | `True` |
+| `clouds.rips_explicit` | `phlite.clouds.rips` | `'pivot'` | `False` | `True` | `'merged'` | `False` | — |
 | `clouds.alpha` | `phlite.clouds.alpha` | `'pivot'` | `False` | `True` | `'merged'` | `False` | — |
 | `clouds.delaunay_cech` | `phlite.clouds.delaunay_cech` | `'pivot'` | `False` | `True` | `'merged'` | `False` | — |
 | `networks.grpph` | `phlite.networks.grpph` | `'merged'` | `True` | `False` | `'merged'` | `True` | — |

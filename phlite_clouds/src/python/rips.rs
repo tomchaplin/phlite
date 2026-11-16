@@ -18,7 +18,9 @@ use phlite_bindings::{
 };
 
 use crate::rips::{
-    distance_to_measure, rips_barcode_with, rips_index_fits, Distances, Metric, SparseDistances, Weighted,
+    distance_to_measure,
+    explicit::{cliques_within, explicit_flag_barcode, looks_metric},
+    rips_barcode_with, rips_index_fits, Distances, Metric, SparseDistances, Weighted,
 };
 
 /// The pipeline `'clouds.rips'`: Rips columns are cheap to recompute, and caching them dominates the memory used.
@@ -30,6 +32,20 @@ pub(crate) const DEFAULTS: AlgorithmDefaults = AlgorithmDefaults {
     row_ranks: false,
     union_find: Some(true),
 };
+
+/// The pipeline `'clouds.rips_explicit'`: the Rips complex of a sparse input listed and reduced as an explicit complex
+/// (see `rips`' `explicit`), so with `phlite.complexes`' defaults.
+pub(crate) const EXPLICIT_DEFAULTS: AlgorithmDefaults = AlgorithmDefaults {
+    pipeline: "clouds.rips_explicit",
+    columns: Columns::Pivot,
+    cache: false,
+    store_r: true,
+    row_ranks: true,
+    union_find: None,
+};
+
+/// The most simplices listed explicitly when `explicit` isn't given: beyond this, the complex is computed implicitly.
+const BUDGET: usize = 1_000_000;
 
 // ====== Reading the input ================================================
 
@@ -235,12 +251,23 @@ fn read_points(points: &Bound<'_, PyAny>, metric: Metric, threshold: NotNan<f64>
 ///         Bars still alive at the threshold are reported as essential.
 ///         Simplices above the enclosing radius are always skipped, since by then the complex is contractible
 ///         and nothing changes, so a larger threshold gives the same result as none.
+///     explicit: `True` to list the Rips complex's simplices and reduce it as an explicit complex (as
+///         `phlite.complexes` does), `False` to compute its coboundary implicitly (Ripser's way), `None` (the default)
+///         to choose: explicitly for a sparse `distance_matrix` that doesn't look like a metric (more than 1% of up to
+///         2000 of its triangles break the triangle inequality) and whose complex (up to the threshold and the
+///         enclosing radius) has at most a million simplices, implicitly otherwise. For a metric the implicit
+///         computation is fastest (nearly every column is an apparent pair: listing was 2-5x slower on point
+///         clouds' neighbourhoods); for arbitrary weights (on a graph's edges, say) few columns are, and listing is
+///         much faster (up to 190x on a random graph with random weights).
 ///     method: `'cohomology'` (the default) reduces the coboundary matrix, which is usually much faster.
 ///         `'homology'` reduces the boundary matrix instead, which needs simplices up to dimension `max_dim + 1`.
 ///     algorithm: The reduction algorithm and its options, as a `phlite.core.Algorithm` (default:
 ///         `Algorithm.serial()`).
 ///         For example `Algorithm.parallel(threads=8)`.
-///         Pipeline defaults (`'clouds.rips'`): columns='heap', cache=False, store_r=False, union_find=True.
+///         Computed implicitly: Pipeline defaults (`'clouds.rips'`): columns='heap', cache=False, store_r=False,
+///         union_find=True.
+///         Listed explicitly: Pipeline defaults (`'clouds.rips_explicit'`): columns='pivot', cache=False,
+///         store_r=True.
 ///     representatives: Whether to also compute a representative cycle for every bar.
 ///         With `method='cohomology'` these are computed via involution.
 ///
@@ -249,7 +276,7 @@ fn read_points(points: &Bound<'_, PyAny>, metric: Metric, threshold: NotNan<f64>
 #[gen_stub_pyfunction(module = "phlite.clouds")]
 #[gen_stub(override_return_type(type_repr = "core.Barcode", imports = ("phlite.core")))]
 #[pyfunction]
-#[pyo3(signature = (distance_matrix = None, max_dim = 1, *, points = None, metric = "euclidean", weights = None, threshold = None, method = "cohomology", algorithm = None, representatives = false))]
+#[pyo3(signature = (distance_matrix = None, max_dim = 1, *, points = None, metric = "euclidean", weights = None, threshold = None, explicit = None, method = "cohomology", algorithm = None, representatives = false))]
 #[allow(clippy::too_many_arguments)]
 fn rips<'py>(
     py: Python<'py>,
@@ -263,6 +290,7 @@ fn rips<'py>(
     #[gen_stub(override_type(type_repr = "typing.Optional[typing.Union[numpy.typing.NDArray[numpy.floating], typing.Sequence[builtins.float]]]", imports = ("builtins", "numpy", "numpy.typing", "typing")))]
     weights: Option<Vec<f64>>,
     threshold: Option<f64>,
+    explicit: Option<bool>,
     #[gen_stub(override_type(type_repr = "typing.Literal['cohomology', 'homology']", imports = ("typing")))]
     method: &str,
     #[gen_stub(override_type(type_repr = "typing.Optional[core.Algorithm]", imports = ("typing", "phlite.core")))]
@@ -292,7 +320,6 @@ fn rips<'py>(
         (None, Some(points)) => read_points(points, metric, threshold)?,
     };
     let method = parse_method(method)?;
-    let algorithm = algorithm_from_py(algorithm.as_ref(), &DEFAULTS)?;
     let n_points = input.n_points();
     if let Some(weights) = &weights {
         if weights.len() != n_points {
@@ -316,6 +343,25 @@ fn rips<'py>(
         )));
     }
 
+    // Explicitly, if asked for or (unless the algorithm asks for what only the implicit computation has) if the input
+    // is a sparse matrix whose complex is small enough (see `explicit` in the docstring)
+    let as_explicit = algorithm_from_py(algorithm.as_ref(), &EXPLICIT_DEFAULTS);
+    let simplices = match (explicit, &as_explicit, &input) {
+        (Some(false), _, _) | (None, Err(_), _) | (None, _, Input::Dense(_)) => None,
+        // (Without a budget, never `None`)
+        (Some(true), _, _) => py.detach(|| list(&input, weights.as_deref(), max_dim, threshold, usize::MAX)),
+        (None, Ok(_), Input::Sparse(_)) => py.detach(|| {
+            (!input_looks_metric(&input, weights.as_deref())).then(|| list(&input, weights.as_deref(), max_dim, threshold, BUDGET))?
+        }),
+    };
+    if let Some(simplices) = simplices {
+        let algorithm = as_explicit?;
+        let bars = py.detach(|| {
+            algorithm.run(ExplicitRun { simplices: &simplices, max_dim, method, representatives })
+        })?;
+        return bars.into_python(py, &algorithm, representatives, None);
+    }
+    let algorithm = algorithm_from_py(algorithm.as_ref(), &DEFAULTS)?;
     let bars = py.detach(|| {
         algorithm.run(RipsRun {
             input,
@@ -329,6 +375,59 @@ fn rips<'py>(
         })
     })?;
     bars.into_python(py, &algorithm, representatives, None)
+}
+
+/// The simplices of the Rips complex of `input` (weighted by `weights`) up to dimension `max_dim + 1` and `threshold`
+/// (and the enclosing radius, past which nothing changes), or `None` if there are more than `budget`.
+fn list(
+    input: &Input,
+    weights: Option<&[f64]>,
+    max_dim: usize,
+    threshold: NotNan<f64>,
+    budget: usize,
+) -> Option<Vec<(NotNan<f64>, Vec<u32>)>> {
+    fn up_to<D: Distances>(d: &D, max_dim: usize, threshold: NotNan<f64>, budget: usize) -> Option<Vec<(NotNan<f64>, Vec<u32>)>> {
+        cliques_within(d, max_dim + 1, threshold.min(d.enclosing_radius()), budget)
+    }
+    // (The weights were checked when read)
+    let weighted = "the weights were checked when read";
+    match (input, weights) {
+        (Input::Dense(d), None) => up_to(d, max_dim, threshold, budget),
+        (Input::Sparse(d), None) => up_to(d, max_dim, threshold, budget),
+        (Input::Dense(d), Some(w)) => up_to(&Weighted::new(d, w).expect(weighted), max_dim, threshold, budget),
+        (Input::Sparse(d), Some(w)) => up_to(&Weighted::new(d, w).expect(weighted), max_dim, threshold, budget),
+    }
+}
+
+/// Whether the distances (weighted by `weights`) look like a metric, on which the implicit computation is fast (see
+/// [`looks_metric`]), judging by this many triangles.
+const METRIC_SAMPLES: usize = 2000;
+
+fn input_looks_metric(input: &Input, weights: Option<&[f64]>) -> bool {
+    let weighted = "the weights were checked when read";
+    match (input, weights) {
+        (Input::Dense(d), None) => looks_metric(d, METRIC_SAMPLES),
+        (Input::Sparse(d), None) => looks_metric(d, METRIC_SAMPLES),
+        (Input::Dense(d), Some(w)) => looks_metric(&Weighted::new(d, w).expect(weighted), METRIC_SAMPLES),
+        (Input::Sparse(d), Some(w)) => looks_metric(&Weighted::new(d, w).expect(weighted), METRIC_SAMPLES),
+    }
+}
+
+/// Compute the barcode of a listed Rips complex with whichever algorithm is configured.
+struct ExplicitRun<'a> {
+    simplices: &'a [(NotNan<f64>, Vec<u32>)],
+    max_dim: usize,
+    method: Method,
+    representatives: bool,
+}
+
+impl AlgorithmVisitor for ExplicitRun<'_> {
+    type Output = SortedBars;
+
+    fn visit<R: ColumnRepresentation>(self, algorithm: Algorithm<'_, R>) -> SortedBars {
+        let bars = explicit_flag_barcode(self.simplices, self.max_dim, self.method, algorithm, self.representatives);
+        SortedBars::new(bars, self.max_dim + 1, |simplex| (simplex.len() - 1, simplex.clone()))
+    }
 }
 
 /// Compute the Rips barcode with whichever algorithm is configured.

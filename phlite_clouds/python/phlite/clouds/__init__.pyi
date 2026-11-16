@@ -122,7 +122,7 @@ def dtm(distance_matrix: typing.Optional[typing.Union[numpy.typing.NDArray[numpy
         The distance to measure of each point, as a list.
     """
 
-def rips(distance_matrix: typing.Optional[typing.Union[numpy.typing.NDArray[numpy.floating], typing.Sequence[typing.Sequence[builtins.float]], typing.Any]] = None, max_dim: builtins.int = 1, *, points: typing.Optional[typing.Union[numpy.typing.NDArray[numpy.floating], typing.Sequence[typing.Sequence[builtins.float]]]] = None, metric: typing.Literal['euclidean', 'manhattan', 'cityblock', 'chebyshev'] = "euclidean", weights: typing.Optional[typing.Union[numpy.typing.NDArray[numpy.floating], typing.Sequence[builtins.float]]] = None, threshold: typing.Optional[builtins.float] = None, method: typing.Literal['cohomology', 'homology'] = "cohomology", algorithm: typing.Optional[core.Algorithm] = None, representatives: builtins.bool = False) -> core.Barcode:
+def rips(distance_matrix: typing.Optional[typing.Union[numpy.typing.NDArray[numpy.floating], typing.Sequence[typing.Sequence[builtins.float]], typing.Any]] = None, max_dim: builtins.int = 1, *, points: typing.Optional[typing.Union[numpy.typing.NDArray[numpy.floating], typing.Sequence[typing.Sequence[builtins.float]]]] = None, metric: typing.Literal['euclidean', 'manhattan', 'cityblock', 'chebyshev'] = "euclidean", weights: typing.Optional[typing.Union[numpy.typing.NDArray[numpy.floating], typing.Sequence[builtins.float]]] = None, threshold: typing.Optional[builtins.float] = None, explicit: typing.Optional[builtins.bool] = None, method: typing.Literal['cohomology', 'homology'] = "cohomology", algorithm: typing.Optional[core.Algorithm] = None, representatives: builtins.bool = False) -> core.Barcode:
     r"""
     Compute the Vietoris-Rips persistent homology of a distance matrix or a point cloud, in dimensions
     `0, ..., max_dim`.
@@ -159,12 +159,23 @@ def rips(distance_matrix: typing.Optional[typing.Union[numpy.typing.NDArray[nump
             Bars still alive at the threshold are reported as essential.
             Simplices above the enclosing radius are always skipped, since by then the complex is contractible
             and nothing changes, so a larger threshold gives the same result as none.
+        explicit: `True` to list the Rips complex's simplices and reduce it as an explicit complex (as
+            `phlite.complexes` does), `False` to compute its coboundary implicitly (Ripser's way), `None` (the default)
+            to choose: explicitly for a sparse `distance_matrix` that doesn't look like a metric (more than 1% of up to
+            2000 of its triangles break the triangle inequality) and whose complex (up to the threshold and the
+            enclosing radius) has at most a million simplices, implicitly otherwise. For a metric the implicit
+            computation is fastest (nearly every column is an apparent pair: listing was 2-5x slower on point
+            clouds' neighbourhoods); for arbitrary weights (on a graph's edges, say) few columns are, and listing is
+            much faster (up to 190x on a random graph with random weights).
         method: `'cohomology'` (the default) reduces the coboundary matrix, which is usually much faster.
             `'homology'` reduces the boundary matrix instead, which needs simplices up to dimension `max_dim + 1`.
         algorithm: The reduction algorithm and its options, as a `phlite.core.Algorithm` (default:
             `Algorithm.serial()`).
             For example `Algorithm.parallel(threads=8)`.
-            Pipeline defaults (`'clouds.rips'`): columns='heap', cache=False, store_r=False, union_find=True.
+            Computed implicitly: Pipeline defaults (`'clouds.rips'`): columns='heap', cache=False, store_r=False,
+            union_find=True.
+            Listed explicitly: Pipeline defaults (`'clouds.rips_explicit'`): columns='pivot', cache=False,
+            store_r=True.
         representatives: Whether to also compute a representative cycle for every bar.
             With `method='cohomology'` these are computed via involution.
     

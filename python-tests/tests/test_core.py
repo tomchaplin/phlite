@@ -22,9 +22,9 @@ def pipeline_function(name):
     if name == "complexes":
         return importlib.import_module("phlite.complexes").FilteredComplex.persistence
     area, function = name.split(".")
-    # A function with two ways of computing (`networks.flag`, listed explicitly or not) has a pipeline for each, the
-    # second `<function>_implicit`
-    return getattr(importlib.import_module(f"phlite.{area}"), function.removesuffix("_implicit"))
+    # A function with two ways of computing (listed explicitly or not) has a pipeline for each, the second
+    # `<function>_implicit` (`networks.flag`) or `<function>_explicit` (`clouds.rips`)
+    return getattr(importlib.import_module(f"phlite.{area}"), function.removesuffix("_implicit").removesuffix("_explicit"))
 
 
 def test_namespace_package():
@@ -88,7 +88,7 @@ def test_book_table_matches_the_registry():
         expected_function = (
             "phlite.complexes.FilteredComplex.persistence"
             if name == "complexes"
-            else f"phlite.{name}".removesuffix("_implicit")
+            else f"phlite.{name}".removesuffix("_implicit").removesuffix("_explicit")
         )
         assert function == expected_function
         assert [columns, cache, store_r] == [repr(serial.columns), repr(serial.cache), repr(serial.store_r)]

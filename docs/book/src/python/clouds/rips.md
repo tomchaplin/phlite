@@ -31,6 +31,7 @@ rips(points=points, threshold=0.5)                # only the edges up to 0.5, ne
 | `metric` | for `points`: `"euclidean"`, `"manhattan"` (or `"cityblock"`) or `"chebyshev"` | `"euclidean"` |
 | `weights` | a weight per point, for [weighted Rips](weighted.md) (with `dtm(...)`, DTM-Rips) | `None` |
 | `threshold` | only build simplices up to this diameter (bars alive then become essential) | `None` |
+| `explicit` | `True` to list the complex and reduce it explicitly, `False` to compute it implicitly (see [below](#sparse-matrices-that-arent-metrics)) | `None` (choose) |
 | `method` | `"cohomology"` or `"homology"` | `"cohomology"` |
 | `algorithm` | an [`Algorithm`](../algorithms.md) | `Algorithm.serial()` (heap columns, uncached) |
 | `representatives` | compute a cycle for every bar | `False` |
@@ -66,6 +67,21 @@ triangle, ignoring entries below the diagonal, and reads the diagonal as the poi
   On point clouds with long bars (noisy spheres, wedges of circles), merged cached columns
   (`Algorithm.serial().with_columns("merged").with_cache(True)`) are up to 1.9× faster at about twice the memory.
   Avoid `'sorted'` columns on such inputs: they can take hours.
+
+## Sparse matrices that aren't metrics
+
+Everything above relies on the distances being a metric: then nearly every column is an apparent (emergent) pair and
+is finished without being reduced. A sparse matrix can hold any non-negative weights, though (the edges of a weighted
+graph, say), and then few columns are apparent, and the implicit computation recomputes each column every time it is
+added. For those, `rips` lists the complex's simplices and reduces it as an explicit complex, as `phlite.complexes`
+does (pivot columns, storing R: the pipeline `'clouds.rips_explicit'`), which is the same computation as
+[`phlite.networks.flag`](../networks/flag.md)'s by edge weight.
+
+With `explicit=None` (the default) it lists the complex when the input is a sparse matrix, more than 1% of up to 2000 of
+its triangles break the triangle inequality, and the complex (up to the threshold and the enclosing radius) has at most
+a million simplices. On the sparse benchmark's point clouds (metrics) the implicit computation is 2–5× faster than
+listing; on random graphs with random weights listing is 1.3–190× faster (G(300, 0.1) up to dimension 2: 10 ms
+against 1.9 s). `explicit=True` or `False` forces either.
 
 See the [notebooks](../notebooks.md) for a circle, a torus and representatives drawn on the points.
 
