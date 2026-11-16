@@ -10,3 +10,4 @@ __pycache__/
 # Python extension modules built in place by `maturin develop` (in each crate's python/ folder)
 *.so
 /dist
+/pgo

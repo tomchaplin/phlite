@@ -3,6 +3,10 @@
 phlite's Python packages share the namespace `phlite`: one package per kind of input, and `phlite.core`, which they
 all use. `pip install phlite` installs them all.
 
+The wheels on PyPI for Linux x86_64 are built with profile-guided optimisation (a few percent faster overall, 15–20% for
+GrPPH and PPH); those for other platforms aren't, but you can build optimised wheels for your own machine with
+`just pgo-wheels`: see [Profile-guided optimisation](../appendix/benchmarks.md#profile-guided-optimisation).
+
 | Package | Module | Input | Pipelines | Rust crate |
 |---|---|---|---|---|
 | `phlite-complexes` | [`phlite.complexes`](complexes.md) | a chain complex you build: integer columns, CSC arrays, or your own cell objects; any filtration | `FilteredComplex.persistence`: cubical, simplicial and cell complexes, anything PHAT or LoPHAT would take | `phlite_complexes` |

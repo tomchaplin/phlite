@@ -122,3 +122,43 @@ check: test bench-check
 wheels:
     for crate in {{packages}}; do (cd $crate && uvx maturin build --release --out ../dist); done
     uv build --wheel --out-dir dist phlite_meta
+
+# Profile-guided optimisation (PGO, about 4% faster overall and 15-20% on GrPPH and PPH in our benchmarks): build every
+# package instrumented (`-Cprofile-generate`) into a scratch environment, run python-tests/pgo_train.py there, and
+# merge the profiles into pgo/merged.profdata. Needs uv and the `llvm-tools` rustup component of the toolchain that
+# will use the profile (`rustup component add llvm-tools`). The released Linux x86_64 wheels are built this way (see
+# .github/workflows/release.yml); on any other platform, `just pgo-wheels` builds PGO wheels for it. On Windows, run
+# it from Git Bash.
+pgo-profile:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    # A native path (on Windows, C:/... rather than Git Bash's /c/...), for rustc and LLVM
+    here=$(pwd -W 2>/dev/null || pwd)
+    rm -rf pgo && mkdir -p pgo/profiles
+    uv venv -q pgo/venv
+    export VIRTUAL_ENV="$here/pgo/venv"
+    uv pip install -q numpy
+    for crate in {{packages}}; do
+        RUSTFLAGS="-Cprofile-generate=$here/pgo/profiles" CARGO_TARGET_DIR=target/pgo-generate \
+            uvx maturin develop -q --uv --release -m $crate/Cargo.toml
+    done
+    python=pgo/venv/bin/python
+    [ -x "$python" ] || python=pgo/venv/Scripts/python.exe
+    "$python" python-tests/pgo_train.py
+    host=$(rustc -vV | sed -n 's/^host: //p')
+    profdata="$(rustc --print sysroot)/lib/rustlib/$host/bin/llvm-profdata"
+    [ -x "$profdata" ] || profdata="$profdata.exe"
+    "$profdata" merge -o pgo/merged.profdata pgo/profiles
+    echo "Wrote pgo/merged.profdata"
+
+# Build a PGO-optimised release wheel of every package into dist/ for this machine (and its Python), profiling it
+# first: `pip install dist/*.whl` then installs them (see the book's appendix, "Profile-guided optimisation")
+pgo-wheels: pgo-profile
+    #!/usr/bin/env bash
+    set -euo pipefail
+    here=$(pwd -W 2>/dev/null || pwd)
+    for crate in {{packages}}; do
+        (cd $crate && RUSTFLAGS="-Cprofile-use=$here/pgo/merged.profdata" CARGO_TARGET_DIR=../target/pgo-use \
+            uvx maturin build --release --out ../dist)
+    done
+    uv build --wheel --out-dir dist phlite_meta
