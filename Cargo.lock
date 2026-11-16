@@ -972,7 +972,7 @@ dependencies = [
 
 [[package]]
 name = "phlite"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "arc-swap",
  "auto_impl",
@@ -991,7 +991,7 @@ dependencies = [
 
 [[package]]
 name = "phlite_bindings"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "ordered-float",
  "phlite",
@@ -1002,7 +1002,7 @@ dependencies = [
 
 [[package]]
 name = "phlite_clouds"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "alphalpha",
  "axiolid-tetrahedralize",
@@ -1027,7 +1027,7 @@ dependencies = [
 
 [[package]]
 name = "phlite_complexes"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "numpy",
  "ordered-float",
@@ -1041,7 +1041,7 @@ dependencies = [
 
 [[package]]
 name = "phlite_images"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "numpy",
  "ordered-float",
@@ -1055,7 +1055,7 @@ dependencies = [
 
 [[package]]
 name = "phlite_networks"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "criterion",
  "log",
