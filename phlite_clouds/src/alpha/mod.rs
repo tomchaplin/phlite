@@ -27,6 +27,8 @@
 
 use std::collections::HashMap;
 
+use crate::error::{check_points, CloudError};
+
 use ordered_float::NotNan;
 use phlite::{
     barcode::{Algorithm, Bar, Method},
@@ -81,14 +83,14 @@ pub struct Delaunay {
 }
 
 /// Triangulate points in the plane (given by their coordinates, labelled `labels`) with spade.
-fn delaunay_2d(coords: &[[f64; 2]], labels: &[u32]) -> Result<(usize, Vec<Simplex>), String> {
+fn delaunay_2d(coords: &[[f64; 2]], labels: &[u32]) -> Result<(usize, Vec<Simplex>), CloudError> {
     use spade::{DelaunayTriangulation, Point2, Triangulation};
     let mut triangulation: DelaunayTriangulation<Point2<f64>> = DelaunayTriangulation::new();
     let mut label_of = HashMap::new();
     for (p, &label) in coords.iter().zip(labels) {
         let handle = triangulation
             .insert(Point2::new(p[0], p[1]))
-            .map_err(|e| format!("Could not triangulate the points: {e:?}"))?;
+            .map_err(|e| CloudError::Triangulation(format!("{e:?}")))?;
         label_of.entry(handle).or_insert(label);
     }
     let sorted = |mut vs: Vec<u32>| {
@@ -204,29 +206,20 @@ fn scale_and_flush(points: &[Vec<f64>], scale: bool) -> Vec<Vec<f64>> {
 }
 
 /// The Delaunay triangulation of `points`, each a slice of 2 or 3 finite coordinates (all of the same length).
-pub fn delaunay(points: &[Vec<f64>]) -> Result<Delaunay, String> {
-    let n = points.len();
-    if n == 0 {
-        return Err("There are no points".into());
-    }
-    if u32::try_from(n).is_err() {
-        return Err(format!("Too many points ({n})"));
+///
+/// # Errors
+/// If there are no points, they don't all have 2 or all have 3 coordinates, a coordinate is infinite or `NaN`, or (a
+/// bug) the triangulation fails.
+pub fn delaunay(points: &[Vec<f64>]) -> Result<Delaunay, CloudError> {
+    if points.is_empty() {
+        return Err(CloudError::NoPoints);
     }
     let dim = points[0].len();
     if !(2..=3).contains(&dim) {
-        return Err(format!(
-            "Alpha complexes need points in the plane or in space (2 or 3 coordinates), not {dim}"
-        ));
+        return Err(CloudError::UnsupportedDimension { dimension: dim });
     }
-    if let Some(i) = points.iter().position(|p| p.len() != dim) {
-        return Err(format!(
-            "Every point must have {dim} coordinates, but point {i} has {}",
-            points[i].len()
-        ));
-    }
-    if points.iter().flatten().any(|x| !x.is_finite()) {
-        return Err("Every coordinate must be finite".into());
-    }
+    check_points(points)?;
+    let n = points.len();
     let normalised = normalise(points);
     // Merge repeated points into the first (comparing coordinates exactly, with -0 equal to 0)
     let mut first = HashMap::new();
@@ -262,7 +255,7 @@ pub fn delaunay(points: &[Vec<f64>]) -> Result<Delaunay, String> {
 }
 
 /// Triangulate points in space (distinct, not all collinear), falling back to their plane if they are coplanar.
-fn delaunay_3d(coords: &[Vec<f64>], labels: &[u32]) -> Result<(usize, Vec<Simplex>), String> {
+fn delaunay_3d(coords: &[Vec<f64>], labels: &[u32]) -> Result<(usize, Vec<Simplex>), CloudError> {
     use axiolid_tetrahedralize::{Delaunay3, Delaunay3Error};
     use glam::DVec3;
     let mut points: Vec<DVec3> = coords.iter().map(|p| DVec3::new(p[0], p[1], p[2])).collect();
@@ -290,7 +283,7 @@ fn delaunay_3d(coords: &[Vec<f64>], labels: &[u32]) -> Result<(usize, Vec<Simple
             let apex_index = points.len();
             points.push(apex);
             let triangulation = Delaunay3::from_points(&points)
-                .map_err(|e| format!("Could not triangulate the points: {e:?}"))?;
+                .map_err(|e| CloudError::Triangulation(format!("{e:?}")))?;
             let triangles = triangulation
                 .tetrahedra()
                 .tetrahedra
@@ -305,7 +298,7 @@ fn delaunay_3d(coords: &[Vec<f64>], labels: &[u32]) -> Result<(usize, Vec<Simple
                 .collect();
             Ok((2, triangles))
         }
-        Err(e) => Err(format!("Could not triangulate the points: {e:?}")),
+        Err(e) => Err(CloudError::Triangulation(format!("{e:?}"))),
     }
 }
 
@@ -765,13 +758,13 @@ pub struct AlphaComplex {
 }
 
 /// The alpha filtration of `points` (each a slice of 2 or 3 coordinates).
-pub fn alpha_complex(points: &[Vec<f64>]) -> Result<AlphaComplex, String> {
+pub fn alpha_complex(points: &[Vec<f64>]) -> Result<AlphaComplex, CloudError> {
     filtered_delaunay(points, DelaunayFiltration::Alpha)
 }
 
 /// The Delaunay–Čech filtration of `points` (each a slice of 2 or 3 coordinates): each simplex of the Delaunay
 /// triangulation at the squared radius of its minimal enclosing ball.
-pub fn delaunay_cech_complex(points: &[Vec<f64>]) -> Result<AlphaComplex, String> {
+pub fn delaunay_cech_complex(points: &[Vec<f64>]) -> Result<AlphaComplex, CloudError> {
     filtered_delaunay(points, DelaunayFiltration::DelaunayCech)
 }
 
@@ -779,7 +772,7 @@ pub fn delaunay_cech_complex(points: &[Vec<f64>]) -> Result<AlphaComplex, String
 pub fn filtered_delaunay(
     points: &[Vec<f64>],
     filtration: DelaunayFiltration,
-) -> Result<AlphaComplex, String> {
+) -> Result<AlphaComplex, CloudError> {
     // Coordinates negligible next to the largest are zero, for the triangulation and the values alike
     let triangulation = delaunay(points)?;
     let flushed = flush(points);
@@ -822,7 +815,7 @@ pub fn filtered_delaunay(
     };
     let mut offsets = vec![0];
     for dim in &simplices {
-        offsets.push(offsets.last().unwrap() + dim.len());
+        offsets.push(offsets[offsets.len() - 1] + dim.len());
     }
     Ok(AlphaComplex {
         simplices,
@@ -965,7 +958,7 @@ impl AlphaComplex {
 
     /// The number of simplices.
     pub fn n_simplices(&self) -> usize {
-        *self.offsets.last().unwrap()
+        self.offsets[self.offsets.len() - 1]
     }
 
     /// The dimension and simplex of a cell of [`filtered`](Self::filtered)'s complex.
@@ -1022,7 +1015,7 @@ pub fn alpha_barcode<R: ColumnRepresentation>(
     method: Method,
     algorithm: Algorithm<'_, R>,
     representatives: bool,
-) -> Result<(AlphaComplex, Vec<AlphaBar>), String> {
+) -> Result<(AlphaComplex, Vec<AlphaBar>), CloudError> {
     delaunay_barcode(
         points,
         DelaunayFiltration::Alpha,
@@ -1044,7 +1037,7 @@ pub fn delaunay_barcode<R: ColumnRepresentation>(
     method: Method,
     algorithm: Algorithm<'_, R>,
     representatives: bool,
-) -> Result<(AlphaComplex, Vec<AlphaBar>), String> {
+) -> Result<(AlphaComplex, Vec<AlphaBar>), CloudError> {
     let complex = filtered_delaunay(points, filtration)?;
     let max_dim = max_dim.unwrap_or(complex.dimension().saturating_sub(1));
     let filtered = complex.filtered(squared);

@@ -5,6 +5,7 @@ use numpy::{
     PyArray1, PyArray2, PyArrayMethods, PyReadonlyArray1, PyUntypedArray, PyUntypedArrayMethods,
 };
 use ordered_float::NotNan;
+use phlite::values::{INFINITY};
 use phlite::{
     barcode::{Algorithm, Method},
     columns::ColumnRepresentation,
@@ -170,7 +171,7 @@ fn read_sparse(matrix: &Bound<'_, PyAny>) -> PyResult<SparseDistances> {
         .zip(data.as_array())
         .map(|((&i, &j), &d)| (i as usize, j as usize, d))
         .collect::<Vec<_>>();
-    SparseDistances::from_edges(rows, edges).map_err(PyValueError::new_err)
+    Ok(SparseDistances::from_edges(rows, edges)?)
 }
 
 fn parse_metric(metric: &str) -> PyResult<Metric> {
@@ -192,9 +193,9 @@ fn read_points(points: &Bound<'_, PyAny>, metric: Metric, threshold: NotNan<f64>
         return Err(PyValueError::new_err("Every coordinate of points must be finite"));
     }
     Ok(if threshold.is_finite() {
-        Input::Sparse(SparseDistances::from_points(&points, metric, threshold).map_err(PyValueError::new_err)?)
+        Input::Sparse(SparseDistances::from_points(&points, metric, threshold)?)
     } else {
-        Input::Dense(metric.distance_matrix(&points))
+        Input::Dense(metric.distance_matrix(&points)?)
     })
 }
 
@@ -269,7 +270,7 @@ fn rips<'py>(
     representatives: bool,
 ) -> PyResult<Bound<'py, PyAny>> {
     let threshold = match threshold {
-        None => NotNan::new(f64::INFINITY).unwrap(),
+        None => INFINITY,
         Some(t) => {
             NotNan::new(t).map_err(|_| PyValueError::new_err("threshold must not be NaN"))?
         }
@@ -365,8 +366,8 @@ impl AlgorithmVisitor for RipsRun {
         let bars = match (self.input, self.weights) {
             (Input::Dense(distances), None) => run!(distances),
             (Input::Sparse(distances), None) => run!(distances),
-            (Input::Dense(distances), Some(weights)) => run!(Weighted::new(distances, &weights).unwrap()),
-            (Input::Sparse(distances), Some(weights)) => run!(Weighted::new(distances, &weights).unwrap()),
+            (Input::Dense(distances), Some(weights)) => run!(Weighted::new(distances, &weights).expect("the weights were checked when read")),
+            (Input::Sparse(distances), Some(weights)) => run!(Weighted::new(distances, &weights).expect("the weights were checked when read")),
         };
         SortedBars::new(bars, self.max_dim + 1, |simplex| {
             let vertices = simplex.to_vec(n_points);
@@ -420,7 +421,7 @@ fn dtm(
             py.detach(|| {
                 distance_to_measure(n, |i| distances[i].iter().map(|d| d.into_inner()).collect(), k, q)
             })
-            .map_err(PyValueError::new_err)
+            .map_err(PyErr::from)
         }
         (None, Some(points)) => {
             let points = read_rows(points, "points")?;
@@ -436,7 +437,7 @@ fn dtm(
                     q,
                 )
             })
-            .map_err(PyValueError::new_err)
+            .map_err(PyErr::from)
         }
         (Some(_), Some(_)) => Err(PyValueError::new_err("Give either a distance matrix or points, not both")),
         (None, None) => Err(PyValueError::new_err("Give a distance matrix (the first argument) or points")),

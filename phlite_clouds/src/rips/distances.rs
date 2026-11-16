@@ -7,6 +7,10 @@
 //! of edges rather than its square.
 
 use ordered_float::NotNan;
+use phlite::values::{INFINITY, ZERO};
+
+pub use crate::error::check_points;
+use crate::error::CloudError;
 
 /// The distances between the points of a Rips filtration.
 ///
@@ -27,7 +31,7 @@ pub trait Distances: Sync {
     /// must be at least both their births.
     #[inline(always)]
     fn birth(&self, _v: usize) -> NotNan<f64> {
-        NotNan::new(0.0).unwrap()
+        ZERO
     }
 
     /// Every vertex `w >= from` (other than `v`) whose distance to `v` might be finite, in increasing order (it may
@@ -47,10 +51,10 @@ pub trait Distances: Sync {
                     .filter(|&j| j != i)
                     .map(|j| self.distance(i, j))
                     .max()
-                    .unwrap_or(NotNan::new(0.0).unwrap())
+                    .unwrap_or(ZERO)
             })
             .min()
-            .unwrap_or(NotNan::new(f64::INFINITY).unwrap())
+            .unwrap_or(INFINITY)
     }
 
     /// The vertex of smallest degree among `vertices` (the first, if they tie), or `None` if there are none.
@@ -237,26 +241,21 @@ impl SparseDistances {
     pub fn from_edges(
         n_points: usize,
         edges: impl IntoIterator<Item = (usize, usize, f64)>,
-    ) -> Result<Self, String> {
+    ) -> Result<Self, CloudError> {
         if u32::try_from(n_points).is_err() {
-            return Err(format!("Too many points ({n_points})"));
+            return Err(CloudError::TooManyPoints { n_points });
         }
         let mut entries: Vec<(u32, u32, NotNan<f64>)> = vec![];
         for (i, j, d) in edges {
             if i >= n_points || j >= n_points {
-                return Err(format!(
-                    "Edge ({i}, {j}) is out of range for {n_points} points"
-                ));
+                return Err(CloudError::PointOutOfRange { i, j, n_points });
             }
-            if d.is_nan() || d < 0.0 {
-                return Err(format!(
-                    "The distance between {i} and {j} is {d}, but distances must be non-negative (or infinite)"
-                ));
-            }
+            let Some(d) = NotNan::new(d).ok().filter(|d| d.into_inner() >= 0.0) else {
+                return Err(CloudError::BadDistance { i, j, distance: d });
+            };
             if i == j || d.is_infinite() {
                 continue;
             }
-            let d = NotNan::new(d).unwrap();
             entries.push((i as u32, j as u32, d));
             entries.push((j as u32, i as u32, d));
         }
@@ -267,10 +266,12 @@ impl SparseDistances {
             match deduped.last() {
                 Some(&(i, j, d)) if (i, j) == (entry.0, entry.1) => {
                     if d != entry.2 {
-                        return Err(format!(
-                            "The distance between {i} and {j} is given as both {d} and {}",
-                            entry.2
-                        ));
+                        return Err(CloudError::ConflictingDistances {
+                            i: i as usize,
+                            j: j as usize,
+                            first: d.into_inner(),
+                            second: entry.2.into_inner(),
+                        });
                     }
                 }
                 _ => deduped.push(entry),
@@ -299,11 +300,9 @@ impl SparseDistances {
         points: &[Vec<f64>],
         metric: Metric,
         threshold: NotNan<f64>,
-    ) -> Result<Self, String> {
+    ) -> Result<Self, CloudError> {
+        check_points(points)?;
         let n = points.len();
-        if u32::try_from(n).is_err() {
-            return Err(format!("Too many points ({n})"));
-        }
         // Each pair once, then each edge into both rows (in increasing order, since i and then j increase)
         let mut rows: Vec<Vec<(u32, NotNan<f64>)>> = vec![vec![]; n];
         for i in 0..n {
@@ -318,7 +317,7 @@ impl SparseDistances {
         let mut indptr = Vec::with_capacity(n + 1);
         indptr.push(0);
         for row in &rows {
-            indptr.push(indptr.last().unwrap() + row.len());
+            indptr.push(indptr[indptr.len() - 1] + row.len());
         }
         Ok(Self {
             indptr,
@@ -349,7 +348,7 @@ impl Distances for SparseDistances {
         let (indices, values) = self.row(i);
         match indices.binary_search(&(j as u32)) {
             Ok(k) => values[k],
-            Err(_) => NotNan::new(f64::INFINITY).unwrap(),
+            Err(_) => INFINITY,
         }
     }
 
@@ -376,10 +375,10 @@ impl Distances for SparseDistances {
                     .iter()
                     .copied()
                     .max()
-                    .unwrap_or(NotNan::new(0.0).unwrap())
+                    .unwrap_or(ZERO)
             })
             .min()
-            .unwrap_or(NotNan::new(f64::INFINITY).unwrap())
+            .unwrap_or(INFINITY)
     }
 }
 
@@ -399,18 +398,29 @@ pub struct Weighted<D> {
 
 impl<D: Distances> Weighted<D> {
     /// `distances` with a finite weight for every point.
-    pub fn new(distances: D, weights: &[f64]) -> Result<Self, String> {
+    ///
+    /// # Errors
+    /// If there isn't one weight per point, or a weight is infinite or `NaN`.
+    pub fn new(distances: D, weights: &[f64]) -> Result<Self, CloudError> {
         let n = distances.n_points();
         if weights.len() != n {
-            return Err(format!("There are {} weights for {n} points", weights.len()));
+            return Err(CloudError::WrongNumberOfWeights {
+                weights: weights.len(),
+                n_points: n,
+            });
         }
-        if let Some(i) = weights.iter().position(|w| !w.is_finite()) {
-            return Err(format!("Weights must be finite, but weight {i} is {}", weights[i]));
+        if let Some(point) = weights.iter().position(|w| !w.is_finite()) {
+            return Err(CloudError::BadWeight {
+                point,
+                weight: weights[point],
+            });
         }
+        // Finite, so neither these nor twice them are NaN
+        let finite = |w: f64| NotNan::new(w).expect("finite");
         Ok(Self {
             distances,
-            births: weights.iter().map(|&w| NotNan::new(2.0 * w).unwrap()).collect(),
-            weights: weights.iter().map(|&w| NotNan::new(w).unwrap()).collect(),
+            births: weights.iter().map(|&w| finite(2.0 * w)).collect(),
+            weights: weights.iter().map(|&w| finite(w)).collect(),
         })
     }
 }
@@ -434,7 +444,7 @@ impl<D: Distances> Distances for Weighted<D> {
         // (NaN only from inf + -inf, impossible with finite weights.)
         let (lo, hi) = (i.min(j), i.max(j));
         // (The larger index's weight first, as GUDHI adds them, so that the values agree to the last bit)
-        let sum = NotNan::new(*d + *self.weights[hi] + *self.weights[lo]).unwrap();
+        let sum = NotNan::new(*d + *self.weights[hi] + *self.weights[lo]).expect("a sum of finite weights and a finite distance");
         sum.max(self.births[i]).max(self.births[j])
     }
 
@@ -471,7 +481,7 @@ impl<D: Distances> Distances for Weighted<D> {
     /// has appeared, since each edge appears after its ends), looking only at each point's neighbours.
     fn enclosing_radius(&self) -> NotNan<f64> {
         let n = self.n_points();
-        let infinity = NotNan::new(f64::INFINITY).unwrap();
+        let infinity = INFINITY;
         (0..n)
             .map(|i| {
                 let mut others = 0;
@@ -494,12 +504,12 @@ impl<D: Distances> Distances for Weighted<D> {
 /// The distance to measure of each point (Chazal, Cohen-Steiner and Mérigot), as GUDHI's `DistanceToMeasure`:
 /// `(sum of d^q over its k nearest points, itself included) / k)^(1/q)`, from each point's distances to every point
 /// (`row(i)` gives point `i`'s, its own included). With `k = 1` every weight is 0.
-pub fn distance_to_measure(n: usize, row: impl Fn(usize) -> Vec<f64>, k: usize, q: f64) -> Result<Vec<f64>, String> {
+pub fn distance_to_measure(n: usize, row: impl Fn(usize) -> Vec<f64>, k: usize, q: f64) -> Result<Vec<f64>, CloudError> {
     if k == 0 || k > n {
-        return Err(format!("k must be between 1 and the number of points ({n}), not {k}"));
+        return Err(CloudError::BadK { k, n_points: n });
     }
     if !(q.is_finite() && q > 0.0) {
-        return Err(format!("q must be positive and finite, not {q}"));
+        return Err(CloudError::BadQ { q });
     }
     Ok((0..n)
         .map(|i| {
@@ -527,6 +537,10 @@ pub enum Metric {
 
 impl Metric {
     /// The distance between `x` and `y` (of the same length, with finite coordinates).
+    ///
+    /// # Panics
+    /// If a coordinate is infinite or `NaN` (check points with [`check_points`] first). Points of different lengths
+    /// aren't checked: the extra coordinates of the longer are ignored.
     pub fn distance(self, x: &[f64], y: &[f64]) -> NotNan<f64> {
         let diffs = x.iter().zip(y).map(|(a, b)| (a - b).abs());
         let d = match self {
@@ -540,9 +554,13 @@ impl Metric {
     /// The dense distance matrix of `points`.
     ///
     /// Computed serially, as for [`SparseDistances::from_points`], and each pair once.
-    pub fn distance_matrix(self, points: &[Vec<f64>]) -> Vec<Vec<NotNan<f64>>> {
+    ///
+    /// # Errors
+    /// As [`check_points`]: points of different lengths, or with a coordinate that is infinite or `NaN`.
+    pub fn distance_matrix(self, points: &[Vec<f64>]) -> Result<Vec<Vec<NotNan<f64>>>, CloudError> {
+        check_points(points)?;
         let n = points.len();
-        let mut matrix = vec![vec![NotNan::new(0.0).unwrap(); n]; n];
+        let mut matrix = vec![vec![NotNan::default(); n]; n];
         for i in 0..n {
             for j in (i + 1)..n {
                 let d = self.distance(&points[i], &points[j]);
@@ -550,7 +568,7 @@ impl Metric {
                 matrix[j][i] = d;
             }
         }
-        matrix
+        Ok(matrix)
     }
 }
 
@@ -597,6 +615,26 @@ mod tests {
         assert!(SparseDistances::from_edges(2, [(0, 1, 1.0), (1, 0, 2.0)]).is_err());
         assert!(SparseDistances::from_edges(2, [(0, 2, 1.0)]).is_err());
         assert!(SparseDistances::from_edges(2, [(0, 1, -1.0)]).is_err());
+        assert!(matches!(
+            SparseDistances::from_edges(2, [(0, 1, f64::NAN)]),
+            Err(CloudError::BadDistance { i: 0, j: 1, .. })
+        ));
+        // Points: non-finite coordinates and ragged rows are errors (they used to panic, or be silently truncated)
+        let nan = vec![vec![0.0, 0.0], vec![f64::NAN, 1.0]];
+        let ragged = vec![vec![0.0, 0.0], vec![1.0]];
+        for metric in [Metric::Euclidean, Metric::Manhattan, Metric::Chebyshev] {
+            assert_eq!(
+                SparseDistances::from_points(&nan, metric, NotNan::new(1.0).unwrap()),
+                Err(CloudError::NonFiniteCoordinate { point: 1 })
+            );
+            assert_eq!(metric.distance_matrix(&nan), Err(CloudError::NonFiniteCoordinate { point: 1 }));
+            assert_eq!(
+                metric.distance_matrix(&ragged),
+                Err(CloudError::WrongDimension { point: 1, len: 1, expected: 2 })
+            );
+        }
+        assert!(matches!(Weighted::new(vec![vec![NotNan::default()]], &[f64::INFINITY]), Err(CloudError::BadWeight { point: 0, .. })));
+        assert_eq!(distance_to_measure(3, |_| vec![0.0; 3], 4, 2.0), Err(CloudError::BadK { k: 4, n_points: 3 }));
         let one_way = SparseDistances::from_edges(3, [(2, 0, 1.5), (1, 1, 7.0)]).unwrap();
         let both = SparseDistances::from_edges(3, [(0, 2, 1.5), (2, 0, 1.5)]).unwrap();
         assert_eq!(one_way, both);

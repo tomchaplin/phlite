@@ -38,8 +38,9 @@
 //! use phlite_networks::pph::{pph_barcode, Network, PPHBar};
 //! 
 //! // A directed 4-cycle a -> b -> c -> d -> a, then its chords
-//! let network = Network::from_edges(4, &[(0, 1, 1.0), (1, 2, 1.0), (2, 3, 1.0), (3, 0, 1.0), (0, 2, 2.0), (2, 0, 2.0)]);
+//! let network = Network::from_edges(4, &[(0, 1, 1.0), (1, 2, 1.0), (2, 3, 1.0), (3, 0, 1.0), (0, 2, 2.0), (2, 0, 2.0)])?;
 //! let bars: Vec<PPHBar<Z2>> = pph_barcode(&network, 2, Method::Cohomology, Algorithm::default(), true);
+//! # Ok::<(), phlite_networks::NetworkError>(())
 //! ```
 //!
 //! Each bar has a `birth` path (its dimension is the bar's dimension), `birth_value`, an optional `death` and, if
@@ -54,6 +55,9 @@
 use std::marker::PhantomData;
 
 use ordered_float::NotNan;
+use phlite::values::{INFINITY};
+
+use crate::error::{check_edges, NetworkError};
 use phlite::{
     barcode::{self, Algorithm, Bar},
     columns::ColumnRepresentation,
@@ -155,7 +159,7 @@ fn undigit(d: u64, prev: u16) -> u16 {
 type Time = NotNan<f64>;
 
 fn infinity() -> Time {
-    NotNan::new(f64::INFINITY).unwrap()
+    INFINITY
 }
 
 /// A weighted digraph: the edge `a -> b` enters the filtration at its weight.
@@ -176,23 +180,25 @@ impl Network {
     /// A network on `n_vertices` vertices with the given `(source, target, weight)` edges, all vertices present at time 0.
     /// Repeated edges keep the smallest weight; an infinite weight means no edge.
     ///
-    /// # Panics
-    /// If an edge is a self-loop, has a vertex out of range, or has a NaN or negative weight.
-    pub fn from_edges(n_vertices: u16, edges: &[(u16, u16, f64)]) -> Self {
+    /// # Errors
+    /// If an edge has an endpoint out of range, is a self-loop, or has a negative or `NaN` weight.
+    pub fn from_edges(n_vertices: u16, edges: &[(u16, u16, f64)]) -> Result<Self, NetworkError> {
+        check_edges(
+            n_vertices as u32,
+            &edges.iter().map(|&(a, b, w)| (a as u32, b as u32, w)).collect::<Vec<_>>(),
+        )?;
         let n = n_vertices as usize;
         let mut times = vec![None; n * n];
         for &(a, b, w) in edges {
-            assert!(a != b, "self-loops are not supported");
-            assert!(a < n_vertices && b < n_vertices, "vertex out of range");
-            assert!(w >= 0.0, "edge weights must be non-negative (and not NaN)");
-            if w == f64::INFINITY {
+            // Checked: not NaN
+            let Ok(w) = NotNan::new(w) else { continue };
+            if w.is_infinite() {
                 continue;
             }
-            let w = NotNan::new(w).unwrap();
             let slot: &mut Option<Time> = &mut times[a as usize * n + b as usize];
             *slot = Some(slot.map_or(w, |old| old.min(w)));
         }
-        Self::from_times(n_vertices, times, NotNan::new(0.0).unwrap())
+        Ok(Self::from_times(n_vertices, times, NotNan::default()))
     }
 
     fn from_times(n_vertices: u16, times: Vec<Option<Time>>, vertex_time: Time) -> Self {
@@ -218,30 +224,38 @@ impl Network {
 
     /// A network from a square weight matrix, `weights[a][b]` being the weight of `a -> b`.
     /// The diagonal is ignored and an infinite weight means no edge.
-    pub fn from_dense(weights: &[Vec<f64>]) -> Self {
+    ///
+    /// # Errors
+    /// If the matrix isn't square, has more than `u16::MAX` rows, or an off-diagonal weight is negative or `NaN`.
+    pub fn from_dense(weights: &[Vec<f64>]) -> Result<Self, NetworkError> {
         let n = weights.len();
+        if n > u16::MAX as usize {
+            return Err(NetworkError::TooManyVertices {
+                n_vertices: n,
+                max: u16::MAX as usize,
+            });
+        }
+        if let Some((row, r)) = weights.iter().enumerate().find(|(_, r)| r.len() != n) {
+            return Err(NetworkError::NotSquare { row, len: r.len(), n });
+        }
         let edges: Vec<_> = (0..n)
             .flat_map(|a| (0..n).map(move |b| (a, b)))
             .filter(|(a, b)| a != b)
-            .map(|(a, b)| {
-                assert!(weights[a].len() == n, "weight matrix must be square");
-                (a as u16, b as u16, weights[a][b])
-            })
+            .map(|(a, b)| (a as u16, b as u16, weights[a][b]))
             .collect();
         Self::from_edges(n as u16, &edges)
     }
 
     /// Set the time at which vertices (and so the 0-dimensional bars) are born, 0 by default.
-    pub fn with_vertex_time(mut self, time: f64) -> Self {
-        self.vertex_time = NotNan::new(time).unwrap();
+    pub fn with_vertex_time(mut self, time: NotNan<f64>) -> Self {
+        self.vertex_time = time;
         self
     }
 
     /// The network with every edge of weight above `t_max` removed, i.e. the filtration truncated at `t_max`.
     /// Its barcode agrees with the full barcode up to `t_max`: bars still alive at `t_max` become essential.
     /// Since allow times only grow as paths are extended, this prunes the enumeration of paths, so is much cheaper.
-    pub fn truncate(&self, t_max: f64) -> Self {
-        let t_max = NotNan::new(t_max).unwrap();
+    pub fn truncate(&self, t_max: NotNan<f64>) -> Self {
         let times = self
             .times
             .iter()
@@ -359,6 +373,9 @@ impl Network {
     ///
     /// Each dimension is built from the last by appending out-neighbours, in parallel on the current rayon thread pool
     /// if `parallel`.
+    ///
+    /// # Panics
+    /// If `max_dim` is more than [`max_dimension`](Self::max_dimension).
     pub fn allowed_paths(&self, max_dim: usize, parallel: bool) -> Vec<Vec<(Time, RegularPath)>> {
         assert!(
             max_dim <= self.max_dimension(),
@@ -595,6 +612,9 @@ impl<CF: NonZeroCoefficient> HasRowFiltration for PPHCoboundary<'_, CF> {
 }
 
 /// The column basis for reducing the boundary matrix: allowed paths in dimensions `0..=max_dim + 1`, in filtration order.
+///
+/// # Panics
+/// If `max_dim + 1` is more than [`Network::max_dimension`].
 pub fn homology_basis(network: &Network, max_dim: usize, parallel: bool) -> SplitBasis<RegularPath> {
     SplitBasis::from_dimensions(
         network
@@ -607,6 +627,9 @@ pub fn homology_basis(network: &Network, max_dim: usize, parallel: bool) -> Spli
 /// The column basis for reducing the coboundary matrix: in each dimension `0..=max_dim`, the allowed paths and then the
 /// never-allowed faces of allowed paths one dimension up (which are rows of the boundary matrix, so must be columns here,
 /// at `+∞`), in filtration order. Paths of dimension `max_dim + 1` are never enumerated.
+///
+/// # Panics
+/// If `max_dim + 1` is more than [`Network::max_dimension`] (the faces one dimension up are still encoded).
 pub fn cohomology_basis(network: &Network, max_dim: usize, parallel: bool) -> SplitBasis<RegularPath> {
     let allowed = network.allowed_paths(max_dim, parallel);
     let never_allowed = network.never_allowed_faces(&allowed, max_dim, parallel);
@@ -672,6 +695,9 @@ where
 
 /// As [`pph_barcode`], choosing whether to enumerate paths in parallel on the current rayon thread pool
 /// (`parallel_setup`, which [`pph_barcode`] does only for the parallel algorithm), whatever the algorithm.
+///
+/// # Panics
+/// As [`pph_barcode`]: if paths of dimension `max_dim + 1` can't be encoded, see [`Network::max_dimension`].
 pub fn pph_barcode_with<CF, R>(
     network: &Network,
     max_dim: usize,

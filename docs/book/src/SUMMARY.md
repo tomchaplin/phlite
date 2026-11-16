@@ -29,6 +29,7 @@
 # How phlite is built
 
 - [Matrix oracles](design/oracles.md)
+- [The contract](design/contract.md)
 - [From a matrix to a barcode](design/barcodes.md)
 
 # Reduction algorithms

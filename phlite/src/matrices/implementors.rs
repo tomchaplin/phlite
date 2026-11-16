@@ -17,11 +17,14 @@ use std::fmt::Debug;
 
 // ====== VecVecMatrix =========================
 
-/// A sprase matrix stored as a [`Vec<Column>`] where each `Column` is a vector of the non-zero entries.
+/// A sparse matrix stored as a [`Vec<Column>`] where each `Column` is a vector of the non-zero entries.
 /// The columns are indexed by [`usize`] and the rows are indexed by an arbitrary type.
 ///
 /// This is similar to the typical sparse matrix representation in other frameworks.
 /// Although note this is not in CSR/CSC format!
+///
+/// # Panics
+/// [`column`](MatrixOracle::column) panics for a column index past the last column.
 pub struct VecVecMatrix<'a, CF: NonZeroCoefficient, RowT: BasisElement> {
     /// The columns of the matrix.
     /// This is stored behind a [`Cow`] to allow construction whether you own `columns` or not
@@ -73,7 +76,11 @@ impl<'a, CF: NonZeroCoefficient, RowT: BasisElement> MatrixOracle for VecVecMatr
         &self,
         col: Self::ColT,
     ) -> impl Iterator<Item = (Self::CoefficientField, Self::RowT)> {
-        self.columns.get(col).unwrap().iter().cloned()
+        self.columns
+            .get(col)
+            .unwrap_or_else(|| panic!("column {col} of a {}-column VecVecMatrix", self.columns.len()))
+            .iter()
+            .cloned()
     }
 }
 
@@ -161,10 +168,13 @@ impl ColBasis for StandardBasis {
 // TODO: Should give this a basis.
 // Can we do this by saving a reference to the basis or do I need to use an ordered map?
 
-/// A sprase matrix stored as a [`FxHashMap<Column>`] where each `Column` is a vector of the non-zero entries.
+/// A sparse matrix stored as a [`FxHashMap<Column>`] where each `Column` is a vector of the non-zero entries.
 /// The columns are indexed by any [`Hash`] type and the rows are indexed by an arbitrary type.
 ///
 /// This is similar to the typical sparse matrix representation in other frameworks.
+///
+/// # Panics
+/// [`column`](MatrixOracle::column) panics for a column that isn't one of the map's keys.
 pub struct MapVecMatrix<'a, CF, ColT, RowT>
 where
     CF: NonZeroCoefficient,
@@ -190,7 +200,11 @@ where
         &self,
         col: Self::ColT,
     ) -> impl Iterator<Item = (Self::CoefficientField, Self::RowT)> {
-        self.columns.get(&col).unwrap().iter().cloned()
+        self.columns
+            .get(&col)
+            .expect("a column of a MapVecMatrix is one of its keys")
+            .iter()
+            .cloned()
     }
 }
 

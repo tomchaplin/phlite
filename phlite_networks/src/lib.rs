@@ -11,6 +11,9 @@
 //! into coboundary and boundary oracles with Ripser's optimisations, on the digraphs of [`digraph`] and the packed
 //! simplices of [`simplex`].
 //!
+//! Every constructor taking weighted edges checks them, and returns a [`NetworkError`] for an endpoint out of range, a
+//! self-loop or a negative or `NaN` weight (an infinite weight is an edge that never appears).
+//!
 //! With the feature `python`, this crate is also the Python package `phlite-networks`, `phlite.networks` (its
 //! bindings are in `src/python`, one file per pipeline; see `phlite_bindings` for how to add one). The
 //! `phlite_networks_grpph` binary times GrPPH on a complete digraph, and `phlite_networks_pph` computes PPH of networks read
@@ -21,6 +24,7 @@
 
 pub mod digraph;
 pub mod dowker;
+pub mod error;
 pub mod flag;
 pub mod grpph;
 pub mod lazy;
@@ -28,6 +32,8 @@ pub mod pph;
 pub mod simplex;
 #[cfg(feature = "python")]
 mod python;
+
+pub use error::NetworkError;
 
 /// What `phlite_networks_stub_gen` writes: `python/phlite/networks/__init__.pyi`.
 #[cfg(feature = "python")]

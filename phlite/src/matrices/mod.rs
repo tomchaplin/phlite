@@ -60,6 +60,7 @@ pub use self::bases::{BasisSlice, SplitBasis};
 pub mod adaptors;
 pub mod bases;
 pub mod combinators;
+pub mod contract;
 pub mod implementors;
 #[cfg(test)]
 mod tests;

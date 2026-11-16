@@ -72,9 +72,9 @@ fn pph_of_shortest_paths_matches_grpph_without_grounding() {
             }
         }
         let d = shortest_paths(n, &edges);
-        let network = Network::from_dense(&d);
+        let network = Network::from_dense(&d).unwrap();
 
-        let filtration = build_filtration(n as u32, &edges);
+        let filtration = build_filtration(n as u32, &edges).unwrap();
         let expected = grpph_barcode(
             &filtration,
             &DigraphEdgeSet::default(),

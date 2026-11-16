@@ -38,6 +38,19 @@ which is exactly what this oracle avoids, and they pay when many columns need ge
 case here. If your complex is like that, build it explicitly with [`phlite.complexes`](../python/complexes.md),
 which applies them all.
 
+## Check it
+
+Before trusting your barcodes, check your matrix against [the contract](../design/contract.md) on a few small inputs.
+Every hook added in steps 4 to 7 is something a reduction relies on without checking:
+
+```rust,ignore
+use phlite::matrices::contract::{check_coboundary, check_split_basis, check_transposes, Direction};
+
+check_coboundary(&coboundary)?;                          // a filtration, D² = 0, the basis in order, every hook
+check_split_basis(&coboundary, Direction::Coboundary)?;  // each dimension's cells in order
+check_transposes(&coboundary, coboundary.transpose())?;  // the attached transpose
+```
+
 ## Next
 
 The same ideas, applied to Vietoris–Rips with much more care over enumerating cofacets, are `phlite_clouds::rips`; its source

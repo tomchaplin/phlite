@@ -77,16 +77,23 @@ impl FlagComplex {
     /// The complex of `graph` grounded at `base_edges`: those edges (whatever their weight in `graph`, or even if
     /// they aren't edges of `graph`) are present from time 0, as 1-simplices. Only the barcode in dimensions 0 and 1
     /// is meaningful.
-    pub fn grounded(kind: Kind, graph: Digraph, base_edges: impl IntoIterator<Item = (u32, u32)>) -> Self {
+    ///
+    /// # Errors
+    /// If a base edge has an endpoint outside the graph's nodes, or is a self-loop.
+    pub fn grounded(
+        kind: Kind,
+        graph: Digraph,
+        base_edges: impl IntoIterator<Item = (u32, u32)>,
+    ) -> Result<Self, crate::NetworkError> {
         let edges = graph
             .edges()
             .map(|(a, b, w)| (a, b, w.into_inner()))
             .chain(base_edges.into_iter().map(|(a, b)| (a, b, 0.0)));
-        let grounded_edges = Digraph::new(graph.n_vertices(), edges);
-        Self {
+        let grounded_edges = Digraph::new(graph.n_vertices(), edges)?;
+        Ok(Self {
             grounded_edges: Some(grounded_edges),
             ..Self::new(kind, graph)
-        }
+        })
     }
 
     pub fn kind(&self) -> Kind {
@@ -457,12 +464,12 @@ mod tests {
         graphs()
             .into_iter()
             .flat_map(|(n, edges)| {
-                let graph = Digraph::new(n, edges.iter().copied());
+                let graph = Digraph::new(n, edges.iter().copied()).unwrap();
                 let base = edges.iter().step_by(2).map(|&(a, b, _)| (a, b));
                 [
                     FlagComplex::new(Kind::DirectedFlag, graph.clone()),
                     FlagComplex::new(Kind::OrderedTuples, graph.clone()),
-                    FlagComplex::grounded(Kind::DirectedFlag, graph, base),
+                    FlagComplex::grounded(Kind::DirectedFlag, graph, base).unwrap(),
                 ]
             })
             .collect()
@@ -638,7 +645,7 @@ mod tests {
     }
 
     fn bars_of(kind: Kind, n: u32, edges: &[(u32, u32, f64)], max_dim: usize) -> Vec<(usize, f64, Option<f64>)> {
-        let complex = FlagComplex::new(kind, Digraph::new(n, edges.iter().copied()));
+        let complex = FlagComplex::new(kind, Digraph::new(n, edges.iter().copied()).unwrap());
         summary(&barcode(
             &complex,
             max_dim,
@@ -708,9 +715,10 @@ mod tests {
         let edges = [(0, 1, 1.0), (1, 2, 1.0), (2, 3, 1.0), (3, 0, 1.0)];
         let complex = FlagComplex::grounded(
             Kind::DirectedFlag,
-            Digraph::shortest_paths(4, &edges),
+            Digraph::shortest_paths(4, &edges).unwrap(),
             edges.iter().map(|&(a, b, _)| (a, b)),
-        );
+        )
+        .unwrap();
         let bars = summary(&barcode(&complex, 1, Method::Cohomology, Algorithm::default(), true));
         assert_eq!(bars, vec![(0, 0.0, None), (1, 0.0, Some(3.0))]);
     }

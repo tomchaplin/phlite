@@ -144,10 +144,11 @@ impl<RowT: Hash + Eq + Clone + Send + Sync, CF: Send + Sync> Backend<RowT, CF>
         }
     }
     fn load(&self, j: usize) -> Option<Snapshot<RowT, CF>> {
-        self.published[j].read().unwrap().clone()
+        // A poisoned lock means another thread panicked mid-store: that panic is already propagating
+        self.published[j].read().expect("no thread panicked while publishing").clone()
     }
     fn store(&self, j: usize, snapshot: Snapshot<RowT, CF>) {
-        *self.published[j].write().unwrap() = Some(snapshot);
+        *self.published[j].write().expect("no thread panicked while publishing") = Some(snapshot);
     }
 }
 
@@ -404,7 +405,7 @@ where
                     v.add_tuple((multiple, owner, ()));
                 }
                 Some(Owner::Published(owner, snapshot)) if owner < w => {
-                    let owner_coeff = snapshot.pivot.as_ref().unwrap().1;
+                    let owner_coeff = snapshot.pivot.as_ref().expect("a pivot owner has a pivot").1;
                     let multiple = coeff.additive_inverse() * owner_coeff.mult_inverse();
                     let label = &self.cols[owner];
                     for (c, k) in v_entries(&snapshot, label) {

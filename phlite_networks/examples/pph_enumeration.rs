@@ -40,7 +40,7 @@ fn main() {
             }
         }
     }
-    let network = Network::from_edges(n, &edges);
+    let network = Network::from_edges(n, &edges).unwrap();
     let start = Instant::now();
     let basis = cohomology_basis(&network, max_dim, true);
     let enumeration = start.elapsed();

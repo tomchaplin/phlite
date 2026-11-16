@@ -2,7 +2,7 @@
 
 use phlite::{
     barcode::Field,
-    fields::{NonZeroCoefficient, Z2, ZP},
+    fields::{Z2, ZP},
 };
 use std::fmt::Debug;
 
@@ -30,8 +30,6 @@ impl IntField for Z2 {
     }
 }
 
-// `ZP`'s representation is private, so we build elements by adding up ones.
-// The moduli we support are tiny, so this is cheap, and it only happens on input and output.
 impl<const P: u8> IntField for ZP<P>
 where
     ZP<P>: Field,
@@ -39,22 +37,11 @@ where
     const MODULUS: u64 = P as u64;
 
     fn from_int(value: i64) -> Option<Self> {
-        let residue = value.rem_euclid(P as i64);
-        if residue == 0 {
-            return None;
-        }
-        let one = Self::one();
-        let mut x = one;
-        for _ in 1..residue {
-            x = (x + one).expect("a sum of fewer than P ones is non-zero");
-        }
-        Some(x)
+        Self::new(value.rem_euclid(P as i64) as u8)
     }
 
     fn to_int(self) -> u64 {
-        (1..P as i64)
-            .find(|&k| Self::from_int(k) == Some(self))
-            .expect("every non-zero element is a sum of ones") as u64
+        self.value() as u64
     }
 }
 

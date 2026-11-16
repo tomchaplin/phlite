@@ -13,7 +13,7 @@ use phlite_bindings::{
     algorithm_from_py, parse_method, AlgorithmDefaults, AlgorithmVisitor, Columns, SortedBars,
 };
 
-use super::graph::read_graph;
+use super::graph::{network_error, read_graph};
 use crate::grpph::{
     build_edge_set, build_filtration,
     coboundary::{DigraphEdgeSet, PathHomCell, VecDigraphFiltration},
@@ -122,8 +122,8 @@ pub(super) fn path_homology<'py>(
     let method = parse_method(method)?;
     let algorithm = algorithm_from_py(algorithm.as_ref(), defaults)?;
 
+    let filtration = py.detach(|| build_filtration(n_vertices, &edges)).map_err(network_error)?;
     let bars = py.detach(|| {
-        let filtration = build_filtration(n_vertices, &edges);
         let edge_set = if grounded {
             build_edge_set(&edges)
         } else {

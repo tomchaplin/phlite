@@ -23,6 +23,8 @@ pub mod coboundary;
 use coboundary::{PathHomCell, VecDigraphFiltration};
 use log::info;
 use ordered_float::NotNan;
+
+use crate::error::{check_edges, NetworkError};
 use petgraph::{algo::dijkstra, graph::NodeIndex, Graph};
 use phlite::{
     barcode::{self, Algorithm, Bar},
@@ -41,13 +43,23 @@ use crate::grpph::{
 ///
 /// Edges with infinite weight are ignored (they are still part of the graph for the purposes of grounding,
 /// see [`build_edge_set`]).
-pub fn build_filtration(n_vertices: u32, edges: &[(u32, u32, f64)]) -> VecDigraphFiltration {
-    // Build graph
+///
+/// # Errors
+/// If an edge has an endpoint outside `0..n_vertices`, is a self-loop, or has a negative or `NaN` weight (Dijkstra's
+/// algorithm needs non-negative weights), or if there are more than `u16::MAX` nodes (GrPPH's cells are pairs of
+/// `u16`s).
+pub fn build_filtration(n_vertices: u32, edges: &[(u32, u32, f64)]) -> Result<VecDigraphFiltration, NetworkError> {
+    check_edges(n_vertices, edges)?;
+    if n_vertices > u16::MAX as u32 {
+        return Err(NetworkError::TooManyVertices {
+            n_vertices: n_vertices as usize,
+            max: u16::MAX as usize,
+        });
+    }
+    // Build graph, node i being NodeIndex i
     let mut g = Graph::<(), f64>::new();
-    // Add all nodes
-    for i in 0..n_vertices {
-        let new_index = g.add_node(());
-        assert!(new_index.index() == i as usize)
+    for _ in 0..n_vertices {
+        g.add_node(());
     }
     // Add all edges with finite weight
     // We remove edges with infinite weights because we want finite shortest-path times
@@ -67,12 +79,13 @@ pub fn build_filtration(n_vertices: u32, edges: &[(u32, u32, f64)]) -> VecDigrap
                     sp_lengths
                         .get(&NodeIndex::new(j as usize))
                         .copied()
-                        .map(|t| NotNan::new(t).unwrap())
+                        // The length of a path of non-negative, non-NaN weights is not NaN
+                        .map(|t| NotNan::new(t).expect("path lengths are not NaN"))
                 })
                 .collect(),
         );
     }
-    filtration
+    Ok(filtration)
 }
 
 /// The edges of the digraph, all of which appear at time 0 in the grounded filtration.
@@ -236,7 +249,7 @@ mod tests {
 
     fn every_method_and_algorithm_agree_with<R: ColumnRepresentation>() {
         let (n, edges) = reps_example();
-        let filtration = build_filtration(n, &edges);
+        let filtration = build_filtration(n, &edges).unwrap();
         let edge_set = build_edge_set(&edges);
         let expected = vec![
             (0, 0.0, None),
@@ -274,7 +287,7 @@ mod tests {
     #[test]
     fn representatives_are_cycles() {
         let (n, edges) = reps_example();
-        let filtration = build_filtration(n, &edges);
+        let filtration = build_filtration(n, &edges).unwrap();
         let edge_set = build_edge_set(&edges);
         for method in [Method::Cohomology, Method::Homology] {
             let bars = grpph_barcode(

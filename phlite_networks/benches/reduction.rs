@@ -58,7 +58,7 @@ fn storages() -> Vec<(&'static str, Storage)> {
 fn reduction(c: &mut Criterion) {
     for (n, p) in CASES {
         let edges = random_edges(n, p, 5);
-        let filtration = build_filtration(n, &edges);
+        let filtration = build_filtration(n, &edges).unwrap();
         let edge_set = build_edge_set(&edges);
         let coboundary = GrPPHCoboundary::<Z2, _>::build(&filtration, &edge_set, n as u16);
         let matrix = coboundary.by_ref().reverse();

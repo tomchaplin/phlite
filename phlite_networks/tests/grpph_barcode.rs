@@ -93,7 +93,7 @@ fn methods_and_algorithms_agree_on_random_digraphs() {
         for &p in &[0.2, 0.4, 0.8] {
             for seed in 0..4u64 {
                 let edges = random_edges(n, p, seed * 1000 + n as u64);
-                let filtration = build_filtration(n, &edges);
+                let filtration = build_filtration(n, &edges).unwrap();
                 let edge_set = build_edge_set(&edges);
                 let reference = summary(&grpph_barcode(
                     &filtration,

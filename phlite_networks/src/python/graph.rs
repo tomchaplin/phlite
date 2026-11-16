@@ -136,6 +136,11 @@ pub(crate) fn read_graph(
 
 /// Read the `filtration` argument: `'weight'` (each edge at its own weight) or `'shortest_path'` (each pair of nodes
 /// at the length of the shortest directed path between them).
+/// A [`NetworkError`](crate::NetworkError) as a Python `ValueError`.
+pub(crate) fn network_error(e: crate::NetworkError) -> PyErr {
+    PyValueError::new_err(e.to_string())
+}
+
 pub(crate) fn parse_distances(filtration: &str) -> PyResult<Distances> {
     match filtration {
         "weight" => Ok(Distances::Weight),

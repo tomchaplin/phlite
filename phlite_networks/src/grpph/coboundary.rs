@@ -2,6 +2,7 @@ use phlite::matrices::adaptors::MatrixWithBasis;
 use std::marker::PhantomData;
 
 use ordered_float::NotNan;
+use phlite::values::{INFINITY};
 use rustc_hash::{FxHashMap, FxHashSet};
 
 // TODO: Restructure this code and give everything better names
@@ -221,7 +222,7 @@ fn produce_long_squares_with_primary_bridge<'a>(
     // WARNING: This fails if anything has filtration time f64::INFINITY
     let ac_time = filtration
         .edge_time(&a, &c)
-        .unwrap_or(NotNan::new(f64::INFINITY).unwrap());
+        .unwrap_or(INFINITY);
     (0..n_vertices)
         .filter(move |&i| i != a)
         .filter(move |&i| i != b)

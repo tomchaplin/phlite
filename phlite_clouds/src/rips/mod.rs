@@ -37,6 +37,7 @@ pub mod homology;
 pub use distances::{distance_to_measure, Distances, Metric, SparseDistances, Weighted};
 
 use ordered_float::NotNan;
+use phlite::values::{INFINITY, MAX_FINITE, ZERO};
 use phlite::{
     barcode::{self, Algorithm, Bar},
     columns::ColumnRepresentation,
@@ -320,7 +321,7 @@ pub fn build_rips_bases<I: RipsInt, D: Distances + ?Sized>(
     distances: &D,
     max_dim: usize,
 ) -> RipsBasis<I> {
-    build_rips_bases_with_threshold(distances, max_dim, NotNan::new(f64::INFINITY).unwrap())
+    build_rips_bases_with_threshold(distances, max_dim, INFINITY)
 }
 
 /// As [`build_rips_bases`], but only the simplices with diameter at most `threshold`.
@@ -335,7 +336,7 @@ pub fn build_rips_bases_with_threshold<I: RipsInt, D: Distances + ?Sized>(
     for v in 0..(distances.n_points()) {
         let birth = distances.birth(v);
         // Points born after the threshold never appear (but, as in ripser, every point born at 0 does)
-        if birth > threshold && birth > NotNan::new(0.0).unwrap() {
+        if birth > threshold && birth > ZERO {
             continue;
         }
         let mut simplex = vec![v];
@@ -403,9 +404,9 @@ fn youngest_facet_given<I: RipsInt, D: Distances + ?Sized>(
                 .filter(|&(i, _)| i != removed)
                 .map(|(_, &v)| distances.birth(v))
                 .max()
-                .unwrap_or(NotNan::new(0.0).unwrap())
+                .unwrap_or(ZERO)
         } else {
-            NotNan::new(0.0).unwrap()
+            ZERO
         };
         for (i, &v) in vertices.iter().enumerate() {
             if i == removed {
@@ -584,7 +585,7 @@ fn build_reduction_bases_from<I: RipsInt, D: Distances + ?Sized>(
     let mut all: Vec<(NotNan<f64>, RipsIndex<I>)> = (0..distances.n_points())
         .map(|v| (distances.birth(v), RipsIndex(I::from_usize(v + 1))))
         // Points born after the threshold never appear (but, as in ripser, every point born at 0 does)
-        .filter(|&(birth, _)| birth <= threshold || birth <= NotNan::new(0.0).unwrap())
+        .filter(|&(birth, _)| birth <= threshold || birth <= ZERO)
         .collect();
     let mut dims = vec![];
     for dim in 0..=max_dim {
@@ -636,9 +637,9 @@ pub(crate) fn max_pairwise_distance<D: Distances + ?Sized>(
             .iter()
             .map(|&v| distances.birth(v))
             .max()
-            .unwrap_or(NotNan::new(0.0).unwrap())
+            .unwrap_or(ZERO)
     } else {
-        NotNan::new(0.0).unwrap()
+        ZERO
     };
     for (i, &v) in vertices.iter().enumerate() {
         for &w in &vertices[i + 1..] {
@@ -705,6 +706,9 @@ pub fn rips_barcode<R: ColumnRepresentation, I: RipsInt, D: Distances>(
 /// [`rips_barcode`] does) rather than by reducing it, and whether to build the bases (and run the union-find's sorts)
 /// in parallel on the current rayon thread pool (`parallel_setup`, which [`rips_barcode`] does only for the parallel
 /// algorithm), whatever the algorithm.
+///
+/// # Panics
+/// As [`rips_barcode`]: if simplices of dimension `max_dim + 1` don't fit in a [`RipsIndex`].
 #[allow(clippy::too_many_arguments)]
 pub fn rips_barcode_with<R: ColumnRepresentation, I: RipsInt, D: Distances>(
     distances: D,
@@ -718,12 +722,16 @@ pub fn rips_barcode_with<R: ColumnRepresentation, I: RipsInt, D: Distances>(
 ) -> Vec<RipsBar<I>> {
     let n_points = distances.n_points();
     // A simplex with an infinite diameter has an edge that never appears, so it never appears either
-    let largest_finite = NotNan::new(f64::MAX).unwrap();
+    let largest_finite = MAX_FINITE;
     let threshold = threshold
         .min(enclosing_radius(&distances))
         .min(largest_finite);
     // Both methods need simplices of dimension max_dim + 1 (as cofacets, or the top of the boundary matrix)
-    assert!(RipsIndex::<I>::fits(n_points, max_dim + 1));
+    assert!(
+        RipsIndex::<I>::fits(n_points, max_dim + 1),
+        "simplices of dimension {} on {n_points} points don't fit in a RipsIndex (see RipsIndex::fits)",
+        max_dim + 1
+    );
     let parallel = parallel_setup;
     // The standard algorithm can't find the owners of omitted apparent pairs, so give it every simplex
     let filter = !matches!(algorithm, Algorithm::Standard(_));
@@ -828,7 +836,7 @@ fn connected_components<I: RipsInt, D: Distances>(
 ) -> (Vec<RipsBar<I>>, Vec<RipsIndex<I>>) {
     use rayon::prelude::*;
     let n = distances.n_points();
-    let zero = NotNan::new(0.0).unwrap();
+    let zero = ZERO;
     // Points born after the threshold never appear (but, as in ripser, every point born at 0 does)
     let present: Vec<bool> = (0..n)
         .map(|v| {
@@ -910,6 +918,7 @@ fn connected_components<I: RipsInt, D: Distances>(
 
 #[cfg(test)]
 mod tests {
+    use phlite::values::{INFINITY, ZERO};
     use crate::rips::RipsIndex;
 
     /// `rips_barcode` attaches transposes (enabling apparent pairs); that must not change any bar
@@ -972,7 +981,7 @@ mod tests {
                 }) {  let bars = rips_barcode::<_, usize, _>(
                 distances.clone(),
                 2,
-                NotNan::new(f64::INFINITY).unwrap(),
+                INFINITY,
                 Method::Cohomology,
                 algorithm.clone(),
                 false,
@@ -982,7 +991,7 @@ mod tests {
             let bars = rips_barcode::<_, usize, _>(
                 distances.clone(),
                 2,
-                NotNan::new(f64::INFINITY).unwrap(),
+                INFINITY,
                 Method::Cohomology,
                 algorithm.clone(),
                 true,
@@ -992,7 +1001,7 @@ mod tests {
             let bars = rips_barcode::<_, usize, _>(
                 distances.clone(),
                 2,
-                NotNan::new(f64::INFINITY).unwrap(),
+                INFINITY,
                 Method::Homology,
                 algorithm,
                 false,
@@ -1060,7 +1069,7 @@ mod tests {
             let bars = rips_barcode::<_, usize, _>(
                 distances.clone(),
                 2,
-                NotNan::new(f64::INFINITY).unwrap(),
+                INFINITY,
                 method,
                 Algorithm::default(),
                 true,
@@ -1183,7 +1192,7 @@ mod tests {
             out.sort_by(|a, b| a.partial_cmp(b).unwrap());
             out
         }
-        let inf = NotNan::new(f64::INFINITY).unwrap();
+        let inf = INFINITY;
         for method in [Method::Cohomology, Method::Homology] {
             let run = |standard: bool| {
                 let algorithm = |_: ()| -> Algorithm<'static, HeapColumns> {
@@ -1241,7 +1250,7 @@ mod tests {
         use ordered_float::NotNan;
         use phlite::matrices::ColBasis;
         let one = NotNan::new(1.0).unwrap();
-        let zero = NotNan::new(0.0).unwrap();
+        let zero = ZERO;
         let basis =
             crate::rips::build_rips_bases::<usize, _>(&vec![vec![zero, one], vec![one, zero]], 0);
         assert_eq!(basis.n_dimensions(), 1);
@@ -1296,7 +1305,7 @@ mod tests {
         for trial in 0..60 {
             let n = 2 + next(9) as usize;
             // Small integer distances (lots of ties), with some edges missing
-            let mut dense = vec![vec![NotNan::new(0.0).unwrap(); n]; n];
+            let mut dense = vec![vec![ZERO; n]; n];
             let mut edges = vec![];
             for i in 0..n {
                 for j in (i + 1)..n {

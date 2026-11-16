@@ -135,7 +135,7 @@ impl Iterator for DowkerCofacets<'_> {
                 return Some(Cofacet {
                     position: self.position,
                     simplex: self.complex.codec.insert(self.simplex, self.position, w),
-                    value: NotNan::new(value).unwrap(),
+                    value: NotNan::new(value).expect("a finite value"),
                 });
             }
         }
@@ -166,7 +166,7 @@ impl LazyComplex for DowkerComplex {
         let reach = self.reach(&vertices);
         let value = reach.iter().copied().fold(f64::INFINITY, f64::min);
         (
-            NotNan::new(value).unwrap(),
+            NotNan::new(value).expect("a minimum of maxima of weights is not NaN"),
             DowkerCofacets {
                 complex: self,
                 simplex,
@@ -262,7 +262,7 @@ mod tests {
     #[test]
     fn cofacets_and_bases_match_brute_force() {
         for (n, edges) in graphs() {
-            let graph = Digraph::new(n, edges.iter().copied());
+            let graph = Digraph::new(n, edges.iter().copied()).unwrap();
             for side in [Side::Sink, Side::Source] {
                 let complex = DowkerComplex::new(&graph, side);
                 let all = brute_force(&complex, 4);
@@ -299,7 +299,7 @@ mod tests {
     #[test]
     fn transpose_and_hooks() {
         for (n, edges) in graphs() {
-            let complex = DowkerComplex::new(&Digraph::new(n, edges.iter().copied()), Side::Sink);
+            let complex = DowkerComplex::new(&Digraph::new(n, edges.iter().copied()).unwrap(), Side::Sink);
             let coboundary = Coboundary::<_, Z3>::new(&complex);
             let boundary = Boundary::<_, Z3>::new(&complex);
             let bases = build_bases(&complex, 2, false, true, false);
@@ -334,7 +334,7 @@ mod tests {
             out
         };
         for (n, edges) in graphs() {
-            let graph = Digraph::new(n, edges.iter().copied());
+            let graph = Digraph::new(n, edges.iter().copied()).unwrap();
             let sink = DowkerComplex::new(&graph, Side::Sink);
             let source = DowkerComplex::new(&graph, Side::Source);
             let expected = summary(barcode(&sink, 2, Method::Homology, Algorithm::Standard(Standard::new()), false));

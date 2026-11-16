@@ -54,7 +54,7 @@ fn boundary_is_transpose_of_coboundary() {
                         }
                     }
                 }
-                let filtration = build_filtration(n, &edges);
+                let filtration = build_filtration(n, &edges).unwrap();
                 let edge_set = build_edge_set(&edges);
                 let coboundary = GrPPHCoboundary::<Z2, _>::build(&filtration, &edge_set, n as u16);
                 let boundary = GrPPHBoundary::<Z2, _>::new(&filtration, &edge_set);

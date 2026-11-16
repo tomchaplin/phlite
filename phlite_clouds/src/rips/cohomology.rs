@@ -1,6 +1,7 @@
 use std::marker::PhantomData;
 
 use ordered_float::NotNan;
+use phlite::values::INFINITY;
 
 use crate::rips::{
     build_rips_bases_with_threshold, youngest_facet, Distances, RipsIndex, RipsInt, Vertices,
@@ -31,7 +32,7 @@ impl<CF: NonZeroCoefficient + Invertible, I: RipsInt, D: Distances> RipsCobounda
     pub fn new(distances: D) -> Self {
         Self {
             distances,
-            threshold: NotNan::new(f64::INFINITY).unwrap(),
+            threshold: INFINITY,
             phantom: PhantomData,
         }
     }
@@ -274,7 +275,7 @@ pub fn build_rips_coboundary_matrix<CF: Invertible>(
     build_rips_coboundary_matrix_with_threshold(
         distances,
         max_dim,
-        NotNan::new(f64::INFINITY).unwrap(),
+        INFINITY,
     )
 }
 
@@ -295,6 +296,7 @@ pub fn build_rips_coboundary_matrix_with_threshold<CF: Invertible, D: Distances>
 // TODO: Write some proper tests
 #[cfg(test)]
 mod tests {
+    use phlite::values::ZERO;
     use ordered_float::NotNan;
 
     use crate::rips::{
@@ -306,6 +308,20 @@ mod tests {
         matrices::{combinators::product, HasRowFiltration, MatrixOracle},
         reduction::{Clearing, Reduction, ReductionAlgorithm, Standard},
     };
+
+    /// The coboundary and boundary meet phlite's contract, hooks included, and are each other's transposes
+    #[test]
+    fn meets_the_contract() {
+        use crate::rips::homology::build_rips_boundary_matrix;
+        use phlite::matrices::contract::{check_coboundary, check_split_basis, check_transposes, Direction};
+        for max_dim in 0..=2 {
+            let coboundary = build_rips_coboundary_matrix::<Z2>(distance_matrix(), max_dim);
+            assert_eq!(check_coboundary(&coboundary), Ok(()));
+            assert_eq!(check_split_basis(&coboundary, Direction::Coboundary), Ok(()));
+            let boundary = build_rips_boundary_matrix::<Z2>(distance_matrix(), max_dim);
+            assert_eq!(check_transposes(&coboundary, &boundary.matrix), Ok(()));
+        }
+    }
 
     /// The optimised `column_with_filtration` must agree with computing each row's filtration value from scratch
     #[test]
@@ -623,7 +639,7 @@ mod tests {
     }
 
     fn distance_matrix() -> Vec<Vec<NotNan<f64>>> {
-        let zero = NotNan::new(0.0).unwrap();
+        let zero = ZERO;
         let one = NotNan::new(1.0).unwrap();
         let sqrt2 = NotNan::new(2.0_f64.sqrt()).unwrap();
         let distance_matrix: Vec<Vec<NotNan<f64>>> = vec![
