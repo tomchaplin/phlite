@@ -64,6 +64,54 @@ impl FilteredComplex {
         })
     }
 
+    /// Compute the extended persistence (Cohen-Steiner, Edelsbrunner and Harer) of this filtration: up through the
+    /// filtration, then back down through the pairs (complex, superlevel subcomplex), so that every class dies, each
+    /// bar being ordinary, relative, extended+ or extended- (see `ExtendedBarcode`). As GUDHI's
+    /// `SimplexTree.extend_filtration` and `extended_persistence`, with exact values (GUDHI rescales them).
+    ///
+    /// Going down, each cell enters at the least value of it and its faces, so the superlevel subcomplexes are the
+    /// largest subcomplexes of the superlevel sets. For the classical setting, values on the vertices of a complex,
+    /// make the filtration with `chain.filtration(values, extend=True)` (values for the vertices, `None` elsewhere):
+    /// each cell then enters at its highest vertex going up, and its lowest going down.
+    ///
+    /// Args:
+    ///     method: `'cohomology'` (the default) or `'homology'`.
+    ///     algorithm: The reduction algorithm and its options, as a `phlite.core.Algorithm` (default:
+    ///         `Algorithm.serial()`), filled in with the pipeline defaults (`'complexes'`).
+    ///
+    /// Returns:
+    ///     A `phlite.core.ExtendedBarcode`, cells as this complex's. The cone vertex's component, the only essential class, and bars of length zero are
+    ///     left out (as GUDHI's, with its default `min_persistence=0`).
+    #[pyo3(signature = (*, method = "cohomology", algorithm = None))]
+    #[gen_stub(override_return_type(type_repr = "core.ExtendedBarcode", imports = ("phlite.core")))]
+    fn extended_persistence<'py>(
+        &self,
+        py: Python<'py>,
+        #[gen_stub(override_type(type_repr = "typing.Literal['cohomology', 'homology']", imports = ("typing")))]
+        method: &str,
+        #[gen_stub(override_type(type_repr = "typing.Optional[core.Algorithm]", imports = ("typing", "phlite.core")))]
+        algorithm: Option<Bound<'_, PyAny>>,
+    ) -> PyResult<Bound<'py, PyAny>> {
+        let algorithm = algorithm_from_py(algorithm.as_ref(), &DEFAULTS)?;
+        let bars = self.complex.extended(py, method, &algorithm)?;
+        // Cells as the chain complex's own (rebuilt from keys, if it stores keys)
+        let chain = self.chain.get();
+        let bars = bars
+            .into_iter()
+            .map(|bar| {
+                Ok(phlite::extended::ExtendedBar {
+                    kind: bar.kind,
+                    dimension: bar.dimension,
+                    birth: bar.birth,
+                    death: bar.death,
+                    birth_cell: chain.cell(py, bar.birth_cell.0)?,
+                    death_cell: chain.cell(py, bar.death_cell.0)?,
+                })
+            })
+            .collect::<PyResult<Vec<_>>>()?;
+        phlite_bindings::extended_into_python(py, bars, &algorithm)
+    }
+
     /// The chain complex this filtration is on.
     #[getter]
     fn chain(&self, py: Python<'_>) -> Py<ChainComplex> {

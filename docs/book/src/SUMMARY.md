@@ -16,8 +16,10 @@
   - [Directed flag complexes](python/networks/directed_flag.md)
   - [Dowker complexes](python/networks/dowker.md)
   - [Directed Rips (ordered tuples)](python/networks/ordered_tuples.md)
+  - [Flag complexes of graphs](python/networks/flag.md)
 - [phlite.images: images](python/images.md)
   - [Cubical complexes](python/images/cubical.md)
+- [Extended persistence](python/extended.md)
 - [Choosing an algorithm](python/algorithms.md)
 - [Example notebooks](python/notebooks.md)
 
@@ -45,6 +47,7 @@
 
 - [The working column](columns/overview.md)
 - [Heap columns](columns/heap.md)
+- [Dynamic heap columns](columns/dynamic.md)
 - [Merged columns](columns/merged.md)
 - [Sorted columns](columns/sorted.md)
 - [Pivot columns](columns/pivot.md)

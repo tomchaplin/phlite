@@ -9,7 +9,7 @@ import functools
 
 import networkx as nx
 import pytest
-from common import THREADS, fingerprint, run
+from common import THREADS, fingerprint, run, sweep
 from digraphs import random_digraph
 from grpphati.pipelines.standard import PPH
 
@@ -67,6 +67,7 @@ IMPLEMENTATIONS = {
     "phlite (serial)": phlite_h1(),
     "phlite (parallel)": phlite_h1(lambda: Algorithm.parallel(THREADS)),
 }
+IMPLEMENTATIONS.update(sweep(phlite_h1))
 
 # (n, p)
 CASES = [(30, 0.2), (60, 0.1), (60, 0.3)]

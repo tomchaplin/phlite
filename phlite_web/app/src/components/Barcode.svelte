@@ -1,6 +1,6 @@
 <script lang="ts">
   import { dimColour, type Bar } from '../lib/types';
-  import { ticks, alive, persistence, H } from '../lib/scale';
+  import { ticks, alive, persistence, H, KINDS, groupName } from '../lib/scale';
   import { fmt } from '../lib/format';
 
   let {
@@ -31,21 +31,23 @@
   const header = 18;
   const axisHeight = 24;
 
-  // Per dimension, the `limit` longest bars, shown in order of birth
+  // Per dimension (and, for extended persistence, per kind), the `limit` longest bars, shown in order of birth
   const groups = $derived.by(() => {
-    const byDim = new Map<number, number[]>();
+    const byGroup = new Map<string, { dim: number; kind?: string; idx: number[] }>();
     bars.forEach((b, i) => {
       if (hidden.has(b.dim)) return;
-      if (!byDim.has(b.dim)) byDim.set(b.dim, []);
-      byDim.get(b.dim)!.push(i);
+      const key = `${b.kind ?? ''}:${b.dim}`;
+      if (!byGroup.has(key)) byGroup.set(key, { dim: b.dim, kind: b.kind, idx: [] });
+      byGroup.get(key)!.idx.push(i);
     });
-    return [...byDim.entries()]
-      .sort((a, b) => a[0] - b[0])
-      .map(([dim, idx]) => {
+    const order = (g: { dim: number; kind?: string }) => (g.kind ? KINDS[g.kind].order * 100 : 0) + g.dim;
+    return [...byGroup.entries()]
+      .sort((a, b) => order(a[1]) - order(b[1]))
+      .map(([key, { dim, kind, idx }]) => {
         const kept = [...idx].sort((a, b) => persistence(bars[b]) - persistence(bars[a])).slice(0, limit);
-        if (selected !== null && bars[selected]?.dim === dim && !kept.includes(selected)) kept.push(selected);
+        if (selected !== null && idx.includes(selected) && !kept.includes(selected)) kept.push(selected);
         kept.sort((a, b) => (reversed ? -1 : 1) * (bars[a].birth - bars[b].birth) || persistence(bars[b]) - persistence(bars[a]));
-        return { dim, shown: kept, total: idx.length };
+        return { key, dim, kind, shown: kept, total: idx.length };
       });
   });
   const totalShown = $derived(groups.reduce((s, g) => s + g.shown.length, 0));
@@ -89,9 +91,9 @@
       onpointermove={(e) => dragging && scaleAt(e)}
       onpointerup={() => (dragging = false)}
     />
-    {#each layout as g (g.dim)}
+    {#each layout as g (g.key)}
       <text class="head" x={left} y={g.top + 12} fill={dimColour(g.dim)}>
-        {H(g.dim)} · {g.total} bar{g.total === 1 ? '' : 's'}{g.shown.length < g.total ? ` (the ${limit} longest shown)` : ''}
+        {groupName(g.dim, g.kind)} · {g.total} bar{g.total === 1 ? '' : 's'}{g.shown.length < g.total ? ` (the ${limit} longest shown)` : ''}
       </text>
       {#each g.shown as i, row (i)}
         {@const b = bars[i]}

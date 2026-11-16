@@ -12,7 +12,7 @@ import itertools
 import gudhi
 import lophat
 import pytest
-from common import THREADS, fingerprint, run
+from common import THREADS, fingerprint, run, sweep
 from digraphs import random_digraph
 
 from phlite.core import Algorithm
@@ -110,6 +110,8 @@ IMPLEMENTATIONS = {
         "phlite (parallel)": phlite(ordered_tuples, lambda: Algorithm.parallel(THREADS)),
     },
 }
+for function, implementations in [(dowker, IMPLEMENTATIONS["dowker"]), (ordered_tuples, IMPLEMENTATIONS["tuples"])]:
+    implementations.update(sweep(lambda algorithm, function=function: phlite(function, algorithm)))
 
 # (complex, n, p, max_dim)
 CASES = [("dowker", 20, 0.3, 2), ("dowker", 40, 0.2, 1), ("tuples", 20, 0.3, 2), ("tuples", 60, 0.2, 1)]

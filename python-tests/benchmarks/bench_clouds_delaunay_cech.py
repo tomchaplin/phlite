@@ -11,7 +11,7 @@ import functools
 import gudhi
 import numpy as np
 import pytest
-from common import THREADS, fingerprint, run
+from common import THREADS, fingerprint, run, sweep
 import datasets
 
 from phlite.core import Algorithm
@@ -61,6 +61,7 @@ IMPLEMENTATIONS = {
     "phlite (parallel)": phlite(lambda: Algorithm.parallel(THREADS)),
     "phlite (serial, merged)": phlite(lambda: Algorithm.serial().with_columns("merged").with_store_r(False)),
 }
+IMPLEMENTATIONS.update(sweep(phlite))
 
 # (shape, n)
 CASES = [("plane", 10_000), ("plane", 100_000), ("space", 10_000), ("space", 50_000), ("torus", 20_000)]

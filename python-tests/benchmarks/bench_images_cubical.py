@@ -10,7 +10,7 @@ import cripser
 import gudhi
 import numpy as np
 import pytest
-from common import THREADS, fingerprint, run
+from common import THREADS, fingerprint, run, sweep
 
 from phlite.core import Algorithm
 from phlite.images import cubical
@@ -82,6 +82,7 @@ IMPLEMENTATIONS = {
     "phlite (serial)": phlite(),
     "phlite (parallel)": phlite(lambda: Algorithm.parallel(THREADS)),
 }
+IMPLEMENTATIONS.update(sweep(phlite))
 
 # (kind, shape, construction)
 CASES = [

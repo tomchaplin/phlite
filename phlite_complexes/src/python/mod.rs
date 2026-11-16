@@ -46,6 +46,7 @@ macro_rules! dispatch {
 }
 
 mod chain;
+mod extended;
 mod filtered;
 pub use chain::ChainComplex;
 pub use filtered::{ComplexBarcode, FilteredComplex};
@@ -165,6 +166,19 @@ impl AnyComplex {
             })
         }))?;
         Ok(data)
+    }
+
+    /// Extended persistence's bars, with values and input cells.
+    fn extended(
+        &self,
+        py: Python<'_>,
+        method: &str,
+        algorithm: &ResolvedAlgorithm,
+    ) -> PyResult<Vec<phlite::extended::ExtendedBar<Cell, f64>>> {
+        let method = parse_method(method)?;
+        Ok(dispatch!(Self, self, complex => py.detach(|| {
+            algorithm.run(extended::ExtendedRun { complex, method })
+        }))?)
     }
 
     fn n_cells(&self) -> usize {

@@ -38,7 +38,7 @@
 //!   This keeps the memory profile of the serial algorithm (and lets us return a [`ClearedReductionMatrix`]).
 //! * **Two storage backends**, sharing all of the reduction logic:
 //!   * *Locking* ([`Storage::Locking`], the default):
-//!     the pivot table is a [`dashmap::DashMap`] (sharded [`RwLock`]s) and published columns are [`Arc`] snapshots behind a [`RwLock`],
+//!     the pivot table is a [`dashmap::DashMap`] (sharded [`RwLock`](std::sync::RwLock)s) and published columns are [`Arc`](std::sync::Arc) snapshots behind a [`RwLock`](std::sync::RwLock),
 //!     all held only briefly.
 //!   * *Lock-free* (`Storage::LockFree`, feature `lock-free`):
 //!     the pivot table is a [`papaya`](https://docs.rs/papaya) concurrent hash map updated by compare-and-swap,
@@ -47,12 +47,16 @@
 //!
 //! Enabled by the `parallel` feature (and `lock-free` for the second backend).
 
-use std::hash::Hash;
 use std::marker::PhantomData;
-use std::sync::{Arc, RwLock};
 
-use dashmap::{mapref::entry::Entry, DashMap};
 use rayon::prelude::*;
+
+mod storage;
+#[cfg(feature = "storage-experiments")]
+pub mod experiments;
+use storage::{Backend, DashTable, PivotTable, RwLockSlots, Slots};
+#[cfg(feature = "lock-free")]
+use storage::{ArcSwapSlots, PapayaTable};
 
 use super::clearing::{ClearedReductionMatrix, ReductionColumn};
 use super::{Clearing, Reduction, ReductionAlgorithm};
@@ -71,7 +75,6 @@ const MAX_TASK_LEN: usize = 16;
 const MIN_CLASSIFY_LEN: usize = 1024;
 
 use crate::bookkeeping::{ElementMap, ElementSet};
-use crate::hash::FxBuild;
 pub use crate::hash::MixedFx;
 
 // ====== Published columns =======================================
@@ -85,8 +88,6 @@ struct PublishedColumn<ColT, CF> {
     pivot: Option<(ColT, CF)>,
 }
 
-type Snapshot<ColT, CF> = Arc<PublishedColumn<ColT, CF>>;
-
 /// The entries of `V_j` from its published snapshot (expanding the empty, trivial case to `e_j`, where `label` is column `j`).
 fn v_entries<'s, ColT: Clone, CF: NonZeroCoefficient>(
     snapshot: &'s PublishedColumn<ColT, CF>,
@@ -96,127 +97,17 @@ fn v_entries<'s, ColT: Clone, CF: NonZeroCoefficient>(
     trivial.into_iter().chain(snapshot.v.iter().cloned())
 }
 
-// ====== Storage backends ========================================
-
-/// The shared state of a dimension's reduction: the pivot table and the slot holding each column's latest published snapshot.
-/// Abstracting this is what lets the locking and lock-free variants share all of the reduction logic.
-trait Backend<RowT, CF>: Sync {
-    fn new(n_columns: usize) -> Self;
-    /// The (dimension-local) index of the column that currently owns `row` as its pivot
-    fn pivot_owner(&self, row: &RowT) -> Option<usize>;
-    /// Atomically set the owner of `row` to `new` if it is currently `current`. Returns whether this happened.
-    fn compare_set_pivot(&self, row: &RowT, current: Option<usize>, new: usize) -> bool;
-    /// The latest snapshot published for column `j`, if any
-    fn load(&self, j: usize) -> Option<Snapshot<RowT, CF>>;
-    /// Replace the snapshot published for column `j`
-    fn store(&self, j: usize, snapshot: Snapshot<RowT, CF>);
-}
-
-/// A [`DashMap`] (a hash map sharded behind [`RwLock`]s) for the pivots, and [`Arc`] snapshots behind a [`RwLock`] each.
-struct LockingBackend<RowT, CF> {
-    pivots: DashMap<RowT, usize, FxBuild>,
-    published: Vec<RwLock<Option<Snapshot<RowT, CF>>>>,
-}
-
-impl<RowT: Hash + Eq + Clone + Send + Sync, CF: Send + Sync> Backend<RowT, CF>
-    for LockingBackend<RowT, CF>
-{
-    fn new(n_columns: usize) -> Self {
-        Self {
-            pivots: DashMap::with_capacity_and_hasher(n_columns, FxBuild::default()),
-            published: (0..n_columns).map(|_| RwLock::new(None)).collect(),
-        }
-    }
-    fn pivot_owner(&self, row: &RowT) -> Option<usize> {
-        self.pivots.get(row).map(|owner| *owner)
-    }
-    fn compare_set_pivot(&self, row: &RowT, current: Option<usize>, new: usize) -> bool {
-        match self.pivots.entry(row.clone()) {
-            Entry::Occupied(mut entry) if current == Some(*entry.get()) => {
-                entry.insert(new);
-                true
-            }
-            Entry::Vacant(entry) if current.is_none() => {
-                entry.insert(new);
-                true
-            }
-            _ => false,
-        }
-    }
-    fn load(&self, j: usize) -> Option<Snapshot<RowT, CF>> {
-        // A poisoned lock means another thread panicked mid-store: that panic is already propagating
-        self.published[j].read().expect("no thread panicked while publishing").clone()
-    }
-    fn store(&self, j: usize, snapshot: Snapshot<RowT, CF>) {
-        *self.published[j].write().expect("no thread panicked while publishing") = Some(snapshot);
-    }
-}
-
-#[cfg(feature = "lock-free")]
-pub use lock_free_backend::LockFreeBackend;
-
-#[cfg(feature = "lock-free")]
-mod lock_free_backend {
-    use super::*;
-    use arc_swap::ArcSwapOption;
-    use papaya::{Compute, Operation};
-
-    /// Lock-free storage, built from existing crates:
-    ///
-    /// * the pivot table is a [`papaya::HashMap`], updated with its atomic [`compute`](papaya::HashMap::compute) (a compare-and-swap loop),
-    /// * each column's snapshot lives in an [`ArcSwapOption`], whose loads and stores never block.
-    ///
-    /// The pivot table is created with room for one entry per column, which is the most it can ever hold
-    /// (a row is only in the table while it is some column's pivot),
-    /// so it never needs to resize, which is the one operation `papaya` doesn't promise to be lock-free.
-    pub struct LockFreeBackend<RowT, CF> {
-        pivots: papaya::HashMap<RowT, usize, FxBuild>,
-        published: Vec<ArcSwapOption<PublishedColumn<RowT, CF>>>,
-    }
-
-    impl<RowT: Hash + Eq + Clone + Send + Sync, CF: Send + Sync> Backend<RowT, CF>
-        for LockFreeBackend<RowT, CF>
-    {
-        fn new(n_columns: usize) -> Self {
-            Self {
-                pivots: papaya::HashMap::with_capacity_and_hasher(n_columns, Default::default()),
-                published: (0..n_columns).map(|_| ArcSwapOption::empty()).collect(),
-            }
-        }
-        fn pivot_owner(&self, row: &RowT) -> Option<usize> {
-            self.pivots.pin().get(row).copied()
-        }
-        fn compare_set_pivot(&self, row: &RowT, current: Option<usize>, new: usize) -> bool {
-            let pivots = self.pivots.pin();
-            let result = pivots.compute(row.clone(), |entry| {
-                if entry.map(|(_, owner)| *owner) == current {
-                    Operation::Insert(new)
-                } else {
-                    Operation::Abort(())
-                }
-            });
-            !matches!(result, Compute::Aborted(_))
-        }
-        fn load(&self, j: usize) -> Option<Snapshot<RowT, CF>> {
-            self.published[j].load_full()
-        }
-        fn store(&self, j: usize, snapshot: Snapshot<RowT, CF>) {
-            self.published[j].store(Some(snapshot));
-        }
-    }
-}
-
 // ====== Reduction of a single dimension =========================
 
 /// The column that owns a pivot row
-enum Owner<ColT, CF> {
+enum Owner<ColT, CF, Snap> {
     /// A column of this dimension's columns to reduce, by its local index, with a consistent snapshot
-    Published(usize, Snapshot<ColT, CF>),
+    Published(usize, Snap),
     /// An apparent pair: column `.0` (which is not one of the columns to reduce, and has `V = e`) with pivot coefficient `.1`
     Apparent(ColT, CF),
 }
 
-struct DimensionReducer<'a, M, S, C>
+struct DimensionReducer<'a, M, P, L, C>
 where
     M: HasRowFiltration,
     M::FiltrationT: ColumnFiltration,
@@ -229,7 +120,7 @@ where
     cols: Vec<M::ColT>,
     /// The columns cleared in this dimension (keys), which own no pivots
     cleared: &'a ElementMap<M::RowT, M::ColT>,
-    state: S,
+    state: Backend<P, L>,
     columns: &'a C,
     /// Shared by all of the columns reduced in this dimension, across threads
     cache: ColumnCache<M::FiltrationT, M::RowT, M::CoefficientField>,
@@ -243,13 +134,14 @@ type RCol<M, C> = <C as ColumnRepresentation>::Column<
 >;
 type VCol<M> = BHCol<(), <M as MatrixOracle>::ColT, <M as MatrixOracle>::CoefficientField>;
 
-impl<'a, M, S, C> DimensionReducer<'a, M, S, C>
+impl<'a, M, P, L, C> DimensionReducer<'a, M, P, L, C>
 where
     M: MatrixOracle + SquareMatrix + HasRowFiltration,
     M::CoefficientField: Invertible + ColumnCoefficient,
     M::FiltrationT: ColumnFiltration,
     M::RowT: ColumnRow,
-    S: Backend<M::RowT, M::CoefficientField>,
+    P: PivotTable<M::RowT>,
+    L: Slots<PublishedColumn<M::RowT, M::CoefficientField>>,
     C: ColumnRepresentation,
 {
     fn new(
@@ -261,7 +153,7 @@ where
     ) -> Self {
         Self {
             boundary,
-            state: S::new(cols.len()),
+            state: Backend::new(cols.len()),
             cols,
             cleared,
             columns,
@@ -315,30 +207,36 @@ where
                 .map(|entry| (entry.coeff, entry.row_index))
                 .collect()
         };
-        self.state.store(
+        self.state.published.store(
             j,
-            Arc::new(PublishedColumn {
+            PublishedColumn {
                 v: v_snapshot,
                 pivot,
-            }),
+            },
         );
     }
 
     /// Publish column `j` with `V_j = e_j` and the given pivot of `D_j`
     fn publish_trivial(&self, j: usize, pivot: Option<(M::RowT, M::CoefficientField)>) {
         self.state
-            .store(j, Arc::new(PublishedColumn { v: vec![], pivot }));
+            .published
+            .store(j, PublishedColumn { v: vec![], pivot });
     }
 
     /// Find the column owning pivot row `l` (with a consistent snapshot, if it is one of ours).
     /// Retries if the column has since changed pivot (see the paper's `Algorithm 3`).
-    fn get_owner(&self, l: &M::RowT) -> Option<Owner<M::ColT, M::CoefficientField>> {
+    #[allow(clippy::type_complexity)]
+    fn get_owner(
+        &self,
+        l: &M::RowT,
+    ) -> Option<Owner<M::ColT, M::CoefficientField, L::Ref<'_>>> {
         loop {
-            let Some(owner) = self.state.pivot_owner(l) else {
+            let Some(owner) = self.state.pivots.owner(l) else {
                 return self.apparent_owner(l);
             };
             let snapshot = self
                 .state
+                .published
                 .load(owner)
                 .expect("A column is always published before it is made a pivot owner");
             if snapshot.pivot.as_ref().map(|(row, _)| row) == Some(l) {
@@ -349,7 +247,7 @@ where
 
     /// If `l` is the pivot of the first column in its row then that column owns it (an apparent pair).
     /// Apparent pairs are never published, so we recompute them.
-    fn apparent_owner(&self, l: &M::RowT) -> Option<Owner<M::ColT, M::CoefficientField>> {
+    fn apparent_owner<Snap>(&self, l: &M::RowT) -> Option<Owner<M::ColT, M::CoefficientField, Snap>> {
         let first = self.boundary.first_column_in_row(l.clone())?;
         // A cleared column has R = 0 so owns nothing (this can't happen for a chain complex, but costs little to check)
         if self.cleared.contains_key(&first) {
@@ -370,7 +268,7 @@ where
             }
             Some(entry) if self.get_owner(&entry.row_index).is_none() => {
                 self.publish_trivial(j, Some((entry.row_index.clone(), entry.coeff)));
-                if self.state.compare_set_pivot(&entry.row_index, None, j) {
+                if self.state.pivots.compare_set(&entry.row_index, None, j) {
                     return;
                 }
                 // Someone else claimed the pivot in the meantime, so reduce as usual
@@ -393,7 +291,7 @@ where
             match self.get_owner(&l) {
                 None => {
                     self.publish(w, &mut v, Some((l.clone(), coeff)));
-                    if self.state.compare_set_pivot(&l, None, w) {
+                    if self.state.pivots.compare_set(&l, None, w) {
                         return;
                     }
                     // Someone beat us to it, our local state is still what we published so just go round again
@@ -418,7 +316,7 @@ where
                 }
                 Some(Owner::Published(owner, snapshot)) if owner > w => {
                     self.publish(w, &mut v, Some((l.clone(), coeff)));
-                    if self.state.compare_set_pivot(&l, Some(owner), w) {
+                    if self.state.pivots.compare_set(&l, Some(owner), w) {
                         // We now own the pivot and the displaced column is ours to reduce further
                         w = owner;
                         (r, v) = self.state_from(&snapshot, owner);
@@ -471,7 +369,7 @@ impl<C> Classified<C> {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 #[non_exhaustive]
 pub enum Storage {
-    /// A [`DashMap`] for pivots and a [`RwLock`] around each published column, all held only briefly.
+    /// A [`DashMap`](dashmap::DashMap) for pivots and a [`RwLock`](std::sync::RwLock) around each published column, all held only briefly.
     #[default]
     Locking,
     /// A [`papaya`](https://docs.rs/papaya) map for pivots and [`arc_swap`](https://docs.rs/arc-swap) slots for columns: no thread ever waits on a lock.
@@ -556,23 +454,14 @@ where
         let columns = self.clearing.columns;
         let cache_columns = self.clearing.cache_columns;
         let run = move || {
-            let (v, diagram) = match self.storage {
-                Storage::Locking => build_with_diagram_using::<M, LockingBackend<_, _>, C>(
-                    boundary,
-                    dimension_order,
-                    skip_zero_apparent_pairs,
-                    &columns,
-                    cache_columns,
-                ),
-                #[cfg(feature = "lock-free")]
-                Storage::LockFree => build_with_diagram_using::<M, LockFreeBackend<_, _>, C>(
-                    boundary,
-                    dimension_order,
-                    skip_zero_apparent_pairs,
-                    &columns,
-                    cache_columns,
-                ),
-            };
+            let (v, diagram) = reduce_with_storage(
+                self.storage,
+                boundary,
+                dimension_order,
+                skip_zero_apparent_pairs,
+                &columns,
+                cache_columns,
+            );
             Reduction { v, diagram }
         };
         match self.pool {
@@ -582,8 +471,9 @@ where
     }
 }
 
-/// Reduce all of the given dimensions, one after the other, each in parallel
-fn build_with_diagram_using<M, S, C>(
+/// [`build_with_diagram_using`] with the pivot table and slots `storage` names
+fn reduce_with_storage<M, C>(
+    storage: Storage,
     boundary: M,
     dimension_order: Vec<usize>,
     skip_zero_apparent_pairs: bool,
@@ -595,7 +485,41 @@ where
     M::CoefficientField: Invertible + ColumnCoefficient,
     M::RowT: ColumnRow,
     M::FiltrationT: ColumnFiltration,
-    S: Backend<M::RowT, M::CoefficientField>,
+    C: ColumnRepresentation,
+{
+    macro_rules! with {
+        ($table:ident, $slots:ident) => {
+            build_with_diagram_using::<M, $table<_>, $slots<_>, C>(
+                boundary,
+                dimension_order,
+                skip_zero_apparent_pairs,
+                columns,
+                cache_columns,
+            )
+        };
+    }
+    match storage {
+        Storage::Locking => with!(DashTable, RwLockSlots),
+        #[cfg(feature = "lock-free")]
+        Storage::LockFree => with!(PapayaTable, ArcSwapSlots),
+    }
+}
+
+/// Reduce all of the given dimensions, one after the other, each in parallel
+fn build_with_diagram_using<M, P, L, C>(
+    boundary: M,
+    dimension_order: Vec<usize>,
+    skip_zero_apparent_pairs: bool,
+    columns: &C,
+    cache_columns: bool,
+) -> (ClearedReductionMatrix<'static, M>, Diagram<M::ColT>)
+where
+    M: MatrixOracle + SquareMatrix + HasRowFiltration + HasSplitColBasis + Sync,
+    M::CoefficientField: Invertible + ColumnCoefficient,
+    M::RowT: ColumnRow,
+    M::FiltrationT: ColumnFiltration,
+    P: PivotTable<M::RowT>,
+    L: Slots<PublishedColumn<M::RowT, M::CoefficientField>>,
     C: ColumnRepresentation,
 {
     let mut reduction_columns: ElementMap<M::ColT, ReductionColumn<M::CoefficientField, M::ColT>> =
@@ -677,7 +601,7 @@ where
             .map(|i| boundary.sub_basis(dim).element(i))
             .collect();
         let reducer =
-            DimensionReducer::<M, S, C>::new(&boundary, cols, &clearing, columns, cache_columns);
+            DimensionReducer::<M, P, L, C>::new(&boundary, cols, &clearing, columns, cache_columns);
         (0..reducer.cols.len())
             .into_par_iter()
             .with_max_len(MAX_TASK_LEN)
@@ -702,6 +626,7 @@ where
         for (j, label) in reducer.cols.iter().enumerate() {
             let snapshot = reducer
                 .state
+                .published
                 .load(j)
                 .expect("Every column is published by the end of reduction");
             if let Some((pivot_row, _)) = &snapshot.pivot {

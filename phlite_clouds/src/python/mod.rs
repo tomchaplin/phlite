@@ -14,7 +14,8 @@ const DOC: &str = "Persistent homology of point clouds and distance matrices: `r
 pyo3_stub_gen::module_doc!("phlite.clouds", "{}", DOC);
 
 /// This package's pipelines, registered with `phlite.core` on import.
-const PIPELINES: &[AlgorithmDefaults] = &[rips::DEFAULTS, alpha::DEFAULTS, alpha::CECH_DEFAULTS];
+const PIPELINES: &[AlgorithmDefaults] =
+    &[rips::DEFAULTS, rips::EXPLICIT_DEFAULTS, alpha::DEFAULTS, alpha::CECH_DEFAULTS];
 
 #[pymodule(gil_used = false)]
 fn _clouds(m: &Bound<'_, PyModule>) -> PyResult<()> {

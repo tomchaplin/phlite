@@ -8,7 +8,11 @@ export interface Bar {
   death_cell: number[] | null;
   /** A representative cycle as `[coefficient, cell]` pairs, if representatives were computed. */
   rep: [number, number[]][] | null;
+  /** For extended persistence, which kind of bar (its death may then be below its birth). */
+  kind?: ExtendedKind;
 }
+
+export type ExtendedKind = 'ordinary' | 'relative' | 'extended+' | 'extended-';
 
 export interface Barcode {
   bars: Bar[];
@@ -52,6 +56,9 @@ export interface AlgoOptions {
 export type Metric = 'euclidean' | 'manhattan' | 'chebyshev';
 
 /** The complexes of `phlite_web::network`. */
+/** The complexes of `phlite_web::graph` (the flag complex of an undirected graph). */
+export type GraphKind = 'flag' | 'flag-sp';
+
 export type NetworkKind = 'pph' | 'flag' | 'grounded-flag' | 'tuples' | 'dowker-sink' | 'dowker-source';
 
 export type Job =
@@ -81,6 +88,16 @@ export type Job =
       options: AlgoOptions;
     }
   | {
+      pipeline: 'graph';
+      kind: GraphKind;
+      n: number;
+      sources: Uint32Array;
+      targets: Uint32Array;
+      weights: Float64Array;
+      maxDim: number;
+      options: AlgoOptions;
+    }
+  | {
       pipeline: 'image';
       pixels: Float64Array;
       width: number;
@@ -98,6 +115,8 @@ export type Job =
       values: Float64Array;
       modulus: number;
       maxDim: number | null;
+      /** Extended persistence instead (bars with a `kind`). */
+      extended: boolean;
       options: AlgoOptions;
     }
   /** Crash on purpose, to test the recovery (`window.__phlite.run({pipeline: 'crash', how: 'pool'})`). */

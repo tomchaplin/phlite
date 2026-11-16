@@ -6,6 +6,8 @@
 //! * [`flag`]: directed flag complexes (as flagser), grounded or not, and ordered-tuple complexes (Turner's directed
 //!   Rips), in any dimension.
 //! * [`dowker`]: Dowker sink and source complexes.
+//! * [`undirected`]: flag (clique) complexes of undirected graphs, filtered by edge weights, node values (lower-star)
+//!   or both, by `phlite_clouds`' Rips machinery.
 //!
 //! [`flag`] and [`dowker`] are built on [`lazy`], which turns a complex described by its simplices' cofacets and facets
 //! into coboundary and boundary oracles with Ripser's optimisations, on the digraphs of [`digraph`] and the packed
@@ -30,6 +32,7 @@ pub mod grpph;
 pub mod lazy;
 pub mod pph;
 pub mod simplex;
+pub mod undirected;
 #[cfg(feature = "python")]
 mod python;
 

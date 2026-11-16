@@ -28,6 +28,10 @@ log = "0.4.35"
 ordered-float = "5.5.1"
 petgraph = "0.8.3"
 phlite = { version = "0.1.0", default-features = false, path = "../phlite", features = ["parallel"] }
+# Flag complexes of undirected graphs are computed by its Rips machinery
+phlite_clouds = { path = "../phlite_clouds" }
+# Small flag complexes are listed and reduced explicitly
+phlite_complexes = { path = "../phlite_complexes" }
 rustc-hash = "2.1.3"
 rayon = "1.12.0"
 pyo3 = { version = "0.30.1", optional = true }
@@ -39,6 +43,8 @@ phlite_bindings = { path = "../phlite_bindings", optional = true }
 default = ["lock-free"]
 # The lock-free backend of the parallel reduction
 lock-free = ["phlite/lock-free"]
+# Every concurrent structure for the parallel reduction (examples/storage_bench.rs)
+storage-experiments = ["phlite/storage-experiments"]
 # The `phlite.networks` Python extension module, built with maturin as `phlite-networks` (see pyproject.toml)
 python = ["dep:pyo3", "dep:pyo3-log", "dep:pyo3-stub-gen", "dep:phlite_bindings", "lock-free"]
 

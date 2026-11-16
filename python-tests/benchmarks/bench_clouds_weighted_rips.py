@@ -11,7 +11,7 @@ import functools
 
 import numpy as np
 import pytest
-from common import THREADS, fingerprint, run
+from common import THREADS, fingerprint, run, sweep
 from gudhi.point_cloud.dtm import DistanceToMeasure
 from gudhi.weighted_rips_complex import WeightedRipsComplex
 
@@ -56,6 +56,7 @@ IMPLEMENTATIONS = {
     "phlite (serial)": phlite(),
     "phlite (parallel)": phlite(lambda: Algorithm.parallel(THREADS)),
 }
+IMPLEMENTATIONS.update(sweep(phlite))
 
 # (shape, n, max_dim)
 CASES = [("circle", 200, 1), ("circle", 500, 1), ("sphere", 150, 2)]

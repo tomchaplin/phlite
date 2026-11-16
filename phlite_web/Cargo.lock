@@ -520,6 +520,8 @@ dependencies = [
  "ordered-float",
  "petgraph",
  "phlite",
+ "phlite_clouds",
+ "phlite_complexes",
  "rayon",
  "rustc-hash",
 ]

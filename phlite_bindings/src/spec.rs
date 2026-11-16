@@ -14,7 +14,8 @@ pub const SPEC_PROTOCOL: u32 = 1;
 ///
 /// ```text
 /// {"protocol": 1, "kind": "standard" | "clearing" | "parallel-clearing",
-///  "columns": None | "merged" | "heap" | "sorted" | "pivot", "cache": None | bool, "store_r": None | bool,
+///  "columns": None | "merged" | "heap" | "sorted" | "pivot" | "dynamic", "threshold": None | int,
+///  "cache": None | bool, "store_r": None | bool,
 ///  "skip_zero_apparent_pairs": bool, "dimension_order": None | list[int], "storage": "locking" | "lock-free",
 ///  "threads": None | int, "union_find": None | bool, "parallel_setup": None | bool}
 /// ```
@@ -25,6 +26,7 @@ pub fn spec_to_dict<'py>(py: Python<'py>, spec: &AlgorithmSpec) -> PyResult<Boun
     dict.set_item("protocol", SPEC_PROTOCOL)?;
     dict.set_item("kind", spec.kind.name())?;
     dict.set_item("columns", spec.columns.map(Columns::name))?;
+    dict.set_item("threshold", spec.threshold)?;
     dict.set_item("cache", spec.cache)?;
     dict.set_item("store_r", spec.store_r)?;
     dict.set_item("skip_zero_apparent_pairs", spec.skip_zero_apparent_pairs)?;
@@ -53,6 +55,7 @@ pub fn spec_from_dict(dict: &Bound<'_, PyDict>) -> PyResult<AlgorithmSpec> {
     let spec = AlgorithmSpec {
         kind: Kind::from_name(&get("kind")?.extract::<String>()?)?,
         columns: columns.as_deref().map(Columns::from_name).transpose()?,
+        threshold: get("threshold")?.extract()?,
         cache: get("cache")?.extract()?,
         store_r: get("store_r")?.extract()?,
         skip_zero_apparent_pairs: get("skip_zero_apparent_pairs")?.extract()?,

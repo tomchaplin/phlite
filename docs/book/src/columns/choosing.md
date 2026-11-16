@@ -19,6 +19,7 @@ flowchart TD
 | GrPPH cohomology | merged, cached | `phlite.networks.grpph`: merged, cached |
 | explicit cubical / dense / cell complexes | pivot, store R, uncached | `phlite`: pivot, store R, uncached |
 | homology of small simplicial complexes | sorted | |
+| very large directed flag complexes | dynamic, cached | `phlite.networks.directed_flag`: merged, cached |
 
 All combinations are compared in the [benchmarks](../appendix/benchmarks.md), and every combination is checked to
 give the same barcode by the [tests](../appendix/testing.md).

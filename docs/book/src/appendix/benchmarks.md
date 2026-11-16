@@ -32,3 +32,46 @@ just bench           # every benchmark
 just bench-check     # compare the quick cases with the saved baselines
 just bench-docs      # rerun everything and regenerate BENCHMARKS.md
 ```
+
+## Profile-guided optimisation
+
+**Only the Linux x86_64 wheels on PyPI** (`manylinux`, which is what `pip install phlite` gets on a 64-bit Intel or
+AMD Linux machine) are built with **profile-guided optimisation** (PGO). Every other wheel (macOS, Windows, Linux on
+ARM and other architectures, and `musllinux`) is a plain release build: PGO needs a training run on the platform being
+built for, which the release workflow only does for Linux x86_64.
+
+To build them, every package is first built instrumented, `python-tests/pgo_train.py` runs every pipeline on
+mid-sized random inputs, and the wheels are rebuilt with the profiles, so that LLVM lays out and inlines the hot paths
+it saw. On the medium benchmark cases (inputs different from the training run's) this made the wheels about 4%
+faster overall (geometric mean), and up to 20% faster for the networks pipelines:
+
+| Suite | PGO time / plain build |
+|---|---|
+| `networks.pph` | 0.82 |
+| `networks.grpph` | 0.84 |
+| `networks.dowker`, `networks.ordered_tuples` | 0.90 |
+| `networks.directed_flag` | 0.97 |
+| `clouds.rips` | 0.97 (0.88–0.90 on structured clouds, 1.03–1.04 on random ones) |
+| `images.cubical` | 0.98 |
+| `clouds.alpha` | 1.00 |
+| explicit complexes (`phlite.complexes`) | 1.07 (cases under 0.1 s; up to 1.18 on small Rips complexes) |
+
+The gains are largest for the lazy oracles (GrPPH, PPH, Dowker), whose coboundaries branch a lot; explicit complexes'
+tight loops are already well optimised, and come out slightly slower. How much PGO helps depends on the training run:
+one on the benchmarks' and tests' inputs (which need every reference implementation, so can't run in the release
+workflow) gave 5% overall and 20–25% on GrPPH and PPH.
+
+### Optimised wheels for other platforms
+
+On macOS, Windows or any other platform, you can build PGO wheels for your own machine from a clone of the repository.
+You need [Rust](https://rustup.rs) (with its `llvm-tools` component), [uv](https://docs.astral.sh/uv/) and
+[just](https://just.systems); on Windows, run it from Git Bash.
+
+```sh
+rustup component add llvm-tools
+just pgo-wheels               # instrumented build, training run (about a minute), then optimised wheels in dist/
+pip install dist/*.whl        # into your own environment (replacing the wheels from PyPI)
+```
+
+`just pgo-profile` does only the profiling, leaving the profile in `pgo/merged.profdata`. To optimise for a different
+workload, edit `python-tests/pgo_train.py` to run what you run: LLVM favours whatever the training run does.

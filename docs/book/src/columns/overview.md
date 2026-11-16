@@ -21,11 +21,12 @@ Clearing::new().with_columns(PivotColumns)
 ```
 
 Every representation gives the same pairs; only the time and memory differ. The difference can be large: on some
-inputs the best is 30× faster than the worst. There are four:
+inputs the best is 30× faster than the worst. There are five:
 
 | Representation | Idea | Analogue |
 |---|---|---|
 | [`HeapColumns`](heap.md) | every term on one heap | Ripser |
+| [`DynamicHeapColumns`](dynamic.md) (opt-in) | a heap that stops repeating rows once a column is big and full of repeats | flagser |
 | [`MergedColumns`](merged.md) (default) | lazily merge sorted columns, one heap slot per column | |
 | [`SortedColumns`](sorted.md) | one sorted vector, batches merged in | PHAT's `vector_vector` |
 | [`PivotColumns`](pivot.md) | a dense array over all rows, plus a bit tree | PHAT's `bit_tree_pivot_column` |

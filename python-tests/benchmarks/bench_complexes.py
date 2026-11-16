@@ -30,7 +30,7 @@ import tempfile
 
 import numpy as np
 import pytest
-from common import THREADS, fingerprint, run
+from common import THREADS, fingerprint, run, sweep
 
 # Import everything up front, so that import costs are not counted
 import lophat
@@ -321,6 +321,7 @@ IMPLEMENTATIONS = {
     "phlite (standard, reduce)": phlite_impl(Algorithm.standard),
     "phlite (reps, reduce)": phlite_impl(representatives=True),
 }
+IMPLEMENTATIONS.update(sweep(phlite_impl, ", reduce"))
 
 
 # ====== Cases ============================================================

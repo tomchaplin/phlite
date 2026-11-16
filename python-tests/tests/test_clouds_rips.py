@@ -234,6 +234,29 @@ def test_sparse_matches_references(distances, max_dim, data):
         check_representatives(truncated, barcode, max_dim)
 
 
+
+@given(distances=distance_matrices(), max_dim=st.integers(0, 2), data=st.data())
+def test_explicit_and_implicit_agree(distances, max_dim, data):
+    """Listing the complex (`explicit=True`) and computing it implicitly (`explicit=False`) give the same barcode as
+    the default's choice, for sparse and dense input, with thresholds, weights and every algorithm, and valid
+    representatives."""
+    finite = sorted({float(d) for d in distances.flat if d != INF})
+    threshold = data.draw(st.sampled_from(finite + [INF]))
+    sparse = data.draw(st.booleans())
+    matrix = sparse_matrix(distances, threshold, data) if sparse else distances
+    weights = data.draw(st.none() | st.lists(st.integers(0, 3).map(float), min_size=len(distances), max_size=len(distances)))
+    note(f"sparse={sparse} threshold={threshold} weights={weights}")
+    for method, algorithm in itertools.product(METHODS, ALGORITHMS):
+        note(f"method={method} algorithm={algorithm}")
+        kwargs = dict(threshold=threshold, weights=weights, method=method, algorithm=algorithm)
+        default = rips(matrix, max_dim, **kwargs)
+        for explicit in [True, False]:
+            barcode = rips(matrix, max_dim, explicit=explicit, representatives=weights is None, **kwargs)
+            assert (barcode.essential, barcode.pairings) == (default.essential, default.pairings), f"explicit={explicit}"
+            if weights is None:
+                check_representatives(np.where(distances <= threshold, distances, INF), barcode, max_dim)
+
+
 METRICS = {
     "euclidean": lambda diffs: np.sqrt((diffs**2).sum(axis=-1)),
     "manhattan": lambda diffs: np.abs(diffs).sum(axis=-1),

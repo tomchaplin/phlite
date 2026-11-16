@@ -62,7 +62,7 @@ impl BasisElement for Cell {
 
 impl Cell {
     #[inline]
-    fn idx(self) -> usize {
+    pub(crate) fn idx(self) -> usize {
         self.0 as usize
     }
 }
