@@ -3,7 +3,15 @@
 #
 # * Pull requests: build only, so that a change that breaks a notebook or the book is caught (the site is kept as an
 #   artifact to look at).
-# * Pushes to main, and manual runs (Actions > Docs > Run workflow, on any branch): build and deploy to production.
+# * Pushes to the `release` branch: build and deploy to production (https://phlite.tomchaplin.xyz).
+# * Manual runs, the button to publish the docs from GitHub (Actions > Docs > Run workflow, choosing a branch, main by
+#   default): build and deploy that branch, then fast-forward `release` to the commit deployed, so that `release`
+#   always says what is published. It checks first that this is a fast-forward, and stops (deploying nothing) if
+#   `release` has commits the branch doesn't.
+#
+# So the site follows `release`, not `main`: pushing work to main doesn't change the published docs, and the docs can
+# be updated without releasing a new version. Publish with the button, or from a clone with `just publish-docs`
+# (`git push origin main:release`, which deploys through the push trigger). When releasing a version, do this too.
 #
 # Deploying needs two repository secrets (Settings > Secrets and variables > Actions):
 # * NETLIFY_AUTH_TOKEN: a personal access token (Netlify: User settings > Applications > Personal access tokens);
@@ -15,12 +23,14 @@ name: Docs
 
 on:
   push:
-    branches: [main]
+    branches: [release]
   pull_request:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  # Write, for manual runs to move `release` (pushes with this token don't trigger workflows, so that deploys nothing
+  # twice); every other step only reads
+  contents: write
 
 concurrency:
   group: docs-${{ github.ref }}
@@ -32,6 +42,20 @@ jobs:
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
+        with:
+          # The history, for the fast-forward check of manual runs
+          fetch-depth: ${{ github.event_name == 'workflow_dispatch' && '0' || '1' }}
+
+      - name: Check that release can be fast-forwarded to this commit (manual runs)
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          if git ls-remote --exit-code --heads origin release > /dev/null; then
+            git fetch origin release
+            if ! git merge-base --is-ancestor origin/release HEAD; then
+              echo "::error::release has commits that ${{ github.ref_name }} doesn't: merge them into it first, or move release by hand"
+              exit 1
+            fi
+          fi
 
       - uses: dtolnay/rust-toolchain@stable
 
@@ -83,3 +107,7 @@ jobs:
           NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
           NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
         run: npx --yes netlify-cli@17 deploy --dir docs/site --prod --message "${{ github.sha }}"
+
+      - name: Move release to the commit deployed (manual runs)
+        if: github.event_name == 'workflow_dispatch'
+        run: git push origin "HEAD:refs/heads/release"

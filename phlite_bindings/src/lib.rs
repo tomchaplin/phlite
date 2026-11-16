@@ -260,4 +260,16 @@ mod tests {
             assert!(meta.contains(&pin), "phlite_meta/pyproject.toml should depend on {pin}");
         }
     }
+
+    /// The crates' dependencies on each other (`[workspace.dependencies]` in the root Cargo.toml) are pinned exactly to
+    /// the workspace's version, which crates.io resolves them by.
+    #[test]
+    fn crates_are_pinned_to_the_workspace_version() {
+        let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
+        let manifest = std::fs::read_to_string(root.join("Cargo.toml")).unwrap();
+        for krate in ["phlite", "phlite_bindings", "phlite_complexes", "phlite_clouds"] {
+            let pin = format!("{krate} = {{ version = \"={}\", path = \"{krate}\" }}", super::VERSION);
+            assert!(manifest.contains(&pin), "Cargo.toml's [workspace.dependencies] should have {pin}");
+        }
+    }
 }
