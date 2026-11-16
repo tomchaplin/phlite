@@ -19,6 +19,7 @@
   - [Flag complexes of graphs](python/networks/flag.md)
 - [phlite.images: images](python/images.md)
   - [Cubical complexes](python/images/cubical.md)
+- [Extended persistence](python/extended.md)
 - [Choosing an algorithm](python/algorithms.md)
 - [Example notebooks](python/notebooks.md)
 

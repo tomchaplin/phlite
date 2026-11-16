@@ -1,9 +1,8 @@
-"""Benchmark phlite.networks.flag (flag complexes of undirected graphs) and extended (extended persistence) against
-GUDHI's SimplexTree.
+"""Benchmark phlite.networks.flag (flag complexes of undirected graphs) against GUDHI's SimplexTree.
 
 Random graphs G(n, p) with weights uniform in [0, 1] and node values uniform in [0, 1]: the flag complex by edge
 weights (`weight`), the lower-star filtration of the node values (`lower star`), and Rips of the shortest-path metric
-(`shortest path`); and extended persistence of the node values on the graph (`extended`).
+(`shortest path`).
 """
 
 import functools
@@ -16,17 +15,16 @@ import pytest
 from common import THREADS, fingerprint, run
 
 from phlite.core import Algorithm
-from phlite.networks import extended, flag
+from phlite.networks import flag
 
 INF = math.inf
 
 SUITE = {
-    "title": "Flag complexes of graphs and extended persistence: `phlite.networks.flag` and `extended`",
+    "title": "Flag complexes of graphs: `phlite.networks.flag`",
     "description": "Persistent homology in dimensions up to `dim` of the flag complex of a random graph G(n, p), "
         "weights and node values uniform in [0, 1]: by edge weights (`weight`), by the node values' lower-star "
-        "filtration (`lower star`), and Rips of the shortest-path metric (`shortest path`); and extended persistence "
-        "of the node values on the graph (`extended`). The reference is GUDHI's SimplexTree (with the edges and "
-        "values inserted, expanded, and for `extended`, extend_filtration).",
+        "filtration (`lower star`), and Rips of the shortest-path metric (`shortest path`). The reference is GUDHI's "
+        "SimplexTree (with the edges and values inserted, and expanded).",
     "order": 24,
     "summary": ["gudhi", "phlite (serial)", "phlite (parallel)"],
     "default": "phlite (serial)",
@@ -84,50 +82,13 @@ def phlite_flag(kind, algorithm=Algorithm.serial):
     return compute
 
 
-def extended_fingerprint(diagrams):
-    """Per kind, the number of bars longer than rounding, and their total length."""
-    out = []
-    for bars in diagrams:
-        long = [abs(d - b) for b, d in bars if abs(d - b) > 1e-9]
-        out.append([len(long), round(sum(long), 6)])
-    return out
-
-
-def gudhi_extended(case):
-    n, edges, values, _ = case
-    tree = gudhi.SimplexTree()
-    for v in range(n):
-        tree.insert([v], values[v])
-    for u, v, _ in edges:
-        tree.insert([u, v], max(values[u], values[v]))
-    tree.extend_filtration()
-    diagrams = tree.extended_persistence(homology_coeff_field=2)
-    return lambda: extended_fingerprint([[b for _, b in d] for d in diagrams])
-
-
-def phlite_extended(algorithm=Algorithm.serial):
-    def compute(case):
-        n, edges, values, _ = case
-        barcode = extended(n, [(u, v) for u, v, _ in edges], node_weight=values, algorithm=algorithm())
-        return lambda: extended_fingerprint([[b for _, b in d] for d in barcode.to_gudhi()])
-
-    return compute
-
-
 IMPLEMENTATIONS = {
-    **{
-        kind: {
-            "gudhi": gudhi_flag(kind),
-            "phlite (serial)": phlite_flag(kind),
-            "phlite (parallel)": phlite_flag(kind, lambda: Algorithm.parallel(THREADS)),
-        }
-        for kind in ["weight", "lower star", "shortest path"]
-    },
-    "extended": {
-        "gudhi": gudhi_extended,
-        "phlite (serial)": phlite_extended(),
-        "phlite (parallel)": phlite_extended(lambda: Algorithm.parallel(THREADS)),
-    },
+    kind: {
+        "gudhi": gudhi_flag(kind),
+        "phlite (serial)": phlite_flag(kind),
+        "phlite (parallel)": phlite_flag(kind, lambda: Algorithm.parallel(THREADS)),
+    }
+    for kind in ["weight", "lower star", "shortest path"]
 }
 
 # (kind, n, p, max_dim)
@@ -136,10 +97,9 @@ CASES = [
     ("weight", 3000, 0.003, 2),
     ("lower star", 300, 0.1, 2),
     ("shortest path", 120, 0.03, 1),
-    ("extended", 2000, 0.002, 1),
 ]
-QUICK = [("weight", 300, 0.1, 2), ("extended", 2000, 0.002, 1)]
-LARGE = [("weight", 1000, 0.1, 2), ("shortest path", 300, 0.02, 1), ("extended", 20000, 0.0002, 1)]
+QUICK = [("weight", 300, 0.1, 2)]
+LARGE = [("weight", 1000, 0.1, 2), ("shortest path", 300, 0.02, 1)]
 
 
 @functools.cache
@@ -158,7 +118,7 @@ def params():
 
 
 @pytest.mark.parametrize("kind, n, p, max_dim, implementation", params())
-def test_flag_and_extended(benchmark, kind, n, p, max_dim, implementation):
+def test_flag(benchmark, kind, n, p, max_dim, implementation):
     run(
         benchmark,
         group=f"{kind} n={n} p={p} dim≤{max_dim}",

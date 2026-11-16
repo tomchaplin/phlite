@@ -20,7 +20,7 @@
   let exampleId = $state(EXAMPLES[0].id);
   let g = $state.raw<Digraph>(EXAMPLES[0].make());
   /** The digraph's complexes, and (`u-`) those of the graph with its edges undirected. */
-  type Complex = 'grpph' | NetworkKind | 'u-flag' | 'u-lower-star' | 'u-extended';
+  type Complex = 'grpph' | NetworkKind | 'u-flag';
   const COMPLEXES: { id: Complex; name: string; about: string }[] = [
     {
       id: 'grpph',
@@ -69,18 +69,6 @@
       about:
         "The flag (clique) complex of the graph with its edges undirected (an edge given both ways keeps its smaller weight): a simplex for every clique, entering with its heaviest edge, or, by shortest paths, Rips of the graph's metric. phlite.networks.flag.",
     },
-    {
-      id: 'u-lower-star',
-      name: 'Lower-star by height (undirected)',
-      about:
-        "The flag complex of the undirected graph filtered by the nodes' heights on the canvas (0 at the bottom, 10 at the top): each simplex enters with its highest node. Drag nodes up and down to change it. phlite.networks.flag(G, weight=None, node_weight=...).",
-    },
-    {
-      id: 'u-extended',
-      name: 'Extended persistence by height',
-      about:
-        "Extended persistence of the nodes' heights on the undirected graph: up through the sublevel sets, then down, so every class dies. Ext⁺ bars run from each component's lowest node to its highest; Ext⁻ bars from each loop's highest node to its lowest. phlite.networks.extended.",
-    },
   ];
   let complex = $state<Complex>('grpph');
   let maxDim = $state(1);
@@ -88,9 +76,7 @@
   let pathFiltration = $state(false);
   /** Whether the complex has a choice of filtration (GrPPH and the grounded flag complex are by shortest paths). */
   const undirected = $derived(complex.startsWith('u-'));
-  /** Whether the filtration is by the nodes' heights on the canvas (so moving a node changes it). */
-  const byHeight = $derived(complex === 'u-lower-star' || complex === 'u-extended');
-  const choosesFiltration = $derived(complex !== 'grpph' && complex !== 'grounded-flag' && !byHeight);
+  const choosesFiltration = $derived(complex !== 'grpph' && complex !== 'grounded-flag');
   const pathHomology = $derived(complex === 'grpph' || complex === 'pph');
   const shortestPath = $derived(complex === 'grpph' || complex === 'grounded-flag' || (choosesFiltration && pathFiltration));
   /** PPH of the shortest-path filtration in H₀ and H₁ is GrPPH without the grounding (as Python's `pph`). */
@@ -113,8 +99,6 @@
       if ((!d.pivot && options.columns === 'pivot') || (d.unionFind === undefined && options.unionFind)) options = defaultsFor(d);
     });
   });
-  /** Each node's height on the canvas: 0 at the bottom, 10 at the top. */
-  const heights = $derived(g.nodes.map((v) => Math.round(10000 * (1 - v.y)) / 1000));
 
   // ---- The digraph, with undo ----
   const history = new History<Digraph>();
@@ -195,9 +179,8 @@
     };
     if (viaGrpph) return { pipeline: 'grpph', grounded: complex === 'grpph', ...graph };
     if (undirected) {
-      const kind: GraphKind =
-        complex === 'u-flag' ? (pathFiltration ? 'flag-sp' : 'flag') : complex === 'u-lower-star' ? 'lower-star' : 'extended';
-      return { pipeline: 'graph', kind, heights: Float64Array.from(heights), maxDim: kind === 'extended' ? 1 : maxDim, ...graph };
+      const kind: GraphKind = pathFiltration ? 'flag-sp' : 'flag';
+      return { pipeline: 'graph', kind, maxDim, ...graph };
     }
     return {
       pipeline: 'network',
@@ -207,10 +190,8 @@
       ...graph,
     };
   });
-  // Moving a node changes nothing to compute, but for the filtrations by height
-  const jobKey = $derived(
-    job ? JSON.stringify([g.nodes.length, g.edges, options, complex, maxDim, pathFiltration, byHeight ? heights : null]) : '',
-  );
+  // Moving a node changes nothing to compute
+  const jobKey = $derived(job ? JSON.stringify([g.nodes.length, g.edges, options, complex, maxDim, pathFiltration]) : '');
   $effect(() => {
     jobKey;
     const j = untrack(() => job);
@@ -253,7 +234,6 @@
         {tool}
         {newWeight}
         {undirected}
-        heightLine={byHeight ? runner.t : null}
         bind:selectedEdge
         onstart={() => history.begin(g)}
         onedit={(next) => {
@@ -262,7 +242,7 @@
         }}
       />
       <div style="margin-top: 0.6rem">
-        <FiltrationSlider bind:t={runner.t} {domain} label={byHeight ? 'Height' : shortestPath ? 'Path length' : 'Weight'} />
+        <FiltrationSlider bind:t={runner.t} {domain} label={shortestPath ? 'Path length' : 'Weight'} />
       </div>
       <div class="legend" style="margin-top: 0.4rem">
         <span>{g.nodes.length} nodes, {g.edges.length} edges</span>
@@ -359,7 +339,7 @@ c,a,2</pre>
           </select>
         </label>
       {/if}
-      {#if complex !== 'grpph' && complex !== 'grounded-flag' && complex !== 'u-extended'}
+      {#if complex !== 'grpph' && complex !== 'grounded-flag'}
         <label class="field"><span>Up to dimension</span>
           <select bind:value={maxDim}>
             <option value={0}>H₀</option><option value={1}>H₁</option><option value={2}>H₂</option><option value={3}>H₃</option>

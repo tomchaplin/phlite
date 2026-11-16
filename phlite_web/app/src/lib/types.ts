@@ -56,8 +56,8 @@ export interface AlgoOptions {
 export type Metric = 'euclidean' | 'manhattan' | 'chebyshev';
 
 /** The complexes of `phlite_web::network`. */
-/** The complexes of `phlite_web::graph` (undirected graphs; heights are the nodes' heights on the canvas). */
-export type GraphKind = 'flag' | 'lower-star' | 'flag-sp' | 'extended';
+/** The complexes of `phlite_web::graph` (the flag complex of an undirected graph). */
+export type GraphKind = 'flag' | 'flag-sp';
 
 export type NetworkKind = 'pph' | 'flag' | 'grounded-flag' | 'tuples' | 'dowker-sink' | 'dowker-source';
 
@@ -94,7 +94,6 @@ export type Job =
       sources: Uint32Array;
       targets: Uint32Array;
       weights: Float64Array;
-      heights: Float64Array;
       maxDim: number;
       options: AlgoOptions;
     }
@@ -116,6 +115,8 @@ export type Job =
       values: Float64Array;
       modulus: number;
       maxDim: number | null;
+      /** Extended persistence instead (bars with a `kind`). */
+      extended: boolean;
       options: AlgoOptions;
     }
   /** Crash on purpose, to test the recovery (`window.__phlite.run({pipeline: 'crash', how: 'pool'})`). */

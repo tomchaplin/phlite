@@ -72,7 +72,8 @@ _pytest *pytest_args:
 # The pytest-benchmark suites for each environment, and where the quick baselines are saved. As for the tests, each
 # submodule's suites are `benchmarks/bench_<submodule>_<pipeline>.py` (e.g. bench_clouds_rips.py), all picked up here;
 # each describes itself for the reports in a `SUITE` dict (see benchmarks/suites.py).
-main_benches := `shopt -s nullglob; echo benchmarks/bench_{clouds,networks,images}*.py`
+# (bench_extended_persistence.py benchmarks phlite.complexes against GUDHI, which only the main environment has)
+main_benches := `shopt -s nullglob; echo benchmarks/bench_{clouds,networks,images}*.py benchmarks/bench_extended_persistence.py`
 latest_benches := `shopt -s nullglob; echo benchmarks/bench_complexes*.py`
 storage := "--benchmark-storage=file://benchmarks/baselines"
 

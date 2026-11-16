@@ -13,7 +13,6 @@
     newWeight = 1,
     selectedEdge = $bindable(null),
     undirected = false,
-    heightLine = null,
     onstart,
     onedit,
   }: {
@@ -27,8 +26,6 @@
     selectedEdge?: number | null;
     /** Whether the complex treats the edges as undirected (new edges are then drawn once per pair, without arrows). */
     undirected?: boolean;
-    /** A height to draw a line at (0 at the bottom, 10 at the top), for the filtrations by the nodes' heights. */
-    heightLine?: number | null;
     /** A gesture that may edit the digraph has begun. */
     onstart?: () => void;
     onedit?: (g: Digraph) => void;
@@ -170,12 +167,6 @@
       {/each}
     </defs>
 
-    {#if heightLine !== null}
-      {@const y = Y(1 - Math.min(10, Math.max(0, heightLine)) / 10)}
-      <line x1="0" x2={width} y1={y} y2={y} class="height" />
-      <text x={width - 6} y={y - 4} class="height-label">height {heightLine.toFixed(2)}</text>
-    {/if}
-
     {#each newEdges as [a, b]}
       <path d={path(a, b, !undirected && newEdges.length < 200).d} class="new" marker-end={undirected ? undefined : 'url(#arrow-new)'} />
     {/each}
@@ -224,8 +215,6 @@
   .rep { fill: none; stroke-width: 4; opacity: 0.9; pointer-events: none; }
   .rep.shortcut { stroke-dasharray: 6 4; }
   .death { fill: none; stroke: var(--danger); stroke-width: 2; stroke-dasharray: 3 3; pointer-events: none; }
-  .height { stroke: var(--accent); stroke-width: 1; stroke-dasharray: 6 4; opacity: 0.8; pointer-events: none; }
-  .height-label { font-size: 10px; fill: var(--accent); text-anchor: end; pointer-events: none; }
   .drag { stroke: var(--accent); stroke-width: 2; stroke-dasharray: 4 3; }
   .node { fill: var(--panel); stroke: var(--fg); stroke-width: 1.5; }
   .node.rep { stroke-width: 2.5; }

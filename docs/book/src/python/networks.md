@@ -21,7 +21,7 @@ be non-negative, and may be infinite (the edge never appears); self-loops are re
 the `filtration` argument where it applies: `'weight'`, its own weight, or `'shortest_path'`, the length of the shortest
 directed path (making the weights a quasi-metric). `flag` takes an undirected networkx `Graph`, or
 `(n_vertices, edges)` with `(u, v)` or `(u, v, weight)` edges, and node values (`node_weight`: an attribute name, or one
-value per node).
+value per node). For the [extended persistence](extended.md) of a function on a graph's nodes, see that chapter.
 
 The complexes other than (Gr)PPH are built on `phlite_networks::lazy`: a complex described by listing any simplex's
 cofacets (in increasing order) and facets, from which come coboundary and boundary oracles with Ripser's optimisations

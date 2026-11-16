@@ -53,7 +53,7 @@ self.onmessage = async (event: MessageEvent<Message>) => {
         barcode = phlite.network(job.kind, job.shortestPath, job.n, job.sources, job.targets, job.weights, job.maxDim, job.options);
         break;
       case 'graph':
-        barcode = phlite.graph(job.kind, job.n, job.sources, job.targets, job.weights, job.heights, job.maxDim, job.options);
+        barcode = phlite.graph(job.kind, job.n, job.sources, job.targets, job.weights, job.maxDim, job.options);
         break;
       case 'image':
         barcode = phlite.image(job.pixels, job.width, job.height, job.superlevel, job.construction, job.options);
@@ -61,7 +61,7 @@ self.onmessage = async (event: MessageEvent<Message>) => {
       case 'complex':
         barcode = phlite.complex(
           job.dimensions, job.indptr, job.indices, job.coefficients, job.values, job.modulus,
-          job.maxDim ?? undefined, job.options,
+          job.maxDim ?? undefined, job.extended, job.options,
         );
         break;
       case 'crash':
