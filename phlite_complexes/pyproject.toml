@@ -6,7 +6,7 @@ build-backend = "maturin"
 name = "phlite-complexes"
 readme = "README.md"
 description = "Persistent homology of sparse filtered chain complexes you build yourself, computed with phlite"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 license = "MIT"
 classifiers = [
     "Programming Language :: Rust",

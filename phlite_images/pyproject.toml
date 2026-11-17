@@ -6,7 +6,7 @@ build-backend = "maturin"
 name = "phlite-images"
 readme = "README.md"
 description = "Persistent homology of images (cubical complexes), computed with phlite"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 license = "MIT"
 classifiers = [
     "Programming Language :: Rust",
