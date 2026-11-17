@@ -15,7 +15,8 @@ flowchart TD
 
 | Matrix | Best | Package default |
 |---|---|---|
-| Vietoris–Rips cohomology | heap or merged, uncached | `phlite.clouds.rips`: heap, uncached |
+| Vietoris–Rips cohomology, random points | heap or merged, uncached | `phlite.clouds.rips`: heap, uncached |
+| Vietoris–Rips cohomology, long bars | merged, cached | |
 | GrPPH cohomology | merged, cached | `phlite.networks.grpph`: merged, cached |
 | explicit cubical / dense / cell complexes | pivot, store R, uncached | `phlite`: pivot, store R, uncached |
 | homology of small simplicial complexes | sorted | |

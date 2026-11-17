@@ -14,6 +14,18 @@ test:
     cargo test --workspace --all-features
     cd python-tests && just test
 
+# Debug builds pile up: every rebuild of a test or example keeps its own copy (a few hundred MB each), and
+# incremental-compilation state grows too, so after a busy day target/debug can hold well over 100 GB of files (much less
+# on disk if the filesystem compresses them: about 12 GB under btrfs's zstd, where `du` shows the uncompressed size,
+# `compsize` the real one). This removes it
+# (the next `just test` rebuilds what it needs), and the PGO builds; release builds (the Python wheels') are kept.
+# `cargo clean` removes everything.
+#
+# Free the disk space taken by debug and PGO builds
+clean:
+    cargo clean --profile dev
+    rm -rf target/pgo-generate target/pgo-use pgo
+
 # Check that the impls forwarding a trait to an inner matrix (`&M`, `WithTranspose`, `MatrixWithBasis`, ...) forward
 # every method, those with defaults included: a missed one would silently drop the inner matrix's override (a
 # performance hook, say). They are marked `#[deny(clippy::missing_trait_methods)]`; every other lint is allowed here.

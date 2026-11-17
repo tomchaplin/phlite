@@ -63,9 +63,11 @@ It implements the optimisations of Ripser and giotto-ph on `phlite`'s oracles:
 A sparse matrix may give each edge once, either way round, or both ways round (with the same distance; it is an error
 otherwise), and its diagonal is ignored: every point enters at 0. (ripser.py reads only a sparse matrix's upper
 triangle, ignoring entries below the diagonal, and reads the diagonal as the points' births.)
-- **Heap columns, uncached** by default: Rips columns are cheap to recompute, and caching them dominates the memory.
-  On point clouds with long bars (noisy spheres, wedges of circles), merged cached columns
-  (`Algorithm.serial().with_columns("merged").with_cache(True)`) are up to 1.9× faster at about twice the memory.
+- **Heap columns, uncached** by default: Rips columns are cheap to recompute, and on random points this uses the
+  least memory (4 MB against 22 MB for merged cached columns, at 400 points). But on point clouds with long bars
+  (noisy spheres, wedges of circles) the heaps grow long: there merged cached columns
+  (`Algorithm.serial().with_columns("merged").with_cache(True)`) are up to 1.9× faster *and* use far less memory
+  (25 MB against 546 MB on a noisy sphere of 400 points).
   Avoid `'sorted'` columns on such inputs: they can take hours.
 
 ## Sparse matrices that aren't metrics

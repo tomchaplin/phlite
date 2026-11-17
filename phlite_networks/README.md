@@ -1,130 +1,69 @@
 # phlite_networks
 
-Persistent homology of networks with [`phlite`](https://github.com/tomchaplin/phlite). So far one filtration:
-
-* `phlite_networks::grpph`: grounded persistent path homology (GrPPH) [[1]](#1) of weighted digraphs.
-
-With the feature `python`, this crate is also the Python package `phlite-networks`, `phlite.networks` (its bindings
-live in `src/python`, one file per pipeline). It was called `phlite_grpph` (crate and Python package); `grpph` itself
-is unchanged.
-
-## In Python
-
-`phlite.networks.grpph` accepts either a [networkx](https://networkx.org/) digraph:
+Persistent homology of networks (weighted graphs and digraphs), in Rust and Python (`pip install phlite-networks`,
+or `pip install phlite` for every package). Part of [phlite](https://github.com/tomchaplin/phlite), which brings the
+techniques of Ripser and its relatives to any filtration; see [the book](https://phlite.tomchaplin.xyz/book/) and
+the [in-browser playground](https://phlite.tomchaplin.xyz/playground/), where you can draw a network and see each of
+these barcodes.
 
 ```python
 import networkx as nx
-from phlite.networks import grpph
+from phlite.networks import grpph, pph, directed_flag, flag
 
 G = nx.DiGraph()
 G.add_weighted_edges_from([("a", "b", 1.0), ("b", "c", 1.0), ("c", "d", 1.0), ("d", "a", 1.0)])
 
-barcode = grpph(G, representatives=True)
-
-barcode.essential                 # essential[k]: births of the infinite bars in dimension k
-barcode.pairings                  # pairings[k]: (birth, death) of the finite bars in dimension k
-barcode.pairing_representatives   # pairing_representatives[k][i]: a cycle representing pairings[k][i]
-barcode.essential_representatives # essential_representatives[k][i]: a cycle representing essential[k][i]
+barcode = grpph(G, representatives=True)   # grounded persistent path homology
+barcode = pph(G, max_dim=2)                # persistent path homology
+barcode = directed_flag(G, max_dim=2)      # the directed flag complex, as flagser
+barcode.pairing_representatives[1]         # a cycle for each finite H1 bar, in your node labels
 ```
 
-or the number of nodes (labelled `0, ..., n - 1`) and a list of `(source, target, weight)` edges:
+Every function takes a networkx graph or `(number of nodes, edge list)`, and `algorithm=`, `method=` and
+`representatives=`; representatives come back in your node labels.
 
-```python
-barcode = grpph(4, [(0, 1, 1.0), (1, 2, 1.0), (2, 3, 1.0), (3, 0, 1.0)], representatives=True)
-```
+## Filtrations
 
-With networkx, weights are read from the `weight` attribute (change this with `weight="cost"`), defaulting to 1 when missing,
-and `MultiDiGraph`s are accepted (the lightest of parallel edges determines distances).
-Undirected graphs are rejected: pass `G.to_directed()` to get an edge each way.
-
-Representatives are lists of cells, each a tuple of nodes: `(a,)` for a node and `(a, b)` for an edge.
-With a networkx graph these are your node labels, otherwise node indices.
-They are `None` unless you pass `representatives=True`.
-Bars of length zero are omitted, and within each dimension bars are sorted by birth then death.
-
-Edge weights must be non-negative; an infinite weight means the edge is only used for grounding.
-Self-loops are not supported.
-
-The keyword-only arguments choose how the barcode is computed:
-
-| Argument | Values | Default |
+| Function | What | Book |
 |---|---|---|
-| `method` | `'cohomology'`: reduce the coboundary matrix, computing representatives by involution. `'homology'`: reduce the boundary matrix (needs every 2-cell up front, so uses far more memory). | `'cohomology'` |
-| `algorithm` | A `phlite.core.Algorithm`, see [below](#choosing-an-algorithm). | `Algorithm.serial()` |
-| `representatives` | Whether to compute a representative cycle for every bar. | `False` |
+| `grpph` | grounded persistent path homology [[1]](#1): a stable descriptor of weighted digraphs | [GrPPH](https://phlite.tomchaplin.xyz/book/python/networks/grpph.html) |
+| `pph` | persistent path homology (Chowdhury and Mémoli [[2]](#2)) in any dimension, by edge weight or shortest paths | [PPH](https://phlite.tomchaplin.xyz/book/python/networks/pph.html) |
+| `directed_flag` | the directed flag complex [[3]](#3), grounded or not, as flagser computes it | [Directed flag](https://phlite.tomchaplin.xyz/book/python/networks/directed_flag.html) |
+| `ordered_tuples` | directed Rips: ordered tuples of nodes | [Ordered tuples](https://phlite.tomchaplin.xyz/book/python/networks/ordered_tuples.html) |
+| `dowker` | Dowker complexes (sink or source) | [Dowker](https://phlite.tomchaplin.xyz/book/python/networks/dowker.html) |
+| `flag` | flag (clique) complexes of undirected graphs, by edge weight, node values or shortest paths | [Flag](https://phlite.tomchaplin.xyz/book/python/networks/flag.html) |
 
-It returns a `phlite.core.Barcode`, which also records the algorithm that computed it (`barcode.algorithm`).
-The computation releases the GIL. For more examples see the `examples` folder.
+Extended persistence of a function on a graph's nodes is in `phlite.complexes`
+([book](https://phlite.tomchaplin.xyz/book/python/extended.html)). In Rust, each is a module with a `*_barcode`
+function; `phlite_networks_grpph` and `phlite_networks_pph` are command-line tools.
 
-### Choosing an algorithm
+## Compared with other packages
 
-The `algorithm` argument takes a `phlite.core.Algorithm`, shared by every pipeline of every phlite package. Start from a
-preset:
+* **[grpphati](https://github.com/tomchaplin/grpphati)** (GrPPH and PPH, with PHAT or LoPHAT as its backend): phlite is 24–105× faster on
+  GrPPH and 50–95× faster on PPH, in a fraction of the memory (grpphati needs 7 GB for a ring of 100 nodes, phlite
+  31 MB).
+* **[flagser](https://github.com/luetge/flagser)** (through [pyflagser](https://github.com/giotto-ai/pyflagser)), the
+  reference for directed flag complexes and the source of the deduplicating heap phlite offers as `'dynamic'` columns: phlite is 1.4–1.9× faster (50 s against 87 s on G(500, 0.05) up to dimension 2),
+  but flagser uses 2–4× less memory.
+* **[GUDHI](https://gudhi.inria.fr)** (flag complexes of graphs, by `SimplexTree`): phlite is 3–18× faster, by edge
+  weight, node values or shortest paths.
+* **[PathHomFast](https://github.com/WeilabMSU/PathHom)** and Chowdhury and Mémoli's
+  [MATLAB code](https://github.com/samirchowdhury/pph-matlab) compute persistent path homology too: phlite is fuzzed
+  against PathHomFast and was compared with the MATLAB code, and computes it in any dimension, by homology or
+  cohomology.
 
-* `Algorithm.serial()` (the default): clearing, skipping zero-length apparent pairs;
-* `Algorithm.parallel(threads=None)`: the same, with each dimension reduced in parallel on `threads` threads (default: all cores).
-
-or from an algorithm itself, `Algorithm.standard()`, `Algorithm.clearing()` or `Algorithm.parallel_clearing()`,
-then adjust it with the `with_*` methods, each of which returns a new `Algorithm`:
-
-| Method | Values | Default |
-|---|---|---|
-| `with_columns` | How the column being reduced is stored: `'merged'` (sorted columns, merged lazily, so never looking below the pivot), `'heap'` (every entry pushed onto one heap) or `'sorted'` (one sorted vector: fast when the columns added stay near the pivot, slow when they reach far below it). | `'merged'` for `grpph` (`'heap'` for `phlite.clouds.rips`; for explicit complexes, `'pivot'` for serial clearing, see [`phlite_complexes`' README](../phlite_complexes/README.md#choosing-an-algorithm)) |
-| `with_cache` | Whether to cache the columns of the boundary matrix that get added, rather than recomputing them each time. Pays off when columns are expensive to compute, but holds them in memory until their dimension is done. | `True` for `grpph` (`False` for `phlite.clouds.rips` and explicit complexes) |
-| `with_store_r` | Keep each reduced column of R = D V and add it directly when cancelling a pivot (as PHAT does), rather than recompute it from V (serial clearing only). Pays off when columns need many additions, as in dense or cubical complexes, at the cost of memory. | `False` for `grpph` (`True` for serial clearing of explicit complexes) |
-| `with_skip_zero_apparent_pairs` | Whether to leave zero-length apparent pairs out of the reduction's diagram (clearing only). They would be dropped from the barcode anyway, and recording them can dominate the time and memory. | `True` |
-| `with_dimension_order` | The order to reduce dimensions in (clearing only), or `None` to detect the efficient order from the matrix. | `None` |
-| `with_storage` | Concurrent data structures (parallel only): `'locking'` or `'lock-free'`. | `'locking'` |
-| `with_threads` | Number of threads (parallel only), or `None` for all cores. | `None` |
-
-```python
-from phlite.core import Algorithm
-
-Algorithm.parallel(threads=8)
-Algorithm.clearing().with_columns("heap").with_skip_zero_apparent_pairs(False)
-```
-
-Every algorithm gives the same barcode; only the time and memory differ.
-The last three options' defaults depend on the pipeline, so the presets leave them unset (`None`) and each pipeline
-fills them in (here the pipeline `networks.grpph`). An `Algorithm` shows every option, those left to the pipeline as
-`<pipeline default>`; `Algorithm.serial().resolve("networks.grpph")` fills them in, and `phlite.core.defaults()` lists
-every pipeline's. `serial()` is the same as `clearing()`, and `parallel(threads)` as
-`parallel_clearing().with_threads(threads)`. `'pivot'` columns are refused here and in `phlite.clouds.rips`, whose
-matrices don't give the row ranks they need.
-Options that don't apply to an algorithm (such as `with_threads` on `Algorithm.serial()`) raise a `ValueError`.
-
-### Migrating from `phlite_grpph`
-
-`phlite_grpph` 0.2 is now the package `phlite-networks` (`pip install phlite-networks`, or `phlite` for every
-package): `from phlite_grpph import grpph` becomes `from phlite.networks import grpph`, and `phlite_grpph.Algorithm`
-is `phlite.core.Algorithm`. The barcode is a `phlite.core.Barcode`, with the same attributes as 0.2's `Barcode`.
-
-From `phlite_grpph` 0.1, `grpph` returns a barcode object rather than a tuple, and `grpph_with_involution` has been
-removed:
-
-```python
-# phlite_grpph 0.1
-essential, pairings = grpph(n, edges)
-essential, pairings, reps = grpph_with_involution(n, edges)
-# now
-barcode = grpph(n, edges, representatives=True)
-essential, pairings = barcode.essential, barcode.pairings
-reps = barcode.pairing_representatives[1]
-```
-
-Note that in 0.1 `reps` was in no particular order, whereas `pairing_representatives[1]` lines up with `pairings[1]`.
-Representatives are now also available for essential bars and in dimension 0, and you can pass a networkx graph directly.
-Self-loops, negative or `NaN` weights and nodes outside `0, ..., n - 1` now raise a `ValueError`.
-
-## Development
-
-The Rust side is `src/grpph` (with the `phlite_networks_grpph` binary, which times a complete digraph); the Python
-bindings are in `src/python/grpph.rs`, built (with the feature `python`) as the package `phlite-networks`; see
-[python-tests](../python-tests/README.md), whose `just build` builds every phlite package.
+Ordered tuples and Dowker complexes have, as far as we know, no other implementation to compare with; they are tested
+against brute force. All of the numbers are in [the benchmarks](https://github.com/tomchaplin/phlite/blob/main/python-tests/BENCHMARKS.md).
 
 ## References
 
 <a id="1">[1]</a>
-Chaplin, T., Harrington, H.A. and Tillmann, U., 2022.
-Grounded persistent path homology: a stable, topological descriptor for weighted digraphs.
-arXiv preprint [arXiv:2210.11274](https://arxiv.org/abs/2210.11274).
+Chaplin, Thomas, Heather A. Harrington, and Ulrike Tillmann. "Grounded persistent path homology: a stable, topological
+descriptor for weighted digraphs." arXiv:2210.11274 (2022).
+
+<a id="2">[2]</a>
+Chowdhury, Samir, and Facundo Mémoli. "Persistent path homology of directed networks." Proceedings of the 29th Annual
+ACM-SIAM Symposium on Discrete Algorithms (2018). arXiv:1701.00565.
+
+<a id="3">[3]</a>
+Lütgehetmann, Daniel, et al. "Computing persistent homology of directed flag complexes." Algorithms 13.1 (2020): 19.

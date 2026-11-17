@@ -5,10 +5,12 @@
 # * the crates (`cargo publish --workspace`: phlite, then phlite_bindings and phlite_complexes, then phlite_clouds and
 #   phlite_images, then phlite_networks), once every wheel has built.
 #
-# Publishing to PyPI is by trusted publishing, with no token: each of the six projects (phlite, phlite-core,
-# phlite-complexes, phlite-clouds, phlite-networks, phlite-images) has this repository's `release.yml`, in the
-# environment `pypi`, as a trusted publisher (added as a pending publisher, under Account settings > Publishing, before
-# the project's first release creates it). Publishing to crates.io needs the repository secret CARGO_REGISTRY_TOKEN (crates.io > Account
+# Publishing to PyPI is by trusted publishing: each of the six projects (phlite, phlite-core, phlite-complexes,
+# phlite-clouds, phlite-networks, phlite-images) has this repository's `release.yml`, in the environment `pypi`, as a
+# trusted publisher (on the project's Manage > Publishing page). PyPI allows only one *pending* publisher (for a project
+# not yet created) per repository, workflow and environment (pypi/warehouse#20006), so the first release, which creates
+# the six projects, uses an account-wide API token instead: while the secret PYPI_API_TOKEN exists, it is used; delete
+# it once every project has its trusted publisher, and trusted publishing takes over. Publishing to crates.io needs the repository secret CARGO_REGISTRY_TOKEN (crates.io > Account
 # Settings > API Tokens, with the publish-new and publish-update scopes). A run by hand builds everything and dry-runs
 # the crates' publication, publishing nothing.
 # Every crate and package share one version (`[workspace.package] version` in Cargo.toml, and phlite_meta's pins): bump
@@ -263,3 +265,5 @@ jobs:
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           skip-existing: true
+          # Empty (the secret deleted): trusted publishing. Set: that token (for the first release, see above)
+          password: ${{ secrets.PYPI_API_TOKEN }}

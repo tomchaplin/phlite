@@ -1,89 +1,61 @@
 # phlite_clouds
 
-Persistent homology of point clouds and distance matrices with `phlite`. So far one filtration:
-
-* `phlite_clouds::alpha`: filtrations of the (exact) Delaunay triangulation of points in the plane or in space, as
-  GUDHI computes them: alpha complexes, and Delaunay–Čech complexes (each simplex at the radius of its minimal
-  enclosing ball), with `delaunay_barcode` their persistence. In Python, `phlite.clouds.alpha(points)` and
-  `delaunay_cech(points)` (and `alpha_complex` and `delaunay_cech_complex` for the filtered complexes themselves).
-* `phlite_clouds::rips`: the Vietoris-Rips filtration, à la Ripser, of dense or sparse distance matrices or points,
-  optionally weighted (`rips::Weighted`, as GUDHI's weighted Rips, and with `rips::distance_to_measure` DTM-Rips).
-  It is also a familiar example for those new to `phlite`, and a tutorial (see below).
-
-With the feature `python`, this crate is also the Python package `phlite-clouds`, `phlite.clouds` (its bindings live
-in `src/python`, one file per pipeline). It was called `phlite_rips` (crate and Python package).
-
-## Vietoris-Rips
-
-The crate has a CLI, `phlite_clouds_rips`, which accepts a distance matrix on STDIN in CSV format and then computes VR
-persistent homology. The typical usage looks like
-```
-cat my_distance_matrix.csv | cargo run --release --bin phlite_clouds_rips 3
-```
-if you want to compute PH for the distance matrix in `my_distance_matrix.csv` up to maximum dimension 3.
-If you do not specify max dimension, it is assumed to be 1.
-
-If you want to quickly test this out for say 100 points on a circle (using intrinsic distance) you can try
-```
-python circle_distance_matrix.py | cargo run --release --bin phlite_clouds_rips
-```
-
-### In Python
+Persistent homology of point clouds and distance matrices, in Rust and Python (`pip install phlite-clouds`, or
+`pip install phlite` for every package). Part of [phlite](https://github.com/tomchaplin/phlite), which brings the
+techniques of Ripser and its relatives to any filtration; see [the book](https://phlite.tomchaplin.xyz/book/) and
+the [in-browser playground](https://phlite.tomchaplin.xyz/playground/), where you can draw a point cloud and watch
+its barcode change.
 
 ```python
-import numpy as np
-from phlite.clouds import rips
+from phlite.clouds import rips, alpha, dtm
 
-points = np.random.default_rng(0).normal(size=(50, 2))
-distances = np.linalg.norm(points[:, None] - points[None], axis=-1)
-
-barcode = rips(distances, max_dim=1, representatives=True)
-barcode.pairings[1]                 # (birth, death) of the finite H_1 bars
-barcode.pairing_representatives[1]  # a cycle (list of edges (a, b)) for each of them
+barcode = rips(points=X, max_dim=2)                    # Vietoris–Rips of points
+barcode = rips(D, max_dim=1, representatives=True)     # of a distance matrix, with cycles
+barcode = rips(points=X, weights=dtm(points=X, k=10))  # DTM-Rips: robust to outliers
+barcode = alpha(X)                                     # the alpha complex, in 2D or 3D
+barcode.pairings[1]                                    # (birth, death) of the finite H1 bars
 ```
 
-`rips` takes the same keyword arguments (`method`, `algorithm` and `representatives`) and returns the same
-`phlite.core.Barcode` as [`phlite.networks.grpph`](../phlite_networks/README.md#in-python).
-`algorithm` is a `phlite.core.Algorithm`, built as described [there](../phlite_networks/README.md#choosing-an-algorithm), for
-example `rips(distances, algorithm=Algorithm.parallel(threads=4))`.
-By default (the pipeline `clouds.rips`) columns are represented with a heap and not cached: Rips columns are cheap to recompute, and caching them
-would take most of the memory (about 4× the peak, see [the benchmarks](../python-tests/BENCHMARKS.md)).
-On point clouds with long bars (noisy samples of spheres or wedges of circles), merged, cached columns
-(`Algorithm.serial().with_columns("merged").with_cache(True)`) are up to 1.9× faster, at about twice the memory.
-Avoid `'sorted'` columns there: they can take hours where the others take seconds.
-Representatives are lists of simplices, each a tuple of point indices in increasing order.
-An infinite distance means that edge never appears. See `examples/circle.py` for a full example.
+## Filtrations
 
-Instead of a dense matrix, `rips` also takes a scipy sparse matrix (a missing entry is an edge that never appears, so
-memory and time grow with the number of edges), or points: `rips(points=X)`, with `metric='euclidean'` (the default),
-`'manhattan'` or `'chebyshev'`. With a `threshold`, points are turned straight into a sparse matrix of the distances up
-to it. In Rust, `rips_barcode` takes any `rips::Distances`: a dense `Vec<Vec<NotNan<f64>>>`, a `rips::SparseDistances`
-(from edges, or from points with `SparseDistances::from_points`), or a reference to either.
+* **Vietoris–Rips** (`rips`) of a dense or sparse distance matrix, or of points: Ripser's algorithm (cohomology,
+  clearing, apparent and emergent pairs, union-find in dimension 0, truncation at the enclosing radius) with
+  giotto-ph's parallel reduction. A sparse matrix that isn't a metric (the edges of a weighted graph, say) is
+  listed and reduced as an explicit complex, which is far faster for those. [Book chapter.](https://phlite.tomchaplin.xyz/book/python/clouds/rips.html)
+* **Weighted Rips and DTM-Rips** (`rips(..., weights=...)`, `dtm`), as GUDHI's `WeightedRipsComplex` and
+  `DistanceToMeasure`. [Book chapter.](https://phlite.tomchaplin.xyz/book/python/clouds/weighted.html)
+* **Alpha and Delaunay–Čech complexes** (`alpha`, `delaunay_cech`) of points in the plane or in space, from an exact
+  Delaunay triangulation, filtered as GUDHI filters them. [Book chapter.](https://phlite.tomchaplin.xyz/book/python/clouds/alpha.html)
 
-Pass `threshold=t` to only build the Rips complex up to diameter `t` (bars still alive at `t` are then essential).
-Simplices above the enclosing radius `min_i max_j d(i, j)` are always skipped, since beyond it the complex is a cone and nothing changes, so this never affects the result.
+Every function takes `algorithm=` (a `phlite.core.Algorithm`: serial or parallel, and how columns are represented),
+`method=` (cohomology or homology) and `representatives=`, and returns a `phlite.core.Barcode`. In Rust,
+`rips::rips_barcode` takes any `rips::Distances` (dense, sparse, weighted, or your own), and `alpha::delaunay_barcode`
+any Delaunay filtration. A command-line tool, `phlite_clouds_rips`, reads a distance matrix as CSV.
 
-To build it, see [python-tests](../python-tests/README.md) (`just build` there builds every phlite package).
+## Compared with other packages
 
-### Optimisations
+phlite's Vietoris–Rips is Ripser's algorithm, with giotto-ph's parallelism; credit for both goes to their authors
+([Ripser](https://github.com/Ripser/ripser), [giotto-ph](https://github.com/giotto-ai/giotto-ph)). On one thread, on
+random points in the cube and on noisy samples of shapes with long bars:
 
-`phlite_clouds::rips` implements the main optimisations of [Ripser](https://github.com/Ripser/ripser)
-(Bauer, "Ripser: efficient computation of Vietoris–Rips persistence barcodes", J. Appl. Comput. Topol. 2021)
-and [giotto-ph](https://github.com/giotto-ai/giotto-ph)
-(Pérez et al., "giotto-ph: A python library for high-performance computation of persistent homology of Vietoris-Rips filtrations", arXiv:2107.05412),
-from which they are adapted:
-* clearing (Ripser), and a parallel lock-free reduction (giotto-ph, after Morozov and Nigmetov);
-* apparent pairs (Ripser): simplices in zero-persistence apparent pairs (nearly all of them) are never even put in the column basis,
-  which is built in parallel (giotto-ph);
-* emergent pairs (Ripser): a column whose pivot is unclaimed is finished as soon as its pivot is found, and pivots are found by
-  enumerating cofacets in order and stopping at the first with the simplex's own diameter;
-* truncation at the enclosing radius (Ripser and giotto-ph), and an optional threshold.
+* **[ripser.py](https://github.com/scikit-tda/ripser.py)**: phlite is 1.4–7× faster, and uses less memory on
+  random points; ripser runs out of memory (over 7 GB) on 1000 points in dimension 2.
+* **[giotto-ph](https://github.com/giotto-ai/giotto-ph)**: phlite is 1–2.2× faster (1.5–2.2× on random points in
+  dimension 2), and on sparse matrices from 7% slower to 1.3× faster. But on point clouds with long bars phlite's default (heap
+  columns, recomputed) uses far more memory: 546 MB against giotto-ph's 7 MB on a noisy sphere of 400 points. Merged
+  columns, cached (`Algorithm.serial().with_columns("merged").with_cache(True)`), are faster there and take 25 MB.
+* **[GUDHI](https://gudhi.inria.fr)**: alpha and Delaunay–Čech complexes are level with GUDHI's or up to 2.4× faster,
+  up to 100,000 points in the plane and 300,000 in space, but **7–8× slower on a million points in the plane** (167 s against 23 s), which we
+  have yet to look into. DTM-Rips is 50–400× faster than GUDHI's `WeightedRipsComplex`.
 
-It does not (yet) support sparse distance matrices, edge collapse, or union-find for H_0.
+What phlite adds is the rest of the package: sparse and non-metric inputs, weights, representatives by cohomology,
+a choice of algorithm, and the same API as phlite's other filtrations. If you only need Vietoris–Rips barcodes of
+point clouds, ripser.py and giotto-ph are mature and excellent. All of the numbers, with memory, are in
+[the benchmarks](https://github.com/tomchaplin/phlite/blob/main/python-tests/BENCHMARKS.md).
 
-### `phlite` tutorial
+## For Rust developers
 
-The `rips` module also acts as a tutorial for the `phlite` crate.
-There are two entry points for this tutorial:
-* `src/rips/mod.rs` - To see how to start implementing the core `phlite` traits.
-* `src/bin/rips.rs` - To see how to use such an implementation to actually compute persistent homology.
+`phlite_clouds::rips` is also phlite's most complete example of implementing a filtration with every optimisation:
+a lazy coboundary oracle over simplices encoded as integers, apparent pairs with early-stopping searches, and a basis
+that leaves out zero-persistence pairs. The [book's tutorial](https://phlite.tomchaplin.xyz/book/tutorial/index.html)
+builds up the same ideas step by step.
