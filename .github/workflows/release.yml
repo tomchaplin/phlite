@@ -92,7 +92,7 @@ jobs:
           RUSTFLAGS: ${{ matrix.platform.target == 'x86_64' && format('-Cprofile-use={0}/pgo/merged.profdata', github.workspace) || '' }}
         with:
           target: ${{ matrix.platform.target }}
-          rust-toolchain: ${{ matrix.platform.target == 'x86_64' && needs.pgo-profile.outputs.rust || '' }}
+          rust-toolchain: ${{ matrix.platform.target == 'x86_64' && needs.pgo-profile.outputs.rust || 'stable' }}
           args: --release --out dist --find-interpreter
           sccache: 'true'
           manylinux: auto
@@ -126,6 +126,8 @@ jobs:
         uses: PyO3/maturin-action@v1
         with:
           target: ${{ matrix.platform.target }}
+          # The runners' preinstalled Rust can be too old (phlite_clouds needs 1.99), so ask for the latest
+          rust-toolchain: stable
           args: --release --out dist --find-interpreter
           sccache: 'true'
           manylinux: musllinux_1_2
@@ -156,6 +158,8 @@ jobs:
         uses: PyO3/maturin-action@v1
         with:
           target: ${{ matrix.platform.target }}
+          # The runners' preinstalled Rust can be too old (phlite_clouds needs 1.99), so ask for the latest
+          rust-toolchain: stable
           args: --release --out dist --find-interpreter
           sccache: 'true'
           working-directory: ${{ matrix.package }}
@@ -186,6 +190,8 @@ jobs:
         uses: PyO3/maturin-action@v1
         with:
           target: ${{ matrix.platform.target }}
+          # The runners' preinstalled Rust can be too old (phlite_clouds needs 1.99), so ask for the latest
+          rust-toolchain: stable
           args: --release --out dist --find-interpreter
           sccache: 'true'
           working-directory: ${{ matrix.package }}
