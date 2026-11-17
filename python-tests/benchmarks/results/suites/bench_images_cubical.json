@@ -1,0 +1,2881 @@
+{
+    "machine_info": {
+        "processor": "",
+        "machine": "x86_64",
+        "python_compiler": "GCC 15.1.1 20250425",
+        "python_implementation": "CPython",
+        "python_implementation_version": "3.11.13",
+        "python_version": "3.11.13",
+        "python_build": [
+            "main",
+            "Jul  7 2025 19:11:17"
+        ],
+        "release": "7.0.10-arch1-1",
+        "system": "Linux",
+        "cpu": {
+            "python_version": "3.11.13.final.0 (64 bit)",
+            "cpuinfo_version": [
+                10,
+                1,
+                1
+            ],
+            "cpuinfo_version_string": "10.1.1",
+            "arch": "X86_64",
+            "bits": 64,
+            "count": 8,
+            "arch_string_raw": "x86_64",
+            "vendor_id_raw": "GenuineIntel",
+            "brand_raw": "11th Gen Intel(R) Core(TM) i7-1185G7 @ 3.00GHz",
+            "hz_advertised_friendly": "3.0000 GHz",
+            "hz_advertised": [
+                3000000000,
+                0
+            ],
+            "stepping": 1,
+            "model": 140,
+            "family": 6,
+            "flags": [
+                "3dnowprefetch",
+                "abm",
+                "acpi",
+                "adx",
+                "aes",
+                "aperfmperf",
+                "apic",
+                "arat",
+                "arch_capabilities",
+                "arch_perfmon",
+                "art",
+                "avx",
+                "avx2",
+                "avx512_bitalg",
+                "avx512_vbmi2",
+                "avx512_vnni",
+                "avx512_vp2intersect",
+                "avx512_vpopcntdq",
+                "avx512bitalg",
+                "avx512bw",
+                "avx512cd",
+                "avx512dq",
+                "avx512f",
+                "avx512ifma",
+                "avx512vbmi",
+                "avx512vbmi2",
+                "avx512vl",
+                "avx512vnni",
+                "avx512vpopcntdq",
+                "bmi1",
+                "bmi2",
+                "bts",
+                "cat_l2",
+                "cdp_l2",
+                "clflush",
+                "clflushopt",
+                "clwb",
+                "cmov",
+                "constant_tsc",
+                "cpuid",
+                "cpuid_fault",
+                "cx16",
+                "cx8",
+                "de",
+                "ds_cpl",
+                "dtes64",
+                "dtherm",
+                "dts",
+                "epb",
+                "ept",
+                "ept_ad",
+                "erms",
+                "est",
+                "f16c",
+                "flexpriority",
+                "flush_l1d",
+                "fma",
+                "fpu",
+                "fsgsbase",
+                "fsrm",
+                "fxsr",
+                "gfni",
+                "ht",
+                "hwp",
+                "hwp_act_window",
+                "hwp_epp",
+                "hwp_notify",
+                "hwp_pkg_req",
+                "ibpb",
+                "ibrs",
+                "ibrs_enhanced",
+                "ibt",
+                "ida",
+                "intel_pt",
+                "invpcid",
+                "lahf_lm",
+                "lm",
+                "mca",
+                "mce",
+                "md_clear",
+                "mmx",
+                "monitor",
+                "movbe",
+                "movdir64b",
+                "movdiri",
+                "msr",
+                "mtrr",
+                "nonstop_tsc",
+                "nopl",
+                "nx",
+                "ospke",
+                "osxsave",
+                "pae",
+                "pat",
+                "pbe",
+                "pcid",
+                "pclmulqdq",
+                "pdcm",
+                "pdpe1gb",
+                "pebs",
+                "pge",
+                "pku",
+                "pln",
+                "pni",
+                "popcnt",
+                "pqe",
+                "pse",
+                "pse36",
+                "pts",
+                "rdpid",
+                "rdrand",
+                "rdrnd",
+                "rdseed",
+                "rdt_a",
+                "rdtscp",
+                "rep_good",
+                "sdbg",
+                "sep",
+                "sha",
+                "sha_ni",
+                "smap",
+                "smep",
+                "smx",
+                "split_lock_detect",
+                "ss",
+                "ssbd",
+                "sse",
+                "sse2",
+                "sse4_1",
+                "sse4_2",
+                "ssse3",
+                "stibp",
+                "syscall",
+                "tm",
+                "tm2",
+                "tme",
+                "tpr_shadow",
+                "tsc",
+                "tsc_adjust",
+                "tsc_deadline_timer",
+                "tsc_known_freq",
+                "tscdeadline",
+                "umip",
+                "user_shstk",
+                "vaes",
+                "vme",
+                "vmx",
+                "vnmi",
+                "vpclmulqdq",
+                "vpid",
+                "x2apic",
+                "xgetbv1",
+                "xsave",
+                "xsavec",
+                "xsaveopt",
+                "xsaves",
+                "xtopology",
+                "xtpr"
+            ],
+            "l3_cache_size": 12582912,
+            "l2_cache_size": 5242880,
+            "l1_data_cache_size": 196608,
+            "l1_instruction_cache_size": 131072,
+            "l2_cache_line_size": 256,
+            "l2_cache_associativity": 7
+        }
+    },
+    "commit_info": {
+        "id": "8a41862bc479ff85a31f3b295f29213db3472db8",
+        "time": "2026-11-16T20:17:02Z",
+        "author_time": "2026-11-16T20:17:02Z",
+        "dirty": true,
+        "project": "phlite",
+        "branch": "readme"
+    },
+    "benchmarks": [
+        {
+            "group": "cubical noise 256x256 T",
+            "name": "test_cubical[noise-256x256-T-gudhi]",
+            "fullname": "benchmarks/bench_images_cubical.py::test_cubical[noise-256x256-T-gudhi]",
+            "params": {
+                "kind": "noise",
+                "shape": [
+                    256,
+                    256
+                ],
+                "construction": "T",
+                "implementation": "gudhi"
+            },
+            "param": "noise-256x256-T-gudhi",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 42.3,
+                "fingerprint": [
+                    [
+                        7350,
+                        1,
+                        1412.702313
+                    ],
+                    [
+                        12939,
+                        0,
+                        3496.968264
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.17952941497787833,
+                "max": 0.1917873480124399,
+                "mean": 0.18510187399806455,
+                "stddev": 0.006204299505416899,
+                "rounds": 3,
+                "median": 0.1839888590038754,
+                "iqr": 0.00919344977592118,
+                "q1": 0.1806442759843776,
+                "q3": 0.18983772576029878,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.17952941497787833,
+                "hd15iqr": 0.1917873480124399,
+                "ops": 5.402430447627214,
+                "total": 0.5553056219941936,
+                "data": [
+                    0.1917873480124399,
+                    0.1839888590038754,
+                    0.17952941497787833
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "cubical noise 256x256 T",
+            "name": "test_cubical[noise-256x256-T-cripser]",
+            "fullname": "benchmarks/bench_images_cubical.py::test_cubical[noise-256x256-T-cripser]",
+            "params": {
+                "kind": "noise",
+                "shape": [
+                    256,
+                    256
+                ],
+                "construction": "T",
+                "implementation": "cripser"
+            },
+            "param": "noise-256x256-T-cripser",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 12.1,
+                "fingerprint": [
+                    [
+                        7350,
+                        1,
+                        1412.702313
+                    ],
+                    [
+                        12939,
+                        0,
+                        3496.968264
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.024307503015734255,
+                "max": 0.025132153008598834,
+                "mean": 0.02462851767389414,
+                "stddev": 0.00044161593756243596,
+                "rounds": 3,
+                "median": 0.024445896997349337,
+                "iqr": 0.0006184874946484342,
+                "q1": 0.024342101511138026,
+                "q3": 0.02496058900578646,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.024307503015734255,
+                "hd15iqr": 0.025132153008598834,
+                "ops": 40.6033368812929,
+                "total": 0.07388555302168243,
+                "data": [
+                    0.025132153008598834,
+                    0.024445896997349337,
+                    0.024307503015734255
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "cubical noise 256x256 T",
+            "name": "test_cubical[noise-256x256-T-phlite (serial)]",
+            "fullname": "benchmarks/bench_images_cubical.py::test_cubical[noise-256x256-T-phlite (serial)]",
+            "params": {
+                "kind": "noise",
+                "shape": [
+                    256,
+                    256
+                ],
+                "construction": "T",
+                "implementation": "phlite (serial)"
+            },
+            "param": "noise-256x256-T-phlite (serial)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 8.7,
+                "fingerprint": [
+                    [
+                        7350,
+                        1,
+                        1412.702313
+                    ],
+                    [
+                        12939,
+                        0,
+                        3496.968264
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.012091662996681407,
+                "max": 0.014718948979862034,
+                "mean": 0.013059097662335262,
+                "stddev": 0.0014440354996320295,
+                "rounds": 3,
+                "median": 0.012366681010462344,
+                "iqr": 0.0019704644873854704,
+                "q1": 0.012160417500126641,
+                "q3": 0.014130881987512112,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.012091662996681407,
+                "hd15iqr": 0.014718948979862034,
+                "ops": 76.57496910251129,
+                "total": 0.039177292987005785,
+                "data": [
+                    0.014718948979862034,
+                    0.012366681010462344,
+                    0.012091662996681407
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "cubical noise 256x256 T",
+            "name": "test_cubical[noise-256x256-T-phlite (parallel)]",
+            "fullname": "benchmarks/bench_images_cubical.py::test_cubical[noise-256x256-T-phlite (parallel)]",
+            "params": {
+                "kind": "noise",
+                "shape": [
+                    256,
+                    256
+                ],
+                "construction": "T",
+                "implementation": "phlite (parallel)"
+            },
+            "param": "noise-256x256-T-phlite (parallel)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 8.7,
+                "fingerprint": [
+                    [
+                        7350,
+                        1,
+                        1412.702313
+                    ],
+                    [
+                        12939,
+                        0,
+                        3496.968264
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.01372398599050939,
+                "max": 0.015217283013043925,
+                "mean": 0.014534500000687936,
+                "stddev": 0.0007547982546556306,
+                "rounds": 3,
+                "median": 0.014662230998510495,
+                "iqr": 0.0011199727669009008,
+                "q1": 0.013958547242509667,
+                "q3": 0.015078520009410568,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.01372398599050939,
+                "hd15iqr": 0.015217283013043925,
+                "ops": 68.80181636469564,
+                "total": 0.04360350000206381,
+                "data": [
+                    0.015217283013043925,
+                    0.014662230998510495,
+                    0.01372398599050939
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "cubical noise 256x256 V",
+            "name": "test_cubical[noise-256x256-V-gudhi]",
+            "fullname": "benchmarks/bench_images_cubical.py::test_cubical[noise-256x256-V-gudhi]",
+            "params": {
+                "kind": "noise",
+                "shape": [
+                    256,
+                    256
+                ],
+                "construction": "V",
+                "implementation": "gudhi"
+            },
+            "param": "noise-256x256-V-gudhi",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 28.4,
+                "fingerprint": [
+                    [
+                        13195,
+                        1,
+                        3611.357666
+                    ],
+                    [
+                        7209,
+                        0,
+                        1344.37966
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.15770089498255402,
+                "max": 0.16727129500941373,
+                "mean": 0.16319606732577085,
+                "stddev": 0.004940680246253401,
+                "rounds": 3,
+                "median": 0.1646160119853448,
+                "iqr": 0.007177800020144787,
+                "q1": 0.15942967423325172,
+                "q3": 0.1666074742533965,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.15770089498255402,
+                "hd15iqr": 0.16727129500941373,
+                "ops": 6.127598638782189,
+                "total": 0.48958820197731256,
+                "data": [
+                    0.16727129500941373,
+                    0.1646160119853448,
+                    0.15770089498255402
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "cubical noise 256x256 V",
+            "name": "test_cubical[noise-256x256-V-cripser]",
+            "fullname": "benchmarks/bench_images_cubical.py::test_cubical[noise-256x256-V-cripser]",
+            "params": {
+                "kind": "noise",
+                "shape": [
+                    256,
+                    256
+                ],
+                "construction": "V",
+                "implementation": "cripser"
+            },
+            "param": "noise-256x256-V-cripser",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 12.5,
+                "fingerprint": [
+                    [
+                        13195,
+                        1,
+                        3611.357666
+                    ],
+                    [
+                        7209,
+                        0,
+                        1344.37966
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.02459512499626726,
+                "max": 0.026506157009862363,
+                "mean": 0.02572151433560066,
+                "stddev": 0.0010003019177038796,
+                "rounds": 3,
+                "median": 0.026063261000672355,
+                "iqr": 0.0014332740101963282,
+                "q1": 0.024962158997368533,
+                "q3": 0.02639543300756486,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.02459512499626726,
+                "hd15iqr": 0.026506157009862363,
+                "ops": 38.8779597869912,
+                "total": 0.07716454300680198,
+                "data": [
+                    0.026506157009862363,
+                    0.02459512499626726,
+                    0.026063261000672355
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "cubical noise 256x256 V",
+            "name": "test_cubical[noise-256x256-V-phlite (serial)]",
+            "fullname": "benchmarks/bench_images_cubical.py::test_cubical[noise-256x256-V-phlite (serial)]",
+            "params": {
+                "kind": "noise",
+                "shape": [
+                    256,
+                    256
+                ],
+                "construction": "V",
+                "implementation": "phlite (serial)"
+            },
+            "param": "noise-256x256-V-phlite (serial)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 7.6,
+                "fingerprint": [
+                    [
+                        13195,
+                        1,
+                        3611.357666
+                    ],
+                    [
+                        7209,
+                        0,
+                        1344.37966
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.010515994974412024,
+                "max": 0.012561995012219995,
+                "mean": 0.011333085654769093,
+                "stddev": 0.0010833858988283174,
+                "rounds": 3,
+                "median": 0.010921266977675259,
+                "iqr": 0.0015345000283559784,
+                "q1": 0.010617312975227833,
+                "q3": 0.012151813003583811,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.010515994974412024,
+                "hd15iqr": 0.012561995012219995,
+                "ops": 88.2372224531091,
+                "total": 0.03399925696430728,
+                "data": [
+                    0.012561995012219995,
+                    0.010921266977675259,
+                    0.010515994974412024
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "cubical noise 256x256 V",
+            "name": "test_cubical[noise-256x256-V-phlite (parallel)]",
+            "fullname": "benchmarks/bench_images_cubical.py::test_cubical[noise-256x256-V-phlite (parallel)]",
+            "params": {
+                "kind": "noise",
+                "shape": [
+                    256,
+                    256
+                ],
+                "construction": "V",
+                "implementation": "phlite (parallel)"
+            },
+            "param": "noise-256x256-V-phlite (parallel)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 7.6,
+                "fingerprint": [
+                    [
+                        13195,
+                        1,
+                        3611.357666
+                    ],
+                    [
+                        7209,
+                        0,
+                        1344.37966
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.010234761983156204,
+                "max": 0.011905654013389722,
+                "mean": 0.011232483996233592,
+                "stddev": 0.0008814593256168012,
+                "rounds": 3,
+                "median": 0.011557035992154852,
+                "iqr": 0.001253169022675138,
+                "q1": 0.010565330485405866,
+                "q3": 0.011818499508081004,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.010234761983156204,
+                "hd15iqr": 0.011905654013389722,
+                "ops": 89.02750276210621,
+                "total": 0.03369745198870078,
+                "data": [
+                    0.011905654013389722,
+                    0.011557035992154852,
+                    0.010234761983156204
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "cubical smooth 1024x1024 T",
+            "name": "test_cubical[smooth-1024x1024-T-gudhi]",
+            "fullname": "benchmarks/bench_images_cubical.py::test_cubical[smooth-1024x1024-T-gudhi]",
+            "params": {
+                "kind": "smooth",
+                "shape": [
+                    1024,
+                    1024
+                ],
+                "construction": "T",
+                "implementation": "gudhi"
+            },
+            "param": "smooth-1024x1024-T-gudhi",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 615.5,
+                "fingerprint": [
+                    [
+                        67493,
+                        1,
+                        1887.318578
+                    ],
+                    [
+                        82495,
+                        0,
+                        2068.615252
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 3.451348627975676,
+                "max": 3.503137692983728,
+                "mean": 3.477043440992323,
+                "stddev": 0.025896842997225895,
+                "rounds": 3,
+                "median": 3.476644002017565,
+                "iqr": 0.03884179875603877,
+                "q1": 3.4576724714861484,
+                "q3": 3.496514270242187,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 3.451348627975676,
+                "hd15iqr": 3.503137692983728,
+                "ops": 0.2876006633137167,
+                "total": 10.43113032297697,
+                "data": [
+                    3.503137692983728,
+                    3.451348627975676,
+                    3.476644002017565
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "cubical smooth 1024x1024 T",
+            "name": "test_cubical[smooth-1024x1024-T-cripser]",
+            "fullname": "benchmarks/bench_images_cubical.py::test_cubical[smooth-1024x1024-T-cripser]",
+            "params": {
+                "kind": "smooth",
+                "shape": [
+                    1024,
+                    1024
+                ],
+                "construction": "T",
+                "implementation": "cripser"
+            },
+            "param": "smooth-1024x1024-T-cripser",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 193.1,
+                "fingerprint": [
+                    [
+                        67493,
+                        1,
+                        1887.318578
+                    ],
+                    [
+                        82495,
+                        0,
+                        2068.615252
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.3404708549787756,
+                "max": 0.35266106901690364,
+                "mean": 0.34736998833250254,
+                "stddev": 0.006252175990352313,
+                "rounds": 3,
+                "median": 0.3489780410018284,
+                "iqr": 0.009142660528596025,
+                "q1": 0.3425976514845388,
+                "q3": 0.3517403120131348,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.3404708549787756,
+                "hd15iqr": 0.35266106901690364,
+                "ops": 2.8787748901404804,
+                "total": 1.0421099649975076,
+                "data": [
+                    0.3489780410018284,
+                    0.35266106901690364,
+                    0.3404708549787756
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "cubical smooth 1024x1024 T",
+            "name": "test_cubical[smooth-1024x1024-T-phlite (serial)]",
+            "fullname": "benchmarks/bench_images_cubical.py::test_cubical[smooth-1024x1024-T-phlite (serial)]",
+            "params": {
+                "kind": "smooth",
+                "shape": [
+                    1024,
+                    1024
+                ],
+                "construction": "T",
+                "implementation": "phlite (serial)"
+            },
+            "param": "smooth-1024x1024-T-phlite (serial)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 138.5,
+                "fingerprint": [
+                    [
+                        67493,
+                        1,
+                        1887.318578
+                    ],
+                    [
+                        82495,
+                        0,
+                        2068.615252
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.341864952002652,
+                "max": 0.35250817899941467,
+                "mean": 0.34658316166799824,
+                "stddev": 0.005423270118970538,
+                "rounds": 3,
+                "median": 0.3453763540019281,
+                "iqr": 0.007982420247572009,
+                "q1": 0.342742802502471,
+                "q3": 0.35072522275004303,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.341864952002652,
+                "hd15iqr": 0.35250817899941467,
+                "ops": 2.885310397618013,
+                "total": 1.0397494850039948,
+                "data": [
+                    0.35250817899941467,
+                    0.341864952002652,
+                    0.3453763540019281
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "cubical smooth 1024x1024 T",
+            "name": "test_cubical[smooth-1024x1024-T-phlite (parallel)]",
+            "fullname": "benchmarks/bench_images_cubical.py::test_cubical[smooth-1024x1024-T-phlite (parallel)]",
+            "params": {
+                "kind": "smooth",
+                "shape": [
+                    1024,
+                    1024
+                ],
+                "construction": "T",
+                "implementation": "phlite (parallel)"
+            },
+            "param": "smooth-1024x1024-T-phlite (parallel)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 138.5,
+                "fingerprint": [
+                    [
+                        67493,
+                        1,
+                        1887.318578
+                    ],
+                    [
+                        82495,
+                        0,
+                        2068.615252
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.3431605160003528,
+                "max": 0.3674834849953186,
+                "mean": 0.35646166099468246,
+                "stddev": 0.012320640540440084,
+                "rounds": 3,
+                "median": 0.358740981988376,
+                "iqr": 0.018242226746224333,
+                "q1": 0.3470556324973586,
+                "q3": 0.36529785924358293,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.3431605160003528,
+                "hd15iqr": 0.3674834849953186,
+                "ops": 2.805350783614616,
+                "total": 1.0693849829840474,
+                "data": [
+                    0.358740981988376,
+                    0.3674834849953186,
+                    0.3431605160003528
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "cubical smooth 1024x1024 V",
+            "name": "test_cubical[smooth-1024x1024-V-gudhi]",
+            "fullname": "benchmarks/bench_images_cubical.py::test_cubical[smooth-1024x1024-V-gudhi]",
+            "params": {
+                "kind": "smooth",
+                "shape": [
+                    1024,
+                    1024
+                ],
+                "construction": "V",
+                "implementation": "gudhi"
+            },
+            "param": "smooth-1024x1024-V-gudhi",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 549.8,
+                "fingerprint": [
+                    [
+                        82887,
+                        1,
+                        2093.653104
+                    ],
+                    [
+                        66994,
+                        0,
+                        1863.345741
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 3.2683739599888213,
+                "max": 3.3306759539991617,
+                "mean": 3.296859817656999,
+                "stddev": 0.03149116570520819,
+                "rounds": 3,
+                "median": 3.2915295389830135,
+                "iqr": 0.04672649550775532,
+                "q1": 3.2741628547373693,
+                "q3": 3.3208893502451247,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 3.2683739599888213,
+                "hd15iqr": 3.3306759539991617,
+                "ops": 0.30331893235020124,
+                "total": 9.890579452970996,
+                "data": [
+                    3.2915295389830135,
+                    3.3306759539991617,
+                    3.2683739599888213
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "cubical smooth 1024x1024 V",
+            "name": "test_cubical[smooth-1024x1024-V-cripser]",
+            "fullname": "benchmarks/bench_images_cubical.py::test_cubical[smooth-1024x1024-V-cripser]",
+            "params": {
+                "kind": "smooth",
+                "shape": [
+                    1024,
+                    1024
+                ],
+                "construction": "V",
+                "implementation": "cripser"
+            },
+            "param": "smooth-1024x1024-V-cripser",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 201.1,
+                "fingerprint": [
+                    [
+                        82887,
+                        1,
+                        2093.653104
+                    ],
+                    [
+                        66994,
+                        0,
+                        1863.345741
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.3324114010029007,
+                "max": 0.34463231498375535,
+                "mean": 0.3387528863289238,
+                "stddev": 0.006123545289079426,
+                "rounds": 3,
+                "median": 0.33921494300011545,
+                "iqr": 0.009165685485641006,
+                "q1": 0.33411228650220437,
+                "q3": 0.3432779719878454,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.3324114010029007,
+                "hd15iqr": 0.34463231498375535,
+                "ops": 2.952004367658776,
+                "total": 1.0162586589867715,
+                "data": [
+                    0.34463231498375535,
+                    0.33921494300011545,
+                    0.3324114010029007
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "cubical smooth 1024x1024 V",
+            "name": "test_cubical[smooth-1024x1024-V-phlite (serial)]",
+            "fullname": "benchmarks/bench_images_cubical.py::test_cubical[smooth-1024x1024-V-phlite (serial)]",
+            "params": {
+                "kind": "smooth",
+                "shape": [
+                    1024,
+                    1024
+                ],
+                "construction": "V",
+                "implementation": "phlite (serial)"
+            },
+            "param": "smooth-1024x1024-V-phlite (serial)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 113.2,
+                "fingerprint": [
+                    [
+                        82887,
+                        1,
+                        2093.653104
+                    ],
+                    [
+                        66994,
+                        0,
+                        1863.345741
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.3108512130274903,
+                "max": 0.32217086502350867,
+                "mean": 0.3154685166858447,
+                "stddev": 0.005940891247428995,
+                "rounds": 3,
+                "median": 0.31338347200653516,
+                "iqr": 0.008489738997013774,
+                "q1": 0.3114842777722515,
+                "q3": 0.3199740167692653,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.3108512130274903,
+                "hd15iqr": 0.32217086502350867,
+                "ops": 3.1698884266027636,
+                "total": 0.9464055500575341,
+                "data": [
+                    0.32217086502350867,
+                    0.31338347200653516,
+                    0.3108512130274903
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "cubical smooth 1024x1024 V",
+            "name": "test_cubical[smooth-1024x1024-V-phlite (parallel)]",
+            "fullname": "benchmarks/bench_images_cubical.py::test_cubical[smooth-1024x1024-V-phlite (parallel)]",
+            "params": {
+                "kind": "smooth",
+                "shape": [
+                    1024,
+                    1024
+                ],
+                "construction": "V",
+                "implementation": "phlite (parallel)"
+            },
+            "param": "smooth-1024x1024-V-phlite (parallel)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 113.2,
+                "fingerprint": [
+                    [
+                        82887,
+                        1,
+                        2093.653104
+                    ],
+                    [
+                        66994,
+                        0,
+                        1863.345741
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.3157386060047429,
+                "max": 0.3475177209766116,
+                "mean": 0.33188376066391356,
+                "stddev": 0.01589572353948418,
+                "rounds": 3,
+                "median": 0.3323949550103862,
+                "iqr": 0.02383433622890152,
+                "q1": 0.3199026932561537,
+                "q3": 0.34373702948505525,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.3157386060047429,
+                "hd15iqr": 0.3475177209766116,
+                "ops": 3.0131031358676905,
+                "total": 0.9956512819917407,
+                "data": [
+                    0.3323949550103862,
+                    0.3475177209766116,
+                    0.3157386060047429
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "cubical noise 32x32x32 T",
+            "name": "test_cubical[noise-32x32x32-T-gudhi]",
+            "fullname": "benchmarks/bench_images_cubical.py::test_cubical[noise-32x32x32-T-gudhi]",
+            "params": {
+                "kind": "noise",
+                "shape": [
+                    32,
+                    32,
+                    32
+                ],
+                "construction": "T",
+                "implementation": "gudhi"
+            },
+            "param": "noise-32x32x32-T-gudhi",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 23.7,
+                "fingerprint": [
+                    [
+                        1295,
+                        1,
+                        86.707573
+                    ],
+                    [
+                        5674,
+                        0,
+                        1183.740255
+                    ],
+                    [
+                        3855,
+                        0,
+                        666.397093
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.1844225430104416,
+                "max": 0.19692183900042437,
+                "mean": 0.19107839732896537,
+                "stddev": 0.006289126393477318,
+                "rounds": 3,
+                "median": 0.19189080997603014,
+                "iqr": 0.009374471992487088,
+                "q1": 0.18628960975183873,
+                "q3": 0.1956640817443258,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.1844225430104416,
+                "hd15iqr": 0.19692183900042437,
+                "ops": 5.233453985268543,
+                "total": 0.5732351919868961,
+                "data": [
+                    0.19692183900042437,
+                    0.19189080997603014,
+                    0.1844225430104416
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "cubical noise 32x32x32 T",
+            "name": "test_cubical[noise-32x32x32-T-cripser]",
+            "fullname": "benchmarks/bench_images_cubical.py::test_cubical[noise-32x32x32-T-cripser]",
+            "params": {
+                "kind": "noise",
+                "shape": [
+                    32,
+                    32,
+                    32
+                ],
+                "construction": "T",
+                "implementation": "cripser"
+            },
+            "param": "noise-32x32x32-T-cripser",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 7.2,
+                "fingerprint": [
+                    [
+                        1295,
+                        1,
+                        86.707573
+                    ],
+                    [
+                        5674,
+                        0,
+                        1183.740255
+                    ],
+                    [
+                        3855,
+                        0,
+                        666.397093
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.03150124297826551,
+                "max": 0.03195425699232146,
+                "mean": 0.03167692599042008,
+                "stddev": 0.00024301164498321157,
+                "rounds": 3,
+                "median": 0.03157527800067328,
+                "iqr": 0.0003397605105419643,
+                "q1": 0.03151975173386745,
+                "q3": 0.031859512244409416,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.03150124297826551,
+                "hd15iqr": 0.03195425699232146,
+                "ops": 31.5687197773681,
+                "total": 0.09503077797126025,
+                "data": [
+                    0.03195425699232146,
+                    0.03157527800067328,
+                    0.03150124297826551
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "cubical noise 32x32x32 T",
+            "name": "test_cubical[noise-32x32x32-T-phlite (serial)]",
+            "fullname": "benchmarks/bench_images_cubical.py::test_cubical[noise-32x32x32-T-phlite (serial)]",
+            "params": {
+                "kind": "noise",
+                "shape": [
+                    32,
+                    32,
+                    32
+                ],
+                "construction": "T",
+                "implementation": "phlite (serial)"
+            },
+            "param": "noise-32x32x32-T-phlite (serial)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 9.6,
+                "fingerprint": [
+                    [
+                        1295,
+                        1,
+                        86.707573
+                    ],
+                    [
+                        5674,
+                        0,
+                        1183.740255
+                    ],
+                    [
+                        3855,
+                        0,
+                        666.397093
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.05232616901048459,
+                "max": 0.05421874800231308,
+                "mean": 0.053018809005152434,
+                "stddev": 0.0010433014993400877,
+                "rounds": 3,
+                "median": 0.052511510002659634,
+                "iqr": 0.0014194342438713647,
+                "q1": 0.05237250425852835,
+                "q3": 0.053791938502399717,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.05232616901048459,
+                "hd15iqr": 0.05421874800231308,
+                "ops": 18.861230924723692,
+                "total": 0.1590564270154573,
+                "data": [
+                    0.05421874800231308,
+                    0.05232616901048459,
+                    0.052511510002659634
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "cubical noise 32x32x32 T",
+            "name": "test_cubical[noise-32x32x32-T-phlite (parallel)]",
+            "fullname": "benchmarks/bench_images_cubical.py::test_cubical[noise-32x32x32-T-phlite (parallel)]",
+            "params": {
+                "kind": "noise",
+                "shape": [
+                    32,
+                    32,
+                    32
+                ],
+                "construction": "T",
+                "implementation": "phlite (parallel)"
+            },
+            "param": "noise-32x32x32-T-phlite (parallel)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 7.8,
+                "fingerprint": [
+                    [
+                        1295,
+                        1,
+                        86.707573
+                    ],
+                    [
+                        5674,
+                        0,
+                        1183.740255
+                    ],
+                    [
+                        3855,
+                        0,
+                        666.397093
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.06124943101895042,
+                "max": 0.06365573199582286,
+                "mean": 0.06271166733737725,
+                "stddev": 0.0012841135073388499,
+                "rounds": 3,
+                "median": 0.06322983899735846,
+                "iqr": 0.0018047257326543331,
+                "q1": 0.06174453301355243,
+                "q3": 0.06354925874620676,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.06124943101895042,
+                "hd15iqr": 0.06365573199582286,
+                "ops": 15.945996055569433,
+                "total": 0.18813500201213174,
+                "data": [
+                    0.06322983899735846,
+                    0.06365573199582286,
+                    0.06124943101895042
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "cubical smooth 64x64x64 V",
+            "name": "test_cubical[smooth-64x64x64-V-gudhi]",
+            "fullname": "benchmarks/bench_images_cubical.py::test_cubical[smooth-64x64x64-V-gudhi]",
+            "params": {
+                "kind": "smooth",
+                "shape": [
+                    64,
+                    64,
+                    64
+                ],
+                "construction": "V",
+                "implementation": "gudhi"
+            },
+            "param": "smooth-64x64x64-V-gudhi",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 230.0,
+                "fingerprint": [
+                    [
+                        8218,
+                        1,
+                        61.052989
+                    ],
+                    [
+                        13090,
+                        0,
+                        93.999501
+                    ],
+                    [
+                        4047,
+                        0,
+                        34.051716
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 1.5610267230076715,
+                "max": 1.6412465900066309,
+                "mean": 1.6085118986666203,
+                "stddev": 0.04209500393235652,
+                "rounds": 3,
+                "median": 1.6232623829855584,
+                "iqr": 0.0601649002492195,
+                "q1": 1.5765856380021432,
+                "q3": 1.6367505382513627,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 1.5610267230076715,
+                "hd15iqr": 1.6412465900066309,
+                "ops": 0.6216926345580361,
+                "total": 4.825535695999861,
+                "data": [
+                    1.6232623829855584,
+                    1.6412465900066309,
+                    1.5610267230076715
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "cubical smooth 64x64x64 V",
+            "name": "test_cubical[smooth-64x64x64-V-cripser]",
+            "fullname": "benchmarks/bench_images_cubical.py::test_cubical[smooth-64x64x64-V-cripser]",
+            "params": {
+                "kind": "smooth",
+                "shape": [
+                    64,
+                    64,
+                    64
+                ],
+                "construction": "V",
+                "implementation": "cripser"
+            },
+            "param": "smooth-64x64x64-V-cripser",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 27.3,
+                "fingerprint": [
+                    [
+                        8218,
+                        1,
+                        61.052989
+                    ],
+                    [
+                        13090,
+                        0,
+                        93.999501
+                    ],
+                    [
+                        4047,
+                        0,
+                        34.051716
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.13227448498946615,
+                "max": 0.13559455701033585,
+                "mean": 0.1335356959995503,
+                "stddev": 0.0017980277246623874,
+                "rounds": 3,
+                "median": 0.13273804599884897,
+                "iqr": 0.0024900540156522766,
+                "q1": 0.13239037524181185,
+                "q3": 0.13488042925746413,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.13227448498946615,
+                "hd15iqr": 0.13559455701033585,
+                "ops": 7.488634349899726,
+                "total": 0.40060708799865097,
+                "data": [
+                    0.13559455701033585,
+                    0.13273804599884897,
+                    0.13227448498946615
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "cubical smooth 64x64x64 V",
+            "name": "test_cubical[smooth-64x64x64-V-phlite (serial)]",
+            "fullname": "benchmarks/bench_images_cubical.py::test_cubical[smooth-64x64x64-V-phlite (serial)]",
+            "params": {
+                "kind": "smooth",
+                "shape": [
+                    64,
+                    64,
+                    64
+                ],
+                "construction": "V",
+                "implementation": "phlite (serial)"
+            },
+            "param": "smooth-64x64x64-V-phlite (serial)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 38.1,
+                "fingerprint": [
+                    [
+                        8218,
+                        1,
+                        61.052989
+                    ],
+                    [
+                        13090,
+                        0,
+                        93.999501
+                    ],
+                    [
+                        4047,
+                        0,
+                        34.051716
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.2154976049787365,
+                "max": 0.22385039500659332,
+                "mean": 0.21919551232713275,
+                "stddev": 0.004257831214428931,
+                "rounds": 3,
+                "median": 0.21823853699606843,
+                "iqr": 0.00626459252089262,
+                "q1": 0.21618283798306948,
+                "q3": 0.2224474305039621,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.2154976049787365,
+                "hd15iqr": 0.22385039500659332,
+                "ops": 4.562137196073501,
+                "total": 0.6575865369813982,
+                "data": [
+                    0.21823853699606843,
+                    0.22385039500659332,
+                    0.2154976049787365
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "cubical smooth 64x64x64 V",
+            "name": "test_cubical[smooth-64x64x64-V-phlite (parallel)]",
+            "fullname": "benchmarks/bench_images_cubical.py::test_cubical[smooth-64x64x64-V-phlite (parallel)]",
+            "params": {
+                "kind": "smooth",
+                "shape": [
+                    64,
+                    64,
+                    64
+                ],
+                "construction": "V",
+                "implementation": "phlite (parallel)"
+            },
+            "param": "smooth-64x64x64-V-phlite (parallel)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 38.1,
+                "fingerprint": [
+                    [
+                        8218,
+                        1,
+                        61.052989
+                    ],
+                    [
+                        13090,
+                        0,
+                        93.999501
+                    ],
+                    [
+                        4047,
+                        0,
+                        34.051716
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.16126271997927688,
+                "max": 0.16989584398106672,
+                "mean": 0.16477193399138437,
+                "stddev": 0.0045374155455024405,
+                "rounds": 3,
+                "median": 0.16315723801380955,
+                "iqr": 0.0064748430013423786,
+                "q1": 0.16173634948791005,
+                "q3": 0.16821119248925243,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.16126271997927688,
+                "hd15iqr": 0.16989584398106672,
+                "ops": 6.0689947357921294,
+                "total": 0.49431580197415315,
+                "data": [
+                    0.16126271997927688,
+                    0.16989584398106672,
+                    0.16315723801380955
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "cubical noise 1024x1024 T",
+            "name": "test_cubical[noise-1024x1024-T-gudhi]",
+            "fullname": "benchmarks/bench_images_cubical.py::test_cubical[noise-1024x1024-T-gudhi]",
+            "params": {
+                "kind": "noise",
+                "shape": [
+                    1024,
+                    1024
+                ],
+                "construction": "T",
+                "implementation": "gudhi"
+            },
+            "param": "noise-1024x1024-T-gudhi",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 615.6,
+                "fingerprint": [
+                    [
+                        116966,
+                        1,
+                        22294.722963
+                    ],
+                    [
+                        209067,
+                        0,
+                        56787.689045
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 4.065655077982228,
+                "max": 4.065655077982228,
+                "mean": 4.065655077982228,
+                "stddev": 0,
+                "rounds": 1,
+                "median": 4.065655077982228,
+                "iqr": 0.0,
+                "q1": 4.065655077982228,
+                "q3": 4.065655077982228,
+                "iqr_outliers": 0,
+                "stddev_outliers": 0,
+                "outliers": "0;0",
+                "ld15iqr": 4.065655077982228,
+                "hd15iqr": 4.065655077982228,
+                "ops": 0.24596282292011276,
+                "total": 4.065655077982228,
+                "data": [
+                    4.065655077982228
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "cubical noise 1024x1024 T",
+            "name": "test_cubical[noise-1024x1024-T-cripser]",
+            "fullname": "benchmarks/bench_images_cubical.py::test_cubical[noise-1024x1024-T-cripser]",
+            "params": {
+                "kind": "noise",
+                "shape": [
+                    1024,
+                    1024
+                ],
+                "construction": "T",
+                "implementation": "cripser"
+            },
+            "param": "noise-1024x1024-T-cripser",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 196.8,
+                "fingerprint": [
+                    [
+                        116966,
+                        1,
+                        22294.722963
+                    ],
+                    [
+                        209067,
+                        0,
+                        56787.689045
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.4798942019988317,
+                "max": 0.4798942019988317,
+                "mean": 0.4798942019988317,
+                "stddev": 0,
+                "rounds": 1,
+                "median": 0.4798942019988317,
+                "iqr": 0.0,
+                "q1": 0.4798942019988317,
+                "q3": 0.4798942019988317,
+                "iqr_outliers": 0,
+                "stddev_outliers": 0,
+                "outliers": "0;0",
+                "ld15iqr": 0.4798942019988317,
+                "hd15iqr": 0.4798942019988317,
+                "ops": 2.083792627280866,
+                "total": 0.4798942019988317,
+                "data": [
+                    0.4798942019988317
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "cubical noise 1024x1024 T",
+            "name": "test_cubical[noise-1024x1024-T-phlite (serial)]",
+            "fullname": "benchmarks/bench_images_cubical.py::test_cubical[noise-1024x1024-T-phlite (serial)]",
+            "params": {
+                "kind": "noise",
+                "shape": [
+                    1024,
+                    1024
+                ],
+                "construction": "T",
+                "implementation": "phlite (serial)"
+            },
+            "param": "noise-1024x1024-T-phlite (serial)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 138.5,
+                "fingerprint": [
+                    [
+                        116966,
+                        1,
+                        22294.722963
+                    ],
+                    [
+                        209067,
+                        0,
+                        56787.689045
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.4208787859824952,
+                "max": 0.4208787859824952,
+                "mean": 0.4208787859824952,
+                "stddev": 0,
+                "rounds": 1,
+                "median": 0.4208787859824952,
+                "iqr": 0.0,
+                "q1": 0.4208787859824952,
+                "q3": 0.4208787859824952,
+                "iqr_outliers": 0,
+                "stddev_outliers": 0,
+                "outliers": "0;0",
+                "ld15iqr": 0.4208787859824952,
+                "hd15iqr": 0.4208787859824952,
+                "ops": 2.375981002857177,
+                "total": 0.4208787859824952,
+                "data": [
+                    0.4208787859824952
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "cubical noise 1024x1024 T",
+            "name": "test_cubical[noise-1024x1024-T-phlite (parallel)]",
+            "fullname": "benchmarks/bench_images_cubical.py::test_cubical[noise-1024x1024-T-phlite (parallel)]",
+            "params": {
+                "kind": "noise",
+                "shape": [
+                    1024,
+                    1024
+                ],
+                "construction": "T",
+                "implementation": "phlite (parallel)"
+            },
+            "param": "noise-1024x1024-T-phlite (parallel)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 138.5,
+                "fingerprint": [
+                    [
+                        116966,
+                        1,
+                        22294.722963
+                    ],
+                    [
+                        209067,
+                        0,
+                        56787.689045
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.4250738819828257,
+                "max": 0.4250738819828257,
+                "mean": 0.4250738819828257,
+                "stddev": 0,
+                "rounds": 1,
+                "median": 0.4250738819828257,
+                "iqr": 0.0,
+                "q1": 0.4250738819828257,
+                "q3": 0.4250738819828257,
+                "iqr_outliers": 0,
+                "stddev_outliers": 0,
+                "outliers": "0;0",
+                "ld15iqr": 0.4250738819828257,
+                "hd15iqr": 0.4250738819828257,
+                "ops": 2.3525322123658565,
+                "total": 0.4250738819828257,
+                "data": [
+                    0.4250738819828257
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "cubical smooth 1080x1920 T",
+            "name": "test_cubical[smooth-1080x1920-T-gudhi]",
+            "fullname": "benchmarks/bench_images_cubical.py::test_cubical[smooth-1080x1920-T-gudhi]",
+            "params": {
+                "kind": "smooth",
+                "shape": [
+                    1080,
+                    1920
+                ],
+                "construction": "T",
+                "implementation": "gudhi"
+            },
+            "param": "smooth-1080x1920-T-gudhi",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 1098.4,
+                "fingerprint": [
+                    [
+                        133815,
+                        1,
+                        3717.790245
+                    ],
+                    [
+                        163815,
+                        0,
+                        4077.08855
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 7.699623740976676,
+                "max": 7.699623740976676,
+                "mean": 7.699623740976676,
+                "stddev": 0,
+                "rounds": 1,
+                "median": 7.699623740976676,
+                "iqr": 0.0,
+                "q1": 7.699623740976676,
+                "q3": 7.699623740976676,
+                "iqr_outliers": 0,
+                "stddev_outliers": 0,
+                "outliers": "0;0",
+                "ld15iqr": 7.699623740976676,
+                "hd15iqr": 7.699623740976676,
+                "ops": 0.12987647625923507,
+                "total": 7.699623740976676,
+                "data": [
+                    7.699623740976676
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "cubical smooth 1080x1920 T",
+            "name": "test_cubical[smooth-1080x1920-T-cripser]",
+            "fullname": "benchmarks/bench_images_cubical.py::test_cubical[smooth-1080x1920-T-cripser]",
+            "params": {
+                "kind": "smooth",
+                "shape": [
+                    1080,
+                    1920
+                ],
+                "construction": "T",
+                "implementation": "cripser"
+            },
+            "param": "smooth-1080x1920-T-cripser",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 381.8,
+                "fingerprint": [
+                    [
+                        133815,
+                        1,
+                        3717.790245
+                    ],
+                    [
+                        163815,
+                        0,
+                        4077.08855
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.7651680400012992,
+                "max": 0.7651680400012992,
+                "mean": 0.7651680400012992,
+                "stddev": 0,
+                "rounds": 1,
+                "median": 0.7651680400012992,
+                "iqr": 0.0,
+                "q1": 0.7651680400012992,
+                "q3": 0.7651680400012992,
+                "iqr_outliers": 0,
+                "stddev_outliers": 0,
+                "outliers": "0;0",
+                "ld15iqr": 0.7651680400012992,
+                "hd15iqr": 0.7651680400012992,
+                "ops": 1.3069024681144576,
+                "total": 0.7651680400012992,
+                "data": [
+                    0.7651680400012992
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "cubical smooth 1080x1920 T",
+            "name": "test_cubical[smooth-1080x1920-T-phlite (serial)]",
+            "fullname": "benchmarks/bench_images_cubical.py::test_cubical[smooth-1080x1920-T-phlite (serial)]",
+            "params": {
+                "kind": "smooth",
+                "shape": [
+                    1080,
+                    1920
+                ],
+                "construction": "T",
+                "implementation": "phlite (serial)"
+            },
+            "param": "smooth-1080x1920-T-phlite (serial)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 241.4,
+                "fingerprint": [
+                    [
+                        133815,
+                        1,
+                        3717.790245
+                    ],
+                    [
+                        163815,
+                        0,
+                        4077.08855
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.8881442570127547,
+                "max": 0.8881442570127547,
+                "mean": 0.8881442570127547,
+                "stddev": 0,
+                "rounds": 1,
+                "median": 0.8881442570127547,
+                "iqr": 0.0,
+                "q1": 0.8881442570127547,
+                "q3": 0.8881442570127547,
+                "iqr_outliers": 0,
+                "stddev_outliers": 0,
+                "outliers": "0;0",
+                "ld15iqr": 0.8881442570127547,
+                "hd15iqr": 0.8881442570127547,
+                "ops": 1.125943214859564,
+                "total": 0.8881442570127547,
+                "data": [
+                    0.8881442570127547
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "cubical smooth 1080x1920 T",
+            "name": "test_cubical[smooth-1080x1920-T-phlite (parallel)]",
+            "fullname": "benchmarks/bench_images_cubical.py::test_cubical[smooth-1080x1920-T-phlite (parallel)]",
+            "params": {
+                "kind": "smooth",
+                "shape": [
+                    1080,
+                    1920
+                ],
+                "construction": "T",
+                "implementation": "phlite (parallel)"
+            },
+            "param": "smooth-1080x1920-T-phlite (parallel)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 241.5,
+                "fingerprint": [
+                    [
+                        133815,
+                        1,
+                        3717.790245
+                    ],
+                    [
+                        163815,
+                        0,
+                        4077.08855
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.8972694010008126,
+                "max": 0.8972694010008126,
+                "mean": 0.8972694010008126,
+                "stddev": 0,
+                "rounds": 1,
+                "median": 0.8972694010008126,
+                "iqr": 0.0,
+                "q1": 0.8972694010008126,
+                "q3": 0.8972694010008126,
+                "iqr_outliers": 0,
+                "stddev_outliers": 0,
+                "outliers": "0;0",
+                "ld15iqr": 0.8972694010008126,
+                "hd15iqr": 0.8972694010008126,
+                "ops": 1.1144924800562706,
+                "total": 0.8972694010008126,
+                "data": [
+                    0.8972694010008126
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "cubical noise 64x64x64 V",
+            "name": "test_cubical[noise-64x64x64-V-gudhi]",
+            "fullname": "benchmarks/bench_images_cubical.py::test_cubical[noise-64x64x64-V-gudhi]",
+            "params": {
+                "kind": "noise",
+                "shape": [
+                    64,
+                    64,
+                    64
+                ],
+                "construction": "V",
+                "implementation": "gudhi"
+            },
+            "param": "noise-64x64x64-V-gudhi",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 219.6,
+                "fingerprint": [
+                    [
+                        38047,
+                        1,
+                        6993.381977
+                    ],
+                    [
+                        47911,
+                        0,
+                        9879.118206
+                    ],
+                    [
+                        8814,
+                        0,
+                        505.670254
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 1.7664018970099278,
+                "max": 1.7664018970099278,
+                "mean": 1.7664018970099278,
+                "stddev": 0,
+                "rounds": 1,
+                "median": 1.7664018970099278,
+                "iqr": 0.0,
+                "q1": 1.7664018970099278,
+                "q3": 1.7664018970099278,
+                "iqr_outliers": 0,
+                "stddev_outliers": 0,
+                "outliers": "0;0",
+                "ld15iqr": 1.7664018970099278,
+                "hd15iqr": 1.7664018970099278,
+                "ops": 0.5661225804233722,
+                "total": 1.7664018970099278,
+                "data": [
+                    1.7664018970099278
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "cubical noise 64x64x64 V",
+            "name": "test_cubical[noise-64x64x64-V-cripser]",
+            "fullname": "benchmarks/bench_images_cubical.py::test_cubical[noise-64x64x64-V-cripser]",
+            "params": {
+                "kind": "noise",
+                "shape": [
+                    64,
+                    64,
+                    64
+                ],
+                "construction": "V",
+                "implementation": "cripser"
+            },
+            "param": "noise-64x64x64-V-cripser",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 57.9,
+                "fingerprint": [
+                    [
+                        38047,
+                        1,
+                        6993.381977
+                    ],
+                    [
+                        47911,
+                        0,
+                        9879.118206
+                    ],
+                    [
+                        8814,
+                        0,
+                        505.670254
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.3324244619871024,
+                "max": 0.3324244619871024,
+                "mean": 0.3324244619871024,
+                "stddev": 0,
+                "rounds": 1,
+                "median": 0.3324244619871024,
+                "iqr": 0.0,
+                "q1": 0.3324244619871024,
+                "q3": 0.3324244619871024,
+                "iqr_outliers": 0,
+                "stddev_outliers": 0,
+                "outliers": "0;0",
+                "ld15iqr": 0.3324244619871024,
+                "hd15iqr": 0.3324244619871024,
+                "ops": 3.0082022063671072,
+                "total": 0.3324244619871024,
+                "data": [
+                    0.3324244619871024
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "cubical noise 64x64x64 V",
+            "name": "test_cubical[noise-64x64x64-V-phlite (serial)]",
+            "fullname": "benchmarks/bench_images_cubical.py::test_cubical[noise-64x64x64-V-phlite (serial)]",
+            "params": {
+                "kind": "noise",
+                "shape": [
+                    64,
+                    64,
+                    64
+                ],
+                "construction": "V",
+                "implementation": "phlite (serial)"
+            },
+            "param": "noise-64x64x64-V-phlite (serial)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 56.1,
+                "fingerprint": [
+                    [
+                        38047,
+                        1,
+                        6993.381977
+                    ],
+                    [
+                        47911,
+                        0,
+                        9879.118206
+                    ],
+                    [
+                        8814,
+                        0,
+                        505.670254
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.5118657189887017,
+                "max": 0.5118657189887017,
+                "mean": 0.5118657189887017,
+                "stddev": 0,
+                "rounds": 1,
+                "median": 0.5118657189887017,
+                "iqr": 0.0,
+                "q1": 0.5118657189887017,
+                "q3": 0.5118657189887017,
+                "iqr_outliers": 0,
+                "stddev_outliers": 0,
+                "outliers": "0;0",
+                "ld15iqr": 0.5118657189887017,
+                "hd15iqr": 0.5118657189887017,
+                "ops": 1.953637375786193,
+                "total": 0.5118657189887017,
+                "data": [
+                    0.5118657189887017
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "cubical noise 64x64x64 V",
+            "name": "test_cubical[noise-64x64x64-V-phlite (parallel)]",
+            "fullname": "benchmarks/bench_images_cubical.py::test_cubical[noise-64x64x64-V-phlite (parallel)]",
+            "params": {
+                "kind": "noise",
+                "shape": [
+                    64,
+                    64,
+                    64
+                ],
+                "construction": "V",
+                "implementation": "phlite (parallel)"
+            },
+            "param": "noise-64x64x64-V-phlite (parallel)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 53.9,
+                "fingerprint": [
+                    [
+                        38047,
+                        1,
+                        6993.381977
+                    ],
+                    [
+                        47911,
+                        0,
+                        9879.118206
+                    ],
+                    [
+                        8814,
+                        0,
+                        505.670254
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.8391803860140499,
+                "max": 0.8391803860140499,
+                "mean": 0.8391803860140499,
+                "stddev": 0,
+                "rounds": 1,
+                "median": 0.8391803860140499,
+                "iqr": 0.0,
+                "q1": 0.8391803860140499,
+                "q3": 0.8391803860140499,
+                "iqr_outliers": 0,
+                "stddev_outliers": 0,
+                "outliers": "0;0",
+                "ld15iqr": 0.8391803860140499,
+                "hd15iqr": 0.8391803860140499,
+                "ops": 1.1916389094242459,
+                "total": 0.8391803860140499,
+                "data": [
+                    0.8391803860140499
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "cubical smooth 128x128x128 T",
+            "name": "test_cubical[smooth-128x128x128-T-gudhi]",
+            "fullname": "benchmarks/bench_images_cubical.py::test_cubical[smooth-128x128x128-T-gudhi]",
+            "params": {
+                "kind": "smooth",
+                "shape": [
+                    128,
+                    128,
+                    128
+                ],
+                "construction": "T",
+                "implementation": "gudhi"
+            },
+            "param": "smooth-128x128x128-T-gudhi",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 2361.8,
+                "fingerprint": [
+                    [
+                        36842,
+                        1,
+                        324.335761
+                    ],
+                    [
+                        104004,
+                        0,
+                        741.321916
+                    ],
+                    [
+                        59180,
+                        0,
+                        405.745184
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 16.86068182301824,
+                "max": 16.86068182301824,
+                "mean": 16.86068182301824,
+                "stddev": 0,
+                "rounds": 1,
+                "median": 16.86068182301824,
+                "iqr": 0.0,
+                "q1": 16.86068182301824,
+                "q3": 16.86068182301824,
+                "iqr_outliers": 0,
+                "stddev_outliers": 0,
+                "outliers": "0;0",
+                "ld15iqr": 16.86068182301824,
+                "hd15iqr": 16.86068182301824,
+                "ops": 0.05930958252440289,
+                "total": 16.86068182301824,
+                "data": [
+                    16.86068182301824
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "cubical smooth 128x128x128 T",
+            "name": "test_cubical[smooth-128x128x128-T-cripser]",
+            "fullname": "benchmarks/bench_images_cubical.py::test_cubical[smooth-128x128x128-T-cripser]",
+            "params": {
+                "kind": "smooth",
+                "shape": [
+                    128,
+                    128,
+                    128
+                ],
+                "construction": "T",
+                "implementation": "cripser"
+            },
+            "param": "smooth-128x128x128-T-cripser",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 292.4,
+                "fingerprint": [
+                    [
+                        36842,
+                        1,
+                        324.335761
+                    ],
+                    [
+                        104004,
+                        0,
+                        741.321916
+                    ],
+                    [
+                        59180,
+                        0,
+                        405.745184
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 2.130522141989786,
+                "max": 2.130522141989786,
+                "mean": 2.130522141989786,
+                "stddev": 0,
+                "rounds": 1,
+                "median": 2.130522141989786,
+                "iqr": 0.0,
+                "q1": 2.130522141989786,
+                "q3": 2.130522141989786,
+                "iqr_outliers": 0,
+                "stddev_outliers": 0,
+                "outliers": "0;0",
+                "ld15iqr": 2.130522141989786,
+                "hd15iqr": 2.130522141989786,
+                "ops": 0.46936850844744427,
+                "total": 2.130522141989786,
+                "data": [
+                    2.130522141989786
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "cubical smooth 128x128x128 T",
+            "name": "test_cubical[smooth-128x128x128-T-phlite (serial)]",
+            "fullname": "benchmarks/bench_images_cubical.py::test_cubical[smooth-128x128x128-T-phlite (serial)]",
+            "params": {
+                "kind": "smooth",
+                "shape": [
+                    128,
+                    128,
+                    128
+                ],
+                "construction": "T",
+                "implementation": "phlite (serial)"
+            },
+            "param": "smooth-128x128x128-T-phlite (serial)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 404.2,
+                "fingerprint": [
+                    [
+                        36842,
+                        1,
+                        324.335761
+                    ],
+                    [
+                        104004,
+                        0,
+                        741.321916
+                    ],
+                    [
+                        59180,
+                        0,
+                        405.745184
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 3.148542291019112,
+                "max": 3.148542291019112,
+                "mean": 3.148542291019112,
+                "stddev": 0,
+                "rounds": 1,
+                "median": 3.148542291019112,
+                "iqr": 0.0,
+                "q1": 3.148542291019112,
+                "q3": 3.148542291019112,
+                "iqr_outliers": 0,
+                "stddev_outliers": 0,
+                "outliers": "0;0",
+                "ld15iqr": 3.148542291019112,
+                "hd15iqr": 3.148542291019112,
+                "ops": 0.31760729492260453,
+                "total": 3.148542291019112,
+                "data": [
+                    3.148542291019112
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "cubical smooth 128x128x128 T",
+            "name": "test_cubical[smooth-128x128x128-T-phlite (parallel)]",
+            "fullname": "benchmarks/bench_images_cubical.py::test_cubical[smooth-128x128x128-T-phlite (parallel)]",
+            "params": {
+                "kind": "smooth",
+                "shape": [
+                    128,
+                    128,
+                    128
+                ],
+                "construction": "T",
+                "implementation": "phlite (parallel)"
+            },
+            "param": "smooth-128x128x128-T-phlite (parallel)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 325.4,
+                "fingerprint": [
+                    [
+                        36842,
+                        1,
+                        324.335761
+                    ],
+                    [
+                        104004,
+                        0,
+                        741.321916
+                    ],
+                    [
+                        59180,
+                        0,
+                        405.745184
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 2.653427943994757,
+                "max": 2.653427943994757,
+                "mean": 2.653427943994757,
+                "stddev": 0,
+                "rounds": 1,
+                "median": 2.653427943994757,
+                "iqr": 0.0,
+                "q1": 2.653427943994757,
+                "q3": 2.653427943994757,
+                "iqr_outliers": 0,
+                "stddev_outliers": 0,
+                "outliers": "0;0",
+                "ld15iqr": 2.653427943994757,
+                "hd15iqr": 2.653427943994757,
+                "ops": 0.37687098391467605,
+                "total": 2.653427943994757,
+                "data": [
+                    2.653427943994757
+                ],
+                "iterations": 1
+            }
+        }
+    ],
+    "datetime": "2026-11-17T00:54:55.805413+00:00",
+    "version": "5.3.1"
+}

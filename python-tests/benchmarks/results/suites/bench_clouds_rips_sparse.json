@@ -1,0 +1,2933 @@
+{
+    "machine_info": {
+        "processor": "",
+        "machine": "x86_64",
+        "python_compiler": "GCC 15.1.1 20250425",
+        "python_implementation": "CPython",
+        "python_implementation_version": "3.11.13",
+        "python_version": "3.11.13",
+        "python_build": [
+            "main",
+            "Jul  7 2025 19:11:17"
+        ],
+        "release": "7.0.10-arch1-1",
+        "system": "Linux",
+        "cpu": {
+            "python_version": "3.11.13.final.0 (64 bit)",
+            "cpuinfo_version": [
+                10,
+                1,
+                1
+            ],
+            "cpuinfo_version_string": "10.1.1",
+            "arch": "X86_64",
+            "bits": 64,
+            "count": 8,
+            "arch_string_raw": "x86_64",
+            "vendor_id_raw": "GenuineIntel",
+            "brand_raw": "11th Gen Intel(R) Core(TM) i7-1185G7 @ 3.00GHz",
+            "hz_advertised_friendly": "3.0000 GHz",
+            "hz_advertised": [
+                3000000000,
+                0
+            ],
+            "stepping": 1,
+            "model": 140,
+            "family": 6,
+            "flags": [
+                "3dnowprefetch",
+                "abm",
+                "acpi",
+                "adx",
+                "aes",
+                "aperfmperf",
+                "apic",
+                "arat",
+                "arch_capabilities",
+                "arch_perfmon",
+                "art",
+                "avx",
+                "avx2",
+                "avx512_bitalg",
+                "avx512_vbmi2",
+                "avx512_vnni",
+                "avx512_vp2intersect",
+                "avx512_vpopcntdq",
+                "avx512bitalg",
+                "avx512bw",
+                "avx512cd",
+                "avx512dq",
+                "avx512f",
+                "avx512ifma",
+                "avx512vbmi",
+                "avx512vbmi2",
+                "avx512vl",
+                "avx512vnni",
+                "avx512vpopcntdq",
+                "bmi1",
+                "bmi2",
+                "bts",
+                "cat_l2",
+                "cdp_l2",
+                "clflush",
+                "clflushopt",
+                "clwb",
+                "cmov",
+                "constant_tsc",
+                "cpuid",
+                "cpuid_fault",
+                "cx16",
+                "cx8",
+                "de",
+                "ds_cpl",
+                "dtes64",
+                "dtherm",
+                "dts",
+                "epb",
+                "ept",
+                "ept_ad",
+                "erms",
+                "est",
+                "f16c",
+                "flexpriority",
+                "flush_l1d",
+                "fma",
+                "fpu",
+                "fsgsbase",
+                "fsrm",
+                "fxsr",
+                "gfni",
+                "ht",
+                "hwp",
+                "hwp_act_window",
+                "hwp_epp",
+                "hwp_notify",
+                "hwp_pkg_req",
+                "ibpb",
+                "ibrs",
+                "ibrs_enhanced",
+                "ibt",
+                "ida",
+                "intel_pt",
+                "invpcid",
+                "lahf_lm",
+                "lm",
+                "mca",
+                "mce",
+                "md_clear",
+                "mmx",
+                "monitor",
+                "movbe",
+                "movdir64b",
+                "movdiri",
+                "msr",
+                "mtrr",
+                "nonstop_tsc",
+                "nopl",
+                "nx",
+                "ospke",
+                "osxsave",
+                "pae",
+                "pat",
+                "pbe",
+                "pcid",
+                "pclmulqdq",
+                "pdcm",
+                "pdpe1gb",
+                "pebs",
+                "pge",
+                "pku",
+                "pln",
+                "pni",
+                "popcnt",
+                "pqe",
+                "pse",
+                "pse36",
+                "pts",
+                "rdpid",
+                "rdrand",
+                "rdrnd",
+                "rdseed",
+                "rdt_a",
+                "rdtscp",
+                "rep_good",
+                "sdbg",
+                "sep",
+                "sha",
+                "sha_ni",
+                "smap",
+                "smep",
+                "smx",
+                "split_lock_detect",
+                "ss",
+                "ssbd",
+                "sse",
+                "sse2",
+                "sse4_1",
+                "sse4_2",
+                "ssse3",
+                "stibp",
+                "syscall",
+                "tm",
+                "tm2",
+                "tme",
+                "tpr_shadow",
+                "tsc",
+                "tsc_adjust",
+                "tsc_deadline_timer",
+                "tsc_known_freq",
+                "tscdeadline",
+                "umip",
+                "user_shstk",
+                "vaes",
+                "vme",
+                "vmx",
+                "vnmi",
+                "vpclmulqdq",
+                "vpid",
+                "x2apic",
+                "xgetbv1",
+                "xsave",
+                "xsavec",
+                "xsaveopt",
+                "xsaves",
+                "xtopology",
+                "xtpr"
+            ],
+            "l3_cache_size": 12582912,
+            "l2_cache_size": 5242880,
+            "l1_data_cache_size": 196608,
+            "l1_instruction_cache_size": 131072,
+            "l2_cache_line_size": 256,
+            "l2_cache_associativity": 7
+        }
+    },
+    "commit_info": {
+        "id": "8a41862bc479ff85a31f3b295f29213db3472db8",
+        "time": "2026-11-16T20:17:02Z",
+        "author_time": "2026-11-16T20:17:02Z",
+        "dirty": true,
+        "project": "phlite",
+        "branch": "readme"
+    },
+    "benchmarks": [
+        {
+            "group": "sparse rips n=2000 degree=20 dim\u22642",
+            "name": "test_rips_sparse[2000-20-2-ripser]",
+            "fullname": "benchmarks/bench_clouds_rips_sparse.py::test_rips_sparse[2000-20-2-ripser]",
+            "params": {
+                "n": 2000,
+                "degree": 20,
+                "max_dim": 2,
+                "implementation": "ripser"
+            },
+            "param": "2000-20-2-ripser",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 5.3,
+                "fingerprint": [
+                    [
+                        1998,
+                        2,
+                        105.829808
+                    ],
+                    [
+                        955,
+                        61,
+                        14.400742
+                    ],
+                    [
+                        86,
+                        31,
+                        0.457942
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.05080564599484205,
+                "max": 0.053112176014110446,
+                "mean": 0.05181851400023637,
+                "stddev": 0.0011786238326307356,
+                "rounds": 3,
+                "median": 0.0515377199917566,
+                "iqr": 0.0017298975144512951,
+                "q1": 0.05098866449407069,
+                "q3": 0.052718562008521985,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.05080564599484205,
+                "hd15iqr": 0.053112176014110446,
+                "ops": 19.298121902828758,
+                "total": 0.1554555420007091,
+                "data": [
+                    0.053112176014110446,
+                    0.05080564599484205,
+                    0.0515377199917566
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "sparse rips n=2000 degree=20 dim\u22642",
+            "name": "test_rips_sparse[2000-20-2-giotto-ph (1 thread)]",
+            "fullname": "benchmarks/bench_clouds_rips_sparse.py::test_rips_sparse[2000-20-2-giotto-ph (1 thread)]",
+            "params": {
+                "n": 2000,
+                "degree": 20,
+                "max_dim": 2,
+                "implementation": "giotto-ph (1 thread)"
+            },
+            "param": "2000-20-2-giotto-ph (1 thread)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 2.7,
+                "fingerprint": [
+                    [
+                        1998,
+                        2,
+                        105.829808
+                    ],
+                    [
+                        955,
+                        61,
+                        14.400742
+                    ],
+                    [
+                        86,
+                        31,
+                        0.457942
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.046619348984677345,
+                "max": 0.047339203010778874,
+                "mean": 0.04691135233345752,
+                "stddev": 0.00037866651189070945,
+                "rounds": 3,
+                "median": 0.04677550500491634,
+                "iqr": 0.0005398905195761472,
+                "q1": 0.04665838798973709,
+                "q3": 0.04719827850931324,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.046619348984677345,
+                "hd15iqr": 0.047339203010778874,
+                "ops": 21.316801802935718,
+                "total": 0.14073405700037256,
+                "data": [
+                    0.047339203010778874,
+                    0.04677550500491634,
+                    0.046619348984677345
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "sparse rips n=2000 degree=20 dim\u22642",
+            "name": "test_rips_sparse[2000-20-2-giotto-ph (parallel)]",
+            "fullname": "benchmarks/bench_clouds_rips_sparse.py::test_rips_sparse[2000-20-2-giotto-ph (parallel)]",
+            "params": {
+                "n": 2000,
+                "degree": 20,
+                "max_dim": 2,
+                "implementation": "giotto-ph (parallel)"
+            },
+            "param": "2000-20-2-giotto-ph (parallel)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 2.5,
+                "fingerprint": [
+                    [
+                        1998,
+                        2,
+                        105.829808
+                    ],
+                    [
+                        955,
+                        61,
+                        14.400742
+                    ],
+                    [
+                        86,
+                        31,
+                        0.457942
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.02233541102032177,
+                "max": 0.023625978996278718,
+                "mean": 0.02312389967846684,
+                "stddev": 0.000691313357178909,
+                "rounds": 3,
+                "median": 0.023410309018800035,
+                "iqr": 0.00096792598196771,
+                "q1": 0.022604135519941337,
+                "q3": 0.023572061501909047,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.02233541102032177,
+                "hd15iqr": 0.023625978996278718,
+                "ops": 43.245300918305226,
+                "total": 0.06937169903540052,
+                "data": [
+                    0.02233541102032177,
+                    0.023625978996278718,
+                    0.023410309018800035
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "sparse rips n=2000 degree=20 dim\u22642",
+            "name": "test_rips_sparse[2000-20-2-phlite (serial)]",
+            "fullname": "benchmarks/bench_clouds_rips_sparse.py::test_rips_sparse[2000-20-2-phlite (serial)]",
+            "params": {
+                "n": 2000,
+                "degree": 20,
+                "max_dim": 2,
+                "implementation": "phlite (serial)"
+            },
+            "param": "2000-20-2-phlite (serial)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 2.0,
+                "fingerprint": [
+                    [
+                        1998,
+                        2,
+                        105.829808
+                    ],
+                    [
+                        955,
+                        61,
+                        14.400742
+                    ],
+                    [
+                        86,
+                        31,
+                        0.457942
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.03849822102347389,
+                "max": 0.04010123299667612,
+                "mean": 0.039178657005929075,
+                "stddev": 0.0008284839674182649,
+                "rounds": 3,
+                "median": 0.03893651699763723,
+                "iqr": 0.0012022589799016714,
+                "q1": 0.03860779501701472,
+                "q3": 0.039810053996916395,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.03849822102347389,
+                "hd15iqr": 0.04010123299667612,
+                "ops": 25.524101039212898,
+                "total": 0.11753597101778723,
+                "data": [
+                    0.04010123299667612,
+                    0.03893651699763723,
+                    0.03849822102347389
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "sparse rips n=2000 degree=20 dim\u22642",
+            "name": "test_rips_sparse[2000-20-2-phlite (parallel)]",
+            "fullname": "benchmarks/bench_clouds_rips_sparse.py::test_rips_sparse[2000-20-2-phlite (parallel)]",
+            "params": {
+                "n": 2000,
+                "degree": 20,
+                "max_dim": 2,
+                "implementation": "phlite (parallel)"
+            },
+            "param": "2000-20-2-phlite (parallel)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 2.0,
+                "fingerprint": [
+                    [
+                        1998,
+                        2,
+                        105.829808
+                    ],
+                    [
+                        955,
+                        61,
+                        14.400742
+                    ],
+                    [
+                        86,
+                        31,
+                        0.457942
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.016958966007223353,
+                "max": 0.019744076998904347,
+                "mean": 0.01820869366444337,
+                "stddev": 0.001414358576687881,
+                "rounds": 3,
+                "median": 0.017923037987202406,
+                "iqr": 0.002088833243760746,
+                "q1": 0.017199984002218116,
+                "q3": 0.019288817245978862,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.016958966007223353,
+                "hd15iqr": 0.019744076998904347,
+                "ops": 54.91882165894901,
+                "total": 0.054626080993330106,
+                "data": [
+                    0.017923037987202406,
+                    0.016958966007223353,
+                    0.019744076998904347
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "sparse rips n=2000 degree=20 dim\u22642",
+            "name": "test_rips_sparse[2000-20-2-phlite (serial, merged)]",
+            "fullname": "benchmarks/bench_clouds_rips_sparse.py::test_rips_sparse[2000-20-2-phlite (serial, merged)]",
+            "params": {
+                "n": 2000,
+                "degree": 20,
+                "max_dim": 2,
+                "implementation": "phlite (serial, merged)"
+            },
+            "param": "2000-20-2-phlite (serial, merged)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 2.0,
+                "fingerprint": [
+                    [
+                        1998,
+                        2,
+                        105.829808
+                    ],
+                    [
+                        955,
+                        61,
+                        14.400742
+                    ],
+                    [
+                        86,
+                        31,
+                        0.457942
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.036412355984793976,
+                "max": 0.03813145600724965,
+                "mean": 0.03702386765507981,
+                "stddev": 0.0009609345854601973,
+                "rounds": 3,
+                "median": 0.036527790973195806,
+                "iqr": 0.001289325016841758,
+                "q1": 0.036441214731894433,
+                "q3": 0.03773053974873619,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.036412355984793976,
+                "hd15iqr": 0.03813145600724965,
+                "ops": 27.009603894335342,
+                "total": 0.11107160296523944,
+                "data": [
+                    0.03813145600724965,
+                    0.036527790973195806,
+                    0.036412355984793976
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "sparse rips n=2000 degree=20 dim\u22642",
+            "name": "test_rips_sparse[2000-20-2-phlite (points)]",
+            "fullname": "benchmarks/bench_clouds_rips_sparse.py::test_rips_sparse[2000-20-2-phlite (points)]",
+            "params": {
+                "n": 2000,
+                "degree": 20,
+                "max_dim": 2,
+                "implementation": "phlite (points)"
+            },
+            "param": "2000-20-2-phlite (points)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 1.6,
+                "fingerprint": [
+                    [
+                        1998,
+                        2,
+                        105.829808
+                    ],
+                    [
+                        955,
+                        61,
+                        14.400742
+                    ],
+                    [
+                        86,
+                        31,
+                        0.457942
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.0436093210009858,
+                "max": 0.048533577006310225,
+                "mean": 0.04553820901007081,
+                "stddev": 0.002629659478667163,
+                "rounds": 3,
+                "median": 0.044471729022916406,
+                "iqr": 0.0036931920039933175,
+                "q1": 0.04382492300646845,
+                "q3": 0.04751811501046177,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.0436093210009858,
+                "hd15iqr": 0.048533577006310225,
+                "ops": 21.95958123383485,
+                "total": 0.13661462703021243,
+                "data": [
+                    0.044471729022916406,
+                    0.048533577006310225,
+                    0.0436093210009858
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "sparse rips n=5000 degree=20 dim\u22642",
+            "name": "test_rips_sparse[5000-20-2-ripser]",
+            "fullname": "benchmarks/bench_clouds_rips_sparse.py::test_rips_sparse[5000-20-2-ripser]",
+            "params": {
+                "n": 5000,
+                "degree": 20,
+                "max_dim": 2,
+                "implementation": "ripser"
+            },
+            "param": "5000-20-2-ripser",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 7.7,
+                "fingerprint": [
+                    [
+                        4999,
+                        1,
+                        192.515132
+                    ],
+                    [
+                        2461,
+                        155,
+                        29.019268
+                    ],
+                    [
+                        191,
+                        103,
+                        0.653779
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.1539277120027691,
+                "max": 0.15787999401800334,
+                "mean": 0.1556232560154361,
+                "stddev": 0.002035027592616649,
+                "rounds": 3,
+                "median": 0.15506206202553585,
+                "iqr": 0.002964211511425674,
+                "q1": 0.1542112995084608,
+                "q3": 0.15717551101988647,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.1539277120027691,
+                "hd15iqr": 0.15787999401800334,
+                "ops": 6.4257748205757315,
+                "total": 0.4668697680463083,
+                "data": [
+                    0.15787999401800334,
+                    0.1539277120027691,
+                    0.15506206202553585
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "sparse rips n=5000 degree=20 dim\u22642",
+            "name": "test_rips_sparse[5000-20-2-giotto-ph (1 thread)]",
+            "fullname": "benchmarks/bench_clouds_rips_sparse.py::test_rips_sparse[5000-20-2-giotto-ph (1 thread)]",
+            "params": {
+                "n": 5000,
+                "degree": 20,
+                "max_dim": 2,
+                "implementation": "giotto-ph (1 thread)"
+            },
+            "param": "5000-20-2-giotto-ph (1 thread)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 6.2,
+                "fingerprint": [
+                    [
+                        4999,
+                        1,
+                        192.515132
+                    ],
+                    [
+                        2461,
+                        155,
+                        29.019268
+                    ],
+                    [
+                        191,
+                        103,
+                        0.653779
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.13402550099999644,
+                "max": 0.1342372780200094,
+                "mean": 0.13414204733756682,
+                "stddev": 0.00010748555445518022,
+                "rounds": 3,
+                "median": 0.1341633629926946,
+                "iqr": 0.00015883276500971988,
+                "q1": 0.13405996649817098,
+                "q3": 0.1342187992631807,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.13402550099999644,
+                "hd15iqr": 0.1342372780200094,
+                "ops": 7.454784087822309,
+                "total": 0.40242614201270044,
+                "data": [
+                    0.1342372780200094,
+                    0.1341633629926946,
+                    0.13402550099999644
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "sparse rips n=5000 degree=20 dim\u22642",
+            "name": "test_rips_sparse[5000-20-2-giotto-ph (parallel)]",
+            "fullname": "benchmarks/bench_clouds_rips_sparse.py::test_rips_sparse[5000-20-2-giotto-ph (parallel)]",
+            "params": {
+                "n": 5000,
+                "degree": 20,
+                "max_dim": 2,
+                "implementation": "giotto-ph (parallel)"
+            },
+            "param": "5000-20-2-giotto-ph (parallel)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 6.2,
+                "fingerprint": [
+                    [
+                        4999,
+                        1,
+                        192.515132
+                    ],
+                    [
+                        2461,
+                        155,
+                        29.019268
+                    ],
+                    [
+                        191,
+                        103,
+                        0.653779
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.06293260399252176,
+                "max": 0.07200911198742688,
+                "mean": 0.06598135366220959,
+                "stddev": 0.0052203083024553,
+                "rounds": 3,
+                "median": 0.06300234500668012,
+                "iqr": 0.006807380996178836,
+                "q1": 0.06295003924606135,
+                "q3": 0.06975742024224019,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.06293260399252176,
+                "hd15iqr": 0.07200911198742688,
+                "ops": 15.155796971360772,
+                "total": 0.19794406098662876,
+                "data": [
+                    0.07200911198742688,
+                    0.06293260399252176,
+                    0.06300234500668012
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "sparse rips n=5000 degree=20 dim\u22642",
+            "name": "test_rips_sparse[5000-20-2-phlite (serial)]",
+            "fullname": "benchmarks/bench_clouds_rips_sparse.py::test_rips_sparse[5000-20-2-phlite (serial)]",
+            "params": {
+                "n": 5000,
+                "degree": 20,
+                "max_dim": 2,
+                "implementation": "phlite (serial)"
+            },
+            "param": "5000-20-2-phlite (serial)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 4.6,
+                "fingerprint": [
+                    [
+                        4999,
+                        1,
+                        192.515132
+                    ],
+                    [
+                        2461,
+                        155,
+                        29.019268
+                    ],
+                    [
+                        191,
+                        103,
+                        0.653779
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.11144272200181149,
+                "max": 0.11774543300271034,
+                "mean": 0.11366022433503531,
+                "stddev": 0.003542214943227577,
+                "rounds": 3,
+                "median": 0.1117925180005841,
+                "iqr": 0.00472703325067414,
+                "q1": 0.11153017100150464,
+                "q3": 0.11625720425217878,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.11144272200181149,
+                "hd15iqr": 0.11774543300271034,
+                "ops": 8.798152615397875,
+                "total": 0.3409806730051059,
+                "data": [
+                    0.11774543300271034,
+                    0.11144272200181149,
+                    0.1117925180005841
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "sparse rips n=5000 degree=20 dim\u22642",
+            "name": "test_rips_sparse[5000-20-2-phlite (parallel)]",
+            "fullname": "benchmarks/bench_clouds_rips_sparse.py::test_rips_sparse[5000-20-2-phlite (parallel)]",
+            "params": {
+                "n": 5000,
+                "degree": 20,
+                "max_dim": 2,
+                "implementation": "phlite (parallel)"
+            },
+            "param": "5000-20-2-phlite (parallel)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 4.6,
+                "fingerprint": [
+                    [
+                        4999,
+                        1,
+                        192.515132
+                    ],
+                    [
+                        2461,
+                        155,
+                        29.019268
+                    ],
+                    [
+                        191,
+                        103,
+                        0.653779
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.044330069998977706,
+                "max": 0.04867475698119961,
+                "mean": 0.046138743666233495,
+                "stddev": 0.0022618230403196105,
+                "rounds": 3,
+                "median": 0.04541140401852317,
+                "iqr": 0.003258515236666426,
+                "q1": 0.04460040350386407,
+                "q3": 0.0478589187405305,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.044330069998977706,
+                "hd15iqr": 0.04867475698119961,
+                "ops": 21.673758766254554,
+                "total": 0.13841623099870048,
+                "data": [
+                    0.04867475698119961,
+                    0.044330069998977706,
+                    0.04541140401852317
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "sparse rips n=5000 degree=20 dim\u22642",
+            "name": "test_rips_sparse[5000-20-2-phlite (serial, merged)]",
+            "fullname": "benchmarks/bench_clouds_rips_sparse.py::test_rips_sparse[5000-20-2-phlite (serial, merged)]",
+            "params": {
+                "n": 5000,
+                "degree": 20,
+                "max_dim": 2,
+                "implementation": "phlite (serial, merged)"
+            },
+            "param": "5000-20-2-phlite (serial, merged)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 4.6,
+                "fingerprint": [
+                    [
+                        4999,
+                        1,
+                        192.515132
+                    ],
+                    [
+                        2461,
+                        155,
+                        29.019268
+                    ],
+                    [
+                        191,
+                        103,
+                        0.653779
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.10288601799402386,
+                "max": 0.10970857398933731,
+                "mean": 0.10546725166689914,
+                "stddev": 0.00370185606427404,
+                "rounds": 3,
+                "median": 0.10380716301733628,
+                "iqr": 0.005116916996485088,
+                "q1": 0.10311630424985196,
+                "q3": 0.10823322124633705,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.10288601799402386,
+                "hd15iqr": 0.10970857398933731,
+                "ops": 9.48161618127999,
+                "total": 0.31640175500069745,
+                "data": [
+                    0.10380716301733628,
+                    0.10288601799402386,
+                    0.10970857398933731
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "sparse rips n=5000 degree=20 dim\u22642",
+            "name": "test_rips_sparse[5000-20-2-phlite (points)]",
+            "fullname": "benchmarks/bench_clouds_rips_sparse.py::test_rips_sparse[5000-20-2-phlite (points)]",
+            "params": {
+                "n": 5000,
+                "degree": 20,
+                "max_dim": 2,
+                "implementation": "phlite (points)"
+            },
+            "param": "5000-20-2-phlite (points)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 3.9,
+                "fingerprint": [
+                    [
+                        4999,
+                        1,
+                        192.515133
+                    ],
+                    [
+                        2461,
+                        155,
+                        29.019268
+                    ],
+                    [
+                        191,
+                        103,
+                        0.653779
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.14176775500527583,
+                "max": 0.14205649300129153,
+                "mean": 0.14187044133238183,
+                "stddev": 0.00016141481575841652,
+                "rounds": 3,
+                "median": 0.14178707599057816,
+                "iqr": 0.0002165534970117733,
+                "q1": 0.1417725852516014,
+                "q3": 0.1419891387486132,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.14176775500527583,
+                "hd15iqr": 0.14205649300129153,
+                "ops": 7.048684635139361,
+                "total": 0.4256113239971455,
+                "data": [
+                    0.14178707599057816,
+                    0.14176775500527583,
+                    0.14205649300129153
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "sparse rips n=10000 degree=10 dim\u22642",
+            "name": "test_rips_sparse[10000-10-2-ripser]",
+            "fullname": "benchmarks/bench_clouds_rips_sparse.py::test_rips_sparse[10000-10-2-ripser]",
+            "params": {
+                "n": 10000,
+                "degree": 10,
+                "max_dim": 2,
+                "implementation": "ripser"
+            },
+            "param": "10000-10-2-ripser",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 7.9,
+                "fingerprint": [
+                    [
+                        9993,
+                        7,
+                        303.597384
+                    ],
+                    [
+                        2722,
+                        2041,
+                        14.485494
+                    ],
+                    [
+                        55,
+                        29,
+                        0.098208
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.07887341699097306,
+                "max": 0.08535465897875838,
+                "mean": 0.08210137865777749,
+                "stddev": 0.003240695172604922,
+                "rounds": 3,
+                "median": 0.08207606000360101,
+                "iqr": 0.004860931490838993,
+                "q1": 0.07967407774413005,
+                "q3": 0.08453500923496904,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.07887341699097306,
+                "hd15iqr": 0.08535465897875838,
+                "ops": 12.180063433140289,
+                "total": 0.24630413597333245,
+                "data": [
+                    0.08207606000360101,
+                    0.07887341699097306,
+                    0.08535465897875838
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "sparse rips n=10000 degree=10 dim\u22642",
+            "name": "test_rips_sparse[10000-10-2-giotto-ph (1 thread)]",
+            "fullname": "benchmarks/bench_clouds_rips_sparse.py::test_rips_sparse[10000-10-2-giotto-ph (1 thread)]",
+            "params": {
+                "n": 10000,
+                "degree": 10,
+                "max_dim": 2,
+                "implementation": "giotto-ph (1 thread)"
+            },
+            "param": "10000-10-2-giotto-ph (1 thread)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 6.8,
+                "fingerprint": [
+                    [
+                        9993,
+                        7,
+                        303.597384
+                    ],
+                    [
+                        2722,
+                        2041,
+                        14.485494
+                    ],
+                    [
+                        55,
+                        29,
+                        0.098208
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.07270883599994704,
+                "max": 0.07360170502215624,
+                "mean": 0.07313946533637743,
+                "stddev": 0.0004472730523345327,
+                "rounds": 3,
+                "median": 0.07310785498702899,
+                "iqr": 0.000669651766656898,
+                "q1": 0.07280859074671753,
+                "q3": 0.07347824251337443,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.07270883599994704,
+                "hd15iqr": 0.07360170502215624,
+                "ops": 13.67250902643158,
+                "total": 0.21941839600913227,
+                "data": [
+                    0.07360170502215624,
+                    0.07270883599994704,
+                    0.07310785498702899
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "sparse rips n=10000 degree=10 dim\u22642",
+            "name": "test_rips_sparse[10000-10-2-giotto-ph (parallel)]",
+            "fullname": "benchmarks/bench_clouds_rips_sparse.py::test_rips_sparse[10000-10-2-giotto-ph (parallel)]",
+            "params": {
+                "n": 10000,
+                "degree": 10,
+                "max_dim": 2,
+                "implementation": "giotto-ph (parallel)"
+            },
+            "param": "10000-10-2-giotto-ph (parallel)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 6.8,
+                "fingerprint": [
+                    [
+                        9993,
+                        7,
+                        303.597384
+                    ],
+                    [
+                        2722,
+                        2041,
+                        14.485494
+                    ],
+                    [
+                        55,
+                        29,
+                        0.098208
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.03543898501084186,
+                "max": 0.03731737201451324,
+                "mean": 0.03621382966715222,
+                "stddev": 0.0009813847680532415,
+                "rounds": 3,
+                "median": 0.03588513197610155,
+                "iqr": 0.0014087902527535334,
+                "q1": 0.03555052175215678,
+                "q3": 0.036959312004910316,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.03543898501084186,
+                "hd15iqr": 0.03731737201451324,
+                "ops": 27.613759969359187,
+                "total": 0.10864148900145665,
+                "data": [
+                    0.03731737201451324,
+                    0.03543898501084186,
+                    0.03588513197610155
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "sparse rips n=10000 degree=10 dim\u22642",
+            "name": "test_rips_sparse[10000-10-2-phlite (serial)]",
+            "fullname": "benchmarks/bench_clouds_rips_sparse.py::test_rips_sparse[10000-10-2-phlite (serial)]",
+            "params": {
+                "n": 10000,
+                "degree": 10,
+                "max_dim": 2,
+                "implementation": "phlite (serial)"
+            },
+            "param": "10000-10-2-phlite (serial)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 4.7,
+                "fingerprint": [
+                    [
+                        9993,
+                        7,
+                        303.597384
+                    ],
+                    [
+                        2722,
+                        2041,
+                        14.485494
+                    ],
+                    [
+                        55,
+                        29,
+                        0.098208
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.05456193699501455,
+                "max": 0.05665589901036583,
+                "mean": 0.05576200000359677,
+                "stddev": 0.0010800331140470578,
+                "rounds": 3,
+                "median": 0.056068164005409926,
+                "iqr": 0.0015704715115134604,
+                "q1": 0.05493849374761339,
+                "q3": 0.05650896525912685,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.05456193699501455,
+                "hd15iqr": 0.05665589901036583,
+                "ops": 17.93335963443739,
+                "total": 0.1672860000107903,
+                "data": [
+                    0.05665589901036583,
+                    0.05456193699501455,
+                    0.056068164005409926
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "sparse rips n=10000 degree=10 dim\u22642",
+            "name": "test_rips_sparse[10000-10-2-phlite (parallel)]",
+            "fullname": "benchmarks/bench_clouds_rips_sparse.py::test_rips_sparse[10000-10-2-phlite (parallel)]",
+            "params": {
+                "n": 10000,
+                "degree": 10,
+                "max_dim": 2,
+                "implementation": "phlite (parallel)"
+            },
+            "param": "10000-10-2-phlite (parallel)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 4.7,
+                "fingerprint": [
+                    [
+                        9993,
+                        7,
+                        303.597384
+                    ],
+                    [
+                        2722,
+                        2041,
+                        14.485494
+                    ],
+                    [
+                        55,
+                        29,
+                        0.098208
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.025311486009741202,
+                "max": 0.030019637022633106,
+                "mean": 0.0278032653441187,
+                "stddev": 0.0023661273259758795,
+                "rounds": 3,
+                "median": 0.02807867299998179,
+                "iqr": 0.0035311132596689276,
+                "q1": 0.02600328275730135,
+                "q3": 0.029534396016970277,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.025311486009741202,
+                "hd15iqr": 0.030019637022633106,
+                "ops": 35.9669983947239,
+                "total": 0.0834097960323561,
+                "data": [
+                    0.030019637022633106,
+                    0.025311486009741202,
+                    0.02807867299998179
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "sparse rips n=10000 degree=10 dim\u22642",
+            "name": "test_rips_sparse[10000-10-2-phlite (serial, merged)]",
+            "fullname": "benchmarks/bench_clouds_rips_sparse.py::test_rips_sparse[10000-10-2-phlite (serial, merged)]",
+            "params": {
+                "n": 10000,
+                "degree": 10,
+                "max_dim": 2,
+                "implementation": "phlite (serial, merged)"
+            },
+            "param": "10000-10-2-phlite (serial, merged)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 4.7,
+                "fingerprint": [
+                    [
+                        9993,
+                        7,
+                        303.597384
+                    ],
+                    [
+                        2722,
+                        2041,
+                        14.485494
+                    ],
+                    [
+                        55,
+                        29,
+                        0.098208
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.05492494098143652,
+                "max": 0.05675451102433726,
+                "mean": 0.05560890033181446,
+                "stddev": 0.0009983351675404736,
+                "rounds": 3,
+                "median": 0.055147248989669606,
+                "iqr": 0.0013721775321755558,
+                "q1": 0.05498051798349479,
+                "q3": 0.05635269551567035,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.05492494098143652,
+                "hd15iqr": 0.05675451102433726,
+                "ops": 17.982732872491077,
+                "total": 0.1668267009954434,
+                "data": [
+                    0.05675451102433726,
+                    0.055147248989669606,
+                    0.05492494098143652
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "sparse rips n=10000 degree=10 dim\u22642",
+            "name": "test_rips_sparse[10000-10-2-phlite (points)]",
+            "fullname": "benchmarks/bench_clouds_rips_sparse.py::test_rips_sparse[10000-10-2-phlite (points)]",
+            "params": {
+                "n": 10000,
+                "degree": 10,
+                "max_dim": 2,
+                "implementation": "phlite (points)"
+            },
+            "param": "10000-10-2-phlite (points)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 4.3,
+                "fingerprint": [
+                    [
+                        9993,
+                        7,
+                        303.597383
+                    ],
+                    [
+                        2722,
+                        2041,
+                        14.485494
+                    ],
+                    [
+                        55,
+                        29,
+                        0.098208
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.17742876501870342,
+                "max": 0.18285309997736476,
+                "mean": 0.17993380432987274,
+                "stddev": 0.002735792146723964,
+                "rounds": 3,
+                "median": 0.17951954799355008,
+                "iqr": 0.004068251218996011,
+                "q1": 0.17795146076241508,
+                "q3": 0.1820197119814111,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.17742876501870342,
+                "hd15iqr": 0.18285309997736476,
+                "ops": 5.557599383419356,
+                "total": 0.5398014129896183,
+                "data": [
+                    0.17951954799355008,
+                    0.17742876501870342,
+                    0.18285309997736476
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "sparse rips n=20000 degree=20 dim\u22641",
+            "name": "test_rips_sparse[20000-20-1-ripser]",
+            "fullname": "benchmarks/bench_clouds_rips_sparse.py::test_rips_sparse[20000-20-1-ripser]",
+            "params": {
+                "n": 20000,
+                "degree": 20,
+                "max_dim": 1,
+                "implementation": "ripser"
+            },
+            "param": "20000-20-1-ripser",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 9.5,
+                "fingerprint": [
+                    [
+                        19999,
+                        1,
+                        481.052285
+                    ],
+                    [
+                        10529,
+                        587,
+                        77.03323
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.45381547400029376,
+                "max": 0.46679838697309606,
+                "mean": 0.46050250066521886,
+                "stddev": 0.0065002884858307046,
+                "rounds": 3,
+                "median": 0.4608936410222668,
+                "iqr": 0.009737184729601722,
+                "q1": 0.455585015755787,
+                "q3": 0.46532220048538875,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.45381547400029376,
+                "hd15iqr": 0.46679838697309606,
+                "ops": 2.171540867976721,
+                "total": 1.3815075019956566,
+                "data": [
+                    0.46679838697309606,
+                    0.45381547400029376,
+                    0.4608936410222668
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "sparse rips n=20000 degree=20 dim\u22641",
+            "name": "test_rips_sparse[20000-20-1-giotto-ph (1 thread)]",
+            "fullname": "benchmarks/bench_clouds_rips_sparse.py::test_rips_sparse[20000-20-1-giotto-ph (1 thread)]",
+            "params": {
+                "n": 20000,
+                "degree": 20,
+                "max_dim": 1,
+                "implementation": "giotto-ph (1 thread)"
+            },
+            "param": "20000-20-1-giotto-ph (1 thread)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 11.1,
+                "fingerprint": [
+                    [
+                        19999,
+                        1,
+                        481.052285
+                    ],
+                    [
+                        10529,
+                        587,
+                        77.03323
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.2526162989961449,
+                "max": 0.26649466398521326,
+                "mean": 0.2577680329947422,
+                "stddev": 0.007598497882432472,
+                "rounds": 3,
+                "median": 0.2541931360028684,
+                "iqr": 0.01040877374180127,
+                "q1": 0.2530105082478258,
+                "q3": 0.26341928198962705,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.2526162989961449,
+                "hd15iqr": 0.26649466398521326,
+                "ops": 3.8794570000865756,
+                "total": 0.7733040989842266,
+                "data": [
+                    0.26649466398521326,
+                    0.2526162989961449,
+                    0.2541931360028684
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "sparse rips n=20000 degree=20 dim\u22641",
+            "name": "test_rips_sparse[20000-20-1-giotto-ph (parallel)]",
+            "fullname": "benchmarks/bench_clouds_rips_sparse.py::test_rips_sparse[20000-20-1-giotto-ph (parallel)]",
+            "params": {
+                "n": 20000,
+                "degree": 20,
+                "max_dim": 1,
+                "implementation": "giotto-ph (parallel)"
+            },
+            "param": "20000-20-1-giotto-ph (parallel)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 11.1,
+                "fingerprint": [
+                    [
+                        19999,
+                        1,
+                        481.052285
+                    ],
+                    [
+                        10529,
+                        587,
+                        77.03323
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.15659792799851857,
+                "max": 0.1933020470023621,
+                "mean": 0.17828801600262523,
+                "stddev": 0.019241241924737418,
+                "rounds": 3,
+                "median": 0.18496407300699502,
+                "iqr": 0.027528089252882637,
+                "q1": 0.16368946425063768,
+                "q3": 0.19121755350352032,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.15659792799851857,
+                "hd15iqr": 0.1933020470023621,
+                "ops": 5.608901946529459,
+                "total": 0.5348640480078757,
+                "data": [
+                    0.1933020470023621,
+                    0.18496407300699502,
+                    0.15659792799851857
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "sparse rips n=20000 degree=20 dim\u22641",
+            "name": "test_rips_sparse[20000-20-1-phlite (serial)]",
+            "fullname": "benchmarks/bench_clouds_rips_sparse.py::test_rips_sparse[20000-20-1-phlite (serial)]",
+            "params": {
+                "n": 20000,
+                "degree": 20,
+                "max_dim": 1,
+                "implementation": "phlite (serial)"
+            },
+            "param": "20000-20-1-phlite (serial)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 18.8,
+                "fingerprint": [
+                    [
+                        19999,
+                        1,
+                        481.052285
+                    ],
+                    [
+                        10529,
+                        587,
+                        77.03323
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.270708135998575,
+                "max": 0.2810356639965903,
+                "mean": 0.2743363089975901,
+                "stddev": 0.00580849186925676,
+                "rounds": 3,
+                "median": 0.27126512699760497,
+                "iqr": 0.007745645998511463,
+                "q1": 0.2708473837483325,
+                "q3": 0.27859302974684397,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.270708135998575,
+                "hd15iqr": 0.2810356639965903,
+                "ops": 3.645160947356715,
+                "total": 0.8230089269927703,
+                "data": [
+                    0.2810356639965903,
+                    0.27126512699760497,
+                    0.270708135998575
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "sparse rips n=20000 degree=20 dim\u22641",
+            "name": "test_rips_sparse[20000-20-1-phlite (parallel)]",
+            "fullname": "benchmarks/bench_clouds_rips_sparse.py::test_rips_sparse[20000-20-1-phlite (parallel)]",
+            "params": {
+                "n": 20000,
+                "degree": 20,
+                "max_dim": 1,
+                "implementation": "phlite (parallel)"
+            },
+            "param": "20000-20-1-phlite (parallel)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 18.8,
+                "fingerprint": [
+                    [
+                        19999,
+                        1,
+                        481.052285
+                    ],
+                    [
+                        10529,
+                        587,
+                        77.03323
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.1174831329844892,
+                "max": 0.12575331001426093,
+                "mean": 0.12215140833480594,
+                "stddev": 0.004236959007398036,
+                "rounds": 3,
+                "median": 0.12321778200566769,
+                "iqr": 0.006202632772328798,
+                "q1": 0.11891679523978382,
+                "q3": 0.12511942801211262,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.1174831329844892,
+                "hd15iqr": 0.12575331001426093,
+                "ops": 8.186561363738768,
+                "total": 0.3664542250044178,
+                "data": [
+                    0.12321778200566769,
+                    0.12575331001426093,
+                    0.1174831329844892
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "sparse rips n=20000 degree=20 dim\u22641",
+            "name": "test_rips_sparse[20000-20-1-phlite (serial, merged)]",
+            "fullname": "benchmarks/bench_clouds_rips_sparse.py::test_rips_sparse[20000-20-1-phlite (serial, merged)]",
+            "params": {
+                "n": 20000,
+                "degree": 20,
+                "max_dim": 1,
+                "implementation": "phlite (serial, merged)"
+            },
+            "param": "20000-20-1-phlite (serial, merged)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 18.8,
+                "fingerprint": [
+                    [
+                        19999,
+                        1,
+                        481.052285
+                    ],
+                    [
+                        10529,
+                        587,
+                        77.03323
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.21922722502495162,
+                "max": 0.22764789799111895,
+                "mean": 0.22277833100330705,
+                "stddev": 0.004362417664080097,
+                "rounds": 3,
+                "median": 0.2214598699938506,
+                "iqr": 0.006315504724625498,
+                "q1": 0.21978538626717636,
+                "q3": 0.22610089099180186,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.21922722502495162,
+                "hd15iqr": 0.22764789799111895,
+                "ops": 4.488766907878286,
+                "total": 0.6683349930099212,
+                "data": [
+                    0.2214598699938506,
+                    0.21922722502495162,
+                    0.22764789799111895
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "sparse rips n=20000 degree=20 dim\u22641",
+            "name": "test_rips_sparse[20000-20-1-phlite (points)]",
+            "fullname": "benchmarks/bench_clouds_rips_sparse.py::test_rips_sparse[20000-20-1-phlite (points)]",
+            "params": {
+                "n": 20000,
+                "degree": 20,
+                "max_dim": 1,
+                "implementation": "phlite (points)"
+            },
+            "param": "20000-20-1-phlite (points)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 5.5,
+                "fingerprint": [
+                    [
+                        19999,
+                        1,
+                        481.052285
+                    ],
+                    [
+                        10529,
+                        587,
+                        77.03323
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.780559214996174,
+                "max": 0.7854132829816081,
+                "mean": 0.7822834276594222,
+                "stddev": 0.002715210390609384,
+                "rounds": 3,
+                "median": 0.7808777850004844,
+                "iqr": 0.003640550989075564,
+                "q1": 0.7806388574972516,
+                "q3": 0.7842794084863272,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.780559214996174,
+                "hd15iqr": 0.7854132829816081,
+                "ops": 1.278309068865209,
+                "total": 2.3468502829782665,
+                "data": [
+                    0.780559214996174,
+                    0.7854132829816081,
+                    0.7808777850004844
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "sparse rips n=50000 degree=20 dim\u22641",
+            "name": "test_rips_sparse[50000-20-1-ripser]",
+            "fullname": "benchmarks/bench_clouds_rips_sparse.py::test_rips_sparse[50000-20-1-ripser]",
+            "params": {
+                "n": 50000,
+                "degree": 20,
+                "max_dim": 1,
+                "implementation": "ripser"
+            },
+            "param": "50000-20-1-ripser",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 20.9,
+                "fingerprint": [
+                    [
+                        49998,
+                        2,
+                        884.296466
+                    ],
+                    [
+                        26805,
+                        1420,
+                        145.369105
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 1.5935884789796546,
+                "max": 1.5935884789796546,
+                "mean": 1.5935884789796546,
+                "stddev": 0,
+                "rounds": 1,
+                "median": 1.5935884789796546,
+                "iqr": 0.0,
+                "q1": 1.5935884789796546,
+                "q3": 1.5935884789796546,
+                "iqr_outliers": 0,
+                "stddev_outliers": 0,
+                "outliers": "0;0",
+                "ld15iqr": 1.5935884789796546,
+                "hd15iqr": 1.5935884789796546,
+                "ops": 0.6275145768123785,
+                "total": 1.5935884789796546,
+                "data": [
+                    1.5935884789796546
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "sparse rips n=50000 degree=20 dim\u22641",
+            "name": "test_rips_sparse[50000-20-1-giotto-ph (1 thread)]",
+            "fullname": "benchmarks/bench_clouds_rips_sparse.py::test_rips_sparse[50000-20-1-giotto-ph (1 thread)]",
+            "params": {
+                "n": 50000,
+                "degree": 20,
+                "max_dim": 1,
+                "implementation": "giotto-ph (1 thread)"
+            },
+            "param": "50000-20-1-giotto-ph (1 thread)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 22.3,
+                "fingerprint": [
+                    [
+                        49998,
+                        2,
+                        884.296466
+                    ],
+                    [
+                        26805,
+                        1420,
+                        145.369105
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.9557848800031934,
+                "max": 0.9557848800031934,
+                "mean": 0.9557848800031934,
+                "stddev": 0,
+                "rounds": 1,
+                "median": 0.9557848800031934,
+                "iqr": 0.0,
+                "q1": 0.9557848800031934,
+                "q3": 0.9557848800031934,
+                "iqr_outliers": 0,
+                "stddev_outliers": 0,
+                "outliers": "0;0",
+                "ld15iqr": 0.9557848800031934,
+                "hd15iqr": 0.9557848800031934,
+                "ops": 1.0462605351077106,
+                "total": 0.9557848800031934,
+                "data": [
+                    0.9557848800031934
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "sparse rips n=50000 degree=20 dim\u22641",
+            "name": "test_rips_sparse[50000-20-1-giotto-ph (parallel)]",
+            "fullname": "benchmarks/bench_clouds_rips_sparse.py::test_rips_sparse[50000-20-1-giotto-ph (parallel)]",
+            "params": {
+                "n": 50000,
+                "degree": 20,
+                "max_dim": 1,
+                "implementation": "giotto-ph (parallel)"
+            },
+            "param": "50000-20-1-giotto-ph (parallel)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 22.3,
+                "fingerprint": [
+                    [
+                        49998,
+                        2,
+                        884.296466
+                    ],
+                    [
+                        26805,
+                        1420,
+                        145.369105
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.7399324300058652,
+                "max": 0.7399324300058652,
+                "mean": 0.7399324300058652,
+                "stddev": 0,
+                "rounds": 1,
+                "median": 0.7399324300058652,
+                "iqr": 0.0,
+                "q1": 0.7399324300058652,
+                "q3": 0.7399324300058652,
+                "iqr_outliers": 0,
+                "stddev_outliers": 0,
+                "outliers": "0;0",
+                "ld15iqr": 0.7399324300058652,
+                "hd15iqr": 0.7399324300058652,
+                "ops": 1.3514747555963635,
+                "total": 0.7399324300058652,
+                "data": [
+                    0.7399324300058652
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "sparse rips n=50000 degree=20 dim\u22641",
+            "name": "test_rips_sparse[50000-20-1-phlite (serial)]",
+            "fullname": "benchmarks/bench_clouds_rips_sparse.py::test_rips_sparse[50000-20-1-phlite (serial)]",
+            "params": {
+                "n": 50000,
+                "degree": 20,
+                "max_dim": 1,
+                "implementation": "phlite (serial)"
+            },
+            "param": "50000-20-1-phlite (serial)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 43.4,
+                "fingerprint": [
+                    [
+                        49998,
+                        2,
+                        884.296466
+                    ],
+                    [
+                        26805,
+                        1420,
+                        145.369105
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.9417116699914914,
+                "max": 0.9417116699914914,
+                "mean": 0.9417116699914914,
+                "stddev": 0,
+                "rounds": 1,
+                "median": 0.9417116699914914,
+                "iqr": 0.0,
+                "q1": 0.9417116699914914,
+                "q3": 0.9417116699914914,
+                "iqr_outliers": 0,
+                "stddev_outliers": 0,
+                "outliers": "0;0",
+                "ld15iqr": 0.9417116699914914,
+                "hd15iqr": 0.9417116699914914,
+                "ops": 1.0618961534256397,
+                "total": 0.9417116699914914,
+                "data": [
+                    0.9417116699914914
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "sparse rips n=50000 degree=20 dim\u22641",
+            "name": "test_rips_sparse[50000-20-1-phlite (parallel)]",
+            "fullname": "benchmarks/bench_clouds_rips_sparse.py::test_rips_sparse[50000-20-1-phlite (parallel)]",
+            "params": {
+                "n": 50000,
+                "degree": 20,
+                "max_dim": 1,
+                "implementation": "phlite (parallel)"
+            },
+            "param": "50000-20-1-phlite (parallel)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 43.4,
+                "fingerprint": [
+                    [
+                        49998,
+                        2,
+                        884.296466
+                    ],
+                    [
+                        26805,
+                        1420,
+                        145.369105
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.5207090110052377,
+                "max": 0.5207090110052377,
+                "mean": 0.5207090110052377,
+                "stddev": 0,
+                "rounds": 1,
+                "median": 0.5207090110052377,
+                "iqr": 0.0,
+                "q1": 0.5207090110052377,
+                "q3": 0.5207090110052377,
+                "iqr_outliers": 0,
+                "stddev_outliers": 0,
+                "outliers": "0;0",
+                "ld15iqr": 0.5207090110052377,
+                "hd15iqr": 0.5207090110052377,
+                "ops": 1.9204584112525398,
+                "total": 0.5207090110052377,
+                "data": [
+                    0.5207090110052377
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "sparse rips n=50000 degree=20 dim\u22641",
+            "name": "test_rips_sparse[50000-20-1-phlite (serial, merged)]",
+            "fullname": "benchmarks/bench_clouds_rips_sparse.py::test_rips_sparse[50000-20-1-phlite (serial, merged)]",
+            "params": {
+                "n": 50000,
+                "degree": 20,
+                "max_dim": 1,
+                "implementation": "phlite (serial, merged)"
+            },
+            "param": "50000-20-1-phlite (serial, merged)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 43.4,
+                "fingerprint": [
+                    [
+                        49998,
+                        2,
+                        884.296466
+                    ],
+                    [
+                        26805,
+                        1420,
+                        145.369105
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.7325187829846982,
+                "max": 0.7325187829846982,
+                "mean": 0.7325187829846982,
+                "stddev": 0,
+                "rounds": 1,
+                "median": 0.7325187829846982,
+                "iqr": 0.0,
+                "q1": 0.7325187829846982,
+                "q3": 0.7325187829846982,
+                "iqr_outliers": 0,
+                "stddev_outliers": 0,
+                "outliers": "0;0",
+                "ld15iqr": 0.7325187829846982,
+                "hd15iqr": 0.7325187829846982,
+                "ops": 1.3651527076554013,
+                "total": 0.7325187829846982,
+                "data": [
+                    0.7325187829846982
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "sparse rips n=50000 degree=20 dim\u22641",
+            "name": "test_rips_sparse[50000-20-1-phlite (points)]",
+            "fullname": "benchmarks/bench_clouds_rips_sparse.py::test_rips_sparse[50000-20-1-phlite (points)]",
+            "params": {
+                "n": 50000,
+                "degree": 20,
+                "max_dim": 1,
+                "implementation": "phlite (points)"
+            },
+            "param": "50000-20-1-phlite (points)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 7.3,
+                "fingerprint": [
+                    [
+                        49998,
+                        2,
+                        884.296466
+                    ],
+                    [
+                        26805,
+                        1420,
+                        145.369105
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 4.347921367007075,
+                "max": 4.347921367007075,
+                "mean": 4.347921367007075,
+                "stddev": 0,
+                "rounds": 1,
+                "median": 4.347921367007075,
+                "iqr": 0.0,
+                "q1": 4.347921367007075,
+                "q3": 4.347921367007075,
+                "iqr_outliers": 0,
+                "stddev_outliers": 0,
+                "outliers": "0;0",
+                "ld15iqr": 4.347921367007075,
+                "hd15iqr": 4.347921367007075,
+                "ops": 0.22999495979577886,
+                "total": 4.347921367007075,
+                "data": [
+                    4.347921367007075
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "sparse rips n=20000 degree=20 dim\u22642",
+            "name": "test_rips_sparse[20000-20-2-ripser]",
+            "fullname": "benchmarks/bench_clouds_rips_sparse.py::test_rips_sparse[20000-20-2-ripser]",
+            "params": {
+                "n": 20000,
+                "degree": 20,
+                "max_dim": 2,
+                "implementation": "ripser"
+            },
+            "param": "20000-20-2-ripser",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 9.3,
+                "fingerprint": [
+                    [
+                        19999,
+                        1,
+                        481.052285
+                    ],
+                    [
+                        10529,
+                        587,
+                        77.03323
+                    ],
+                    [
+                        851,
+                        462,
+                        1.689621
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.9027752249967307,
+                "max": 0.9027752249967307,
+                "mean": 0.9027752249967307,
+                "stddev": 0,
+                "rounds": 1,
+                "median": 0.9027752249967307,
+                "iqr": 0.0,
+                "q1": 0.9027752249967307,
+                "q3": 0.9027752249967307,
+                "iqr_outliers": 0,
+                "stddev_outliers": 0,
+                "outliers": "0;0",
+                "ld15iqr": 0.9027752249967307,
+                "hd15iqr": 0.9027752249967307,
+                "ops": 1.1076954399181937,
+                "total": 0.9027752249967307,
+                "data": [
+                    0.9027752249967307
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "sparse rips n=20000 degree=20 dim\u22642",
+            "name": "test_rips_sparse[20000-20-2-giotto-ph (1 thread)]",
+            "fullname": "benchmarks/bench_clouds_rips_sparse.py::test_rips_sparse[20000-20-2-giotto-ph (1 thread)]",
+            "params": {
+                "n": 20000,
+                "degree": 20,
+                "max_dim": 2,
+                "implementation": "giotto-ph (1 thread)"
+            },
+            "param": "20000-20-2-giotto-ph (1 thread)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 10.9,
+                "fingerprint": [
+                    [
+                        19999,
+                        1,
+                        481.052285
+                    ],
+                    [
+                        10529,
+                        587,
+                        77.03323
+                    ],
+                    [
+                        851,
+                        462,
+                        1.689621
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.7257496629899833,
+                "max": 0.7257496629899833,
+                "mean": 0.7257496629899833,
+                "stddev": 0,
+                "rounds": 1,
+                "median": 0.7257496629899833,
+                "iqr": 0.0,
+                "q1": 0.7257496629899833,
+                "q3": 0.7257496629899833,
+                "iqr_outliers": 0,
+                "stddev_outliers": 0,
+                "outliers": "0;0",
+                "ld15iqr": 0.7257496629899833,
+                "hd15iqr": 0.7257496629899833,
+                "ops": 1.3778855864433268,
+                "total": 0.7257496629899833,
+                "data": [
+                    0.7257496629899833
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "sparse rips n=20000 degree=20 dim\u22642",
+            "name": "test_rips_sparse[20000-20-2-giotto-ph (parallel)]",
+            "fullname": "benchmarks/bench_clouds_rips_sparse.py::test_rips_sparse[20000-20-2-giotto-ph (parallel)]",
+            "params": {
+                "n": 20000,
+                "degree": 20,
+                "max_dim": 2,
+                "implementation": "giotto-ph (parallel)"
+            },
+            "param": "20000-20-2-giotto-ph (parallel)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 10.9,
+                "fingerprint": [
+                    [
+                        19999,
+                        1,
+                        481.052285
+                    ],
+                    [
+                        10529,
+                        587,
+                        77.03323
+                    ],
+                    [
+                        851,
+                        462,
+                        1.689621
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.3723752000078093,
+                "max": 0.3723752000078093,
+                "mean": 0.3723752000078093,
+                "stddev": 0,
+                "rounds": 1,
+                "median": 0.3723752000078093,
+                "iqr": 0.0,
+                "q1": 0.3723752000078093,
+                "q3": 0.3723752000078093,
+                "iqr_outliers": 0,
+                "stddev_outliers": 0,
+                "outliers": "0;0",
+                "ld15iqr": 0.3723752000078093,
+                "hd15iqr": 0.3723752000078093,
+                "ops": 2.6854634787145555,
+                "total": 0.3723752000078093,
+                "data": [
+                    0.3723752000078093
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "sparse rips n=20000 degree=20 dim\u22642",
+            "name": "test_rips_sparse[20000-20-2-phlite (serial)]",
+            "fullname": "benchmarks/bench_clouds_rips_sparse.py::test_rips_sparse[20000-20-2-phlite (serial)]",
+            "params": {
+                "n": 20000,
+                "degree": 20,
+                "max_dim": 2,
+                "implementation": "phlite (serial)"
+            },
+            "param": "20000-20-2-phlite (serial)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 18.8,
+                "fingerprint": [
+                    [
+                        19999,
+                        1,
+                        481.052285
+                    ],
+                    [
+                        10529,
+                        587,
+                        77.03323
+                    ],
+                    [
+                        851,
+                        462,
+                        1.689621
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.5480520559940487,
+                "max": 0.5480520559940487,
+                "mean": 0.5480520559940487,
+                "stddev": 0,
+                "rounds": 1,
+                "median": 0.5480520559940487,
+                "iqr": 0.0,
+                "q1": 0.5480520559940487,
+                "q3": 0.5480520559940487,
+                "iqr_outliers": 0,
+                "stddev_outliers": 0,
+                "outliers": "0;0",
+                "ld15iqr": 0.5480520559940487,
+                "hd15iqr": 0.5480520559940487,
+                "ops": 1.8246441903884747,
+                "total": 0.5480520559940487,
+                "data": [
+                    0.5480520559940487
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "sparse rips n=20000 degree=20 dim\u22642",
+            "name": "test_rips_sparse[20000-20-2-phlite (parallel)]",
+            "fullname": "benchmarks/bench_clouds_rips_sparse.py::test_rips_sparse[20000-20-2-phlite (parallel)]",
+            "params": {
+                "n": 20000,
+                "degree": 20,
+                "max_dim": 2,
+                "implementation": "phlite (parallel)"
+            },
+            "param": "20000-20-2-phlite (parallel)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 18.8,
+                "fingerprint": [
+                    [
+                        19999,
+                        1,
+                        481.052285
+                    ],
+                    [
+                        10529,
+                        587,
+                        77.03323
+                    ],
+                    [
+                        851,
+                        462,
+                        1.689621
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.2524939870054368,
+                "max": 0.2524939870054368,
+                "mean": 0.2524939870054368,
+                "stddev": 0,
+                "rounds": 1,
+                "median": 0.2524939870054368,
+                "iqr": 0.0,
+                "q1": 0.2524939870054368,
+                "q3": 0.2524939870054368,
+                "iqr_outliers": 0,
+                "stddev_outliers": 0,
+                "outliers": "0;0",
+                "ld15iqr": 0.2524939870054368,
+                "hd15iqr": 0.2524939870054368,
+                "ops": 3.960490354086997,
+                "total": 0.2524939870054368,
+                "data": [
+                    0.2524939870054368
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "sparse rips n=20000 degree=20 dim\u22642",
+            "name": "test_rips_sparse[20000-20-2-phlite (serial, merged)]",
+            "fullname": "benchmarks/bench_clouds_rips_sparse.py::test_rips_sparse[20000-20-2-phlite (serial, merged)]",
+            "params": {
+                "n": 20000,
+                "degree": 20,
+                "max_dim": 2,
+                "implementation": "phlite (serial, merged)"
+            },
+            "param": "20000-20-2-phlite (serial, merged)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 18.8,
+                "fingerprint": [
+                    [
+                        19999,
+                        1,
+                        481.052285
+                    ],
+                    [
+                        10529,
+                        587,
+                        77.03323
+                    ],
+                    [
+                        851,
+                        462,
+                        1.689621
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.5185904309910256,
+                "max": 0.5185904309910256,
+                "mean": 0.5185904309910256,
+                "stddev": 0,
+                "rounds": 1,
+                "median": 0.5185904309910256,
+                "iqr": 0.0,
+                "q1": 0.5185904309910256,
+                "q3": 0.5185904309910256,
+                "iqr_outliers": 0,
+                "stddev_outliers": 0,
+                "outliers": "0;0",
+                "ld15iqr": 0.5185904309910256,
+                "hd15iqr": 0.5185904309910256,
+                "ops": 1.928303995291624,
+                "total": 0.5185904309910256,
+                "data": [
+                    0.5185904309910256
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "sparse rips n=20000 degree=20 dim\u22642",
+            "name": "test_rips_sparse[20000-20-2-phlite (points)]",
+            "fullname": "benchmarks/bench_clouds_rips_sparse.py::test_rips_sparse[20000-20-2-phlite (points)]",
+            "params": {
+                "n": 20000,
+                "degree": 20,
+                "max_dim": 2,
+                "implementation": "phlite (points)"
+            },
+            "param": "20000-20-2-phlite (points)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 5.4,
+                "fingerprint": [
+                    [
+                        19999,
+                        1,
+                        481.052285
+                    ],
+                    [
+                        10529,
+                        587,
+                        77.03323
+                    ],
+                    [
+                        851,
+                        462,
+                        1.689621
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 1.0773962259991094,
+                "max": 1.0773962259991094,
+                "mean": 1.0773962259991094,
+                "stddev": 0,
+                "rounds": 1,
+                "median": 1.0773962259991094,
+                "iqr": 0.0,
+                "q1": 1.0773962259991094,
+                "q3": 1.0773962259991094,
+                "iqr_outliers": 0,
+                "stddev_outliers": 0,
+                "outliers": "0;0",
+                "ld15iqr": 1.0773962259991094,
+                "hd15iqr": 1.0773962259991094,
+                "ops": 0.9281636373588212,
+                "total": 1.0773962259991094,
+                "data": [
+                    1.0773962259991094
+                ],
+                "iterations": 1
+            }
+        }
+    ],
+    "datetime": "2026-11-16T22:45:03.766148+00:00",
+    "version": "5.3.1"
+}

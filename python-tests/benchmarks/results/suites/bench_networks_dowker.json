@@ -1,0 +1,1399 @@
+{
+    "machine_info": {
+        "processor": "",
+        "machine": "x86_64",
+        "python_compiler": "GCC 15.1.1 20250425",
+        "python_implementation": "CPython",
+        "python_implementation_version": "3.11.13",
+        "python_version": "3.11.13",
+        "python_build": [
+            "main",
+            "Jul  7 2025 19:11:17"
+        ],
+        "release": "7.0.10-arch1-1",
+        "system": "Linux",
+        "cpu": {
+            "python_version": "3.11.13.final.0 (64 bit)",
+            "cpuinfo_version": [
+                10,
+                1,
+                1
+            ],
+            "cpuinfo_version_string": "10.1.1",
+            "arch": "X86_64",
+            "bits": 64,
+            "count": 8,
+            "arch_string_raw": "x86_64",
+            "vendor_id_raw": "GenuineIntel",
+            "brand_raw": "11th Gen Intel(R) Core(TM) i7-1185G7 @ 3.00GHz",
+            "hz_advertised_friendly": "3.0000 GHz",
+            "hz_advertised": [
+                3000000000,
+                0
+            ],
+            "stepping": 1,
+            "model": 140,
+            "family": 6,
+            "flags": [
+                "3dnowprefetch",
+                "abm",
+                "acpi",
+                "adx",
+                "aes",
+                "aperfmperf",
+                "apic",
+                "arat",
+                "arch_capabilities",
+                "arch_perfmon",
+                "art",
+                "avx",
+                "avx2",
+                "avx512_bitalg",
+                "avx512_vbmi2",
+                "avx512_vnni",
+                "avx512_vp2intersect",
+                "avx512_vpopcntdq",
+                "avx512bitalg",
+                "avx512bw",
+                "avx512cd",
+                "avx512dq",
+                "avx512f",
+                "avx512ifma",
+                "avx512vbmi",
+                "avx512vbmi2",
+                "avx512vl",
+                "avx512vnni",
+                "avx512vpopcntdq",
+                "bmi1",
+                "bmi2",
+                "bts",
+                "cat_l2",
+                "cdp_l2",
+                "clflush",
+                "clflushopt",
+                "clwb",
+                "cmov",
+                "constant_tsc",
+                "cpuid",
+                "cpuid_fault",
+                "cx16",
+                "cx8",
+                "de",
+                "ds_cpl",
+                "dtes64",
+                "dtherm",
+                "dts",
+                "epb",
+                "ept",
+                "ept_ad",
+                "erms",
+                "est",
+                "f16c",
+                "flexpriority",
+                "flush_l1d",
+                "fma",
+                "fpu",
+                "fsgsbase",
+                "fsrm",
+                "fxsr",
+                "gfni",
+                "ht",
+                "hwp",
+                "hwp_act_window",
+                "hwp_epp",
+                "hwp_notify",
+                "hwp_pkg_req",
+                "ibpb",
+                "ibrs",
+                "ibrs_enhanced",
+                "ibt",
+                "ida",
+                "intel_pt",
+                "invpcid",
+                "lahf_lm",
+                "lm",
+                "mca",
+                "mce",
+                "md_clear",
+                "mmx",
+                "monitor",
+                "movbe",
+                "movdir64b",
+                "movdiri",
+                "msr",
+                "mtrr",
+                "nonstop_tsc",
+                "nopl",
+                "nx",
+                "ospke",
+                "osxsave",
+                "pae",
+                "pat",
+                "pbe",
+                "pcid",
+                "pclmulqdq",
+                "pdcm",
+                "pdpe1gb",
+                "pebs",
+                "pge",
+                "pku",
+                "pln",
+                "pni",
+                "popcnt",
+                "pqe",
+                "pse",
+                "pse36",
+                "pts",
+                "rdpid",
+                "rdrand",
+                "rdrnd",
+                "rdseed",
+                "rdt_a",
+                "rdtscp",
+                "rep_good",
+                "sdbg",
+                "sep",
+                "sha",
+                "sha_ni",
+                "smap",
+                "smep",
+                "smx",
+                "split_lock_detect",
+                "ss",
+                "ssbd",
+                "sse",
+                "sse2",
+                "sse4_1",
+                "sse4_2",
+                "ssse3",
+                "stibp",
+                "syscall",
+                "tm",
+                "tm2",
+                "tme",
+                "tpr_shadow",
+                "tsc",
+                "tsc_adjust",
+                "tsc_deadline_timer",
+                "tsc_known_freq",
+                "tscdeadline",
+                "umip",
+                "user_shstk",
+                "vaes",
+                "vme",
+                "vmx",
+                "vnmi",
+                "vpclmulqdq",
+                "vpid",
+                "x2apic",
+                "xgetbv1",
+                "xsave",
+                "xsavec",
+                "xsaveopt",
+                "xsaves",
+                "xtopology",
+                "xtpr"
+            ],
+            "l3_cache_size": 12582912,
+            "l2_cache_size": 5242880,
+            "l1_data_cache_size": 196608,
+            "l1_instruction_cache_size": 131072,
+            "l2_cache_line_size": 256,
+            "l2_cache_associativity": 7
+        }
+    },
+    "commit_info": {
+        "id": "8a41862bc479ff85a31f3b295f29213db3472db8",
+        "time": "2026-11-16T20:17:02Z",
+        "author_time": "2026-11-16T20:17:02Z",
+        "dirty": true,
+        "project": "phlite",
+        "branch": "readme"
+    },
+    "benchmarks": [
+        {
+            "group": "dowker n=20 p=0.3 dim\u22642",
+            "name": "test_dowker_and_tuples[dowker-20-0.3-2-brute force]",
+            "fullname": "benchmarks/bench_networks_dowker.py::test_dowker_and_tuples[dowker-20-0.3-2-brute force]",
+            "params": {
+                "kind": "dowker",
+                "n": 20,
+                "p": 0.3,
+                "max_dim": 2,
+                "implementation": "brute force"
+            },
+            "param": "dowker-20-0.3-2-brute force",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 0.2,
+                "fingerprint": [
+                    [
+                        19,
+                        1,
+                        2.603432
+                    ],
+                    [
+                        18,
+                        0,
+                        4.651486
+                    ],
+                    [
+                        2,
+                        15,
+                        0.186427
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.06640018001780845,
+                "max": 0.0675713790114969,
+                "mean": 0.06709831235154222,
+                "stddev": 0.0006171852953849686,
+                "rounds": 3,
+                "median": 0.06732337802532129,
+                "iqr": 0.000878399245266337,
+                "q1": 0.06663097951968666,
+                "q3": 0.067509378764953,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.06640018001780845,
+                "hd15iqr": 0.0675713790114969,
+                "ops": 14.903504498902878,
+                "total": 0.20129493705462664,
+                "data": [
+                    0.06640018001780845,
+                    0.06732337802532129,
+                    0.0675713790114969
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "dowker n=20 p=0.3 dim\u22642",
+            "name": "test_dowker_and_tuples[dowker-20-0.3-2-phlite (serial)]",
+            "fullname": "benchmarks/bench_networks_dowker.py::test_dowker_and_tuples[dowker-20-0.3-2-phlite (serial)]",
+            "params": {
+                "kind": "dowker",
+                "n": 20,
+                "p": 0.3,
+                "max_dim": 2,
+                "implementation": "phlite (serial)"
+            },
+            "param": "dowker-20-0.3-2-phlite (serial)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 0.1,
+                "fingerprint": [
+                    [
+                        19,
+                        1,
+                        2.603432
+                    ],
+                    [
+                        18,
+                        0,
+                        4.651486
+                    ],
+                    [
+                        2,
+                        15,
+                        0.186427
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.0008295489824377,
+                "max": 0.0011572540097404271,
+                "mean": 0.0009480769998238733,
+                "stddev": 0.00018168812871222501,
+                "rounds": 3,
+                "median": 0.0008574280072934926,
+                "iqr": 0.00024577877047704533,
+                "q1": 0.0008365187386516482,
+                "q3": 0.0010822975091286935,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.0008295489824377,
+                "hd15iqr": 0.0011572540097404271,
+                "ops": 1054.7666488964214,
+                "total": 0.0028442309994716197,
+                "data": [
+                    0.0011572540097404271,
+                    0.0008574280072934926,
+                    0.0008295489824377
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "dowker n=20 p=0.3 dim\u22642",
+            "name": "test_dowker_and_tuples[dowker-20-0.3-2-phlite (parallel)]",
+            "fullname": "benchmarks/bench_networks_dowker.py::test_dowker_and_tuples[dowker-20-0.3-2-phlite (parallel)]",
+            "params": {
+                "kind": "dowker",
+                "n": 20,
+                "p": 0.3,
+                "max_dim": 2,
+                "implementation": "phlite (parallel)"
+            },
+            "param": "dowker-20-0.3-2-phlite (parallel)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 0.1,
+                "fingerprint": [
+                    [
+                        19,
+                        1,
+                        2.603432
+                    ],
+                    [
+                        18,
+                        0,
+                        4.651486
+                    ],
+                    [
+                        2,
+                        15,
+                        0.186427
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.0005747750110458583,
+                "max": 0.0008142679871525615,
+                "mean": 0.0006561269983649254,
+                "stddev": 0.00013697311583305832,
+                "rounds": 3,
+                "median": 0.0005793379968963563,
+                "iqr": 0.00017961973208002746,
+                "q1": 0.0005759157575084828,
+                "q3": 0.0007555354895885102,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.0005747750110458583,
+                "hd15iqr": 0.0008142679871525615,
+                "ops": 1524.095186590415,
+                "total": 0.001968380995094776,
+                "data": [
+                    0.0008142679871525615,
+                    0.0005747750110458583,
+                    0.0005793379968963563
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "dowker n=40 p=0.2 dim\u22641",
+            "name": "test_dowker_and_tuples[dowker-40-0.2-1-brute force]",
+            "fullname": "benchmarks/bench_networks_dowker.py::test_dowker_and_tuples[dowker-40-0.2-1-brute force]",
+            "params": {
+                "kind": "dowker",
+                "n": 40,
+                "p": 0.2,
+                "max_dim": 1,
+                "implementation": "brute force"
+            },
+            "param": "dowker-40-0.2-1-brute force",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 1.0,
+                "fingerprint": [
+                    [
+                        39,
+                        1,
+                        3.027679
+                    ],
+                    [
+                        57,
+                        0,
+                        13.321723
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.20678309901268221,
+                "max": 0.21386817601160146,
+                "mean": 0.20945485134143382,
+                "stddev": 0.0038502447565632284,
+                "rounds": 3,
+                "median": 0.2077132790000178,
+                "iqr": 0.0053138077491894364,
+                "q1": 0.2070156440095161,
+                "q3": 0.21232945175870555,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.20678309901268221,
+                "hd15iqr": 0.21386817601160146,
+                "ops": 4.774298583181981,
+                "total": 0.6283645540243015,
+                "data": [
+                    0.21386817601160146,
+                    0.20678309901268221,
+                    0.2077132790000178
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "dowker n=40 p=0.2 dim\u22641",
+            "name": "test_dowker_and_tuples[dowker-40-0.2-1-phlite (serial)]",
+            "fullname": "benchmarks/bench_networks_dowker.py::test_dowker_and_tuples[dowker-40-0.2-1-phlite (serial)]",
+            "params": {
+                "kind": "dowker",
+                "n": 40,
+                "p": 0.2,
+                "max_dim": 1,
+                "implementation": "phlite (serial)"
+            },
+            "param": "dowker-40-0.2-1-phlite (serial)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 0.4,
+                "fingerprint": [
+                    [
+                        39,
+                        1,
+                        3.027679
+                    ],
+                    [
+                        57,
+                        0,
+                        13.321723
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.0031103000219445676,
+                "max": 0.0032390140113420784,
+                "mean": 0.0031577000045217574,
+                "stddev": 7.074209176246069e-05,
+                "rounds": 3,
+                "median": 0.003123785980278626,
+                "iqr": 9.653549204813316e-05,
+                "q1": 0.003113671511528082,
+                "q3": 0.0032102070035762154,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.0031103000219445676,
+                "hd15iqr": 0.0032390140113420784,
+                "ops": 316.68619519524395,
+                "total": 0.009473100013565272,
+                "data": [
+                    0.0032390140113420784,
+                    0.003123785980278626,
+                    0.0031103000219445676
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "dowker n=40 p=0.2 dim\u22641",
+            "name": "test_dowker_and_tuples[dowker-40-0.2-1-phlite (parallel)]",
+            "fullname": "benchmarks/bench_networks_dowker.py::test_dowker_and_tuples[dowker-40-0.2-1-phlite (parallel)]",
+            "params": {
+                "kind": "dowker",
+                "n": 40,
+                "p": 0.2,
+                "max_dim": 1,
+                "implementation": "phlite (parallel)"
+            },
+            "param": "dowker-40-0.2-1-phlite (parallel)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 0.5,
+                "fingerprint": [
+                    [
+                        39,
+                        1,
+                        3.027679
+                    ],
+                    [
+                        57,
+                        0,
+                        13.321723
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.002128745982190594,
+                "max": 0.002495747001376003,
+                "mean": 0.0023596983325357237,
+                "stddev": 0.00020106583149098907,
+                "rounds": 3,
+                "median": 0.0024546020140405744,
+                "iqr": 0.0002752507643890567,
+                "q1": 0.002210209990153089,
+                "q3": 0.002485460754542146,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.002128745982190594,
+                "hd15iqr": 0.002495747001376003,
+                "ops": 423.78298370258346,
+                "total": 0.0070790949976071715,
+                "data": [
+                    0.0024546020140405744,
+                    0.002128745982190594,
+                    0.002495747001376003
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "tuples n=20 p=0.3 dim\u22642",
+            "name": "test_dowker_and_tuples[tuples-20-0.3-2-brute force]",
+            "fullname": "benchmarks/bench_networks_dowker.py::test_dowker_and_tuples[tuples-20-0.3-2-brute force]",
+            "params": {
+                "kind": "tuples",
+                "n": 20,
+                "p": 0.3,
+                "max_dim": 2,
+                "implementation": "brute force"
+            },
+            "param": "tuples-20-0.3-2-brute force",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 0.2,
+                "fingerprint": [
+                    [
+                        19,
+                        1,
+                        2.603432
+                    ],
+                    [
+                        22,
+                        1,
+                        6.465828
+                    ],
+                    [
+                        0,
+                        10,
+                        0
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.005248061002930626,
+                "max": 0.006081843021092936,
+                "mean": 0.005601858011990164,
+                "stddev": 0.0004309764169521193,
+                "rounds": 3,
+                "median": 0.0054756700119469315,
+                "iqr": 0.0006253365136217326,
+                "q1": 0.005304963255184703,
+                "q3": 0.005930299768806435,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.005248061002930626,
+                "hd15iqr": 0.006081843021092936,
+                "ops": 178.5122003913004,
+                "total": 0.016805574035970494,
+                "data": [
+                    0.006081843021092936,
+                    0.0054756700119469315,
+                    0.005248061002930626
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "tuples n=20 p=0.3 dim\u22642",
+            "name": "test_dowker_and_tuples[tuples-20-0.3-2-phlite (serial)]",
+            "fullname": "benchmarks/bench_networks_dowker.py::test_dowker_and_tuples[tuples-20-0.3-2-phlite (serial)]",
+            "params": {
+                "kind": "tuples",
+                "n": 20,
+                "p": 0.3,
+                "max_dim": 2,
+                "implementation": "phlite (serial)"
+            },
+            "param": "tuples-20-0.3-2-phlite (serial)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 0.0,
+                "fingerprint": [
+                    [
+                        19,
+                        1,
+                        2.603432
+                    ],
+                    [
+                        22,
+                        1,
+                        6.465828
+                    ],
+                    [
+                        0,
+                        10,
+                        0
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.00024679701891727746,
+                "max": 0.0003370179911144078,
+                "mean": 0.00028157066359805566,
+                "stddev": 4.853356392784553e-05,
+                "rounds": 3,
+                "median": 0.0002608969807624817,
+                "iqr": 6.766572914784774e-05,
+                "q1": 0.0002503220093785785,
+                "q3": 0.00031798773852642626,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.00024679701891727746,
+                "hd15iqr": 0.0003370179911144078,
+                "ops": 3551.5063509155484,
+                "total": 0.0008447119907941669,
+                "data": [
+                    0.0003370179911144078,
+                    0.0002608969807624817,
+                    0.00024679701891727746
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "tuples n=20 p=0.3 dim\u22642",
+            "name": "test_dowker_and_tuples[tuples-20-0.3-2-phlite (parallel)]",
+            "fullname": "benchmarks/bench_networks_dowker.py::test_dowker_and_tuples[tuples-20-0.3-2-phlite (parallel)]",
+            "params": {
+                "kind": "tuples",
+                "n": 20,
+                "p": 0.3,
+                "max_dim": 2,
+                "implementation": "phlite (parallel)"
+            },
+            "param": "tuples-20-0.3-2-phlite (parallel)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 0.1,
+                "fingerprint": [
+                    [
+                        19,
+                        1,
+                        2.603432
+                    ],
+                    [
+                        22,
+                        1,
+                        6.465828
+                    ],
+                    [
+                        0,
+                        10,
+                        0
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.00029633098165504634,
+                "max": 0.00048082697321660817,
+                "mean": 0.00037330865355518955,
+                "stddev": 9.596479093828994e-05,
+                "rounds": 3,
+                "median": 0.0003427680057939142,
+                "iqr": 0.00013837199367117137,
+                "q1": 0.0003079402376897633,
+                "q3": 0.0004463122313609347,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.00029633098165504634,
+                "hd15iqr": 0.00048082697321660817,
+                "ops": 2678.748511390082,
+                "total": 0.0011199259606655687,
+                "data": [
+                    0.00048082697321660817,
+                    0.0003427680057939142,
+                    0.00029633098165504634
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "tuples n=60 p=0.2 dim\u22641",
+            "name": "test_dowker_and_tuples[tuples-60-0.2-1-brute force]",
+            "fullname": "benchmarks/bench_networks_dowker.py::test_dowker_and_tuples[tuples-60-0.2-1-brute force]",
+            "params": {
+                "kind": "tuples",
+                "n": 60,
+                "p": 0.2,
+                "max_dim": 1,
+                "implementation": "brute force"
+            },
+            "param": "tuples-60-0.2-1-brute force",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 2.0,
+                "fingerprint": [
+                    [
+                        59,
+                        1,
+                        2.486459
+                    ],
+                    [
+                        174,
+                        1,
+                        49.137917
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.038516025990247726,
+                "max": 0.04016206698725,
+                "mean": 0.0392249183205422,
+                "stddev": 0.0008464268765154401,
+                "rounds": 3,
+                "median": 0.03899666198412888,
+                "iqr": 0.0012345307477517053,
+                "q1": 0.038636184988718014,
+                "q3": 0.03987071573646972,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.038516025990247726,
+                "hd15iqr": 0.04016206698725,
+                "ops": 25.493998274976576,
+                "total": 0.1176747549616266,
+                "data": [
+                    0.04016206698725,
+                    0.038516025990247726,
+                    0.03899666198412888
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "tuples n=60 p=0.2 dim\u22641",
+            "name": "test_dowker_and_tuples[tuples-60-0.2-1-phlite (serial)]",
+            "fullname": "benchmarks/bench_networks_dowker.py::test_dowker_and_tuples[tuples-60-0.2-1-phlite (serial)]",
+            "params": {
+                "kind": "tuples",
+                "n": 60,
+                "p": 0.2,
+                "max_dim": 1,
+                "implementation": "phlite (serial)"
+            },
+            "param": "tuples-60-0.2-1-phlite (serial)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 0.3,
+                "fingerprint": [
+                    [
+                        59,
+                        1,
+                        2.486459
+                    ],
+                    [
+                        174,
+                        1,
+                        49.137917
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.0019774630200117826,
+                "max": 0.002086602005874738,
+                "mean": 0.002017669340906044,
+                "stddev": 5.9972757913161154e-05,
+                "rounds": 3,
+                "median": 0.001988942996831611,
+                "iqr": 8.185423939721659e-05,
+                "q1": 0.0019803330142167397,
+                "q3": 0.0020621872536139563,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.0019774630200117826,
+                "hd15iqr": 0.002086602005874738,
+                "ops": 495.62134871462405,
+                "total": 0.0060530080227181315,
+                "data": [
+                    0.002086602005874738,
+                    0.001988942996831611,
+                    0.0019774630200117826
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "tuples n=60 p=0.2 dim\u22641",
+            "name": "test_dowker_and_tuples[tuples-60-0.2-1-phlite (parallel)]",
+            "fullname": "benchmarks/bench_networks_dowker.py::test_dowker_and_tuples[tuples-60-0.2-1-phlite (parallel)]",
+            "params": {
+                "kind": "tuples",
+                "n": 60,
+                "p": 0.2,
+                "max_dim": 1,
+                "implementation": "phlite (parallel)"
+            },
+            "param": "tuples-60-0.2-1-phlite (parallel)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 0.3,
+                "fingerprint": [
+                    [
+                        59,
+                        1,
+                        2.486459
+                    ],
+                    [
+                        174,
+                        1,
+                        49.137917
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.0012347690062597394,
+                "max": 0.0016310549981426448,
+                "mean": 0.0013882479979656637,
+                "stddev": 0.0002127093478522005,
+                "rounds": 3,
+                "median": 0.0012989199894946069,
+                "iqr": 0.000297214493912179,
+                "q1": 0.0012508067520684563,
+                "q3": 0.0015480212459806353,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.0012347690062597394,
+                "hd15iqr": 0.0016310549981426448,
+                "ops": 720.3323912336976,
+                "total": 0.004164743993896991,
+                "data": [
+                    0.0016310549981426448,
+                    0.0012989199894946069,
+                    0.0012347690062597394
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "dowker n=60 p=0.2 dim\u22642",
+            "name": "test_dowker_and_tuples[dowker-60-0.2-2-brute force]",
+            "fullname": "benchmarks/bench_networks_dowker.py::test_dowker_and_tuples[dowker-60-0.2-2-brute force]",
+            "params": {
+                "kind": "dowker",
+                "n": 60,
+                "p": 0.2,
+                "max_dim": 2,
+                "implementation": "brute force"
+            },
+            "param": "dowker-60-0.2-2-brute force",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 21.8,
+                "fingerprint": [
+                    [
+                        59,
+                        1,
+                        2.486459
+                    ],
+                    [
+                        120,
+                        0,
+                        22.357426
+                    ],
+                    [
+                        315,
+                        66,
+                        65.620523
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 18.006537312001456,
+                "max": 18.006537312001456,
+                "mean": 18.006537312001456,
+                "stddev": 0,
+                "rounds": 1,
+                "median": 18.006537312001456,
+                "iqr": 0.0,
+                "q1": 18.006537312001456,
+                "q3": 18.006537312001456,
+                "iqr_outliers": 0,
+                "stddev_outliers": 0,
+                "outliers": "0;0",
+                "ld15iqr": 18.006537312001456,
+                "hd15iqr": 18.006537312001456,
+                "ops": 0.05553538599192497,
+                "total": 18.006537312001456,
+                "data": [
+                    18.006537312001456
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "dowker n=60 p=0.2 dim\u22642",
+            "name": "test_dowker_and_tuples[dowker-60-0.2-2-phlite (serial)]",
+            "fullname": "benchmarks/bench_networks_dowker.py::test_dowker_and_tuples[dowker-60-0.2-2-phlite (serial)]",
+            "params": {
+                "kind": "dowker",
+                "n": 60,
+                "p": 0.2,
+                "max_dim": 2,
+                "implementation": "phlite (serial)"
+            },
+            "param": "dowker-60-0.2-2-phlite (serial)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 12.1,
+                "fingerprint": [
+                    [
+                        59,
+                        1,
+                        2.486459
+                    ],
+                    [
+                        120,
+                        0,
+                        22.357426
+                    ],
+                    [
+                        315,
+                        66,
+                        65.620523
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.6515161650022492,
+                "max": 0.6515161650022492,
+                "mean": 0.6515161650022492,
+                "stddev": 0,
+                "rounds": 1,
+                "median": 0.6515161650022492,
+                "iqr": 0.0,
+                "q1": 0.6515161650022492,
+                "q3": 0.6515161650022492,
+                "iqr_outliers": 0,
+                "stddev_outliers": 0,
+                "outliers": "0;0",
+                "ld15iqr": 0.6515161650022492,
+                "hd15iqr": 0.6515161650022492,
+                "ops": 1.5348813332920876,
+                "total": 0.6515161650022492,
+                "data": [
+                    0.6515161650022492
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "dowker n=60 p=0.2 dim\u22642",
+            "name": "test_dowker_and_tuples[dowker-60-0.2-2-phlite (parallel)]",
+            "fullname": "benchmarks/bench_networks_dowker.py::test_dowker_and_tuples[dowker-60-0.2-2-phlite (parallel)]",
+            "params": {
+                "kind": "dowker",
+                "n": 60,
+                "p": 0.2,
+                "max_dim": 2,
+                "implementation": "phlite (parallel)"
+            },
+            "param": "dowker-60-0.2-2-phlite (parallel)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 15.0,
+                "fingerprint": [
+                    [
+                        59,
+                        1,
+                        2.486459
+                    ],
+                    [
+                        120,
+                        0,
+                        22.357426
+                    ],
+                    [
+                        315,
+                        66,
+                        65.620523
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.28903804800938815,
+                "max": 0.28903804800938815,
+                "mean": 0.28903804800938815,
+                "stddev": 0,
+                "rounds": 1,
+                "median": 0.28903804800938815,
+                "iqr": 0.0,
+                "q1": 0.28903804800938815,
+                "q3": 0.28903804800938815,
+                "iqr_outliers": 0,
+                "stddev_outliers": 0,
+                "outliers": "0;0",
+                "ld15iqr": 0.28903804800938815,
+                "hd15iqr": 0.28903804800938815,
+                "ops": 3.459752122210289,
+                "total": 0.28903804800938815,
+                "data": [
+                    0.28903804800938815
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "tuples n=40 p=0.3 dim\u22642",
+            "name": "test_dowker_and_tuples[tuples-40-0.3-2-brute force]",
+            "fullname": "benchmarks/bench_networks_dowker.py::test_dowker_and_tuples[tuples-40-0.3-2-brute force]",
+            "params": {
+                "kind": "tuples",
+                "n": 40,
+                "p": 0.3,
+                "max_dim": 2,
+                "implementation": "brute force"
+            },
+            "param": "tuples-40-0.3-2-brute force",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 1.6,
+                "fingerprint": [
+                    [
+                        39,
+                        1,
+                        1.793022
+                    ],
+                    [
+                        89,
+                        0,
+                        20.047004
+                    ],
+                    [
+                        78,
+                        87,
+                        12.062041
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.0993791000219062,
+                "max": 0.0993791000219062,
+                "mean": 0.0993791000219062,
+                "stddev": 0,
+                "rounds": 1,
+                "median": 0.0993791000219062,
+                "iqr": 0.0,
+                "q1": 0.0993791000219062,
+                "q3": 0.0993791000219062,
+                "iqr_outliers": 0,
+                "stddev_outliers": 0,
+                "outliers": "0;0",
+                "ld15iqr": 0.0993791000219062,
+                "hd15iqr": 0.0993791000219062,
+                "ops": 10.062477923220973,
+                "total": 0.0993791000219062,
+                "data": [
+                    0.0993791000219062
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "tuples n=40 p=0.3 dim\u22642",
+            "name": "test_dowker_and_tuples[tuples-40-0.3-2-phlite (serial)]",
+            "fullname": "benchmarks/bench_networks_dowker.py::test_dowker_and_tuples[tuples-40-0.3-2-phlite (serial)]",
+            "params": {
+                "kind": "tuples",
+                "n": 40,
+                "p": 0.3,
+                "max_dim": 2,
+                "implementation": "phlite (serial)"
+            },
+            "param": "tuples-40-0.3-2-phlite (serial)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 0.3,
+                "fingerprint": [
+                    [
+                        39,
+                        1,
+                        1.793022
+                    ],
+                    [
+                        89,
+                        0,
+                        20.047004
+                    ],
+                    [
+                        78,
+                        87,
+                        12.062041
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.005172648990992457,
+                "max": 0.005172648990992457,
+                "mean": 0.005172648990992457,
+                "stddev": 0,
+                "rounds": 1,
+                "median": 0.005172648990992457,
+                "iqr": 0.0,
+                "q1": 0.005172648990992457,
+                "q3": 0.005172648990992457,
+                "iqr_outliers": 0,
+                "stddev_outliers": 0,
+                "outliers": "0;0",
+                "ld15iqr": 0.005172648990992457,
+                "hd15iqr": 0.005172648990992457,
+                "ops": 193.3245425586347,
+                "total": 0.005172648990992457,
+                "data": [
+                    0.005172648990992457
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "tuples n=40 p=0.3 dim\u22642",
+            "name": "test_dowker_and_tuples[tuples-40-0.3-2-phlite (parallel)]",
+            "fullname": "benchmarks/bench_networks_dowker.py::test_dowker_and_tuples[tuples-40-0.3-2-phlite (parallel)]",
+            "params": {
+                "kind": "tuples",
+                "n": 40,
+                "p": 0.3,
+                "max_dim": 2,
+                "implementation": "phlite (parallel)"
+            },
+            "param": "tuples-40-0.3-2-phlite (parallel)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 0.5,
+                "fingerprint": [
+                    [
+                        39,
+                        1,
+                        1.793022
+                    ],
+                    [
+                        89,
+                        0,
+                        20.047004
+                    ],
+                    [
+                        78,
+                        87,
+                        12.062041
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.0032375819864682853,
+                "max": 0.0032375819864682853,
+                "mean": 0.0032375819864682853,
+                "stddev": 0,
+                "rounds": 1,
+                "median": 0.0032375819864682853,
+                "iqr": 0.0,
+                "q1": 0.0032375819864682853,
+                "q3": 0.0032375819864682853,
+                "iqr_outliers": 0,
+                "stddev_outliers": 0,
+                "outliers": "0;0",
+                "ld15iqr": 0.0032375819864682853,
+                "hd15iqr": 0.0032375819864682853,
+                "ops": 308.8724869917038,
+                "total": 0.0032375819864682853,
+                "data": [
+                    0.0032375819864682853
+                ],
+                "iterations": 1
+            }
+        }
+    ],
+    "datetime": "2026-11-16T23:25:21.424424+00:00",
+    "version": "5.3.1"
+}

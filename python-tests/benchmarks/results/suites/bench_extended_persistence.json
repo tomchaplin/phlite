@@ -1,0 +1,1225 @@
+{
+    "machine_info": {
+        "processor": "",
+        "machine": "x86_64",
+        "python_compiler": "GCC 15.1.1 20250425",
+        "python_implementation": "CPython",
+        "python_implementation_version": "3.11.13",
+        "python_version": "3.11.13",
+        "python_build": [
+            "main",
+            "Jul  7 2025 19:11:17"
+        ],
+        "release": "7.0.10-arch1-1",
+        "system": "Linux",
+        "cpu": {
+            "python_version": "3.11.13.final.0 (64 bit)",
+            "cpuinfo_version": [
+                10,
+                1,
+                1
+            ],
+            "cpuinfo_version_string": "10.1.1",
+            "arch": "X86_64",
+            "bits": 64,
+            "count": 8,
+            "arch_string_raw": "x86_64",
+            "vendor_id_raw": "GenuineIntel",
+            "brand_raw": "11th Gen Intel(R) Core(TM) i7-1185G7 @ 3.00GHz",
+            "hz_advertised_friendly": "3.0000 GHz",
+            "hz_advertised": [
+                3000000000,
+                0
+            ],
+            "stepping": 1,
+            "model": 140,
+            "family": 6,
+            "flags": [
+                "3dnowprefetch",
+                "abm",
+                "acpi",
+                "adx",
+                "aes",
+                "aperfmperf",
+                "apic",
+                "arat",
+                "arch_capabilities",
+                "arch_perfmon",
+                "art",
+                "avx",
+                "avx2",
+                "avx512_bitalg",
+                "avx512_vbmi2",
+                "avx512_vnni",
+                "avx512_vp2intersect",
+                "avx512_vpopcntdq",
+                "avx512bitalg",
+                "avx512bw",
+                "avx512cd",
+                "avx512dq",
+                "avx512f",
+                "avx512ifma",
+                "avx512vbmi",
+                "avx512vbmi2",
+                "avx512vl",
+                "avx512vnni",
+                "avx512vpopcntdq",
+                "bmi1",
+                "bmi2",
+                "bts",
+                "cat_l2",
+                "cdp_l2",
+                "clflush",
+                "clflushopt",
+                "clwb",
+                "cmov",
+                "constant_tsc",
+                "cpuid",
+                "cpuid_fault",
+                "cx16",
+                "cx8",
+                "de",
+                "ds_cpl",
+                "dtes64",
+                "dtherm",
+                "dts",
+                "epb",
+                "ept",
+                "ept_ad",
+                "erms",
+                "est",
+                "f16c",
+                "flexpriority",
+                "flush_l1d",
+                "fma",
+                "fpu",
+                "fsgsbase",
+                "fsrm",
+                "fxsr",
+                "gfni",
+                "ht",
+                "hwp",
+                "hwp_act_window",
+                "hwp_epp",
+                "hwp_notify",
+                "hwp_pkg_req",
+                "ibpb",
+                "ibrs",
+                "ibrs_enhanced",
+                "ibt",
+                "ida",
+                "intel_pt",
+                "invpcid",
+                "lahf_lm",
+                "lm",
+                "mca",
+                "mce",
+                "md_clear",
+                "mmx",
+                "monitor",
+                "movbe",
+                "movdir64b",
+                "movdiri",
+                "msr",
+                "mtrr",
+                "nonstop_tsc",
+                "nopl",
+                "nx",
+                "ospke",
+                "osxsave",
+                "pae",
+                "pat",
+                "pbe",
+                "pcid",
+                "pclmulqdq",
+                "pdcm",
+                "pdpe1gb",
+                "pebs",
+                "pge",
+                "pku",
+                "pln",
+                "pni",
+                "popcnt",
+                "pqe",
+                "pse",
+                "pse36",
+                "pts",
+                "rdpid",
+                "rdrand",
+                "rdrnd",
+                "rdseed",
+                "rdt_a",
+                "rdtscp",
+                "rep_good",
+                "sdbg",
+                "sep",
+                "sha",
+                "sha_ni",
+                "smap",
+                "smep",
+                "smx",
+                "split_lock_detect",
+                "ss",
+                "ssbd",
+                "sse",
+                "sse2",
+                "sse4_1",
+                "sse4_2",
+                "ssse3",
+                "stibp",
+                "syscall",
+                "tm",
+                "tm2",
+                "tme",
+                "tpr_shadow",
+                "tsc",
+                "tsc_adjust",
+                "tsc_deadline_timer",
+                "tsc_known_freq",
+                "tscdeadline",
+                "umip",
+                "user_shstk",
+                "vaes",
+                "vme",
+                "vmx",
+                "vnmi",
+                "vpclmulqdq",
+                "vpid",
+                "x2apic",
+                "xgetbv1",
+                "xsave",
+                "xsavec",
+                "xsaveopt",
+                "xsaves",
+                "xtopology",
+                "xtpr"
+            ],
+            "l3_cache_size": 12582912,
+            "l2_cache_size": 5242880,
+            "l1_data_cache_size": 196608,
+            "l1_instruction_cache_size": 131072,
+            "l2_cache_line_size": 256,
+            "l2_cache_associativity": 7
+        }
+    },
+    "commit_info": {
+        "id": "8a41862bc479ff85a31f3b295f29213db3472db8",
+        "time": "2026-11-16T20:17:02Z",
+        "author_time": "2026-11-16T20:17:02Z",
+        "dirty": true,
+        "project": "phlite",
+        "branch": "readme"
+    },
+    "benchmarks": [
+        {
+            "group": "graph n=2000 p=0.002",
+            "name": "test_extended[graph-2000-0.002-gudhi]",
+            "fullname": "benchmarks/bench_extended_persistence.py::test_extended[graph-2000-0.002-gudhi]",
+            "params": {
+                "kind": "graph",
+                "n": 2000,
+                "p": 0.002,
+                "implementation": "gudhi"
+            },
+            "param": "graph-2000-0.002-gudhi",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 3.2,
+                "fingerprint": [
+                    [
+                        449,
+                        122.724631
+                    ],
+                    [
+                        457,
+                        117.222678
+                    ],
+                    [
+                        1,
+                        0.999402
+                    ],
+                    [
+                        2068,
+                        1110.129076
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.0324507619952783,
+                "max": 0.03447626801789738,
+                "mean": 0.03313233366740557,
+                "stddev": 0.0011639209166366203,
+                "rounds": 3,
+                "median": 0.03246997098904103,
+                "iqr": 0.0015191295169643126,
+                "q1": 0.03245556424371898,
+                "q3": 0.033974693760683294,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.0324507619952783,
+                "hd15iqr": 0.03447626801789738,
+                "ops": 30.18199714026679,
+                "total": 0.09939700100221671,
+                "data": [
+                    0.03447626801789738,
+                    0.0324507619952783,
+                    0.03246997098904103
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "graph n=2000 p=0.002",
+            "name": "test_extended[graph-2000-0.002-phlite (serial)]",
+            "fullname": "benchmarks/bench_extended_persistence.py::test_extended[graph-2000-0.002-phlite (serial)]",
+            "params": {
+                "kind": "graph",
+                "n": 2000,
+                "p": 0.002,
+                "implementation": "phlite (serial)"
+            },
+            "param": "graph-2000-0.002-phlite (serial)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 4.8,
+                "fingerprint": [
+                    [
+                        449,
+                        122.724631
+                    ],
+                    [
+                        457,
+                        117.222678
+                    ],
+                    [
+                        1,
+                        0.999402
+                    ],
+                    [
+                        2068,
+                        1110.129076
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.012788102991180494,
+                "max": 0.013735003012698144,
+                "mean": 0.013231241997952262,
+                "stddev": 0.00047635195347100367,
+                "rounds": 3,
+                "median": 0.01317061998997815,
+                "iqr": 0.000710175016138237,
+                "q1": 0.012883732240879908,
+                "q3": 0.013593907257018145,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.012788102991180494,
+                "hd15iqr": 0.013735003012698144,
+                "ops": 75.57869474043066,
+                "total": 0.03969372599385679,
+                "data": [
+                    0.013735003012698144,
+                    0.01317061998997815,
+                    0.012788102991180494
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "graph n=2000 p=0.002",
+            "name": "test_extended[graph-2000-0.002-phlite (parallel)]",
+            "fullname": "benchmarks/bench_extended_persistence.py::test_extended[graph-2000-0.002-phlite (parallel)]",
+            "params": {
+                "kind": "graph",
+                "n": 2000,
+                "p": 0.002,
+                "implementation": "phlite (parallel)"
+            },
+            "param": "graph-2000-0.002-phlite (parallel)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 5.5,
+                "fingerprint": [
+                    [
+                        449,
+                        122.724631
+                    ],
+                    [
+                        457,
+                        117.222678
+                    ],
+                    [
+                        1,
+                        0.999402
+                    ],
+                    [
+                        2068,
+                        1110.129076
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.0524442259920761,
+                "max": 0.09663554999860935,
+                "mean": 0.0711376486675969,
+                "stddev": 0.02286796835515524,
+                "rounds": 3,
+                "median": 0.06433317001210526,
+                "iqr": 0.03314349300489994,
+                "q1": 0.05541646199708339,
+                "q3": 0.08855995500198333,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.0524442259920761,
+                "hd15iqr": 0.09663554999860935,
+                "ops": 14.057254052248407,
+                "total": 0.2134129460027907,
+                "data": [
+                    0.0524442259920761,
+                    0.09663554999860935,
+                    0.06433317001210526
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "graph n=300 p=0.05",
+            "name": "test_extended[graph-300-0.05-gudhi]",
+            "fullname": "benchmarks/bench_extended_persistence.py::test_extended[graph-300-0.05-gudhi]",
+            "params": {
+                "kind": "graph",
+                "n": 300,
+                "p": 0.05,
+                "implementation": "gudhi"
+            },
+            "param": "graph-300-0.05-gudhi",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 1.3,
+                "fingerprint": [
+                    [
+                        18,
+                        1.489619
+                    ],
+                    [
+                        20,
+                        2.358553
+                    ],
+                    [
+                        1,
+                        0.991134
+                    ],
+                    [
+                        1997,
+                        725.868572
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.017121029988629743,
+                "max": 0.01811328702024184,
+                "mean": 0.01763861533254385,
+                "stddev": 0.0004975185329344921,
+                "rounds": 3,
+                "median": 0.017681528988759965,
+                "iqr": 0.0007441927737090737,
+                "q1": 0.0172611547386623,
+                "q3": 0.018005347512371372,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.017121029988629743,
+                "hd15iqr": 0.01811328702024184,
+                "ops": 56.69379263319869,
+                "total": 0.05291584599763155,
+                "data": [
+                    0.01811328702024184,
+                    0.017681528988759965,
+                    0.017121029988629743
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "graph n=300 p=0.05",
+            "name": "test_extended[graph-300-0.05-phlite (serial)]",
+            "fullname": "benchmarks/bench_extended_persistence.py::test_extended[graph-300-0.05-phlite (serial)]",
+            "params": {
+                "kind": "graph",
+                "n": 300,
+                "p": 0.05,
+                "implementation": "phlite (serial)"
+            },
+            "param": "graph-300-0.05-phlite (serial)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 2.0,
+                "fingerprint": [
+                    [
+                        18,
+                        1.489619
+                    ],
+                    [
+                        20,
+                        2.358553
+                    ],
+                    [
+                        1,
+                        0.991134
+                    ],
+                    [
+                        1997,
+                        725.868572
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.006057641992811114,
+                "max": 0.006494306988315657,
+                "mean": 0.006343087326968089,
+                "stddev": 0.00024734889934179856,
+                "rounds": 3,
+                "median": 0.006477312999777496,
+                "iqr": 0.0003274987466284074,
+                "q1": 0.006162559744552709,
+                "q3": 0.0064900584911811166,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.006057641992811114,
+                "hd15iqr": 0.006494306988315657,
+                "ops": 157.65193642351866,
+                "total": 0.019029261980904266,
+                "data": [
+                    0.006477312999777496,
+                    0.006494306988315657,
+                    0.006057641992811114
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "graph n=300 p=0.05",
+            "name": "test_extended[graph-300-0.05-phlite (parallel)]",
+            "fullname": "benchmarks/bench_extended_persistence.py::test_extended[graph-300-0.05-phlite (parallel)]",
+            "params": {
+                "kind": "graph",
+                "n": 300,
+                "p": 0.05,
+                "implementation": "phlite (parallel)"
+            },
+            "param": "graph-300-0.05-phlite (parallel)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 2.3,
+                "fingerprint": [
+                    [
+                        18,
+                        1.489619
+                    ],
+                    [
+                        20,
+                        2.358553
+                    ],
+                    [
+                        1,
+                        0.991134
+                    ],
+                    [
+                        1997,
+                        725.868572
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.028967999998712912,
+                "max": 0.03313876999891363,
+                "mean": 0.03169956633549494,
+                "stddev": 0.0023667449288570794,
+                "rounds": 3,
+                "median": 0.03299192900885828,
+                "iqr": 0.003128077500150539,
+                "q1": 0.029973982251249254,
+                "q3": 0.03310205975139979,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.028967999998712912,
+                "hd15iqr": 0.03313876999891363,
+                "ops": 31.54617288502999,
+                "total": 0.09509869900648482,
+                "data": [
+                    0.03299192900885828,
+                    0.03313876999891363,
+                    0.028967999998712912
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "flag n=300 p=0.05",
+            "name": "test_extended[flag-300-0.05-gudhi]",
+            "fullname": "benchmarks/bench_extended_persistence.py::test_extended[flag-300-0.05-gudhi]",
+            "params": {
+                "kind": "flag",
+                "n": 300,
+                "p": 0.05,
+                "implementation": "gudhi"
+            },
+            "param": "flag-300-0.05-gudhi",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 1.6,
+                "fingerprint": [
+                    [
+                        20,
+                        1.754424
+                    ],
+                    [
+                        27,
+                        3.430331
+                    ],
+                    [
+                        1,
+                        0.991134
+                    ],
+                    [
+                        1391,
+                        453.13384
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.02205021897680126,
+                "max": 0.02376488401205279,
+                "mean": 0.022759766327605273,
+                "stddev": 0.0008947292397011126,
+                "rounds": 3,
+                "median": 0.022464195993961766,
+                "iqr": 0.001285998776438646,
+                "q1": 0.022153713231091388,
+                "q3": 0.023439712007530034,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.02205021897680126,
+                "hd15iqr": 0.02376488401205279,
+                "ops": 43.93718220151945,
+                "total": 0.06827929898281582,
+                "data": [
+                    0.02376488401205279,
+                    0.022464195993961766,
+                    0.02205021897680126
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "flag n=300 p=0.05",
+            "name": "test_extended[flag-300-0.05-phlite (serial)]",
+            "fullname": "benchmarks/bench_extended_persistence.py::test_extended[flag-300-0.05-phlite (serial)]",
+            "params": {
+                "kind": "flag",
+                "n": 300,
+                "p": 0.05,
+                "implementation": "phlite (serial)"
+            },
+            "param": "flag-300-0.05-phlite (serial)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 2.4,
+                "fingerprint": [
+                    [
+                        20,
+                        1.754424
+                    ],
+                    [
+                        27,
+                        3.430331
+                    ],
+                    [
+                        1,
+                        0.991134
+                    ],
+                    [
+                        1391,
+                        453.13384
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.007938555994769558,
+                "max": 0.00843170000007376,
+                "mean": 0.00824647833360359,
+                "stddev": 0.00026849458791710447,
+                "rounds": 3,
+                "median": 0.008369179005967453,
+                "iqr": 0.00036985800397815183,
+                "q1": 0.008046211747569032,
+                "q3": 0.008416069751547184,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.007938555994769558,
+                "hd15iqr": 0.00843170000007376,
+                "ops": 121.26388496348775,
+                "total": 0.024739435000810772,
+                "data": [
+                    0.00843170000007376,
+                    0.008369179005967453,
+                    0.007938555994769558
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "flag n=300 p=0.05",
+            "name": "test_extended[flag-300-0.05-phlite (parallel)]",
+            "fullname": "benchmarks/bench_extended_persistence.py::test_extended[flag-300-0.05-phlite (parallel)]",
+            "params": {
+                "kind": "flag",
+                "n": 300,
+                "p": 0.05,
+                "implementation": "phlite (parallel)"
+            },
+            "param": "flag-300-0.05-phlite (parallel)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 3.8,
+                "fingerprint": [
+                    [
+                        20,
+                        1.754424
+                    ],
+                    [
+                        27,
+                        3.430331
+                    ],
+                    [
+                        1,
+                        0.991134
+                    ],
+                    [
+                        1391,
+                        453.13384
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.0445092229929287,
+                "max": 0.06353197002317756,
+                "mean": 0.05509503100377818,
+                "stddev": 0.009691720930826596,
+                "rounds": 3,
+                "median": 0.057243899995228276,
+                "iqr": 0.014267060272686649,
+                "q1": 0.04769289224350359,
+                "q3": 0.06195995251619024,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.0445092229929287,
+                "hd15iqr": 0.06353197002317756,
+                "ops": 18.150457160672516,
+                "total": 0.16528509301133454,
+                "data": [
+                    0.06353197002317756,
+                    0.057243899995228276,
+                    0.0445092229929287
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "graph n=20000 p=0.0002",
+            "name": "test_extended[graph-20000-0.0002-gudhi]",
+            "fullname": "benchmarks/bench_extended_persistence.py::test_extended[graph-20000-0.0002-gudhi]",
+            "params": {
+                "kind": "graph",
+                "n": 20000,
+                "p": 0.0002,
+                "implementation": "gudhi"
+            },
+            "param": "graph-20000-0.0002-gudhi",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 45.4,
+                "fingerprint": [
+                    [
+                        4555,
+                        1176.685635
+                    ],
+                    [
+                        4586,
+                        1212.189276
+                    ],
+                    [
+                        24,
+                        9.435253
+                    ],
+                    [
+                        20380,
+                        10968.173791
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 2.717703402013285,
+                "max": 2.717703402013285,
+                "mean": 2.717703402013285,
+                "stddev": 0,
+                "rounds": 1,
+                "median": 2.717703402013285,
+                "iqr": 0.0,
+                "q1": 2.717703402013285,
+                "q3": 2.717703402013285,
+                "iqr_outliers": 0,
+                "stddev_outliers": 0,
+                "outliers": "0;0",
+                "ld15iqr": 2.717703402013285,
+                "hd15iqr": 2.717703402013285,
+                "ops": 0.3679577393394718,
+                "total": 2.717703402013285,
+                "data": [
+                    2.717703402013285
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "graph n=20000 p=0.0002",
+            "name": "test_extended[graph-20000-0.0002-phlite (serial)]",
+            "fullname": "benchmarks/bench_extended_persistence.py::test_extended[graph-20000-0.0002-phlite (serial)]",
+            "params": {
+                "kind": "graph",
+                "n": 20000,
+                "p": 0.0002,
+                "implementation": "phlite (serial)"
+            },
+            "param": "graph-20000-0.0002-phlite (serial)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 70.9,
+                "fingerprint": [
+                    [
+                        4555,
+                        1176.685635
+                    ],
+                    [
+                        4586,
+                        1212.189276
+                    ],
+                    [
+                        24,
+                        9.435253
+                    ],
+                    [
+                        20380,
+                        10968.173791
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.49169393102056347,
+                "max": 0.49169393102056347,
+                "mean": 0.49169393102056347,
+                "stddev": 0,
+                "rounds": 1,
+                "median": 0.49169393102056347,
+                "iqr": 0.0,
+                "q1": 0.49169393102056347,
+                "q3": 0.49169393102056347,
+                "iqr_outliers": 0,
+                "stddev_outliers": 0,
+                "outliers": "0;0",
+                "ld15iqr": 0.49169393102056347,
+                "hd15iqr": 0.49169393102056347,
+                "ops": 2.033785525732223,
+                "total": 0.49169393102056347,
+                "data": [
+                    0.49169393102056347
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "graph n=20000 p=0.0002",
+            "name": "test_extended[graph-20000-0.0002-phlite (parallel)]",
+            "fullname": "benchmarks/bench_extended_persistence.py::test_extended[graph-20000-0.0002-phlite (parallel)]",
+            "params": {
+                "kind": "graph",
+                "n": 20000,
+                "p": 0.0002,
+                "implementation": "phlite (parallel)"
+            },
+            "param": "graph-20000-0.0002-phlite (parallel)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 77.9,
+                "fingerprint": [
+                    [
+                        4555,
+                        1176.685635
+                    ],
+                    [
+                        4586,
+                        1212.189276
+                    ],
+                    [
+                        24,
+                        9.435253
+                    ],
+                    [
+                        20380,
+                        10968.173791
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 3.4613626039936207,
+                "max": 3.4613626039936207,
+                "mean": 3.4613626039936207,
+                "stddev": 0,
+                "rounds": 1,
+                "median": 3.4613626039936207,
+                "iqr": 0.0,
+                "q1": 3.4613626039936207,
+                "q3": 3.4613626039936207,
+                "iqr_outliers": 0,
+                "stddev_outliers": 0,
+                "outliers": "0;0",
+                "ld15iqr": 3.4613626039936207,
+                "hd15iqr": 3.4613626039936207,
+                "ops": 0.28890356614075297,
+                "total": 3.4613626039936207,
+                "data": [
+                    3.4613626039936207
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "flag n=1000 p=0.02",
+            "name": "test_extended[flag-1000-0.02-gudhi]",
+            "fullname": "benchmarks/bench_extended_persistence.py::test_extended[flag-1000-0.02-gudhi]",
+            "params": {
+                "kind": "flag",
+                "n": 1000,
+                "p": 0.02,
+                "implementation": "gudhi"
+            },
+            "param": "flag-1000-0.02-gudhi",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 7.1,
+                "fingerprint": [
+                    [
+                        51,
+                        3.178638
+                    ],
+                    [
+                        57,
+                        4.062138
+                    ],
+                    [
+                        1,
+                        0.996944
+                    ],
+                    [
+                        7704,
+                        2597.265181
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.19225555000593886,
+                "max": 0.19225555000593886,
+                "mean": 0.19225555000593886,
+                "stddev": 0,
+                "rounds": 1,
+                "median": 0.19225555000593886,
+                "iqr": 0.0,
+                "q1": 0.19225555000593886,
+                "q3": 0.19225555000593886,
+                "iqr_outliers": 0,
+                "stddev_outliers": 0,
+                "outliers": "0;0",
+                "ld15iqr": 0.19225555000593886,
+                "hd15iqr": 0.19225555000593886,
+                "ops": 5.2014103102308855,
+                "total": 0.19225555000593886,
+                "data": [
+                    0.19225555000593886
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "flag n=1000 p=0.02",
+            "name": "test_extended[flag-1000-0.02-phlite (serial)]",
+            "fullname": "benchmarks/bench_extended_persistence.py::test_extended[flag-1000-0.02-phlite (serial)]",
+            "params": {
+                "kind": "flag",
+                "n": 1000,
+                "p": 0.02,
+                "implementation": "phlite (serial)"
+            },
+            "param": "flag-1000-0.02-phlite (serial)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 15.2,
+                "fingerprint": [
+                    [
+                        51,
+                        3.178638
+                    ],
+                    [
+                        57,
+                        4.062138
+                    ],
+                    [
+                        1,
+                        0.996944
+                    ],
+                    [
+                        7704,
+                        2597.265181
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.04798257100628689,
+                "max": 0.04798257100628689,
+                "mean": 0.04798257100628689,
+                "stddev": 0,
+                "rounds": 1,
+                "median": 0.04798257100628689,
+                "iqr": 0.0,
+                "q1": 0.04798257100628689,
+                "q3": 0.04798257100628689,
+                "iqr_outliers": 0,
+                "stddev_outliers": 0,
+                "outliers": "0;0",
+                "ld15iqr": 0.04798257100628689,
+                "hd15iqr": 0.04798257100628689,
+                "ops": 20.840900748502527,
+                "total": 0.04798257100628689,
+                "data": [
+                    0.04798257100628689
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "flag n=1000 p=0.02",
+            "name": "test_extended[flag-1000-0.02-phlite (parallel)]",
+            "fullname": "benchmarks/bench_extended_persistence.py::test_extended[flag-1000-0.02-phlite (parallel)]",
+            "params": {
+                "kind": "flag",
+                "n": 1000,
+                "p": 0.02,
+                "implementation": "phlite (parallel)"
+            },
+            "param": "flag-1000-0.02-phlite (parallel)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 16.0,
+                "fingerprint": [
+                    [
+                        51,
+                        3.178638
+                    ],
+                    [
+                        57,
+                        4.062138
+                    ],
+                    [
+                        1,
+                        0.996944
+                    ],
+                    [
+                        7704,
+                        2597.265181
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.30185493000317365,
+                "max": 0.30185493000317365,
+                "mean": 0.30185493000317365,
+                "stddev": 0,
+                "rounds": 1,
+                "median": 0.30185493000317365,
+                "iqr": 0.0,
+                "q1": 0.30185493000317365,
+                "q3": 0.30185493000317365,
+                "iqr_outliers": 0,
+                "stddev_outliers": 0,
+                "outliers": "0;0",
+                "ld15iqr": 0.30185493000317365,
+                "hd15iqr": 0.30185493000317365,
+                "ops": 3.3128496526112268,
+                "total": 0.30185493000317365,
+                "data": [
+                    0.30185493000317365
+                ],
+                "iterations": 1
+            }
+        }
+    ],
+    "datetime": "2026-11-17T00:55:31.976398+00:00",
+    "version": "5.3.1"
+}

@@ -90,12 +90,30 @@ bench-baseline: build
     rm -rf benchmarks/baselines
     PHLITE_BENCH_ROUNDS=5 just _bench require-all -m quick {{storage}} --benchmark-save=quick
 
-# Run every Python benchmark into benchmarks/results/ and regenerate BENCHMARKS.md (`just bench-docs` at the root adds Rust)
+# Each suite runs on its own, into benchmarks/results/suites/<suite>.json (pytest-benchmark writes its JSON only when a
+# run finishes), so a suite that fails or is stopped loses only its own results; with RESUME=1, suites that already have
+# results are skipped, to carry on after one. (`just bench-docs` at the root also runs the Rust benchmarks first.)
+#
+# Run every Python benchmark into benchmarks/results/suites/ and regenerate BENCHMARKS.md
 bench-docs: build
-    mkdir -p benchmarks/results
-    uv run --no-sync pytest {{main_benches}} --benchmark-json=benchmarks/results/main.json
-    {{latest}} pytest {{latest_benches}} --benchmark-json=benchmarks/results/latest.json
-    uv run --no-sync python benchmarks/report.py benchmarks/results/main.json benchmarks/results/latest.json --out BENCHMARKS.md
+    #!/usr/bin/env bash
+    set -uo pipefail
+    mkdir -p benchmarks/results/suites
+    failed=()
+    run() {  # run <python command...> -- <suite files>
+        local runner=() ; while [ "$1" != -- ]; do runner+=("$1"); shift; done; shift
+        for suite in "$@"; do
+            local name out
+            name=$(basename "$suite" .py); out="benchmarks/results/suites/$name.json"
+            if [ -n "${RESUME:-}" ] && [ -f "$out" ]; then echo "== $name: already done"; continue; fi
+            echo "== $name ($(date +%H:%M))"
+            "${runner[@]}" pytest "$suite" -q -p no:warnings --benchmark-json="$out" || failed+=("$name")
+        done
+    }
+    run uv run --no-sync -- {{main_benches}}
+    run {{latest}} -- {{latest_benches}}
+    [ ${#failed[@]} -eq 0 ] || echo "Failed (rerun with RESUME=1 to run only these): ${failed[*]}"
+    uv run --no-sync python benchmarks/report.py benchmarks/results/suites/*.json --out BENCHMARKS.md
 
 # A light benchmark for CI: phlite's default serial and parallel algorithms on the quick cases, with the reference
 # implementations each suite names in `SUITE["light_references"]` (ripser, grpphati, PHAT, ...) for scale, a few
