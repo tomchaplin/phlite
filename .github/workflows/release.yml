@@ -170,10 +170,12 @@ jobs:
     strategy:
       matrix:
         package: [phlite_bindings, phlite_complexes, phlite_clouds, phlite_networks, phlite_images]
+        # GitHub retires macOS images (macos-13 and macos-14 are gone): macos-15-intel is its last Intel image, after
+        # which Intel wheels would have to be cross-compiled on Apple silicon (target x86_64 on macos-latest)
         platform:
-          - runner: macos-13
+          - runner: macos-15-intel
             target: x86_64
-          - runner: macos-14
+          - runner: macos-latest
             target: aarch64
     steps:
       - uses: actions/checkout@v4
