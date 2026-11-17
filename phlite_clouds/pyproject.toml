@@ -6,7 +6,7 @@ build-backend = "maturin"
 name = "phlite-clouds"
 readme = "README.md"
 description = "Persistent homology of point clouds and distance matrices, computed with phlite"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 license = "MIT"
 classifiers = [
     "Programming Language :: Rust",

@@ -6,7 +6,7 @@ build-backend = "maturin"
 name = "phlite-core"
 readme = "README.md"
 description = "The shared core of phlite's Python packages: choosing an algorithm, and barcodes"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 license = "MIT"
 classifiers = [
     "Programming Language :: Rust",

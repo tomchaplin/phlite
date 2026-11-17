@@ -10,7 +10,7 @@ name = "phlite"
 readme = "README.md"
 version = "0.2.0"
 description = "Persistent homology that's light on memory usage: every phlite package"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 license = "MIT"
 classifiers = [
     "Programming Language :: Python :: 3",
