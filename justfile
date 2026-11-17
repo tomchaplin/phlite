@@ -50,9 +50,9 @@ docs-modules:
 
 # Regenerate every package's type stubs (<crate>/python/phlite/<module>/__init__.pyi)
 stubs:
-    cargo run -p phlite_bindings --features extension --bin phlite_bindings_stub_gen
+    cargo run -p phlite_bindings --features stub-gen --bin phlite_bindings_stub_gen
     for crate in phlite_complexes phlite_clouds phlite_networks phlite_images; do \
-        cargo run -p $crate --features python --bin ${crate}_stub_gen; done
+        cargo run -p $crate --features stub-gen --bin ${crate}_stub_gen; done
 
 # Build the documentation site into docs/site:
 # * the landing page (docs/landing) at its root;

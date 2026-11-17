@@ -29,7 +29,7 @@ path = "src/bin/pph.rs"
 name = "phlite_networks_stub_gen"
 path = "src/bin/stub_gen.rs"
 doc = false
-required-features = ["python"]
+required-features = ["stub-gen"]
 
 [dependencies]
 log = "0.4.35"
@@ -44,7 +44,9 @@ rustc-hash = "2.1.3"
 rayon = "1.12.0"
 pyo3 = { version = "0.30.1", optional = true }
 pyo3-log = { version = "0.13.5", optional = true }
-pyo3-stub-gen = { version = "0.23.2", optional = true }
+# Without its default `infer_signature`, which the stubs need (the `stub-gen` feature) but which doesn't compile for
+# PyPy, which the release builds wheels for
+pyo3-stub-gen = { version = "0.23.2", optional = true, default-features = false, features = ["either", "numpy", "ordered-float"] }
 phlite_bindings = { workspace = true, optional = true }
 
 [features]
@@ -55,10 +57,17 @@ lock-free = ["phlite/lock-free"]
 storage-experiments = ["phlite/storage-experiments"]
 # The `phlite.networks` Python extension module, built with maturin as `phlite-networks` (see pyproject.toml)
 python = ["dep:pyo3", "dep:pyo3-log", "dep:pyo3-stub-gen", "dep:phlite_bindings", "lock-free"]
+# Generating the type stubs (`just stubs`): default values in signatures need pyo3-stub-gen's `infer_signature`
+stub-gen = ["python", "pyo3-stub-gen/infer_signature"]
 
 [dev-dependencies]
 criterion = "0.8.2"
 rayon = "1.12.0"
+
+# Every concurrent structure for the parallel reduction, which only this feature compiles
+[[example]]
+name = "storage_bench"
+required-features = ["storage-experiments"]
 
 [[bench]]
 name = "reduction"
