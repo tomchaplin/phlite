@@ -14,6 +14,18 @@ test:
     cargo test --workspace --all-features
     cd python-tests && just test
 
+# Debug builds pile up: every rebuild of a test or example keeps its own copy (a few hundred MB each), and
+# incremental-compilation state grows too, so after a busy day target/debug can hold well over 100 GB of files (much less
+# on disk if the filesystem compresses them: about 12 GB under btrfs's zstd, where `du` shows the uncompressed size,
+# `compsize` the real one). This removes it
+# (the next `just test` rebuilds what it needs), and the PGO builds; release builds (the Python wheels') are kept.
+# `cargo clean` removes everything.
+#
+# Free the disk space taken by debug and PGO builds
+clean:
+    cargo clean --profile dev
+    rm -rf target/pgo-generate target/pgo-use pgo
+
 # Check that the impls forwarding a trait to an inner matrix (`&M`, `WithTranspose`, `MatrixWithBasis`, ...) forward
 # every method, those with defaults included: a missed one would silently drop the inner matrix's override (a
 # performance hook, say). They are marked `#[deny(clippy::missing_trait_methods)]`; every other lint is allowed here.
@@ -77,6 +89,15 @@ docs-playground:
     mkdir -p docs/site
     cp -r phlite_web/app/dist docs/site/playground
 
+# The site deploys from the `release` branch (.github/workflows/docs.yml), so this fast-forwards it to main's latest
+# commit on GitHub (`ref` to publish another, e.g. a tag). On GitHub, the Docs workflow's Run workflow button does the
+# same.
+#
+# Publish the docs to phlite.tomchaplin.xyz
+publish-docs ref="origin/main":
+    git fetch origin
+    git push origin "$1:refs/heads/release"
+
 # Serve the built site (run `just docs` first) at http://localhost:8000, with the headers the playground needs
 docs-serve:
     python3 docs/serve.py 8000
@@ -114,10 +135,19 @@ bench-docs:
 check: test bench-check
 
 # Releases: every crate and every Python package share one version, `[workspace.package] version` in Cargo.toml. Bump
-# it there and in phlite_meta/pyproject.toml (its version and pins, and the `phlite-core==` pin in each package's
-# pyproject.toml: `cargo test -p phlite_bindings` checks them all), then build everything: in CI, push a tag `vX.Y.Z`
-# (.github/workflows/release.yml builds every wheel and the metapackage and publishes them), and publish the crates.
+# it there, in the exact pins of `[workspace.dependencies]` just below it, and in phlite_meta/pyproject.toml (its version
+# and pins) and the `phlite-core==` pin in each package's pyproject.toml (`cargo test -p phlite_bindings` checks them
+# all). Then `just release-check`, and push a tag `vX.Y.Z`: .github/workflows/release.yml builds every wheel and the
+# metapackage and publishes them to PyPI, and publishes every crate to crates.io (running that workflow by hand
+# builds and checks everything without publishing). Publish the docs too (`just publish-docs`).
 #
+# As the release workflow does first: each crate is packaged and built against the others as they will be published, in
+# dependency order, uploading nothing.
+#
+# Check that every crate can be published to crates.io
+release-check:
+    cargo publish --workspace --dry-run --allow-dirty
+
 # Build a release wheel of every package, and the metapackage `phlite`, into dist/ (for this machine's Python)
 wheels:
     for crate in {{packages}}; do (cd $crate && uvx maturin build --release --out ../dist); done

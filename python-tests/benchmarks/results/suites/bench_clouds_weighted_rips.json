@@ -1,0 +1,1040 @@
+{
+    "machine_info": {
+        "processor": "",
+        "machine": "x86_64",
+        "python_compiler": "GCC 15.1.1 20250425",
+        "python_implementation": "CPython",
+        "python_implementation_version": "3.11.13",
+        "python_version": "3.11.13",
+        "python_build": [
+            "main",
+            "Jul  7 2025 19:11:17"
+        ],
+        "release": "7.0.10-arch1-1",
+        "system": "Linux",
+        "cpu": {
+            "python_version": "3.11.13.final.0 (64 bit)",
+            "cpuinfo_version": [
+                10,
+                1,
+                1
+            ],
+            "cpuinfo_version_string": "10.1.1",
+            "arch": "X86_64",
+            "bits": 64,
+            "count": 8,
+            "arch_string_raw": "x86_64",
+            "vendor_id_raw": "GenuineIntel",
+            "brand_raw": "11th Gen Intel(R) Core(TM) i7-1185G7 @ 3.00GHz",
+            "hz_advertised_friendly": "3.0000 GHz",
+            "hz_advertised": [
+                3000000000,
+                0
+            ],
+            "stepping": 1,
+            "model": 140,
+            "family": 6,
+            "flags": [
+                "3dnowprefetch",
+                "abm",
+                "acpi",
+                "adx",
+                "aes",
+                "aperfmperf",
+                "apic",
+                "arat",
+                "arch_capabilities",
+                "arch_perfmon",
+                "art",
+                "avx",
+                "avx2",
+                "avx512_bitalg",
+                "avx512_vbmi2",
+                "avx512_vnni",
+                "avx512_vp2intersect",
+                "avx512_vpopcntdq",
+                "avx512bitalg",
+                "avx512bw",
+                "avx512cd",
+                "avx512dq",
+                "avx512f",
+                "avx512ifma",
+                "avx512vbmi",
+                "avx512vbmi2",
+                "avx512vl",
+                "avx512vnni",
+                "avx512vpopcntdq",
+                "bmi1",
+                "bmi2",
+                "bts",
+                "cat_l2",
+                "cdp_l2",
+                "clflush",
+                "clflushopt",
+                "clwb",
+                "cmov",
+                "constant_tsc",
+                "cpuid",
+                "cpuid_fault",
+                "cx16",
+                "cx8",
+                "de",
+                "ds_cpl",
+                "dtes64",
+                "dtherm",
+                "dts",
+                "epb",
+                "ept",
+                "ept_ad",
+                "erms",
+                "est",
+                "f16c",
+                "flexpriority",
+                "flush_l1d",
+                "fma",
+                "fpu",
+                "fsgsbase",
+                "fsrm",
+                "fxsr",
+                "gfni",
+                "ht",
+                "hwp",
+                "hwp_act_window",
+                "hwp_epp",
+                "hwp_notify",
+                "hwp_pkg_req",
+                "ibpb",
+                "ibrs",
+                "ibrs_enhanced",
+                "ibt",
+                "ida",
+                "intel_pt",
+                "invpcid",
+                "lahf_lm",
+                "lm",
+                "mca",
+                "mce",
+                "md_clear",
+                "mmx",
+                "monitor",
+                "movbe",
+                "movdir64b",
+                "movdiri",
+                "msr",
+                "mtrr",
+                "nonstop_tsc",
+                "nopl",
+                "nx",
+                "ospke",
+                "osxsave",
+                "pae",
+                "pat",
+                "pbe",
+                "pcid",
+                "pclmulqdq",
+                "pdcm",
+                "pdpe1gb",
+                "pebs",
+                "pge",
+                "pku",
+                "pln",
+                "pni",
+                "popcnt",
+                "pqe",
+                "pse",
+                "pse36",
+                "pts",
+                "rdpid",
+                "rdrand",
+                "rdrnd",
+                "rdseed",
+                "rdt_a",
+                "rdtscp",
+                "rep_good",
+                "sdbg",
+                "sep",
+                "sha",
+                "sha_ni",
+                "smap",
+                "smep",
+                "smx",
+                "split_lock_detect",
+                "ss",
+                "ssbd",
+                "sse",
+                "sse2",
+                "sse4_1",
+                "sse4_2",
+                "ssse3",
+                "stibp",
+                "syscall",
+                "tm",
+                "tm2",
+                "tme",
+                "tpr_shadow",
+                "tsc",
+                "tsc_adjust",
+                "tsc_deadline_timer",
+                "tsc_known_freq",
+                "tscdeadline",
+                "umip",
+                "user_shstk",
+                "vaes",
+                "vme",
+                "vmx",
+                "vnmi",
+                "vpclmulqdq",
+                "vpid",
+                "x2apic",
+                "xgetbv1",
+                "xsave",
+                "xsavec",
+                "xsaveopt",
+                "xsaves",
+                "xtopology",
+                "xtpr"
+            ],
+            "l3_cache_size": 12582912,
+            "l2_cache_size": 5242880,
+            "l1_data_cache_size": 196608,
+            "l1_instruction_cache_size": 131072,
+            "l2_cache_line_size": 256,
+            "l2_cache_associativity": 7
+        }
+    },
+    "commit_info": {
+        "id": "8a41862bc479ff85a31f3b295f29213db3472db8",
+        "time": "2026-11-16T20:17:02Z",
+        "author_time": "2026-11-16T20:17:02Z",
+        "dirty": true,
+        "project": "phlite",
+        "branch": "readme"
+    },
+    "benchmarks": [
+        {
+            "group": "dtm-rips circle n=200 dim\u22641",
+            "name": "test_weighted_rips[circle-200-1-gudhi]",
+            "fullname": "benchmarks/bench_clouds_weighted_rips.py::test_weighted_rips[circle-200-1-gudhi]",
+            "params": {
+                "shape": "circle",
+                "n": 200,
+                "max_dim": 1,
+                "implementation": "gudhi"
+            },
+            "param": "circle-200-1-gudhi",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 81.0,
+                "fingerprint": [
+                    [
+                        199,
+                        1,
+                        11.189984
+                    ],
+                    [
+                        6,
+                        0,
+                        1.299955
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.8877902590029407,
+                "max": 0.9519958510063589,
+                "mean": 0.9116093489962319,
+                "stddev": 0.03516317486844783,
+                "rounds": 3,
+                "median": 0.8950419369793963,
+                "iqr": 0.0481541940025636,
+                "q1": 0.8896031784970546,
+                "q3": 0.9377573724996182,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.8877902590029407,
+                "hd15iqr": 0.9519958510063589,
+                "ops": 1.0969611063128022,
+                "total": 2.734828046988696,
+                "data": [
+                    0.9519958510063589,
+                    0.8950419369793963,
+                    0.8877902590029407
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "dtm-rips circle n=200 dim\u22641",
+            "name": "test_weighted_rips[circle-200-1-phlite (serial)]",
+            "fullname": "benchmarks/bench_clouds_weighted_rips.py::test_weighted_rips[circle-200-1-phlite (serial)]",
+            "params": {
+                "shape": "circle",
+                "n": 200,
+                "max_dim": 1,
+                "implementation": "phlite (serial)"
+            },
+            "param": "circle-200-1-phlite (serial)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 4.7,
+                "fingerprint": [
+                    [
+                        199,
+                        1,
+                        11.189984
+                    ],
+                    [
+                        6,
+                        0,
+                        1.299955
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.017424613994080573,
+                "max": 0.01814507899689488,
+                "mean": 0.017774212998726096,
+                "stddev": 0.00036070302026763526,
+                "rounds": 3,
+                "median": 0.01775294600520283,
+                "iqr": 0.0005403487521107309,
+                "q1": 0.017506696996861137,
+                "q3": 0.01804704574897187,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.017424613994080573,
+                "hd15iqr": 0.01814507899689488,
+                "ops": 56.26128144586045,
+                "total": 0.053322638996178284,
+                "data": [
+                    0.01814507899689488,
+                    0.01775294600520283,
+                    0.017424613994080573
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "dtm-rips circle n=200 dim\u22641",
+            "name": "test_weighted_rips[circle-200-1-phlite (parallel)]",
+            "fullname": "benchmarks/bench_clouds_weighted_rips.py::test_weighted_rips[circle-200-1-phlite (parallel)]",
+            "params": {
+                "shape": "circle",
+                "n": 200,
+                "max_dim": 1,
+                "implementation": "phlite (parallel)"
+            },
+            "param": "circle-200-1-phlite (parallel)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 4.7,
+                "fingerprint": [
+                    [
+                        199,
+                        1,
+                        11.189984
+                    ],
+                    [
+                        6,
+                        0,
+                        1.299955
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.0168830209877342,
+                "max": 0.019562727014999837,
+                "mean": 0.018136847667240847,
+                "stddev": 0.0013481126394446828,
+                "rounds": 3,
+                "median": 0.01796479499898851,
+                "iqr": 0.0020097795204492286,
+                "q1": 0.017153464490547776,
+                "q3": 0.019163244010997005,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.0168830209877342,
+                "hd15iqr": 0.019562727014999837,
+                "ops": 55.13637310888489,
+                "total": 0.054410543001722544,
+                "data": [
+                    0.019562727014999837,
+                    0.0168830209877342,
+                    0.01796479499898851
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "dtm-rips circle n=500 dim\u22641",
+            "name": "test_weighted_rips[circle-500-1-gudhi]",
+            "fullname": "benchmarks/bench_clouds_weighted_rips.py::test_weighted_rips[circle-500-1-gudhi]",
+            "params": {
+                "shape": "circle",
+                "n": 500,
+                "max_dim": 1,
+                "implementation": "gudhi"
+            },
+            "param": "circle-500-1-gudhi",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 3.3,
+                "fingerprint": [
+                    [
+                        499,
+                        1,
+                        17.653223
+                    ],
+                    [
+                        42,
+                        0,
+                        1.619169
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 23.663559023989365,
+                "max": 23.932587704010075,
+                "mean": 23.755753364326665,
+                "stddev": 0.15318960403827495,
+                "rounds": 3,
+                "median": 23.671113364980556,
+                "iqr": 0.20177151001553284,
+                "q1": 23.665447609237162,
+                "q3": 23.867219119252695,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 23.663559023989365,
+                "hd15iqr": 23.932587704010075,
+                "ops": 0.04209506575790904,
+                "total": 71.26726009298,
+                "data": [
+                    23.932587704010075,
+                    23.671113364980556,
+                    23.663559023989365
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "dtm-rips circle n=500 dim\u22641",
+            "name": "test_weighted_rips[circle-500-1-phlite (serial)]",
+            "fullname": "benchmarks/bench_clouds_weighted_rips.py::test_weighted_rips[circle-500-1-phlite (serial)]",
+            "params": {
+                "shape": "circle",
+                "n": 500,
+                "max_dim": 1,
+                "implementation": "phlite (serial)"
+            },
+            "param": "circle-500-1-phlite (serial)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 69.4,
+                "fingerprint": [
+                    [
+                        499,
+                        1,
+                        17.653223
+                    ],
+                    [
+                        42,
+                        0,
+                        1.619169
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.31514553001034074,
+                "max": 0.3219277230091393,
+                "mean": 0.3176762310128349,
+                "stddev": 0.0037041026850672077,
+                "rounds": 3,
+                "median": 0.31595544001902454,
+                "iqr": 0.005086644749098923,
+                "q1": 0.3153480075125117,
+                "q3": 0.3204346522616106,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.31514553001034074,
+                "hd15iqr": 0.3219277230091393,
+                "ops": 3.147859053891878,
+                "total": 0.9530286930385046,
+                "data": [
+                    0.31514553001034074,
+                    0.3219277230091393,
+                    0.31595544001902454
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "dtm-rips circle n=500 dim\u22641",
+            "name": "test_weighted_rips[circle-500-1-phlite (parallel)]",
+            "fullname": "benchmarks/bench_clouds_weighted_rips.py::test_weighted_rips[circle-500-1-phlite (parallel)]",
+            "params": {
+                "shape": "circle",
+                "n": 500,
+                "max_dim": 1,
+                "implementation": "phlite (parallel)"
+            },
+            "param": "circle-500-1-phlite (parallel)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 69.4,
+                "fingerprint": [
+                    [
+                        499,
+                        1,
+                        17.653223
+                    ],
+                    [
+                        42,
+                        0,
+                        1.619169
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.2848571559879929,
+                "max": 0.3009396700072102,
+                "mean": 0.2939306573243812,
+                "stddev": 0.008237620976051685,
+                "rounds": 3,
+                "median": 0.2959951459779404,
+                "iqr": 0.012061885514413007,
+                "q1": 0.28764165348547976,
+                "q3": 0.29970353899989277,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.2848571559879929,
+                "hd15iqr": 0.3009396700072102,
+                "ops": 3.4021629764751022,
+                "total": 0.8817919719731435,
+                "data": [
+                    0.2959951459779404,
+                    0.3009396700072102,
+                    0.2848571559879929
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "dtm-rips sphere n=150 dim\u22642",
+            "name": "test_weighted_rips[sphere-150-2-gudhi]",
+            "fullname": "benchmarks/bench_clouds_weighted_rips.py::test_weighted_rips[sphere-150-2-gudhi]",
+            "params": {
+                "shape": "sphere",
+                "n": 150,
+                "max_dim": 2,
+                "implementation": "gudhi"
+            },
+            "param": "sphere-150-2-gudhi",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 52.3,
+                "fingerprint": [
+                    [
+                        149,
+                        1,
+                        28.668613
+                    ],
+                    [
+                        30,
+                        0,
+                        2.169655
+                    ],
+                    [
+                        1,
+                        0,
+                        0.299016
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 28.01199493499007,
+                "max": 28.434782505006297,
+                "mean": 28.168184469337575,
+                "stddev": 0.2320126294257581,
+                "rounds": 3,
+                "median": 28.057775968016358,
+                "iqr": 0.31709067751216935,
+                "q1": 28.023440193246643,
+                "q3": 28.340530870758812,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 28.01199493499007,
+                "hd15iqr": 28.434782505006297,
+                "ops": 0.03550104555331027,
+                "total": 84.50455340801273,
+                "data": [
+                    28.434782505006297,
+                    28.057775968016358,
+                    28.01199493499007
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "dtm-rips sphere n=150 dim\u22642",
+            "name": "test_weighted_rips[sphere-150-2-phlite (serial)]",
+            "fullname": "benchmarks/bench_clouds_weighted_rips.py::test_weighted_rips[sphere-150-2-phlite (serial)]",
+            "params": {
+                "shape": "sphere",
+                "n": 150,
+                "max_dim": 2,
+                "implementation": "phlite (serial)"
+            },
+            "param": "sphere-150-2-phlite (serial)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 2.7,
+                "fingerprint": [
+                    [
+                        149,
+                        1,
+                        28.668613
+                    ],
+                    [
+                        30,
+                        0,
+                        2.169655
+                    ],
+                    [
+                        1,
+                        0,
+                        0.299016
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.06870334601262584,
+                "max": 0.06947313901036978,
+                "mean": 0.06904344567252944,
+                "stddev": 0.00039263925579158894,
+                "rounds": 3,
+                "median": 0.0689538519945927,
+                "iqr": 0.0005773447483079508,
+                "q1": 0.06876597250811756,
+                "q3": 0.06934331725642551,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.06870334601262584,
+                "hd15iqr": 0.06947313901036978,
+                "ops": 14.483634040267395,
+                "total": 0.20713033701758832,
+                "data": [
+                    0.06870334601262584,
+                    0.0689538519945927,
+                    0.06947313901036978
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "dtm-rips sphere n=150 dim\u22642",
+            "name": "test_weighted_rips[sphere-150-2-phlite (parallel)]",
+            "fullname": "benchmarks/bench_clouds_weighted_rips.py::test_weighted_rips[sphere-150-2-phlite (parallel)]",
+            "params": {
+                "shape": "sphere",
+                "n": 150,
+                "max_dim": 2,
+                "implementation": "phlite (parallel)"
+            },
+            "param": "sphere-150-2-phlite (parallel)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 2.8,
+                "fingerprint": [
+                    [
+                        149,
+                        1,
+                        28.668613
+                    ],
+                    [
+                        30,
+                        0,
+                        2.169655
+                    ],
+                    [
+                        1,
+                        0,
+                        0.299016
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.025892365985782817,
+                "max": 0.0338701150030829,
+                "mean": 0.028884268326995272,
+                "stddev": 0.004346605612853978,
+                "rounds": 3,
+                "median": 0.026890323992120102,
+                "iqr": 0.005983311762975063,
+                "q1": 0.02614185548736714,
+                "q3": 0.0321251672503422,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.025892365985782817,
+                "hd15iqr": 0.0338701150030829,
+                "ops": 34.62092197313507,
+                "total": 0.08665280498098582,
+                "data": [
+                    0.026890323992120102,
+                    0.0338701150030829,
+                    0.025892365985782817
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "dtm-rips circle n=1000 dim\u22641",
+            "name": "test_weighted_rips[circle-1000-1-phlite (serial)]",
+            "fullname": "benchmarks/bench_clouds_weighted_rips.py::test_weighted_rips[circle-1000-1-phlite (serial)]",
+            "params": {
+                "shape": "circle",
+                "n": 1000,
+                "max_dim": 1,
+                "implementation": "phlite (serial)"
+            },
+            "param": "circle-1000-1-phlite (serial)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 277.5,
+                "fingerprint": [
+                    [
+                        999,
+                        1,
+                        23.554013
+                    ],
+                    [
+                        103,
+                        0,
+                        1.82684
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 2.7635790029889904,
+                "max": 2.7635790029889904,
+                "mean": 2.7635790029889904,
+                "stddev": 0,
+                "rounds": 1,
+                "median": 2.7635790029889904,
+                "iqr": 0.0,
+                "q1": 2.7635790029889904,
+                "q3": 2.7635790029889904,
+                "iqr_outliers": 0,
+                "stddev_outliers": 0,
+                "outliers": "0;0",
+                "ld15iqr": 2.7635790029889904,
+                "hd15iqr": 2.7635790029889904,
+                "ops": 0.3618496156319161,
+                "total": 2.7635790029889904,
+                "data": [
+                    2.7635790029889904
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "dtm-rips circle n=1000 dim\u22641",
+            "name": "test_weighted_rips[circle-1000-1-phlite (parallel)]",
+            "fullname": "benchmarks/bench_clouds_weighted_rips.py::test_weighted_rips[circle-1000-1-phlite (parallel)]",
+            "params": {
+                "shape": "circle",
+                "n": 1000,
+                "max_dim": 1,
+                "implementation": "phlite (parallel)"
+            },
+            "param": "circle-1000-1-phlite (parallel)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 277.3,
+                "fingerprint": [
+                    [
+                        999,
+                        1,
+                        23.554013
+                    ],
+                    [
+                        103,
+                        0,
+                        1.82684
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 2.66475431600702,
+                "max": 2.66475431600702,
+                "mean": 2.66475431600702,
+                "stddev": 0,
+                "rounds": 1,
+                "median": 2.66475431600702,
+                "iqr": 0.0,
+                "q1": 2.66475431600702,
+                "q3": 2.66475431600702,
+                "iqr_outliers": 0,
+                "stddev_outliers": 0,
+                "outliers": "0;0",
+                "ld15iqr": 2.66475431600702,
+                "hd15iqr": 2.66475431600702,
+                "ops": 0.375269117304008,
+                "total": 2.66475431600702,
+                "data": [
+                    2.66475431600702
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "dtm-rips sphere n=300 dim\u22642",
+            "name": "test_weighted_rips[sphere-300-2-phlite (serial)]",
+            "fullname": "benchmarks/bench_clouds_weighted_rips.py::test_weighted_rips[sphere-300-2-phlite (serial)]",
+            "params": {
+                "shape": "sphere",
+                "n": 300,
+                "max_dim": 2,
+                "implementation": "phlite (serial)"
+            },
+            "param": "sphere-300-2-phlite (serial)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 136.8,
+                "fingerprint": [
+                    [
+                        299,
+                        1,
+                        43.467181
+                    ],
+                    [
+                        67,
+                        0,
+                        3.948786
+                    ],
+                    [
+                        1,
+                        0,
+                        0.74435
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 1.0356074279989116,
+                "max": 1.0356074279989116,
+                "mean": 1.0356074279989116,
+                "stddev": 0,
+                "rounds": 1,
+                "median": 1.0356074279989116,
+                "iqr": 0.0,
+                "q1": 1.0356074279989116,
+                "q3": 1.0356074279989116,
+                "iqr_outliers": 0,
+                "stddev_outliers": 0,
+                "outliers": "0;0",
+                "ld15iqr": 1.0356074279989116,
+                "hd15iqr": 1.0356074279989116,
+                "ops": 0.9656168669360403,
+                "total": 1.0356074279989116,
+                "data": [
+                    1.0356074279989116
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "dtm-rips sphere n=300 dim\u22642",
+            "name": "test_weighted_rips[sphere-300-2-phlite (parallel)]",
+            "fullname": "benchmarks/bench_clouds_weighted_rips.py::test_weighted_rips[sphere-300-2-phlite (parallel)]",
+            "params": {
+                "shape": "sphere",
+                "n": 300,
+                "max_dim": 2,
+                "implementation": "phlite (parallel)"
+            },
+            "param": "sphere-300-2-phlite (parallel)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 3.9,
+                "fingerprint": [
+                    [
+                        299,
+                        1,
+                        43.467181
+                    ],
+                    [
+                        67,
+                        0,
+                        3.948786
+                    ],
+                    [
+                        1,
+                        0,
+                        0.74435
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.6694698990031611,
+                "max": 0.6694698990031611,
+                "mean": 0.6694698990031611,
+                "stddev": 0,
+                "rounds": 1,
+                "median": 0.6694698990031611,
+                "iqr": 0.0,
+                "q1": 0.6694698990031611,
+                "q3": 0.6694698990031611,
+                "iqr_outliers": 0,
+                "stddev_outliers": 0,
+                "outliers": "0;0",
+                "ld15iqr": 0.6694698990031611,
+                "hd15iqr": 0.6694698990031611,
+                "ops": 1.4937191373189405,
+                "total": 0.6694698990031611,
+                "data": [
+                    0.6694698990031611
+                ],
+                "iterations": 1
+            }
+        }
+    ],
+    "datetime": "2026-11-16T22:49:55.714117+00:00",
+    "version": "5.3.1"
+}

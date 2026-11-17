@@ -4,6 +4,7 @@ build-backend = "maturin"
 
 [project]
 name = "phlite-clouds"
+readme = "README.md"
 description = "Persistent homology of point clouds and distance matrices, computed with phlite"
 requires-python = ">=3.9"
 license = "MIT"
@@ -14,8 +15,13 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Mathematics",
 ]
 # Every phlite package is released on the same version (phlite_bindings' tests check this pin)
-dependencies = ["phlite-core==0.1.0", "numpy"]
+dependencies = ["phlite-core==0.2.0", "numpy"]
 dynamic = ["version"]
+
+[project.urls]
+Homepage = "https://phlite.tomchaplin.xyz"
+Documentation = "https://phlite.tomchaplin.xyz/book/"
+Repository = "https://github.com/tomchaplin/phlite"
 
 [tool.maturin]
 features = ["python", "pyo3/extension-module"]

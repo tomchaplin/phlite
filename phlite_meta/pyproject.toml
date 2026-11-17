@@ -7,7 +7,8 @@ build-backend = "hatchling.build"
 
 [project]
 name = "phlite"
-version = "0.1.0"
+readme = "README.md"
+version = "0.2.0"
 description = "Persistent homology that's light on memory usage: every phlite package"
 requires-python = ">=3.9"
 license = "MIT"
@@ -16,14 +17,16 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Mathematics",
 ]
 dependencies = [
-    "phlite-core==0.1.0",
-    "phlite-complexes==0.1.0",
-    "phlite-clouds==0.1.0",
-    "phlite-networks==0.1.0",
-    "phlite-images==0.1.0",
+    "phlite-core==0.2.0",
+    "phlite-complexes==0.2.0",
+    "phlite-clouds==0.2.0",
+    "phlite-networks==0.2.0",
+    "phlite-images==0.2.0",
 ]
 
 [project.urls]
+Homepage = "https://phlite.tomchaplin.xyz"
+Documentation = "https://phlite.tomchaplin.xyz/book/"
 Repository = "https://github.com/tomchaplin/phlite"
 
 [tool.hatch.build.targets.wheel]

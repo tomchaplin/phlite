@@ -23,12 +23,12 @@
   .s0 { stroke: var(--dim0); } .s1 { stroke: var(--dim1); } .s2 { stroke: var(--dim2); } .s3 { stroke: var(--dim3); } .s4 { stroke: var(--dim4); }
   * { box-sizing: border-box; }
   body { margin: 0; background: var(--bg); color: var(--fg); font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
-  main { max-width: 1040px; margin: 0 auto; padding: 4rem 16px 3rem; }
+  main { max-width: 960px; margin: 0 auto; padding: 4rem 16px 3rem; }
   header { margin-bottom: 3rem; }
   h1 { margin: 0 0 0.6rem; line-height: 0; }
   .logo { width: min(340px, 80vw); height: auto; color: var(--fg); }
   .lede { font-size: 1.2rem; color: var(--muted); margin: 0; max-width: 40rem; }
-  .tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1.25rem; }
+  .tiles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.25rem; }
   .tile {
     display: flex; flex-direction: column; gap: 0.6rem; padding: 1.6rem; min-height: 11rem;
     background: var(--panel); border: 1px solid var(--line); border-radius: 14px; color: inherit; text-decoration: none;
@@ -39,7 +39,8 @@
   .tile h2 { margin: 0.4rem 0 0; font-size: 1.45rem; }
   .tile p { margin: 0; color: var(--muted); flex: 1; }
   .tile .go { color: var(--accent); font-weight: 600; }
-  footer { margin-top: 3rem; display: flex; gap: 1.5rem; flex-wrap: wrap; color: var(--muted); font-size: 0.92rem; }
+  footer { margin-top: 3rem; display: flex; gap: 0.6rem 1.5rem; flex-wrap: wrap; color: var(--muted); font-size: 0.92rem; }
+  footer .crates { flex-basis: 100%; }
   footer a { color: var(--accent); }
   @media (max-width: 760px) {
     main { padding-top: 2.5rem; }
@@ -121,15 +122,24 @@
     </a>
     <a class="tile" href="api/">
       <svg viewBox="0 0 44 44" aria-hidden="true"><path class="s3" d="M15 10 L6 22 L15 34" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/><path class="s3" d="M29 10 L38 22 L29 34" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/><path class="s4" d="M25 8 L19 36" stroke-width="2.5" stroke-linecap="round"/></svg>
-      <h2>API reference</h2>
+      <h2>Python API</h2>
       <p>The Python packages: <code>phlite.complexes</code>, <code>phlite.clouds</code>, <code>phlite.networks</code>, <code>phlite.images</code> and <code>phlite.core</code>.</p>
-      <span class="go">Browse the API →</span>
+      <span class="go">Browse the Python API →</span>
+    </a>
+    <a class="tile" href="https://docs.rs/phlite">
+      <svg viewBox="0 0 44 44" aria-hidden="true"><circle class="s1" cx="22" cy="22" r="7" fill="none" stroke-width="2.5"/><path class="s1" d="M22 6 v5 M22 33 v5 M6 22 h5 M33 22 h5 M10.7 10.7 l3.5 3.5 M29.8 29.8 l3.5 3.5 M10.7 33.3 l3.5 -3.5 M29.8 14.2 l3.5 -3.5" stroke-width="2.5" stroke-linecap="round"/></svg>
+      <h2>Rust API</h2>
+      <p>The crates on docs.rs: <code>phlite</code>, the core (matrix oracles, reductions, barcodes), and one per kind of input.</p>
+      <span class="go">Browse the Rust API →</span>
     </a>
   </nav>
 
   <footer>
     <a href="https://github.com/tomchaplin/phlite">Source on GitHub</a>
+    <a href="https://pypi.org/project/phlite/">PyPI</a>
+    <a href="https://crates.io/crates/phlite">crates.io</a>
     <span>MIT licensed</span>
+    <span class="crates">Rust docs: <a href="https://docs.rs/phlite">phlite</a> · <a href="https://docs.rs/phlite_complexes">phlite_complexes</a> · <a href="https://docs.rs/phlite_clouds">phlite_clouds</a> · <a href="https://docs.rs/phlite_networks">phlite_networks</a> · <a href="https://docs.rs/phlite_images">phlite_images</a></span>
   </footer>
 </main>
 </body>

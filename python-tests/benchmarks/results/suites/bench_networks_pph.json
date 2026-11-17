@@ -1,0 +1,937 @@
+{
+    "machine_info": {
+        "processor": "",
+        "machine": "x86_64",
+        "python_compiler": "GCC 15.1.1 20250425",
+        "python_implementation": "CPython",
+        "python_implementation_version": "3.11.13",
+        "python_version": "3.11.13",
+        "python_build": [
+            "main",
+            "Jul  7 2025 19:11:17"
+        ],
+        "release": "7.0.10-arch1-1",
+        "system": "Linux",
+        "cpu": {
+            "python_version": "3.11.13.final.0 (64 bit)",
+            "cpuinfo_version": [
+                10,
+                1,
+                1
+            ],
+            "cpuinfo_version_string": "10.1.1",
+            "arch": "X86_64",
+            "bits": 64,
+            "count": 8,
+            "arch_string_raw": "x86_64",
+            "vendor_id_raw": "GenuineIntel",
+            "brand_raw": "11th Gen Intel(R) Core(TM) i7-1185G7 @ 3.00GHz",
+            "hz_advertised_friendly": "3.0000 GHz",
+            "hz_advertised": [
+                3000000000,
+                0
+            ],
+            "stepping": 1,
+            "model": 140,
+            "family": 6,
+            "flags": [
+                "3dnowprefetch",
+                "abm",
+                "acpi",
+                "adx",
+                "aes",
+                "aperfmperf",
+                "apic",
+                "arat",
+                "arch_capabilities",
+                "arch_perfmon",
+                "art",
+                "avx",
+                "avx2",
+                "avx512_bitalg",
+                "avx512_vbmi2",
+                "avx512_vnni",
+                "avx512_vp2intersect",
+                "avx512_vpopcntdq",
+                "avx512bitalg",
+                "avx512bw",
+                "avx512cd",
+                "avx512dq",
+                "avx512f",
+                "avx512ifma",
+                "avx512vbmi",
+                "avx512vbmi2",
+                "avx512vl",
+                "avx512vnni",
+                "avx512vpopcntdq",
+                "bmi1",
+                "bmi2",
+                "bts",
+                "cat_l2",
+                "cdp_l2",
+                "clflush",
+                "clflushopt",
+                "clwb",
+                "cmov",
+                "constant_tsc",
+                "cpuid",
+                "cpuid_fault",
+                "cx16",
+                "cx8",
+                "de",
+                "ds_cpl",
+                "dtes64",
+                "dtherm",
+                "dts",
+                "epb",
+                "ept",
+                "ept_ad",
+                "erms",
+                "est",
+                "f16c",
+                "flexpriority",
+                "flush_l1d",
+                "fma",
+                "fpu",
+                "fsgsbase",
+                "fsrm",
+                "fxsr",
+                "gfni",
+                "ht",
+                "hwp",
+                "hwp_act_window",
+                "hwp_epp",
+                "hwp_notify",
+                "hwp_pkg_req",
+                "ibpb",
+                "ibrs",
+                "ibrs_enhanced",
+                "ibt",
+                "ida",
+                "intel_pt",
+                "invpcid",
+                "lahf_lm",
+                "lm",
+                "mca",
+                "mce",
+                "md_clear",
+                "mmx",
+                "monitor",
+                "movbe",
+                "movdir64b",
+                "movdiri",
+                "msr",
+                "mtrr",
+                "nonstop_tsc",
+                "nopl",
+                "nx",
+                "ospke",
+                "osxsave",
+                "pae",
+                "pat",
+                "pbe",
+                "pcid",
+                "pclmulqdq",
+                "pdcm",
+                "pdpe1gb",
+                "pebs",
+                "pge",
+                "pku",
+                "pln",
+                "pni",
+                "popcnt",
+                "pqe",
+                "pse",
+                "pse36",
+                "pts",
+                "rdpid",
+                "rdrand",
+                "rdrnd",
+                "rdseed",
+                "rdt_a",
+                "rdtscp",
+                "rep_good",
+                "sdbg",
+                "sep",
+                "sha",
+                "sha_ni",
+                "smap",
+                "smep",
+                "smx",
+                "split_lock_detect",
+                "ss",
+                "ssbd",
+                "sse",
+                "sse2",
+                "sse4_1",
+                "sse4_2",
+                "ssse3",
+                "stibp",
+                "syscall",
+                "tm",
+                "tm2",
+                "tme",
+                "tpr_shadow",
+                "tsc",
+                "tsc_adjust",
+                "tsc_deadline_timer",
+                "tsc_known_freq",
+                "tscdeadline",
+                "umip",
+                "user_shstk",
+                "vaes",
+                "vme",
+                "vmx",
+                "vnmi",
+                "vpclmulqdq",
+                "vpid",
+                "x2apic",
+                "xgetbv1",
+                "xsave",
+                "xsavec",
+                "xsaveopt",
+                "xsaves",
+                "xtopology",
+                "xtpr"
+            ],
+            "l3_cache_size": 12582912,
+            "l2_cache_size": 5242880,
+            "l1_data_cache_size": 196608,
+            "l1_instruction_cache_size": 131072,
+            "l2_cache_line_size": 256,
+            "l2_cache_associativity": 7
+        }
+    },
+    "commit_info": {
+        "id": "8a41862bc479ff85a31f3b295f29213db3472db8",
+        "time": "2026-11-16T20:17:02Z",
+        "author_time": "2026-11-16T20:17:02Z",
+        "dirty": true,
+        "project": "phlite",
+        "branch": "readme"
+    },
+    "benchmarks": [
+        {
+            "group": "pph n=30 p=0.2",
+            "name": "test_pph[30-0.2-grpphati (PPH)]",
+            "fullname": "benchmarks/bench_networks_pph.py::test_pph[30-0.2-grpphati (PPH)]",
+            "params": {
+                "n": 30,
+                "p": 0.2,
+                "implementation": "grpphati (PPH)"
+            },
+            "param": "30-0.2-grpphati (PPH)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 16.3,
+                "fingerprint": [
+                    [
+                        11,
+                        0,
+                        0.589835
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.09477014999720268,
+                "max": 0.11357631601276807,
+                "mean": 0.1027450833353214,
+                "stddev": 0.00972300388193565,
+                "rounds": 3,
+                "median": 0.09988878399599344,
+                "iqr": 0.014104624511674047,
+                "q1": 0.09604980849690037,
+                "q3": 0.11015443300857441,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.09477014999720268,
+                "hd15iqr": 0.11357631601276807,
+                "ops": 9.732825820349722,
+                "total": 0.3082352500059642,
+                "data": [
+                    0.09988878399599344,
+                    0.09477014999720268,
+                    0.11357631601276807
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "pph n=30 p=0.2",
+            "name": "test_pph[30-0.2-phlite (serial)]",
+            "fullname": "benchmarks/bench_networks_pph.py::test_pph[30-0.2-phlite (serial)]",
+            "params": {
+                "n": 30,
+                "p": 0.2,
+                "implementation": "phlite (serial)"
+            },
+            "param": "30-0.2-phlite (serial)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 0.1,
+                "fingerprint": [
+                    [
+                        11,
+                        0,
+                        0.589835
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.001943189010489732,
+                "max": 0.002377158001763746,
+                "mean": 0.0020973520004190505,
+                "stddev": 0.00024273832842175913,
+                "rounds": 3,
+                "median": 0.001971708989003673,
+                "iqr": 0.0003254767434555106,
+                "q1": 0.0019503190051182173,
+                "q3": 0.002275795748573728,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.001943189010489732,
+                "hd15iqr": 0.002377158001763746,
+                "ops": 476.7916877091686,
+                "total": 0.006292056001257151,
+                "data": [
+                    0.002377158001763746,
+                    0.001971708989003673,
+                    0.001943189010489732
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "pph n=30 p=0.2",
+            "name": "test_pph[30-0.2-phlite (parallel)]",
+            "fullname": "benchmarks/bench_networks_pph.py::test_pph[30-0.2-phlite (parallel)]",
+            "params": {
+                "n": 30,
+                "p": 0.2,
+                "implementation": "phlite (parallel)"
+            },
+            "param": "30-0.2-phlite (parallel)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 0.2,
+                "fingerprint": [
+                    [
+                        11,
+                        0,
+                        0.589835
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.0022255959920585155,
+                "max": 0.002487299992935732,
+                "mean": 0.0023340986614736416,
+                "stddev": 0.0001364577729936153,
+                "rounds": 3,
+                "median": 0.002289399999426678,
+                "iqr": 0.00019627800065791234,
+                "q1": 0.002241546993900556,
+                "q3": 0.0024378249945584685,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.0022255959920585155,
+                "hd15iqr": 0.002487299992935732,
+                "ops": 428.43090418836294,
+                "total": 0.007002295984420925,
+                "data": [
+                    0.002487299992935732,
+                    0.0022255959920585155,
+                    0.002289399999426678
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "pph n=60 p=0.1",
+            "name": "test_pph[60-0.1-grpphati (PPH)]",
+            "fullname": "benchmarks/bench_networks_pph.py::test_pph[60-0.1-grpphati (PPH)]",
+            "params": {
+                "n": 60,
+                "p": 0.1,
+                "implementation": "grpphati (PPH)"
+            },
+            "param": "60-0.1-grpphati (PPH)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 403.4,
+                "fingerprint": [
+                    [
+                        35,
+                        0,
+                        2.399647
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 1.4349415909964591,
+                "max": 1.587284212000668,
+                "mean": 1.4964189880023089,
+                "stddev": 0.08031065822862027,
+                "rounds": 3,
+                "median": 1.4670311610097997,
+                "iqr": 0.11425696575315669,
+                "q1": 1.4429639834997943,
+                "q3": 1.557220949252951,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 1.4349415909964591,
+                "hd15iqr": 1.587284212000668,
+                "ops": 0.6682620362462662,
+                "total": 4.489256964006927,
+                "data": [
+                    1.587284212000668,
+                    1.4349415909964591,
+                    1.4670311610097997
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "pph n=60 p=0.1",
+            "name": "test_pph[60-0.1-phlite (serial)]",
+            "fullname": "benchmarks/bench_networks_pph.py::test_pph[60-0.1-phlite (serial)]",
+            "params": {
+                "n": 60,
+                "p": 0.1,
+                "implementation": "phlite (serial)"
+            },
+            "param": "60-0.1-phlite (serial)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 1.1,
+                "fingerprint": [
+                    [
+                        35,
+                        0,
+                        2.399647
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.015603553008986637,
+                "max": 0.016078259999630973,
+                "mean": 0.015809393672194954,
+                "stddev": 0.00024354847054571674,
+                "rounds": 3,
+                "median": 0.01574636800796725,
+                "iqr": 0.0003560302429832518,
+                "q1": 0.01563925675873179,
+                "q3": 0.01599528700171504,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.015603553008986637,
+                "hd15iqr": 0.016078259999630973,
+                "ops": 63.253532724583074,
+                "total": 0.04742818101658486,
+                "data": [
+                    0.016078259999630973,
+                    0.01574636800796725,
+                    0.015603553008986637
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "pph n=60 p=0.1",
+            "name": "test_pph[60-0.1-phlite (parallel)]",
+            "fullname": "benchmarks/bench_networks_pph.py::test_pph[60-0.1-phlite (parallel)]",
+            "params": {
+                "n": 60,
+                "p": 0.1,
+                "implementation": "phlite (parallel)"
+            },
+            "param": "60-0.1-phlite (parallel)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 1.1,
+                "fingerprint": [
+                    [
+                        35,
+                        0,
+                        2.399647
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.011033235001377761,
+                "max": 0.012797770992619917,
+                "mean": 0.011958338000113145,
+                "stddev": 0.0008853820240848815,
+                "rounds": 3,
+                "median": 0.012044008006341755,
+                "iqr": 0.0013234019934316166,
+                "q1": 0.01128592825261876,
+                "q3": 0.012609330246050376,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.011033235001377761,
+                "hd15iqr": 0.012797770992619917,
+                "ops": 83.62366074537603,
+                "total": 0.035875014000339434,
+                "data": [
+                    0.012044008006341755,
+                    0.012797770992619917,
+                    0.011033235001377761
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "pph n=60 p=0.3",
+            "name": "test_pph[60-0.3-grpphati (PPH)]",
+            "fullname": "benchmarks/bench_networks_pph.py::test_pph[60-0.3-grpphati (PPH)]",
+            "params": {
+                "n": 60,
+                "p": 0.3,
+                "implementation": "grpphati (PPH)"
+            },
+            "param": "60-0.3-grpphati (PPH)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 310.7,
+                "fingerprint": [
+                    [
+                        37,
+                        0,
+                        0.957004
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 1.3373761720140465,
+                "max": 1.3922164919786155,
+                "mean": 1.368564207999346,
+                "stddev": 0.028186093063359643,
+                "rounds": 3,
+                "median": 1.3760999600053765,
+                "iqr": 0.041130239973426796,
+                "q1": 1.347057119011879,
+                "q3": 1.3881873589853058,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 1.3373761720140465,
+                "hd15iqr": 1.3922164919786155,
+                "ops": 0.7306927904112467,
+                "total": 4.1056926239980385,
+                "data": [
+                    1.3373761720140465,
+                    1.3922164919786155,
+                    1.3760999600053765
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "pph n=60 p=0.3",
+            "name": "test_pph[60-0.3-phlite (serial)]",
+            "fullname": "benchmarks/bench_networks_pph.py::test_pph[60-0.3-phlite (serial)]",
+            "params": {
+                "n": 60,
+                "p": 0.3,
+                "implementation": "phlite (serial)"
+            },
+            "param": "60-0.3-phlite (serial)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 0.6,
+                "fingerprint": [
+                    [
+                        37,
+                        0,
+                        0.957004
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.01409068499924615,
+                "max": 0.014570909988833591,
+                "mean": 0.01425395866196292,
+                "stddev": 0.00027452983171399306,
+                "rounds": 3,
+                "median": 0.014100280997809023,
+                "iqr": 0.0003601687421905808,
+                "q1": 0.014093083998886868,
+                "q3": 0.01445325274107745,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.01409068499924615,
+                "hd15iqr": 0.014570909988833591,
+                "ops": 70.15594921490317,
+                "total": 0.042761875985888764,
+                "data": [
+                    0.014570909988833591,
+                    0.01409068499924615,
+                    0.014100280997809023
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "pph n=60 p=0.3",
+            "name": "test_pph[60-0.3-phlite (parallel)]",
+            "fullname": "benchmarks/bench_networks_pph.py::test_pph[60-0.3-phlite (parallel)]",
+            "params": {
+                "n": 60,
+                "p": 0.3,
+                "implementation": "phlite (parallel)"
+            },
+            "param": "60-0.3-phlite (parallel)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 0.6,
+                "fingerprint": [
+                    [
+                        37,
+                        0,
+                        0.957004
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.009528778988169506,
+                "max": 0.01035465399036184,
+                "mean": 0.009828703662302965,
+                "stddev": 0.00045698257842707185,
+                "rounds": 3,
+                "median": 0.009602678008377552,
+                "iqr": 0.00061940625164425,
+                "q1": 0.009547253743221518,
+                "q3": 0.010166659994865768,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.009528778988169506,
+                "hd15iqr": 0.01035465399036184,
+                "ops": 101.74281719728741,
+                "total": 0.029486110986908898,
+                "data": [
+                    0.01035465399036184,
+                    0.009602678008377552,
+                    0.009528778988169506
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "pph n=200 p=0.1",
+            "name": "test_pph[200-0.1-phlite (serial)]",
+            "fullname": "benchmarks/bench_networks_pph.py::test_pph[200-0.1-phlite (serial)]",
+            "params": {
+                "n": 200,
+                "p": 0.1,
+                "implementation": "phlite (serial)"
+            },
+            "param": "200-0.1-phlite (serial)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 15.6,
+                "fingerprint": [
+                    [
+                        203,
+                        0,
+                        5.954882
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.501852779998444,
+                "max": 0.501852779998444,
+                "mean": 0.501852779998444,
+                "stddev": 0,
+                "rounds": 1,
+                "median": 0.501852779998444,
+                "iqr": 0.0,
+                "q1": 0.501852779998444,
+                "q3": 0.501852779998444,
+                "iqr_outliers": 0,
+                "stddev_outliers": 0,
+                "outliers": "0;0",
+                "ld15iqr": 0.501852779998444,
+                "hd15iqr": 0.501852779998444,
+                "ops": 1.9926162409683184,
+                "total": 0.501852779998444,
+                "data": [
+                    0.501852779998444
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "pph n=200 p=0.1",
+            "name": "test_pph[200-0.1-phlite (parallel)]",
+            "fullname": "benchmarks/bench_networks_pph.py::test_pph[200-0.1-phlite (parallel)]",
+            "params": {
+                "n": 200,
+                "p": 0.1,
+                "implementation": "phlite (parallel)"
+            },
+            "param": "200-0.1-phlite (parallel)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 15.7,
+                "fingerprint": [
+                    [
+                        203,
+                        0,
+                        5.954882
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.19475259401951917,
+                "max": 0.19475259401951917,
+                "mean": 0.19475259401951917,
+                "stddev": 0,
+                "rounds": 1,
+                "median": 0.19475259401951917,
+                "iqr": 0.0,
+                "q1": 0.19475259401951917,
+                "q3": 0.19475259401951917,
+                "iqr_outliers": 0,
+                "stddev_outliers": 0,
+                "outliers": "0;0",
+                "ld15iqr": 0.19475259401951917,
+                "hd15iqr": 0.19475259401951917,
+                "ops": 5.1347197968504315,
+                "total": 0.19475259401951917,
+                "data": [
+                    0.19475259401951917
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "pph n=300 p=0.3",
+            "name": "test_pph[300-0.3-phlite (serial)]",
+            "fullname": "benchmarks/bench_networks_pph.py::test_pph[300-0.3-phlite (serial)]",
+            "params": {
+                "n": 300,
+                "p": 0.3,
+                "implementation": "phlite (serial)"
+            },
+            "param": "300-0.3-phlite (serial)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 57.9,
+                "fingerprint": [
+                    [
+                        290,
+                        0,
+                        1.94859
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 1.805495057022199,
+                "max": 1.805495057022199,
+                "mean": 1.805495057022199,
+                "stddev": 0,
+                "rounds": 1,
+                "median": 1.805495057022199,
+                "iqr": 0.0,
+                "q1": 1.805495057022199,
+                "q3": 1.805495057022199,
+                "iqr_outliers": 0,
+                "stddev_outliers": 0,
+                "outliers": "0;0",
+                "ld15iqr": 1.805495057022199,
+                "hd15iqr": 1.805495057022199,
+                "ops": 0.5538647121246063,
+                "total": 1.805495057022199,
+                "data": [
+                    1.805495057022199
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "pph n=300 p=0.3",
+            "name": "test_pph[300-0.3-phlite (parallel)]",
+            "fullname": "benchmarks/bench_networks_pph.py::test_pph[300-0.3-phlite (parallel)]",
+            "params": {
+                "n": 300,
+                "p": 0.3,
+                "implementation": "phlite (parallel)"
+            },
+            "param": "300-0.3-phlite (parallel)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 58.0,
+                "fingerprint": [
+                    [
+                        290,
+                        0,
+                        1.94859
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.8501243290083949,
+                "max": 0.8501243290083949,
+                "mean": 0.8501243290083949,
+                "stddev": 0,
+                "rounds": 1,
+                "median": 0.8501243290083949,
+                "iqr": 0.0,
+                "q1": 0.8501243290083949,
+                "q3": 0.8501243290083949,
+                "iqr_outliers": 0,
+                "stddev_outliers": 0,
+                "outliers": "0;0",
+                "ld15iqr": 0.8501243290083949,
+                "hd15iqr": 0.8501243290083949,
+                "ops": 1.1762985317293808,
+                "total": 0.8501243290083949,
+                "data": [
+                    0.8501243290083949
+                ],
+                "iterations": 1
+            }
+        }
+    ],
+    "datetime": "2026-11-17T00:51:18.705750+00:00",
+    "version": "5.3.1"
+}

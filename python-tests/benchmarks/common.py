@@ -64,10 +64,14 @@ def peak_heap_mb(function):
 
     Measured with memray, which also sees native allocations (so those made in Rust, on any thread). Unlike resident
     memory, this isn't hidden when a run reuses memory the process already holds from earlier benchmarks.
+
+    The trace is aggregated (allocations summed by location as they happen, which keeps the peak): a full trace of
+    every allocation grows with the run, past 6 GB for the largest cases, which filled /tmp (often in memory) when a
+    run killed at the time limit couldn't delete it.
     """
     with tempfile.TemporaryDirectory() as directory:
         path = os.path.join(directory, "memray.bin")
-        with memray.Tracker(path):
+        with memray.Tracker(path, file_format=memray.FileFormat.AGGREGATED_ALLOCATIONS):
             result = function()
         peak = memray.FileReader(path).metadata.peak_memory
     return result, peak / 1e6

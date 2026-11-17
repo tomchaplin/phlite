@@ -19,13 +19,21 @@ configuration can't stall a whole session.
 
 Headline results, one thread:
 
-- **Vietoris–Rips**: on a par with ripser and giotto-ph; faster in dimension 2 on random points. The default (heap
-  columns, uncached) favours memory; merged cached columns are up to 1.9× faster on point clouds with long bars, at
-  about twice the memory.
-- **GrPPH**: 25–100× faster than grpphati.
-- **Explicit complexes**, against PHAT's twist reduction with a prebuilt matrix: 7–13× faster on Rips complexes,
-  1.1–2× faster on sparse cell complexes, level on dense boundaries and meshes, PHAT 1.1–1.3× faster on cubical
-  complexes.
+- **Vietoris–Rips**: 1–2.2× faster than giotto-ph and 1.4–7× faster than ripser; on sparse matrices from 7% slower
+  to 1.3× faster than giotto-ph. On point clouds with long bars the default (heap columns, uncached) uses far more
+  memory than giotto-ph (546 MB against 7 MB on a noisy sphere of 400 points), where merged cached columns are faster
+  and take 25 MB; on random points the default uses the least.
+- **Weighted (DTM) Rips**: 50–400× faster than GUDHI.
+- **Alpha and Delaunay–Čech**: level with GUDHI or up to 2.4× faster up to 100,000 points in the plane and 300,000
+  in space, but 7–8× slower on a million points in the plane.
+- **Directed flag complexes**: 1.4–1.9× faster than flagser, with 2–4× more memory.
+- **GrPPH and path homology**: 24–105× and 50–95× faster than grpphati.
+- **Flag complexes of graphs**: 3–18× faster than GUDHI; **extended persistence**: 2.5–5.5× faster than GUDHI.
+- **Cubical complexes**: against Cubical Ripser, level on large 2D images and 2–2.3× faster on small ones, 1.5–1.7×
+  slower in 3D; 3.5–15× faster than GUDHI.
+- **Explicit complexes**, against PHAT's twist reduction with a prebuilt matrix: 11–26× faster on Rips complexes,
+  1.1–2× faster on sparse cell complexes, level on meshes, PHAT up to 1.4× faster on cubical complexes and dense
+  boundaries.
 
 ```sh
 just bench           # every benchmark

@@ -24,7 +24,9 @@
 //! **[`HeapColumns`]** pushes every term of every column added onto one heap ([`BHCol`]), and pops terms off the top,
 //! summing those with the same row. This is the classic approach.
 //! * Good when the columns of `D` are short and few are added per column: there is no sorting at all, and a push or
-//!   pop on a small heap is cheap. On Vietoris–Rips cohomology it matches [`MergedColumns`], with less memory.
+//!   pop on a small heap is cheap. On Vietoris–Rips cohomology of random points it matches [`MergedColumns`], with
+//!   less memory (but on point clouds with long bars its heaps grow long, and cached merged columns are faster and
+//!   leaner).
 //! * Bad when many terms are added: the heap holds every term, cancelled or not, including all those below the
 //!   eventual pivot, and once it outgrows the cache every operation slows down.
 //!

@@ -1,0 +1,1589 @@
+{
+    "machine_info": {
+        "processor": "",
+        "machine": "x86_64",
+        "python_compiler": "GCC 15.1.1 20250425",
+        "python_implementation": "CPython",
+        "python_implementation_version": "3.11.13",
+        "python_version": "3.11.13",
+        "python_build": [
+            "main",
+            "Jul  7 2025 19:11:17"
+        ],
+        "release": "7.0.10-arch1-1",
+        "system": "Linux",
+        "cpu": {
+            "python_version": "3.11.13.final.0 (64 bit)",
+            "cpuinfo_version": [
+                10,
+                1,
+                1
+            ],
+            "cpuinfo_version_string": "10.1.1",
+            "arch": "X86_64",
+            "bits": 64,
+            "count": 8,
+            "arch_string_raw": "x86_64",
+            "vendor_id_raw": "GenuineIntel",
+            "brand_raw": "11th Gen Intel(R) Core(TM) i7-1185G7 @ 3.00GHz",
+            "hz_advertised_friendly": "3.0000 GHz",
+            "hz_advertised": [
+                3000000000,
+                0
+            ],
+            "stepping": 1,
+            "model": 140,
+            "family": 6,
+            "flags": [
+                "3dnowprefetch",
+                "abm",
+                "acpi",
+                "adx",
+                "aes",
+                "aperfmperf",
+                "apic",
+                "arat",
+                "arch_capabilities",
+                "arch_perfmon",
+                "art",
+                "avx",
+                "avx2",
+                "avx512_bitalg",
+                "avx512_vbmi2",
+                "avx512_vnni",
+                "avx512_vp2intersect",
+                "avx512_vpopcntdq",
+                "avx512bitalg",
+                "avx512bw",
+                "avx512cd",
+                "avx512dq",
+                "avx512f",
+                "avx512ifma",
+                "avx512vbmi",
+                "avx512vbmi2",
+                "avx512vl",
+                "avx512vnni",
+                "avx512vpopcntdq",
+                "bmi1",
+                "bmi2",
+                "bts",
+                "cat_l2",
+                "cdp_l2",
+                "clflush",
+                "clflushopt",
+                "clwb",
+                "cmov",
+                "constant_tsc",
+                "cpuid",
+                "cpuid_fault",
+                "cx16",
+                "cx8",
+                "de",
+                "ds_cpl",
+                "dtes64",
+                "dtherm",
+                "dts",
+                "epb",
+                "ept",
+                "ept_ad",
+                "erms",
+                "est",
+                "f16c",
+                "flexpriority",
+                "flush_l1d",
+                "fma",
+                "fpu",
+                "fsgsbase",
+                "fsrm",
+                "fxsr",
+                "gfni",
+                "ht",
+                "hwp",
+                "hwp_act_window",
+                "hwp_epp",
+                "hwp_notify",
+                "hwp_pkg_req",
+                "ibpb",
+                "ibrs",
+                "ibrs_enhanced",
+                "ibt",
+                "ida",
+                "intel_pt",
+                "invpcid",
+                "lahf_lm",
+                "lm",
+                "mca",
+                "mce",
+                "md_clear",
+                "mmx",
+                "monitor",
+                "movbe",
+                "movdir64b",
+                "movdiri",
+                "msr",
+                "mtrr",
+                "nonstop_tsc",
+                "nopl",
+                "nx",
+                "ospke",
+                "osxsave",
+                "pae",
+                "pat",
+                "pbe",
+                "pcid",
+                "pclmulqdq",
+                "pdcm",
+                "pdpe1gb",
+                "pebs",
+                "pge",
+                "pku",
+                "pln",
+                "pni",
+                "popcnt",
+                "pqe",
+                "pse",
+                "pse36",
+                "pts",
+                "rdpid",
+                "rdrand",
+                "rdrnd",
+                "rdseed",
+                "rdt_a",
+                "rdtscp",
+                "rep_good",
+                "sdbg",
+                "sep",
+                "sha",
+                "sha_ni",
+                "smap",
+                "smep",
+                "smx",
+                "split_lock_detect",
+                "ss",
+                "ssbd",
+                "sse",
+                "sse2",
+                "sse4_1",
+                "sse4_2",
+                "ssse3",
+                "stibp",
+                "syscall",
+                "tm",
+                "tm2",
+                "tme",
+                "tpr_shadow",
+                "tsc",
+                "tsc_adjust",
+                "tsc_deadline_timer",
+                "tsc_known_freq",
+                "tscdeadline",
+                "umip",
+                "user_shstk",
+                "vaes",
+                "vme",
+                "vmx",
+                "vnmi",
+                "vpclmulqdq",
+                "vpid",
+                "x2apic",
+                "xgetbv1",
+                "xsave",
+                "xsavec",
+                "xsaveopt",
+                "xsaves",
+                "xtopology",
+                "xtpr"
+            ],
+            "l3_cache_size": 12582912,
+            "l2_cache_size": 5242880,
+            "l1_data_cache_size": 196608,
+            "l1_instruction_cache_size": 131072,
+            "l2_cache_line_size": 256,
+            "l2_cache_associativity": 7
+        }
+    },
+    "commit_info": {
+        "id": "8a41862bc479ff85a31f3b295f29213db3472db8",
+        "time": "2026-11-16T20:17:02Z",
+        "author_time": "2026-11-16T20:17:02Z",
+        "dirty": true,
+        "project": "phlite",
+        "branch": "readme"
+    },
+    "benchmarks": [
+        {
+            "group": "directed flag n=100 p=0.2 dim\u22642",
+            "name": "test_directed_flag[100-0.2-2-flagser]",
+            "fullname": "benchmarks/bench_networks_directed_flag.py::test_directed_flag[100-0.2-2-flagser]",
+            "params": {
+                "n": 100,
+                "p": 0.2,
+                "max_dim": 2,
+                "implementation": "flagser"
+            },
+            "param": "100-0.2-2-flagser",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 1.4,
+                "fingerprint": [
+                    [
+                        99,
+                        1,
+                        2.780532
+                    ],
+                    [
+                        423,
+                        0,
+                        99.321193
+                    ],
+                    [
+                        792,
+                        1015,
+                        125.267547
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.3272375339874998,
+                "max": 0.34957121399929747,
+                "mean": 0.33761994732776657,
+                "stddev": 0.011249190695272564,
+                "rounds": 3,
+                "median": 0.33605109399650246,
+                "iqr": 0.016750260008848272,
+                "q1": 0.32944092398975044,
+                "q3": 0.3461911839985987,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.3272375339874998,
+                "hd15iqr": 0.34957121399929747,
+                "ops": 2.9619103015533166,
+                "total": 1.0128598419832997,
+                "data": [
+                    0.34957121399929747,
+                    0.33605109399650246,
+                    0.3272375339874998
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "directed flag n=100 p=0.2 dim\u22642",
+            "name": "test_directed_flag[100-0.2-2-phlite (serial)]",
+            "fullname": "benchmarks/bench_networks_directed_flag.py::test_directed_flag[100-0.2-2-phlite (serial)]",
+            "params": {
+                "n": 100,
+                "p": 0.2,
+                "max_dim": 2,
+                "implementation": "phlite (serial)"
+            },
+            "param": "100-0.2-2-phlite (serial)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 3.7,
+                "fingerprint": [
+                    [
+                        99,
+                        1,
+                        2.780532
+                    ],
+                    [
+                        423,
+                        0,
+                        99.321193
+                    ],
+                    [
+                        792,
+                        1015,
+                        125.267547
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.22300521298893727,
+                "max": 0.2250992149929516,
+                "mean": 0.22374032033258118,
+                "stddev": 0.0011781528171615344,
+                "rounds": 3,
+                "median": 0.22311653301585466,
+                "iqr": 0.001570501503010746,
+                "q1": 0.22303304299566662,
+                "q3": 0.22460354449867737,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.22300521298893727,
+                "hd15iqr": 0.2250992149929516,
+                "ops": 4.469467097005758,
+                "total": 0.6712209609977435,
+                "data": [
+                    0.2250992149929516,
+                    0.22300521298893727,
+                    0.22311653301585466
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "directed flag n=100 p=0.2 dim\u22642",
+            "name": "test_directed_flag[100-0.2-2-phlite (parallel)]",
+            "fullname": "benchmarks/bench_networks_directed_flag.py::test_directed_flag[100-0.2-2-phlite (parallel)]",
+            "params": {
+                "n": 100,
+                "p": 0.2,
+                "max_dim": 2,
+                "implementation": "phlite (parallel)"
+            },
+            "param": "100-0.2-2-phlite (parallel)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 8.6,
+                "fingerprint": [
+                    [
+                        99,
+                        1,
+                        2.780532
+                    ],
+                    [
+                        423,
+                        0,
+                        99.321193
+                    ],
+                    [
+                        792,
+                        1015,
+                        125.267547
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.1025973190262448,
+                "max": 0.13854231301229447,
+                "mean": 0.1165853293496184,
+                "stddev": 0.01925198821488762,
+                "rounds": 3,
+                "median": 0.10861635601031594,
+                "iqr": 0.02695874548953725,
+                "q1": 0.10410207827226259,
+                "q3": 0.13106082376179984,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.1025973190262448,
+                "hd15iqr": 0.13854231301229447,
+                "ops": 8.577408543412698,
+                "total": 0.3497559880488552,
+                "data": [
+                    0.1025973190262448,
+                    0.10861635601031594,
+                    0.13854231301229447
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "directed flag n=100 p=0.2 dim\u22642",
+            "name": "test_directed_flag[100-0.2-2-phlite (serial, merged)]",
+            "fullname": "benchmarks/bench_networks_directed_flag.py::test_directed_flag[100-0.2-2-phlite (serial, merged)]",
+            "params": {
+                "n": 100,
+                "p": 0.2,
+                "max_dim": 2,
+                "implementation": "phlite (serial, merged)"
+            },
+            "param": "100-0.2-2-phlite (serial, merged)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 3.7,
+                "fingerprint": [
+                    [
+                        99,
+                        1,
+                        2.780532
+                    ],
+                    [
+                        423,
+                        0,
+                        99.321193
+                    ],
+                    [
+                        792,
+                        1015,
+                        125.267547
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.2537187260168139,
+                "max": 0.27036367601249367,
+                "mean": 0.26065809366991743,
+                "stddev": 0.008660401137987833,
+                "rounds": 3,
+                "median": 0.25789187898044474,
+                "iqr": 0.012483712496759836,
+                "q1": 0.2547620142577216,
+                "q3": 0.26724572675448144,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.2537187260168139,
+                "hd15iqr": 0.27036367601249367,
+                "ops": 3.836443311314718,
+                "total": 0.7819742810097523,
+                "data": [
+                    0.27036367601249367,
+                    0.2537187260168139,
+                    0.25789187898044474
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "directed flag n=200 p=0.1 dim\u22642",
+            "name": "test_directed_flag[200-0.1-2-flagser]",
+            "fullname": "benchmarks/bench_networks_directed_flag.py::test_directed_flag[200-0.1-2-flagser]",
+            "params": {
+                "n": 200,
+                "p": 0.1,
+                "max_dim": 2,
+                "implementation": "flagser"
+            },
+            "param": "200-0.1-2-flagser",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 2.9,
+                "fingerprint": [
+                    [
+                        199,
+                        1,
+                        5.990126
+                    ],
+                    [
+                        1247,
+                        16,
+                        413.372253
+                    ],
+                    [
+                        45,
+                        2748,
+                        7.042872
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.6424210679833777,
+                "max": 0.765468855999643,
+                "mean": 0.6842027479918519,
+                "stddev": 0.07038788656259595,
+                "rounds": 3,
+                "median": 0.6447183199925348,
+                "iqr": 0.09228584101219894,
+                "q1": 0.642995380985667,
+                "q3": 0.7352812219978659,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.6424210679833777,
+                "hd15iqr": 0.765468855999643,
+                "ops": 1.4615550769636911,
+                "total": 2.0526082439755555,
+                "data": [
+                    0.765468855999643,
+                    0.6424210679833777,
+                    0.6447183199925348
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "directed flag n=200 p=0.1 dim\u22642",
+            "name": "test_directed_flag[200-0.1-2-phlite (serial)]",
+            "fullname": "benchmarks/bench_networks_directed_flag.py::test_directed_flag[200-0.1-2-phlite (serial)]",
+            "params": {
+                "n": 200,
+                "p": 0.1,
+                "max_dim": 2,
+                "implementation": "phlite (serial)"
+            },
+            "param": "200-0.1-2-phlite (serial)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 5.3,
+                "fingerprint": [
+                    [
+                        199,
+                        1,
+                        5.990126
+                    ],
+                    [
+                        1247,
+                        16,
+                        413.372253
+                    ],
+                    [
+                        45,
+                        2748,
+                        7.042872
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.34841581599903293,
+                "max": 0.3606509900128003,
+                "mean": 0.35331232434449095,
+                "stddev": 0.006472864132589178,
+                "rounds": 3,
+                "median": 0.35087016702163965,
+                "iqr": 0.009176380510325544,
+                "q1": 0.3490294037546846,
+                "q3": 0.35820578426501015,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.34841581599903293,
+                "hd15iqr": 0.3606509900128003,
+                "ops": 2.8303569705792873,
+                "total": 1.059936973033473,
+                "data": [
+                    0.35087016702163965,
+                    0.34841581599903293,
+                    0.3606509900128003
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "directed flag n=200 p=0.1 dim\u22642",
+            "name": "test_directed_flag[200-0.1-2-phlite (parallel)]",
+            "fullname": "benchmarks/bench_networks_directed_flag.py::test_directed_flag[200-0.1-2-phlite (parallel)]",
+            "params": {
+                "n": 200,
+                "p": 0.1,
+                "max_dim": 2,
+                "implementation": "phlite (parallel)"
+            },
+            "param": "200-0.1-2-phlite (parallel)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 5.3,
+                "fingerprint": [
+                    [
+                        199,
+                        1,
+                        5.990126
+                    ],
+                    [
+                        1247,
+                        16,
+                        413.372253
+                    ],
+                    [
+                        45,
+                        2748,
+                        7.042872
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.12626312498468906,
+                "max": 0.16150070499861613,
+                "mean": 0.14702525232375288,
+                "stddev": 0.018440809907908178,
+                "rounds": 3,
+                "median": 0.15331192698795348,
+                "iqr": 0.026428185010445304,
+                "q1": 0.13302532548550516,
+                "q3": 0.15945351049595047,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.12626312498468906,
+                "hd15iqr": 0.16150070499861613,
+                "ops": 6.801552687003574,
+                "total": 0.44107575697125867,
+                "data": [
+                    0.15331192698795348,
+                    0.12626312498468906,
+                    0.16150070499861613
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "directed flag n=200 p=0.1 dim\u22642",
+            "name": "test_directed_flag[200-0.1-2-phlite (serial, merged)]",
+            "fullname": "benchmarks/bench_networks_directed_flag.py::test_directed_flag[200-0.1-2-phlite (serial, merged)]",
+            "params": {
+                "n": 200,
+                "p": 0.1,
+                "max_dim": 2,
+                "implementation": "phlite (serial, merged)"
+            },
+            "param": "200-0.1-2-phlite (serial, merged)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 5.3,
+                "fingerprint": [
+                    [
+                        199,
+                        1,
+                        5.990126
+                    ],
+                    [
+                        1247,
+                        16,
+                        413.372253
+                    ],
+                    [
+                        45,
+                        2748,
+                        7.042872
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.34382137600914575,
+                "max": 0.40629747198545374,
+                "mean": 0.3695880363326675,
+                "stddev": 0.032643895157292144,
+                "rounds": 3,
+                "median": 0.358645261003403,
+                "iqr": 0.04685707198223099,
+                "q1": 0.34752734725771006,
+                "q3": 0.39438441923994105,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.34382137600914575,
+                "hd15iqr": 0.40629747198545374,
+                "ops": 2.7057152875476103,
+                "total": 1.1087641089980025,
+                "data": [
+                    0.40629747198545374,
+                    0.358645261003403,
+                    0.34382137600914575
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "directed flag n=60 p=0.3 dim\u22643",
+            "name": "test_directed_flag[60-0.3-3-flagser]",
+            "fullname": "benchmarks/bench_networks_directed_flag.py::test_directed_flag[60-0.3-3-flagser]",
+            "params": {
+                "n": 60,
+                "p": 0.3,
+                "max_dim": 3,
+                "implementation": "flagser"
+            },
+            "param": "60-0.3-3-flagser",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 1.2,
+                "fingerprint": [
+                    [
+                        59,
+                        1,
+                        1.975035
+                    ],
+                    [
+                        181,
+                        0,
+                        37.774887
+                    ],
+                    [
+                        522,
+                        46,
+                        95.440652
+                    ],
+                    [
+                        121,
+                        699,
+                        11.761189
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.10359271898050793,
+                "max": 0.11831665399949998,
+                "mean": 0.11098615132505074,
+                "stddev": 0.007362169226417489,
+                "rounds": 3,
+                "median": 0.11104908099514432,
+                "iqr": 0.011042951264244039,
+                "q1": 0.10545680948416702,
+                "q3": 0.11649976074841106,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.10359271898050793,
+                "hd15iqr": 0.11831665399949998,
+                "ops": 9.010133138784582,
+                "total": 0.3329584539751522,
+                "data": [
+                    0.10359271898050793,
+                    0.11831665399949998,
+                    0.11104908099514432
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "directed flag n=60 p=0.3 dim\u22643",
+            "name": "test_directed_flag[60-0.3-3-phlite (serial)]",
+            "fullname": "benchmarks/bench_networks_directed_flag.py::test_directed_flag[60-0.3-3-phlite (serial)]",
+            "params": {
+                "n": 60,
+                "p": 0.3,
+                "max_dim": 3,
+                "implementation": "phlite (serial)"
+            },
+            "param": "60-0.3-3-phlite (serial)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 1.9,
+                "fingerprint": [
+                    [
+                        59,
+                        1,
+                        1.975035
+                    ],
+                    [
+                        181,
+                        0,
+                        37.774887
+                    ],
+                    [
+                        522,
+                        46,
+                        95.440652
+                    ],
+                    [
+                        121,
+                        699,
+                        11.761189
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.0744400349794887,
+                "max": 0.07962990901432931,
+                "mean": 0.07769146400581424,
+                "stddev": 0.0028331331415320914,
+                "rounds": 3,
+                "median": 0.07900444802362472,
+                "iqr": 0.00389240552613046,
+                "q1": 0.0755811382405227,
+                "q3": 0.07947354376665317,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.0744400349794887,
+                "hd15iqr": 0.07962990901432931,
+                "ops": 12.871426903799398,
+                "total": 0.23307439201744273,
+                "data": [
+                    0.0744400349794887,
+                    0.07900444802362472,
+                    0.07962990901432931
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "directed flag n=60 p=0.3 dim\u22643",
+            "name": "test_directed_flag[60-0.3-3-phlite (parallel)]",
+            "fullname": "benchmarks/bench_networks_directed_flag.py::test_directed_flag[60-0.3-3-phlite (parallel)]",
+            "params": {
+                "n": 60,
+                "p": 0.3,
+                "max_dim": 3,
+                "implementation": "phlite (parallel)"
+            },
+            "param": "60-0.3-3-phlite (parallel)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 2.2,
+                "fingerprint": [
+                    [
+                        59,
+                        1,
+                        1.975035
+                    ],
+                    [
+                        181,
+                        0,
+                        37.774887
+                    ],
+                    [
+                        522,
+                        46,
+                        95.440652
+                    ],
+                    [
+                        121,
+                        699,
+                        11.761189
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.03546443898812868,
+                "max": 0.05564944399520755,
+                "mean": 0.04478326000389643,
+                "stddev": 0.010181078327835004,
+                "rounds": 3,
+                "median": 0.043235897028353065,
+                "iqr": 0.015138753755309153,
+                "q1": 0.037407303498184774,
+                "q3": 0.05254605725349393,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.03546443898812868,
+                "hd15iqr": 0.05564944399520755,
+                "ops": 22.329772328164445,
+                "total": 0.1343497800116893,
+                "data": [
+                    0.03546443898812868,
+                    0.043235897028353065,
+                    0.05564944399520755
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "directed flag n=60 p=0.3 dim\u22643",
+            "name": "test_directed_flag[60-0.3-3-phlite (serial, merged)]",
+            "fullname": "benchmarks/bench_networks_directed_flag.py::test_directed_flag[60-0.3-3-phlite (serial, merged)]",
+            "params": {
+                "n": 60,
+                "p": 0.3,
+                "max_dim": 3,
+                "implementation": "phlite (serial, merged)"
+            },
+            "param": "60-0.3-3-phlite (serial, merged)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 1.9,
+                "fingerprint": [
+                    [
+                        59,
+                        1,
+                        1.975035
+                    ],
+                    [
+                        181,
+                        0,
+                        37.774887
+                    ],
+                    [
+                        522,
+                        46,
+                        95.440652
+                    ],
+                    [
+                        121,
+                        699,
+                        11.761189
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.0670277180033736,
+                "max": 0.08947065798565745,
+                "mean": 0.07551924500148743,
+                "stddev": 0.012176992855284443,
+                "rounds": 3,
+                "median": 0.07005935901543126,
+                "iqr": 0.016832204986712895,
+                "q1": 0.06778562825638801,
+                "q3": 0.0846178332431009,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.0670277180033736,
+                "hd15iqr": 0.08947065798565745,
+                "ops": 13.241657804978107,
+                "total": 0.2265577350044623,
+                "data": [
+                    0.08947065798565745,
+                    0.07005935901543126,
+                    0.0670277180033736
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "directed flag n=500 p=0.05 dim\u22642",
+            "name": "test_directed_flag[500-0.05-2-flagser]",
+            "fullname": "benchmarks/bench_networks_directed_flag.py::test_directed_flag[500-0.05-2-flagser]",
+            "params": {
+                "n": 500,
+                "p": 0.05,
+                "max_dim": 2,
+                "implementation": "flagser"
+            },
+            "param": "500-0.05-2-flagser",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 39.5,
+                "fingerprint": [
+                    [
+                        499,
+                        1,
+                        11.992661
+                    ],
+                    [
+                        4855,
+                        405,
+                        2044.162941
+                    ],
+                    [
+                        13,
+                        2765,
+                        1.918217
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 86.50401594297728,
+                "max": 125.207836615009,
+                "mean": 109.29947424466566,
+                "stddev": 20.250197565180933,
+                "rounds": 3,
+                "median": 116.18657017601072,
+                "iqr": 29.027865504023794,
+                "q1": 93.92465450123564,
+                "q3": 122.95252000525943,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 86.50401594297728,
+                "hd15iqr": 125.207836615009,
+                "ops": 0.009149174841971437,
+                "total": 327.898422733997,
+                "data": [
+                    125.207836615009,
+                    116.18657017601072,
+                    86.50401594297728
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "directed flag n=500 p=0.05 dim\u22642",
+            "name": "test_directed_flag[500-0.05-2-phlite (serial)]",
+            "fullname": "benchmarks/bench_networks_directed_flag.py::test_directed_flag[500-0.05-2-phlite (serial)]",
+            "params": {
+                "n": 500,
+                "p": 0.05,
+                "max_dim": 2,
+                "implementation": "phlite (serial)"
+            },
+            "param": "500-0.05-2-phlite (serial)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 77.8,
+                "fingerprint": [
+                    [
+                        499,
+                        1,
+                        11.992661
+                    ],
+                    [
+                        4855,
+                        405,
+                        2044.162941
+                    ],
+                    [
+                        13,
+                        2765,
+                        1.918217
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 50.38631549300044,
+                "max": 50.414975213003345,
+                "mean": 50.40437813533936,
+                "stddev": 0.015720874008716166,
+                "rounds": 3,
+                "median": 50.41184370001429,
+                "iqr": 0.021494790002179798,
+                "q1": 50.3926975447539,
+                "q3": 50.41419233475608,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 50.38631549300044,
+                "hd15iqr": 50.414975213003345,
+                "ops": 0.019839546424219905,
+                "total": 151.21313440601807,
+                "data": [
+                    50.414975213003345,
+                    50.41184370001429,
+                    50.38631549300044
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "directed flag n=500 p=0.05 dim\u22642",
+            "name": "test_directed_flag[500-0.05-2-phlite (parallel)]",
+            "fullname": "benchmarks/bench_networks_directed_flag.py::test_directed_flag[500-0.05-2-phlite (parallel)]",
+            "params": {
+                "n": 500,
+                "p": 0.05,
+                "max_dim": 2,
+                "implementation": "phlite (parallel)"
+            },
+            "param": "500-0.05-2-phlite (parallel)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 178.9,
+                "fingerprint": [
+                    [
+                        499,
+                        1,
+                        11.992661
+                    ],
+                    [
+                        4855,
+                        405,
+                        2044.162941
+                    ],
+                    [
+                        13,
+                        2765,
+                        1.918217
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 24.212607225985266,
+                "max": 26.78912413699436,
+                "mean": 25.628656899993075,
+                "stddev": 1.3071348953947355,
+                "rounds": 3,
+                "median": 25.8842393369996,
+                "iqr": 1.9323876832568203,
+                "q1": 24.63051525373885,
+                "q3": 26.56290293699567,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 24.212607225985266,
+                "hd15iqr": 26.78912413699436,
+                "ops": 0.03901882193445222,
+                "total": 76.88597069997923,
+                "data": [
+                    26.78912413699436,
+                    25.8842393369996,
+                    24.212607225985266
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "directed flag n=500 p=0.05 dim\u22642",
+            "name": "test_directed_flag[500-0.05-2-phlite (serial, merged)]",
+            "fullname": "benchmarks/bench_networks_directed_flag.py::test_directed_flag[500-0.05-2-phlite (serial, merged)]",
+            "params": {
+                "n": 500,
+                "p": 0.05,
+                "max_dim": 2,
+                "implementation": "phlite (serial, merged)"
+            },
+            "param": "500-0.05-2-phlite (serial, merged)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 77.8,
+                "fingerprint": [
+                    [
+                        499,
+                        1,
+                        11.992661
+                    ],
+                    [
+                        4855,
+                        405,
+                        2044.162941
+                    ],
+                    [
+                        13,
+                        2765,
+                        1.918217
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 50.08557148897671,
+                "max": 51.20936101701227,
+                "mean": 50.73799422800463,
+                "stddev": 0.5833623818938849,
+                "rounds": 3,
+                "median": 50.91905017802492,
+                "iqr": 0.8428421460266691,
+                "q1": 50.29394116123876,
+                "q3": 51.13678330726543,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 50.08557148897671,
+                "hd15iqr": 51.20936101701227,
+                "ops": 0.019709096017990677,
+                "total": 152.2139826840139,
+                "data": [
+                    51.20936101701227,
+                    50.91905017802492,
+                    50.08557148897671
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "directed flag n=100 p=0.3 dim\u22643",
+            "name": "test_directed_flag[100-0.3-3-flagser]",
+            "fullname": "benchmarks/bench_networks_directed_flag.py::test_directed_flag[100-0.3-3-flagser]",
+            "params": {
+                "n": 100,
+                "p": 0.3,
+                "max_dim": 3,
+                "implementation": "flagser"
+            },
+            "param": "100-0.3-3-flagser",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 12.3,
+                "fingerprint": [
+                    [
+                        99,
+                        1,
+                        1.801789
+                    ],
+                    [
+                        412,
+                        0,
+                        69.548956
+                    ],
+                    [
+                        2016,
+                        10,
+                        333.612276
+                    ],
+                    [
+                        2806,
+                        5137,
+                        267.642696
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 6.074254431994632,
+                "max": 6.074254431994632,
+                "mean": 6.074254431994632,
+                "stddev": 0,
+                "rounds": 1,
+                "median": 6.074254431994632,
+                "iqr": 0.0,
+                "q1": 6.074254431994632,
+                "q3": 6.074254431994632,
+                "iqr_outliers": 0,
+                "stddev_outliers": 0,
+                "outliers": "0;0",
+                "ld15iqr": 6.074254431994632,
+                "hd15iqr": 6.074254431994632,
+                "ops": 0.1646292579930053,
+                "total": 6.074254431994632,
+                "data": [
+                    6.074254431994632
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "directed flag n=100 p=0.3 dim\u22643",
+            "name": "test_directed_flag[100-0.3-3-phlite (serial)]",
+            "fullname": "benchmarks/bench_networks_directed_flag.py::test_directed_flag[100-0.3-3-phlite (serial)]",
+            "params": {
+                "n": 100,
+                "p": 0.3,
+                "max_dim": 3,
+                "implementation": "phlite (serial)"
+            },
+            "param": "100-0.3-3-phlite (serial)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 42.6,
+                "fingerprint": [
+                    [
+                        99,
+                        1,
+                        1.801789
+                    ],
+                    [
+                        412,
+                        0,
+                        69.548956
+                    ],
+                    [
+                        2016,
+                        10,
+                        333.612276
+                    ],
+                    [
+                        2806,
+                        5137,
+                        267.642696
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 3.2083370180043858,
+                "max": 3.2083370180043858,
+                "mean": 3.2083370180043858,
+                "stddev": 0,
+                "rounds": 1,
+                "median": 3.2083370180043858,
+                "iqr": 0.0,
+                "q1": 3.2083370180043858,
+                "q3": 3.2083370180043858,
+                "iqr_outliers": 0,
+                "stddev_outliers": 0,
+                "outliers": "0;0",
+                "ld15iqr": 3.2083370180043858,
+                "hd15iqr": 3.2083370180043858,
+                "ops": 0.3116879537243905,
+                "total": 3.2083370180043858,
+                "data": [
+                    3.2083370180043858
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "directed flag n=100 p=0.3 dim\u22643",
+            "name": "test_directed_flag[100-0.3-3-phlite (parallel)]",
+            "fullname": "benchmarks/bench_networks_directed_flag.py::test_directed_flag[100-0.3-3-phlite (parallel)]",
+            "params": {
+                "n": 100,
+                "p": 0.3,
+                "max_dim": 3,
+                "implementation": "phlite (parallel)"
+            },
+            "param": "100-0.3-3-phlite (parallel)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 81.5,
+                "fingerprint": [
+                    [
+                        99,
+                        1,
+                        1.801789
+                    ],
+                    [
+                        412,
+                        0,
+                        69.548956
+                    ],
+                    [
+                        2016,
+                        10,
+                        333.612276
+                    ],
+                    [
+                        2806,
+                        5137,
+                        267.642696
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 2.259389019018272,
+                "max": 2.259389019018272,
+                "mean": 2.259389019018272,
+                "stddev": 0,
+                "rounds": 1,
+                "median": 2.259389019018272,
+                "iqr": 0.0,
+                "q1": 2.259389019018272,
+                "q3": 2.259389019018272,
+                "iqr_outliers": 0,
+                "stddev_outliers": 0,
+                "outliers": "0;0",
+                "ld15iqr": 2.259389019018272,
+                "hd15iqr": 2.259389019018272,
+                "ops": 0.4425975303865602,
+                "total": 2.259389019018272,
+                "data": [
+                    2.259389019018272
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "directed flag n=100 p=0.3 dim\u22643",
+            "name": "test_directed_flag[100-0.3-3-phlite (serial, merged)]",
+            "fullname": "benchmarks/bench_networks_directed_flag.py::test_directed_flag[100-0.3-3-phlite (serial, merged)]",
+            "params": {
+                "n": 100,
+                "p": 0.3,
+                "max_dim": 3,
+                "implementation": "phlite (serial, merged)"
+            },
+            "param": "100-0.3-3-phlite (serial, merged)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 42.6,
+                "fingerprint": [
+                    [
+                        99,
+                        1,
+                        1.801789
+                    ],
+                    [
+                        412,
+                        0,
+                        69.548956
+                    ],
+                    [
+                        2016,
+                        10,
+                        333.612276
+                    ],
+                    [
+                        2806,
+                        5137,
+                        267.642696
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 3.3066745529940818,
+                "max": 3.3066745529940818,
+                "mean": 3.3066745529940818,
+                "stddev": 0,
+                "rounds": 1,
+                "median": 3.3066745529940818,
+                "iqr": 0.0,
+                "q1": 3.3066745529940818,
+                "q3": 3.3066745529940818,
+                "iqr_outliers": 0,
+                "stddev_outliers": 0,
+                "outliers": "0;0",
+                "ld15iqr": 3.3066745529940818,
+                "hd15iqr": 3.3066745529940818,
+                "ops": 0.302418633576907,
+                "total": 3.3066745529940818,
+                "data": [
+                    3.3066745529940818
+                ],
+                "iterations": 1
+            }
+        }
+    ],
+    "datetime": "2026-11-17T06:05:42.650026+00:00",
+    "version": "5.3.1"
+}

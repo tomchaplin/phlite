@@ -1,0 +1,1989 @@
+{
+    "machine_info": {
+        "processor": "",
+        "machine": "x86_64",
+        "python_compiler": "GCC 15.1.1 20250425",
+        "python_implementation": "CPython",
+        "python_implementation_version": "3.11.13",
+        "python_version": "3.11.13",
+        "python_build": [
+            "main",
+            "Jul  7 2025 19:11:17"
+        ],
+        "release": "7.0.10-arch1-1",
+        "system": "Linux",
+        "cpu": {
+            "python_version": "3.11.13.final.0 (64 bit)",
+            "cpuinfo_version": [
+                10,
+                1,
+                1
+            ],
+            "cpuinfo_version_string": "10.1.1",
+            "arch": "X86_64",
+            "bits": 64,
+            "count": 8,
+            "arch_string_raw": "x86_64",
+            "vendor_id_raw": "GenuineIntel",
+            "brand_raw": "11th Gen Intel(R) Core(TM) i7-1185G7 @ 3.00GHz",
+            "hz_advertised_friendly": "3.0000 GHz",
+            "hz_advertised": [
+                3000000000,
+                0
+            ],
+            "stepping": 1,
+            "model": 140,
+            "family": 6,
+            "flags": [
+                "3dnowprefetch",
+                "abm",
+                "acpi",
+                "adx",
+                "aes",
+                "aperfmperf",
+                "apic",
+                "arat",
+                "arch_capabilities",
+                "arch_perfmon",
+                "art",
+                "avx",
+                "avx2",
+                "avx512_bitalg",
+                "avx512_vbmi2",
+                "avx512_vnni",
+                "avx512_vp2intersect",
+                "avx512_vpopcntdq",
+                "avx512bitalg",
+                "avx512bw",
+                "avx512cd",
+                "avx512dq",
+                "avx512f",
+                "avx512ifma",
+                "avx512vbmi",
+                "avx512vbmi2",
+                "avx512vl",
+                "avx512vnni",
+                "avx512vpopcntdq",
+                "bmi1",
+                "bmi2",
+                "bts",
+                "cat_l2",
+                "cdp_l2",
+                "clflush",
+                "clflushopt",
+                "clwb",
+                "cmov",
+                "constant_tsc",
+                "cpuid",
+                "cpuid_fault",
+                "cx16",
+                "cx8",
+                "de",
+                "ds_cpl",
+                "dtes64",
+                "dtherm",
+                "dts",
+                "epb",
+                "ept",
+                "ept_ad",
+                "erms",
+                "est",
+                "f16c",
+                "flexpriority",
+                "flush_l1d",
+                "fma",
+                "fpu",
+                "fsgsbase",
+                "fsrm",
+                "fxsr",
+                "gfni",
+                "ht",
+                "hwp",
+                "hwp_act_window",
+                "hwp_epp",
+                "hwp_notify",
+                "hwp_pkg_req",
+                "ibpb",
+                "ibrs",
+                "ibrs_enhanced",
+                "ibt",
+                "ida",
+                "intel_pt",
+                "invpcid",
+                "lahf_lm",
+                "lm",
+                "mca",
+                "mce",
+                "md_clear",
+                "mmx",
+                "monitor",
+                "movbe",
+                "movdir64b",
+                "movdiri",
+                "msr",
+                "mtrr",
+                "nonstop_tsc",
+                "nopl",
+                "nx",
+                "ospke",
+                "osxsave",
+                "pae",
+                "pat",
+                "pbe",
+                "pcid",
+                "pclmulqdq",
+                "pdcm",
+                "pdpe1gb",
+                "pebs",
+                "pge",
+                "pku",
+                "pln",
+                "pni",
+                "popcnt",
+                "pqe",
+                "pse",
+                "pse36",
+                "pts",
+                "rdpid",
+                "rdrand",
+                "rdrnd",
+                "rdseed",
+                "rdt_a",
+                "rdtscp",
+                "rep_good",
+                "sdbg",
+                "sep",
+                "sha",
+                "sha_ni",
+                "smap",
+                "smep",
+                "smx",
+                "split_lock_detect",
+                "ss",
+                "ssbd",
+                "sse",
+                "sse2",
+                "sse4_1",
+                "sse4_2",
+                "ssse3",
+                "stibp",
+                "syscall",
+                "tm",
+                "tm2",
+                "tme",
+                "tpr_shadow",
+                "tsc",
+                "tsc_adjust",
+                "tsc_deadline_timer",
+                "tsc_known_freq",
+                "tscdeadline",
+                "umip",
+                "user_shstk",
+                "vaes",
+                "vme",
+                "vmx",
+                "vnmi",
+                "vpclmulqdq",
+                "vpid",
+                "x2apic",
+                "xgetbv1",
+                "xsave",
+                "xsavec",
+                "xsaveopt",
+                "xsaves",
+                "xtopology",
+                "xtpr"
+            ],
+            "l3_cache_size": 12582912,
+            "l2_cache_size": 5242880,
+            "l1_data_cache_size": 196608,
+            "l1_instruction_cache_size": 131072,
+            "l2_cache_line_size": 256,
+            "l2_cache_associativity": 7
+        }
+    },
+    "commit_info": {
+        "id": "8a41862bc479ff85a31f3b295f29213db3472db8",
+        "time": "2026-11-16T20:17:02Z",
+        "author_time": "2026-11-16T20:17:02Z",
+        "dirty": true,
+        "project": "phlite",
+        "branch": "readme"
+    },
+    "benchmarks": [
+        {
+            "group": "delaunay-cech plane n=10000",
+            "name": "test_delaunay_cech[plane-10000-gudhi]",
+            "fullname": "benchmarks/bench_clouds_delaunay_cech.py::test_delaunay_cech[plane-10000-gudhi]",
+            "params": {
+                "shape": "plane",
+                "n": 10000,
+                "implementation": "gudhi"
+            },
+            "param": "plane-10000-gudhi",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 3.9,
+                "fingerprint": [
+                    [
+                        9998,
+                        1,
+                        0.128213
+                    ],
+                    [
+                        9676,
+                        0,
+                        0.120959
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.07346571399830282,
+                "max": 0.10262455002521165,
+                "mean": 0.08592421033730109,
+                "stddev": 0.01503510411864755,
+                "rounds": 3,
+                "median": 0.08168236698838882,
+                "iqr": 0.021869127020181622,
+                "q1": 0.07551987724582432,
+                "q3": 0.09738900426600594,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.07346571399830282,
+                "hd15iqr": 0.10262455002521165,
+                "ops": 11.638163400913838,
+                "total": 0.2577726310119033,
+                "data": [
+                    0.10262455002521165,
+                    0.08168236698838882,
+                    0.07346571399830282
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "delaunay-cech plane n=10000",
+            "name": "test_delaunay_cech[plane-10000-phlite (serial)]",
+            "fullname": "benchmarks/bench_clouds_delaunay_cech.py::test_delaunay_cech[plane-10000-phlite (serial)]",
+            "params": {
+                "shape": "plane",
+                "n": 10000,
+                "implementation": "phlite (serial)"
+            },
+            "param": "plane-10000-phlite (serial)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 4.4,
+                "fingerprint": [
+                    [
+                        9998,
+                        1,
+                        0.128213
+                    ],
+                    [
+                        9676,
+                        0,
+                        0.120959
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.05847766000078991,
+                "max": 0.05940654201549478,
+                "mean": 0.05907904933944034,
+                "stddev": 0.0005215074166744524,
+                "rounds": 3,
+                "median": 0.05935294600203633,
+                "iqr": 0.0006966615110286511,
+                "q1": 0.058696481501101516,
+                "q3": 0.05939314301213017,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.05847766000078991,
+                "hd15iqr": 0.05940654201549478,
+                "ops": 16.926474125446262,
+                "total": 0.17723714801832102,
+                "data": [
+                    0.05940654201549478,
+                    0.05935294600203633,
+                    0.05847766000078991
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "delaunay-cech plane n=10000",
+            "name": "test_delaunay_cech[plane-10000-phlite (parallel)]",
+            "fullname": "benchmarks/bench_clouds_delaunay_cech.py::test_delaunay_cech[plane-10000-phlite (parallel)]",
+            "params": {
+                "shape": "plane",
+                "n": 10000,
+                "implementation": "phlite (parallel)"
+            },
+            "param": "plane-10000-phlite (parallel)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 4.4,
+                "fingerprint": [
+                    [
+                        9998,
+                        1,
+                        0.128213
+                    ],
+                    [
+                        9676,
+                        0,
+                        0.120959
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.0683466229820624,
+                "max": 0.07138203299837187,
+                "mean": 0.07000871733180247,
+                "stddev": 0.0015381720767418405,
+                "rounds": 3,
+                "median": 0.07029749601497315,
+                "iqr": 0.0022765575122321025,
+                "q1": 0.06883434124029009,
+                "q3": 0.07111089875252219,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.0683466229820624,
+                "hd15iqr": 0.07138203299837187,
+                "ops": 14.283935459930724,
+                "total": 0.21002615199540742,
+                "data": [
+                    0.07138203299837187,
+                    0.07029749601497315,
+                    0.0683466229820624
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "delaunay-cech plane n=10000",
+            "name": "test_delaunay_cech[plane-10000-phlite (serial, merged)]",
+            "fullname": "benchmarks/bench_clouds_delaunay_cech.py::test_delaunay_cech[plane-10000-phlite (serial, merged)]",
+            "params": {
+                "shape": "plane",
+                "n": 10000,
+                "implementation": "phlite (serial, merged)"
+            },
+            "param": "plane-10000-phlite (serial, merged)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 4.4,
+                "fingerprint": [
+                    [
+                        9998,
+                        1,
+                        0.128213
+                    ],
+                    [
+                        9676,
+                        0,
+                        0.120959
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.06677246699109674,
+                "max": 0.07410336099565029,
+                "mean": 0.07030612665888232,
+                "stddev": 0.003672547539664626,
+                "rounds": 3,
+                "median": 0.07004255198989995,
+                "iqr": 0.005498170503415167,
+                "q1": 0.06758998824079754,
+                "q3": 0.0730881587442127,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.06677246699109674,
+                "hd15iqr": 0.07410336099565029,
+                "ops": 14.223511485021657,
+                "total": 0.21091837997664697,
+                "data": [
+                    0.07410336099565029,
+                    0.06677246699109674,
+                    0.07004255198989995
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "delaunay-cech plane n=100000",
+            "name": "test_delaunay_cech[plane-100000-gudhi]",
+            "fullname": "benchmarks/bench_clouds_delaunay_cech.py::test_delaunay_cech[plane-100000-gudhi]",
+            "params": {
+                "shape": "plane",
+                "n": 100000,
+                "implementation": "gudhi"
+            },
+            "param": "plane-100000-gudhi",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 9.0,
+                "fingerprint": [
+                    [
+                        99931,
+                        1,
+                        0.126992
+                    ],
+                    [
+                        95244,
+                        0,
+                        0.124667
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 1.3358783890143968,
+                "max": 1.3665089449787047,
+                "mean": 1.352627550329392,
+                "stddev": 0.015515340921399378,
+                "rounds": 3,
+                "median": 1.355495316995075,
+                "iqr": 0.022972916973230895,
+                "q1": 1.3407826210095664,
+                "q3": 1.3637555379827973,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 1.3358783890143968,
+                "hd15iqr": 1.3665089449787047,
+                "ops": 0.7393018127987115,
+                "total": 4.0578826509881765,
+                "data": [
+                    1.3665089449787047,
+                    1.355495316995075,
+                    1.3358783890143968
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "delaunay-cech plane n=100000",
+            "name": "test_delaunay_cech[plane-100000-phlite (serial)]",
+            "fullname": "benchmarks/bench_clouds_delaunay_cech.py::test_delaunay_cech[plane-100000-phlite (serial)]",
+            "params": {
+                "shape": "plane",
+                "n": 100000,
+                "implementation": "phlite (serial)"
+            },
+            "param": "plane-100000-phlite (serial)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 6.6,
+                "fingerprint": [
+                    [
+                        99931,
+                        1,
+                        0.126992
+                    ],
+                    [
+                        95244,
+                        0,
+                        0.124667
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 1.4051535770122427,
+                "max": 1.4129463020071853,
+                "mean": 1.4094902910098124,
+                "stddev": 0.0039703109503686235,
+                "rounds": 3,
+                "median": 1.4103709940100089,
+                "iqr": 0.005844543746206909,
+                "q1": 1.4064579312616843,
+                "q3": 1.4123024750078912,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 1.4051535770122427,
+                "hd15iqr": 1.4129463020071853,
+                "ops": 0.7094763308256363,
+                "total": 4.228470873029437,
+                "data": [
+                    1.4103709940100089,
+                    1.4051535770122427,
+                    1.4129463020071853
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "delaunay-cech plane n=100000",
+            "name": "test_delaunay_cech[plane-100000-phlite (parallel)]",
+            "fullname": "benchmarks/bench_clouds_delaunay_cech.py::test_delaunay_cech[plane-100000-phlite (parallel)]",
+            "params": {
+                "shape": "plane",
+                "n": 100000,
+                "implementation": "phlite (parallel)"
+            },
+            "param": "plane-100000-phlite (parallel)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 6.6,
+                "fingerprint": [
+                    [
+                        99931,
+                        1,
+                        0.126992
+                    ],
+                    [
+                        95244,
+                        0,
+                        0.124667
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 1.5232173780095764,
+                "max": 1.5363418880151585,
+                "mean": 1.531736302335048,
+                "stddev": 0.007385719683051568,
+                "rounds": 3,
+                "median": 1.5356496409804095,
+                "iqr": 0.009843382504186593,
+                "q1": 1.5263254437522846,
+                "q3": 1.5361688262564712,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 1.5232173780095764,
+                "hd15iqr": 1.5363418880151585,
+                "ops": 0.6528538877583268,
+                "total": 4.595208907005144,
+                "data": [
+                    1.5232173780095764,
+                    1.5356496409804095,
+                    1.5363418880151585
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "delaunay-cech plane n=100000",
+            "name": "test_delaunay_cech[plane-100000-phlite (serial, merged)]",
+            "fullname": "benchmarks/bench_clouds_delaunay_cech.py::test_delaunay_cech[plane-100000-phlite (serial, merged)]",
+            "params": {
+                "shape": "plane",
+                "n": 100000,
+                "implementation": "phlite (serial, merged)"
+            },
+            "param": "plane-100000-phlite (serial, merged)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 6.6,
+                "fingerprint": [
+                    [
+                        99931,
+                        1,
+                        0.126992
+                    ],
+                    [
+                        95244,
+                        0,
+                        0.124667
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 1.5250389119901229,
+                "max": 1.5494968190032523,
+                "mean": 1.5346959246671759,
+                "stddev": 0.013015065991275268,
+                "rounds": 3,
+                "median": 1.5295520430081524,
+                "iqr": 0.018343430259847082,
+                "q1": 1.5261671947446303,
+                "q3": 1.5445106250044773,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 1.5250389119901229,
+                "hd15iqr": 1.5494968190032523,
+                "ops": 0.6515948755235449,
+                "total": 4.604087774001528,
+                "data": [
+                    1.5494968190032523,
+                    1.5295520430081524,
+                    1.5250389119901229
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "delaunay-cech space n=10000",
+            "name": "test_delaunay_cech[space-10000-gudhi]",
+            "fullname": "benchmarks/bench_clouds_delaunay_cech.py::test_delaunay_cech[space-10000-gudhi]",
+            "params": {
+                "shape": "space",
+                "n": 10000,
+                "implementation": "gudhi"
+            },
+            "param": "space-10000-gudhi",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 4.4,
+                "fingerprint": [
+                    [
+                        9999,
+                        1,
+                        2.550771
+                    ],
+                    [
+                        27224,
+                        0,
+                        3.09999
+                    ],
+                    [
+                        15537,
+                        0,
+                        0.871836
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.5437484869908076,
+                "max": 0.5625773729989305,
+                "mean": 0.5509860193221053,
+                "stddev": 0.010141427774642931,
+                "rounds": 3,
+                "median": 0.546632197976578,
+                "iqr": 0.014121664506092202,
+                "q1": 0.5444694147372502,
+                "q3": 0.5585910792433424,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.5437484869908076,
+                "hd15iqr": 0.5625773729989305,
+                "ops": 1.8149280833483397,
+                "total": 1.6529580579663161,
+                "data": [
+                    0.5625773729989305,
+                    0.5437484869908076,
+                    0.546632197976578
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "delaunay-cech space n=10000",
+            "name": "test_delaunay_cech[space-10000-phlite (serial)]",
+            "fullname": "benchmarks/bench_clouds_delaunay_cech.py::test_delaunay_cech[space-10000-phlite (serial)]",
+            "params": {
+                "shape": "space",
+                "n": 10000,
+                "implementation": "phlite (serial)"
+            },
+            "param": "space-10000-phlite (serial)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 28.1,
+                "fingerprint": [
+                    [
+                        9999,
+                        1,
+                        2.550771
+                    ],
+                    [
+                        27224,
+                        0,
+                        3.09999
+                    ],
+                    [
+                        15537,
+                        0,
+                        0.871836
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.40253738101455383,
+                "max": 0.4049648999935016,
+                "mean": 0.40396460034147214,
+                "stddev": 0.001268821265936746,
+                "rounds": 3,
+                "median": 0.40439152001636103,
+                "iqr": 0.0018206392342108302,
+                "q1": 0.40300091576500563,
+                "q3": 0.40482155499921646,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.40253738101455383,
+                "hd15iqr": 0.4049648999935016,
+                "ops": 2.475464432167318,
+                "total": 1.2118938010244165,
+                "data": [
+                    0.40439152001636103,
+                    0.4049648999935016,
+                    0.40253738101455383
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "delaunay-cech space n=10000",
+            "name": "test_delaunay_cech[space-10000-phlite (parallel)]",
+            "fullname": "benchmarks/bench_clouds_delaunay_cech.py::test_delaunay_cech[space-10000-phlite (parallel)]",
+            "params": {
+                "shape": "space",
+                "n": 10000,
+                "implementation": "phlite (parallel)"
+            },
+            "param": "space-10000-phlite (parallel)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 28.2,
+                "fingerprint": [
+                    [
+                        9999,
+                        1,
+                        2.550771
+                    ],
+                    [
+                        27224,
+                        0,
+                        3.09999
+                    ],
+                    [
+                        15537,
+                        0,
+                        0.871836
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.42786821399931796,
+                "max": 0.4354271920165047,
+                "mean": 0.43202748834543553,
+                "stddev": 0.0038363065406551104,
+                "rounds": 3,
+                "median": 0.43278705902048387,
+                "iqr": 0.0056692335128900595,
+                "q1": 0.42909792525460944,
+                "q3": 0.4347671587674995,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.42786821399931796,
+                "hd15iqr": 0.4354271920165047,
+                "ops": 2.3146675315262155,
+                "total": 1.2960824650363065,
+                "data": [
+                    0.43278705902048387,
+                    0.42786821399931796,
+                    0.4354271920165047
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "delaunay-cech space n=10000",
+            "name": "test_delaunay_cech[space-10000-phlite (serial, merged)]",
+            "fullname": "benchmarks/bench_clouds_delaunay_cech.py::test_delaunay_cech[space-10000-phlite (serial, merged)]",
+            "params": {
+                "shape": "space",
+                "n": 10000,
+                "implementation": "phlite (serial, merged)"
+            },
+            "param": "space-10000-phlite (serial, merged)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 28.1,
+                "fingerprint": [
+                    [
+                        9999,
+                        1,
+                        2.550771
+                    ],
+                    [
+                        27224,
+                        0,
+                        3.09999
+                    ],
+                    [
+                        15537,
+                        0,
+                        0.871836
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.42923549000988714,
+                "max": 0.4424816929968074,
+                "mean": 0.4364320743382753,
+                "stddev": 0.006697172618243096,
+                "rounds": 3,
+                "median": 0.4375790400081314,
+                "iqr": 0.00993465224019019,
+                "q1": 0.4313213775094482,
+                "q3": 0.4412560297496384,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.42923549000988714,
+                "hd15iqr": 0.4424816929968074,
+                "ops": 2.291307304845123,
+                "total": 1.309296223014826,
+                "data": [
+                    0.4375790400081314,
+                    0.42923549000988714,
+                    0.4424816929968074
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "delaunay-cech space n=50000",
+            "name": "test_delaunay_cech[space-50000-gudhi]",
+            "fullname": "benchmarks/bench_clouds_delaunay_cech.py::test_delaunay_cech[space-50000-gudhi]",
+            "params": {
+                "shape": "space",
+                "n": 50000,
+                "implementation": "gudhi"
+            },
+            "param": "space-50000-gudhi",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 2.4,
+                "fingerprint": [
+                    [
+                        49999,
+                        1,
+                        4.30244
+                    ],
+                    [
+                        141620,
+                        0,
+                        5.504856
+                    ],
+                    [
+                        83002,
+                        0,
+                        1.679191
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 3.9900499020004645,
+                "max": 4.070103272999404,
+                "mean": 4.025550923999011,
+                "stddev": 0.040787013159144556,
+                "rounds": 3,
+                "median": 4.016499596997164,
+                "iqr": 0.060040028249204624,
+                "q1": 3.9966623257496394,
+                "q3": 4.056702353998844,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 3.9900499020004645,
+                "hd15iqr": 4.070103272999404,
+                "ops": 0.24841320328065628,
+                "total": 12.076652771997033,
+                "data": [
+                    4.070103272999404,
+                    4.016499596997164,
+                    3.9900499020004645
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "delaunay-cech space n=50000",
+            "name": "test_delaunay_cech[space-50000-phlite (serial)]",
+            "fullname": "benchmarks/bench_clouds_delaunay_cech.py::test_delaunay_cech[space-50000-phlite (serial)]",
+            "params": {
+                "shape": "space",
+                "n": 50000,
+                "implementation": "phlite (serial)"
+            },
+            "param": "space-50000-phlite (serial)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 6.0,
+                "fingerprint": [
+                    [
+                        49999,
+                        1,
+                        4.30244
+                    ],
+                    [
+                        141620,
+                        0,
+                        5.504856
+                    ],
+                    [
+                        83002,
+                        0,
+                        1.679191
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 2.3358820980065502,
+                "max": 2.3487472039996646,
+                "mean": 2.344153927998074,
+                "stddev": 0.007178200167601702,
+                "rounds": 3,
+                "median": 2.347832481988007,
+                "iqr": 0.009648829494835809,
+                "q1": 2.3388696940019145,
+                "q3": 2.3485185234967503,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 2.3358820980065502,
+                "hd15iqr": 2.3487472039996646,
+                "ops": 0.4265931464893212,
+                "total": 7.032461783994222,
+                "data": [
+                    2.3358820980065502,
+                    2.3487472039996646,
+                    2.347832481988007
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "delaunay-cech space n=50000",
+            "name": "test_delaunay_cech[space-50000-phlite (parallel)]",
+            "fullname": "benchmarks/bench_clouds_delaunay_cech.py::test_delaunay_cech[space-50000-phlite (parallel)]",
+            "params": {
+                "shape": "space",
+                "n": 50000,
+                "implementation": "phlite (parallel)"
+            },
+            "param": "space-50000-phlite (parallel)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 6.0,
+                "fingerprint": [
+                    [
+                        49999,
+                        1,
+                        4.30244
+                    ],
+                    [
+                        141620,
+                        0,
+                        5.504856
+                    ],
+                    [
+                        83002,
+                        0,
+                        1.679191
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 2.5263019740232266,
+                "max": 2.6323644259828143,
+                "mean": 2.5712827913327296,
+                "stddev": 0.054833732028706866,
+                "rounds": 3,
+                "median": 2.5551819739921484,
+                "iqr": 0.07954683896969073,
+                "q1": 2.533521974015457,
+                "q3": 2.613068812985148,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 2.5263019740232266,
+                "hd15iqr": 2.6323644259828143,
+                "ops": 0.38891093712865665,
+                "total": 7.713848373998189,
+                "data": [
+                    2.5263019740232266,
+                    2.5551819739921484,
+                    2.6323644259828143
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "delaunay-cech space n=50000",
+            "name": "test_delaunay_cech[space-50000-phlite (serial, merged)]",
+            "fullname": "benchmarks/bench_clouds_delaunay_cech.py::test_delaunay_cech[space-50000-phlite (serial, merged)]",
+            "params": {
+                "shape": "space",
+                "n": 50000,
+                "implementation": "phlite (serial, merged)"
+            },
+            "param": "space-50000-phlite (serial, merged)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 6.0,
+                "fingerprint": [
+                    [
+                        49999,
+                        1,
+                        4.30244
+                    ],
+                    [
+                        141620,
+                        0,
+                        5.504856
+                    ],
+                    [
+                        83002,
+                        0,
+                        1.679191
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 2.6001466659945436,
+                "max": 2.6692133259784896,
+                "mean": 2.6305295006507854,
+                "stddev": 0.035273654686327656,
+                "rounds": 3,
+                "median": 2.6222285099793226,
+                "iqr": 0.05179999498795951,
+                "q1": 2.6056671269907383,
+                "q3": 2.657467121978698,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 2.6001466659945436,
+                "hd15iqr": 2.6692133259784896,
+                "ops": 0.3801516005627775,
+                "total": 7.891588501952356,
+                "data": [
+                    2.6692133259784896,
+                    2.6222285099793226,
+                    2.6001466659945436
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "delaunay-cech torus n=20000",
+            "name": "test_delaunay_cech[torus-20000-gudhi]",
+            "fullname": "benchmarks/bench_clouds_delaunay_cech.py::test_delaunay_cech[torus-20000-gudhi]",
+            "params": {
+                "shape": "torus",
+                "n": 20000,
+                "implementation": "gudhi"
+            },
+            "param": "torus-20000-gudhi",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 4.6,
+                "fingerprint": [
+                    [
+                        19999,
+                        1,
+                        20.708542
+                    ],
+                    [
+                        40444,
+                        0,
+                        18.895518
+                    ],
+                    [
+                        15091,
+                        0,
+                        2.712936
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 1.1719748800096568,
+                "max": 1.1968162079865579,
+                "mean": 1.186202507999648,
+                "stddev": 0.012808912936802414,
+                "rounds": 3,
+                "median": 1.1898164360027295,
+                "iqr": 0.018630995982675813,
+                "q1": 1.176435269007925,
+                "q3": 1.1950662649906008,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 1.1719748800096568,
+                "hd15iqr": 1.1968162079865579,
+                "ops": 0.8430263747177111,
+                "total": 3.558607523998944,
+                "data": [
+                    1.1968162079865579,
+                    1.1898164360027295,
+                    1.1719748800096568
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "delaunay-cech torus n=20000",
+            "name": "test_delaunay_cech[torus-20000-phlite (serial)]",
+            "fullname": "benchmarks/bench_clouds_delaunay_cech.py::test_delaunay_cech[torus-20000-phlite (serial)]",
+            "params": {
+                "shape": "torus",
+                "n": 20000,
+                "implementation": "phlite (serial)"
+            },
+            "param": "torus-20000-phlite (serial)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 25.7,
+                "fingerprint": [
+                    [
+                        19999,
+                        1,
+                        20.708542
+                    ],
+                    [
+                        40444,
+                        0,
+                        18.895518
+                    ],
+                    [
+                        15091,
+                        0,
+                        2.712936
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.7928810759913176,
+                "max": 0.828688682988286,
+                "mean": 0.8077981913326463,
+                "stddev": 0.018636177133645553,
+                "rounds": 3,
+                "median": 0.8018248150183354,
+                "iqr": 0.02685570524772629,
+                "q1": 0.7951170107480721,
+                "q3": 0.8219727159957984,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.7928810759913176,
+                "hd15iqr": 0.828688682988286,
+                "ops": 1.23793295247452,
+                "total": 2.423394573997939,
+                "data": [
+                    0.8018248150183354,
+                    0.7928810759913176,
+                    0.828688682988286
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "delaunay-cech torus n=20000",
+            "name": "test_delaunay_cech[torus-20000-phlite (parallel)]",
+            "fullname": "benchmarks/bench_clouds_delaunay_cech.py::test_delaunay_cech[torus-20000-phlite (parallel)]",
+            "params": {
+                "shape": "torus",
+                "n": 20000,
+                "implementation": "phlite (parallel)"
+            },
+            "param": "torus-20000-phlite (parallel)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 25.8,
+                "fingerprint": [
+                    [
+                        19999,
+                        1,
+                        20.708542
+                    ],
+                    [
+                        40444,
+                        0,
+                        18.895518
+                    ],
+                    [
+                        15091,
+                        0,
+                        2.712936
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.8463018409966026,
+                "max": 0.8770231169764884,
+                "mean": 0.8629778736600807,
+                "stddev": 0.015528682780570043,
+                "rounds": 3,
+                "median": 0.8656086630071513,
+                "iqr": 0.023040956984914374,
+                "q1": 0.8511285464992397,
+                "q3": 0.8741695034841541,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.8463018409966026,
+                "hd15iqr": 0.8770231169764884,
+                "ops": 1.1587782613229445,
+                "total": 2.5889336209802423,
+                "data": [
+                    0.8656086630071513,
+                    0.8770231169764884,
+                    0.8463018409966026
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "delaunay-cech torus n=20000",
+            "name": "test_delaunay_cech[torus-20000-phlite (serial, merged)]",
+            "fullname": "benchmarks/bench_clouds_delaunay_cech.py::test_delaunay_cech[torus-20000-phlite (serial, merged)]",
+            "params": {
+                "shape": "torus",
+                "n": 20000,
+                "implementation": "phlite (serial, merged)"
+            },
+            "param": "torus-20000-phlite (serial, merged)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 25.7,
+                "fingerprint": [
+                    [
+                        19999,
+                        1,
+                        20.708542
+                    ],
+                    [
+                        40444,
+                        0,
+                        18.895518
+                    ],
+                    [
+                        15091,
+                        0,
+                        2.712936
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.8540085720014758,
+                "max": 0.8760354340192862,
+                "mean": 0.8668165523461843,
+                "stddev": 0.011443639479807519,
+                "rounds": 3,
+                "median": 0.8704056510177907,
+                "iqr": 0.01652014651335776,
+                "q1": 0.8581078417555545,
+                "q3": 0.8746279882689123,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.8540085720014758,
+                "hd15iqr": 0.8760354340192862,
+                "ops": 1.1536466364115134,
+                "total": 2.6004496570385527,
+                "data": [
+                    0.8760354340192862,
+                    0.8540085720014758,
+                    0.8704056510177907
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "delaunay-cech plane n=1000000",
+            "name": "test_delaunay_cech[plane-1000000-gudhi]",
+            "fullname": "benchmarks/bench_clouds_delaunay_cech.py::test_delaunay_cech[plane-1000000-gudhi]",
+            "params": {
+                "shape": "plane",
+                "n": 1000000,
+                "implementation": "gudhi"
+            },
+            "param": "plane-1000000-gudhi",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 9.8,
+                "fingerprint": [
+                    [
+                        993674,
+                        1,
+                        0.126571
+                    ],
+                    [
+                        871943,
+                        0,
+                        0.125755
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 21.147524934000103,
+                "max": 21.147524934000103,
+                "mean": 21.147524934000103,
+                "stddev": 0,
+                "rounds": 1,
+                "median": 21.147524934000103,
+                "iqr": 0.0,
+                "q1": 21.147524934000103,
+                "q3": 21.147524934000103,
+                "iqr_outliers": 0,
+                "stddev_outliers": 0,
+                "outliers": "0;0",
+                "ld15iqr": 21.147524934000103,
+                "hd15iqr": 21.147524934000103,
+                "ops": 0.0472868575930719,
+                "total": 21.147524934000103,
+                "data": [
+                    21.147524934000103
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "delaunay-cech plane n=1000000",
+            "name": "test_delaunay_cech[plane-1000000-phlite (serial)]",
+            "fullname": "benchmarks/bench_clouds_delaunay_cech.py::test_delaunay_cech[plane-1000000-phlite (serial)]",
+            "params": {
+                "shape": "plane",
+                "n": 1000000,
+                "implementation": "phlite (serial)"
+            },
+            "param": "plane-1000000-phlite (serial)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 25.8,
+                "fingerprint": [
+                    [
+                        993674,
+                        1,
+                        0.126571
+                    ],
+                    [
+                        871943,
+                        0,
+                        0.125755
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 168.11795836000238,
+                "max": 168.11795836000238,
+                "mean": 168.11795836000238,
+                "stddev": 0,
+                "rounds": 1,
+                "median": 168.11795836000238,
+                "iqr": 0.0,
+                "q1": 168.11795836000238,
+                "q3": 168.11795836000238,
+                "iqr_outliers": 0,
+                "stddev_outliers": 0,
+                "outliers": "0;0",
+                "ld15iqr": 168.11795836000238,
+                "hd15iqr": 168.11795836000238,
+                "ops": 0.005948204521129339,
+                "total": 168.11795836000238,
+                "data": [
+                    168.11795836000238
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "delaunay-cech plane n=1000000",
+            "name": "test_delaunay_cech[plane-1000000-phlite (parallel)]",
+            "fullname": "benchmarks/bench_clouds_delaunay_cech.py::test_delaunay_cech[plane-1000000-phlite (parallel)]",
+            "params": {
+                "shape": "plane",
+                "n": 1000000,
+                "implementation": "phlite (parallel)"
+            },
+            "param": "plane-1000000-phlite (parallel)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 25.8,
+                "fingerprint": [
+                    [
+                        993674,
+                        1,
+                        0.126571
+                    ],
+                    [
+                        871943,
+                        0,
+                        0.125755
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 170.89708042299026,
+                "max": 170.89708042299026,
+                "mean": 170.89708042299026,
+                "stddev": 0,
+                "rounds": 1,
+                "median": 170.89708042299026,
+                "iqr": 0.0,
+                "q1": 170.89708042299026,
+                "q3": 170.89708042299026,
+                "iqr_outliers": 0,
+                "stddev_outliers": 0,
+                "outliers": "0;0",
+                "ld15iqr": 170.89708042299026,
+                "hd15iqr": 170.89708042299026,
+                "ops": 0.0058514750370508555,
+                "total": 170.89708042299026,
+                "data": [
+                    170.89708042299026
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "delaunay-cech plane n=1000000",
+            "name": "test_delaunay_cech[plane-1000000-phlite (serial, merged)]",
+            "fullname": "benchmarks/bench_clouds_delaunay_cech.py::test_delaunay_cech[plane-1000000-phlite (serial, merged)]",
+            "params": {
+                "shape": "plane",
+                "n": 1000000,
+                "implementation": "phlite (serial, merged)"
+            },
+            "param": "plane-1000000-phlite (serial, merged)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 25.8,
+                "fingerprint": [
+                    [
+                        993674,
+                        1,
+                        0.126571
+                    ],
+                    [
+                        871943,
+                        0,
+                        0.125755
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 171.51535795399104,
+                "max": 171.51535795399104,
+                "mean": 171.51535795399104,
+                "stddev": 0,
+                "rounds": 1,
+                "median": 171.51535795399104,
+                "iqr": 0.0,
+                "q1": 171.51535795399104,
+                "q3": 171.51535795399104,
+                "iqr_outliers": 0,
+                "stddev_outliers": 0,
+                "outliers": "0;0",
+                "ld15iqr": 171.51535795399104,
+                "hd15iqr": 171.51535795399104,
+                "ops": 0.005830381675023235,
+                "total": 171.51535795399104,
+                "data": [
+                    171.51535795399104
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "delaunay-cech space n=200000",
+            "name": "test_delaunay_cech[space-200000-gudhi]",
+            "fullname": "benchmarks/bench_clouds_delaunay_cech.py::test_delaunay_cech[space-200000-gudhi]",
+            "params": {
+                "shape": "space",
+                "n": 200000,
+                "implementation": "gudhi"
+            },
+            "param": "space-200000-gudhi",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 3.4,
+                "fingerprint": [
+                    [
+                        199999,
+                        1,
+                        6.771793
+                    ],
+                    [
+                        576038,
+                        0,
+                        8.946354
+                    ],
+                    [
+                        343606,
+                        0,
+                        2.828583
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 20.311047655995935,
+                "max": 20.311047655995935,
+                "mean": 20.311047655995935,
+                "stddev": 0,
+                "rounds": 1,
+                "median": 20.311047655995935,
+                "iqr": 0.0,
+                "q1": 20.311047655995935,
+                "q3": 20.311047655995935,
+                "iqr_outliers": 0,
+                "stddev_outliers": 0,
+                "outliers": "0;0",
+                "ld15iqr": 20.311047655995935,
+                "hd15iqr": 20.311047655995935,
+                "ops": 0.04923428948308308,
+                "total": 20.311047655995935,
+                "data": [
+                    20.311047655995935
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "delaunay-cech space n=200000",
+            "name": "test_delaunay_cech[space-200000-phlite (serial)]",
+            "fullname": "benchmarks/bench_clouds_delaunay_cech.py::test_delaunay_cech[space-200000-phlite (serial)]",
+            "params": {
+                "shape": "space",
+                "n": 200000,
+                "implementation": "phlite (serial)"
+            },
+            "param": "space-200000-phlite (serial)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 7.4,
+                "fingerprint": [
+                    [
+                        199999,
+                        1,
+                        6.771793
+                    ],
+                    [
+                        576038,
+                        0,
+                        8.946354
+                    ],
+                    [
+                        343606,
+                        0,
+                        2.828583
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 11.328833406994818,
+                "max": 11.328833406994818,
+                "mean": 11.328833406994818,
+                "stddev": 0,
+                "rounds": 1,
+                "median": 11.328833406994818,
+                "iqr": 0.0,
+                "q1": 11.328833406994818,
+                "q3": 11.328833406994818,
+                "iqr_outliers": 0,
+                "stddev_outliers": 0,
+                "outliers": "0;0",
+                "ld15iqr": 11.328833406994818,
+                "hd15iqr": 11.328833406994818,
+                "ops": 0.08827034206210191,
+                "total": 11.328833406994818,
+                "data": [
+                    11.328833406994818
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "delaunay-cech space n=200000",
+            "name": "test_delaunay_cech[space-200000-phlite (parallel)]",
+            "fullname": "benchmarks/bench_clouds_delaunay_cech.py::test_delaunay_cech[space-200000-phlite (parallel)]",
+            "params": {
+                "shape": "space",
+                "n": 200000,
+                "implementation": "phlite (parallel)"
+            },
+            "param": "space-200000-phlite (parallel)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 7.4,
+                "fingerprint": [
+                    [
+                        199999,
+                        1,
+                        6.771793
+                    ],
+                    [
+                        576038,
+                        0,
+                        8.946354
+                    ],
+                    [
+                        343606,
+                        0,
+                        2.828583
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 12.301361341000302,
+                "max": 12.301361341000302,
+                "mean": 12.301361341000302,
+                "stddev": 0,
+                "rounds": 1,
+                "median": 12.301361341000302,
+                "iqr": 0.0,
+                "q1": 12.301361341000302,
+                "q3": 12.301361341000302,
+                "iqr_outliers": 0,
+                "stddev_outliers": 0,
+                "outliers": "0;0",
+                "ld15iqr": 12.301361341000302,
+                "hd15iqr": 12.301361341000302,
+                "ops": 0.08129181578196643,
+                "total": 12.301361341000302,
+                "data": [
+                    12.301361341000302
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "delaunay-cech space n=200000",
+            "name": "test_delaunay_cech[space-200000-phlite (serial, merged)]",
+            "fullname": "benchmarks/bench_clouds_delaunay_cech.py::test_delaunay_cech[space-200000-phlite (serial, merged)]",
+            "params": {
+                "shape": "space",
+                "n": 200000,
+                "implementation": "phlite (serial, merged)"
+            },
+            "param": "space-200000-phlite (serial, merged)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 7.4,
+                "fingerprint": [
+                    [
+                        199999,
+                        1,
+                        6.771793
+                    ],
+                    [
+                        576038,
+                        0,
+                        8.946354
+                    ],
+                    [
+                        343606,
+                        0,
+                        2.828583
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 13.364596382016316,
+                "max": 13.364596382016316,
+                "mean": 13.364596382016316,
+                "stddev": 0,
+                "rounds": 1,
+                "median": 13.364596382016316,
+                "iqr": 0.0,
+                "q1": 13.364596382016316,
+                "q3": 13.364596382016316,
+                "iqr_outliers": 0,
+                "stddev_outliers": 0,
+                "outliers": "0;0",
+                "ld15iqr": 13.364596382016316,
+                "hd15iqr": 13.364596382016316,
+                "ops": 0.07482455671804808,
+                "total": 13.364596382016316,
+                "data": [
+                    13.364596382016316
+                ],
+                "iterations": 1
+            }
+        }
+    ],
+    "datetime": "2026-11-16T22:16:54.674313+00:00",
+    "version": "5.3.1"
+}

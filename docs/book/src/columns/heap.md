@@ -13,8 +13,10 @@ memory, which matters once the heap outgrows the cache (an 8-ary heap was slower
 
 - **No sorting at all.** Columns of \\(D\\) go in as the oracle produces them.
 - **Little memory** when few, short columns are added: just the terms.
-- On **Vietoris–Rips cohomology**, where columns are short and few are added per column, it matches merged columns
-  with less memory, which is why it is `phlite.clouds.rips`' default.
+- On **Vietoris–Rips cohomology** of random points, where columns are short and few are added per column, it matches
+  merged columns with less memory, which is why it is `phlite.clouds.rips`' default. (On point clouds with long bars
+  the heaps grow long, and merged cached columns are faster and much leaner: see
+  [Vietoris–Rips](../python/clouds/rips.md).)
 
 ## Bad
 

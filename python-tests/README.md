@@ -152,6 +152,7 @@ are in `target/criterion`.
 * `just bench-baseline` saves new baselines for both, after an intended change in performance or on a new machine.
   Baselines are only meaningful on the machine they were recorded on; the committed Python ones are from the machine in
   BENCHMARKS.md, and criterion's are local (in `target/criterion`).
-* `just bench-docs` runs every benchmark, saves the Python results in `benchmarks/results/` (pytest-benchmark JSON,
-  which `pytest-benchmark compare` can compare), and writes BENCHMARKS.md from them and criterion's results with
-  `benchmarks/report.py`.
+* `just bench-docs` runs every benchmark, one suite at a time, saving each suite's results as soon as it finishes in
+  `benchmarks/results/suites/<suite>.json` (pytest-benchmark JSON, which `pytest-benchmark compare` can compare), and
+  writes BENCHMARKS.md from them and criterion's results with `benchmarks/report.py`. A suite that fails loses only its
+  own results; `RESUME=1 just bench-docs` reruns only the suites without results.
