@@ -25,7 +25,7 @@ path = "src/bin/rips.rs"
 name = "phlite_clouds_stub_gen"
 path = "src/bin/stub_gen.rs"
 doc = false
-required-features = ["python"]
+required-features = ["stub-gen"]
 
 [dependencies]
 csv = "1.4.0"
@@ -45,7 +45,9 @@ num-traits = "0.2.19"
 robust = "1.2.0"
 pyo3 = { version = "0.30.1", optional = true }
 pyo3-log = { version = "0.13.5", optional = true }
-pyo3-stub-gen = { version = "0.23.2", optional = true }
+# Without its default `infer_signature`, which the stubs need (the `stub-gen` feature) but which doesn't compile for
+# PyPy, which the release builds wheels for
+pyo3-stub-gen = { version = "0.23.2", optional = true, default-features = false, features = ["either", "numpy", "ordered-float"] }
 numpy = { version = "0.30.0", optional = true }
 phlite_bindings = { workspace = true, optional = true }
 
@@ -54,6 +56,8 @@ phlite_bindings = { workspace = true, optional = true }
 lock-free = ["phlite/lock-free", "phlite_complexes/lock-free"]
 # The `phlite.clouds` Python extension module, built with maturin as `phlite-clouds` (see pyproject.toml)
 python = ["dep:pyo3", "dep:pyo3-log", "dep:pyo3-stub-gen", "dep:numpy", "dep:phlite_bindings", "lock-free"]
+# Generating the type stubs (`just stubs`): default values in signatures need pyo3-stub-gen's `infer_signature`
+stub-gen = ["python", "pyo3-stub-gen/infer_signature"]
 
 [dev-dependencies]
 # Tom's alpha filtration in the plane, to check ours against
