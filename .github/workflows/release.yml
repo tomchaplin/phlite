@@ -1,6 +1,7 @@
 # Build every phlite Python package and publish them to PyPI, and publish every crate to crates.io, on a tag `vX.Y.Z`:
 # * a wheel per package (`package` in each matrix: the crate it is built from, phlite_bindings being `phlite-core`) and
-#   platform, plus an sdist per package;
+#   64-bit platform, plus an sdist per package (no 32-bit wheels: numpy, which most packages need, has none for 32-bit
+#   Linux, and its Rust crate doesn't build for free-threaded Python on 32-bit platforms before 3.15);
 # * the metapackage `phlite` (phlite_meta: no files, it only depends on the others);
 # * the crates (`cargo publish --workspace`: phlite, then phlite_bindings and phlite_complexes, then phlite_clouds and
 #   phlite_images, then phlite_networks), once every wheel has built.
@@ -65,11 +66,7 @@ jobs:
           - runner: ubuntu-latest
             target: x86_64
           - runner: ubuntu-latest
-            target: x86
-          - runner: ubuntu-latest
             target: aarch64
-          - runner: ubuntu-latest
-            target: armv7
           - runner: ubuntu-latest
             target: s390x
           - runner: ubuntu-latest
@@ -112,11 +109,7 @@ jobs:
           - runner: ubuntu-latest
             target: x86_64
           - runner: ubuntu-latest
-            target: x86
-          - runner: ubuntu-latest
             target: aarch64
-          - runner: ubuntu-latest
-            target: armv7
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -146,8 +139,6 @@ jobs:
         platform:
           - runner: windows-latest
             target: x64
-          - runner: windows-latest
-            target: x86
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
