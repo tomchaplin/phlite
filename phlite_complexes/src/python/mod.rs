@@ -224,6 +224,27 @@ impl AnyComplex {
     fn top_dimension(&self) -> Option<usize> {
         dispatch!(Self, self, c => c.top_dimension())
     }
+
+    /// The complex for `phlite::integral` and `LocalSpectral`, cells by rank (see `Complex::integral`).
+    pub(crate) fn integral_filtered(&self) -> phlite::integral::IntegralFiltered {
+        dispatch!(Self, self, c => c.integral())
+    }
+
+    /// The modulus of the coefficients, `None` over the integers.
+    pub(crate) fn modulus(&self) -> Option<u64> {
+        fn of<CF: IntField>(_: &Complex<CF>) -> Option<u64> {
+            Some(CF::MODULUS)
+        }
+        dispatch_field!(Self, self, c => of(c), integers => None)
+    }
+
+    /// For each rank, the input cell there; and for each input cell, its rank.
+    pub(crate) fn rank_maps(&self) -> (Vec<u32>, Vec<u32>) {
+        dispatch!(Self, self, c => {
+            let n = c.n_cells() as u32;
+            ((0..n).map(|r| c.cell(Cell(r)).0).collect(), (0..n).map(|i| c.rank(Cell(i)).0).collect())
+        })
+    }
 }
 
 /// Compute a barcode with whichever algorithm is configured.

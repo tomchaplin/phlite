@@ -8,6 +8,9 @@ ss = filtered.spectral_sequence()
 e1 = ss.next()          # E^1, then E^2 with the next call, ...
 print(e1)               # a table of the page, with its differentials
 e1[2, 1]                # the entry at step p = 2 in degree k = 1
+g = e1.group(2, 1)      # ... as a group: g.rank, g.torsion, g.elementary_divisors, str(g) = "Z^3 ⊕ Z/2"
+g.generators            # a generator of each cyclic summand: .order (None if free) and .chain ({cell: coefficient})
+g.classify(chain)       # the class of a chain, as coordinates on the generators
 ss.page(3)              # any page, directly
 for page in ss: ...     # every page, until the sequence degenerates
 ss.infinity             # E^infinity
@@ -25,7 +28,7 @@ import html
 from dataclasses import dataclass
 from typing import Any, Iterator, Optional, Sequence, Union
 
-__all__ = ["SpectralSequence", "Page", "Differential", "Entry"]
+__all__ = ["SpectralSequence", "Page", "Group", "Generator", "Differential", "Entry"]
 
 #: An entry: a dimension (over a field), `(rank, torsion)` (over the integers), or `None` if not determined.
 Entry = Union[int, tuple[int, list[int]], None]
@@ -48,6 +51,141 @@ def _is_zero(entry: Entry) -> bool:
     if isinstance(entry, tuple):
         return entry[0] == 0 and not entry[1]
     return entry == 0
+
+
+def _prime_powers(n: int) -> list[int]:
+    """The prime-power factors of `n` (its elementary divisors as a cyclic group)."""
+    out, p = [], 2
+    while p * p <= n:
+        if n % p == 0:
+            q = 1
+            while n % p == 0:
+                n //= p
+                q *= p
+            out.append(q)
+        p += 1
+    if n > 1:
+        out.append(n)
+    return out
+
+
+@dataclass(frozen=True)
+class Generator:
+    """A generator of one cyclic summand of a `Group`: its `order` (`None` for a free summand; over a field every
+    summand is free) and a `chain` representing it, a dict from cells (the complex's own: input cells, or tuples of
+    nodes for the MPSS) to coefficients. The chain `x` has degree `k`, lies in `F_p` and has `dx` in `F_{p-r}`; it is
+    determined only modulo `Z^{r-1}_{p-1} + d Z^{r-1}_{p+r-1}` (so not canonically, over the integers)."""
+
+    order: Optional[int]
+    chain: dict
+
+    def __repr__(self) -> str:
+        order = "∞" if self.order is None else str(self.order)
+        terms = ""
+        for i, (cell, c) in enumerate(list(self.chain.items())[:6]):
+            sign = ("-" if c < 0 else "") if i == 0 else (" - " if c < 0 else " + ")
+            terms += f"{sign}{abs(c)}·{cell}"
+        more = f" + ... ({len(self.chain)} terms)" if len(self.chain) > 6 else ""
+        return f"<Generator of order {order}: {terms}{more}>"
+
+
+class Group:
+    """An entry `E^r_p` (degree `k`) of a spectral sequence as a group: its isomorphism class (`rank`, `torsion`, the
+    invariant factors with each dividing the next, and `elementary_divisors`), generators of its cyclic summands, and
+    the class of any chain. Over a field it is a vector space: `rank` is its dimension and there is no torsion.
+
+    Groups compare equal when isomorphic (to another `Group`, a `(rank, torsion)` pair, or over a field an `int`)."""
+
+    def __init__(self, sequence: "SpectralSequence", r: int, p: int, k: int, entry: Entry):
+        if entry is None:
+            raise ValueError(f"E^{r} at ({p}, {k}) is not determined (the filtration is truncated)")
+        self.sequence, self.r, self.p, self.k = sequence, r, p, k
+        rank, torsion = entry if isinstance(entry, tuple) else (entry, [])
+        #: The free rank (over a field, the dimension).
+        self.rank: int = rank
+        #: The invariant factors of the torsion, each dividing the next.
+        self.torsion: list[int] = list(torsion)
+        self._generators: Optional[list[Generator]] = None
+
+    @property
+    def elementary_divisors(self) -> list[int]:
+        """The torsion as prime powers, sorted: `Z/6 ⊕ Z/12` gives `[2, 3, 3, 4]`."""
+        return sorted(q for t in self.torsion for q in _prime_powers(t))
+
+    @property
+    def is_zero(self) -> bool:
+        return self.rank == 0 and not self.torsion
+
+    @property
+    def order(self) -> Optional[int]:
+        """The number of elements, `None` if infinite."""
+        if self.rank:
+            return None if self.sequence.integral or self.sequence.modulus is None else self.sequence.modulus ** self.rank
+        out = 1
+        for t in self.torsion:
+            out *= t
+        return out
+
+    def _invariants(self) -> tuple[int, tuple[int, ...]]:
+        return self.rank, tuple(self.elementary_divisors)
+
+    def __eq__(self, other: object) -> bool:
+        if isinstance(other, Group):
+            return self._invariants() == other._invariants()
+        if isinstance(other, tuple) and len(other) == 2:
+            rank, torsion = other
+            return self._invariants() == (rank, tuple(sorted(q for t in torsion for q in _prime_powers(t))))
+        if isinstance(other, int) and not isinstance(other, bool):
+            return not self.torsion and self.rank == other
+        return NotImplemented
+
+    def __hash__(self) -> int:
+        return hash(self._invariants())
+
+    def __str__(self) -> str:
+        if self.sequence.integral:
+            parts = ([{1: "Z"}.get(self.rank, f"Z^{self.rank}")] if self.rank else []) + [f"Z/{t}" for t in self.torsion]
+            return " ⊕ ".join(parts) if parts else "0"
+        if not self.rank:
+            return "0"
+        field = f"F_{self.sequence.modulus}" if self.sequence.modulus else "F"
+        return field if self.rank == 1 else f"{field}^{self.rank}"
+
+    def __repr__(self) -> str:
+        s, d = self.sequence.step_label, self.sequence.degree_label
+        return f"<Group E^{self.r} at ({s}={self.p}, {d}={self.k}): {self}>"
+
+    @property
+    def generators(self) -> list[Generator]:
+        """A generator of each cyclic summand, torsion first (in the order of `torsion`), then free. Computed (exactly,
+        from the cells in the entry's window of steps) when first asked for."""
+        if self._generators is None:
+            backend = self.sequence._backend
+            if not backend.has_generators:
+                raise ValueError("this spectral sequence has no generators")
+            result = backend.generators(self.r, self.p, self.k)
+            if result is None:
+                raise ValueError("not determined (the filtration is truncated)")
+            _, generators = result
+            self._generators = [Generator(order, chain) for order, chain in generators]
+        return self._generators
+
+    def classify(self, chain: Any) -> list[int]:
+        """The class of `chain` (a dict from cells to coefficients, or `(cell, coefficient)` pairs) in this group, as
+        its coordinates on `generators` (each reduced modulo the generator's order).
+
+        Raises:
+            ValueError: If the chain doesn't represent an element: it isn't of degree `k`, in `F_p`, with boundary in
+                `F_{p-r}` (or a cell isn't one of the complex's).
+        """
+        out = self.sequence._backend.classify(self.r, self.p, self.k, chain)
+        if out is None:
+            raise ValueError(f"the chain doesn't represent an element of E^{self.r} at ({self.p}, {self.k})")
+        return out
+
+    def contains(self, chain: Any) -> bool:
+        """Whether `chain` represents an element (see `classify`)."""
+        return self.sequence._backend.classify(self.r, self.p, self.k, chain) is not None
 
 
 @dataclass(frozen=True)
@@ -79,6 +217,10 @@ class Page:
         if not 0 <= p < len(self.rows) or not 0 <= k < len(self.rows[p]):
             raise KeyError(f"({p}, {k}) is not an entry of the page")
         return self.rows[p][k]
+
+    def group(self, p: int, k: int) -> Group:
+        """The entry at `(p, k)` as a `Group`: its isomorphism class, generators and the class of any chain."""
+        return Group(self.sequence, self.r, p, k, self[p, k])
 
     def rank(self, p: int, k: int) -> Optional[int]:
         """The dimension (over a field) or free rank (over the integers) at `(p, k)`, or `None` if not determined."""
@@ -307,6 +449,11 @@ class SpectralSequence:
     @property
     def n_degrees(self) -> int:
         return self._backend.n_degrees
+
+    @property
+    def modulus(self) -> Optional[int]:
+        """The characteristic of the coefficient field, `None` over the integers."""
+        return self._backend.modulus
 
     @property
     def degenerates_at(self) -> Optional[int]:

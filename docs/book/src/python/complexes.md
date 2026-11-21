@@ -103,7 +103,16 @@ filtered.persistent_group(1, 0.0, 0.0)      # (0, [2]): H_1 = Z/2
 ss = filtered.spectral_sequence()          # computed one page at a time
 print(ss.next())                            # E^1, as a table, with its differentials
 ss.page(2)[1, 1]                            # (0, [2]): Z/2 at step 1 in degree 1
+g = ss.page(2).group(1, 1)                  # as a group: str(g) == "Z/2", g.rank, g.torsion, g.elementary_divisors
+[gen] = g.generators                        # gen.order == 2, gen.chain == {cell: coefficient}: a representing chain
+g.classify({c: 2 * x for c, x in gen.chain.items()})   # [0]: twice the generator is zero
 ```
+
+Generators work over a field too (`spectral_sequence()` of any filtered complex, and
+`phlite.networks.magnitude_path_spectral_sequence`, whose cells are tuples of nodes): each entry's generators are
+computed exactly, from the cells in its window of steps, when first asked for. A generator of `E^r_p` in degree `k`
+is a chain `x` of degree `k` in `F_p` with `dx` in `F_{p-r}`, determined only modulo the denominator of `E^r_p`; over
+the integers it is not canonical, so `classify` (or `contains`) is the way to compare chains.
 
 `persistent_group(dim, start, end)` is the image of `H_dim` at `start` in `H_dim` at `end`, as `(rank, torsion)`. It
 works over a field too, where it is the persistent Betti number with no torsion.

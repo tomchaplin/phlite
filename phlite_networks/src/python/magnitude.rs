@@ -271,15 +271,29 @@ fn magnitude_path_spectral_sequence<'py>(
         return Err(PyValueError::new_err(format!("Unsupported modulus {modulus}, expected one of {MODULI:?}")));
     }
     let edges = read_edges(edges)?;
-    let (n_vertices, edges, _) = read_graph(graph, edges, "weight", "magnitude_path_spectral_sequence", u32::MAX >> 1)?;
+    let (n_vertices, edges, labels) =
+        read_graph(graph, edges, "weight", "magnitude_path_spectral_sequence", u32::MAX >> 1)?;
     let edges: Vec<(u32, u32)> = edges.into_iter().map(|(a, b, _)| (a, b)).collect();
     let k_cap = k_max.unwrap_or(l_max).min(l_max);
-    let backend = py.detach(|| {
+    let (backend, tuples) = py.detach(|| {
         let graph = MagnitudeGraph::new(n_vertices as usize, &edges);
         mpss_backend(&graph, l_max, k_max, (!integral).then_some(modulus))
     });
-    let backend =
-        SpectralBackend::new(backend, integral).with_row_lengths((0..=l_max).map(|l| k_cap.min(l) + 1).collect());
+    let label_ids = match &labels {
+        None => None,
+        Some(labels) => {
+            let ids = PyDict::new(py);
+            for (i, label) in labels.iter().enumerate() {
+                ids.set_item(label.bind(py), i)?;
+            }
+            Some(ids.unbind())
+        }
+    };
+    let index = tuples.iter().cloned().enumerate().map(|(i, t)| (t, i)).collect();
+    let cells = Box::new(TupleCells { tuples, index, labels, label_ids });
+    let backend = SpectralBackend::new(backend, integral)
+        .with_row_lengths((0..=l_max).map(|l| k_cap.min(l) + 1).collect())
+        .with_cells(cells, (!integral).then_some(modulus));
     let kwargs = PyDict::new(py);
     kwargs.set_item("step_label", "l")?;
     kwargs.set_item("degree_label", "k")?;
@@ -371,4 +385,41 @@ fn read_edges(edges: Option<&Bound<'_, PyAny>>) -> PyResult<Option<Vec<(u32, u32
 pub(crate) fn register(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(magnitude, m)?)?;
     m.add_function(wrap_pyfunction!(magnitude_path_spectral_sequence, m)?)
+}
+
+/// The cells of the reachability complex for generators' chains: tuples of nodes (by label, if the graph has them).
+struct TupleCells {
+    tuples: Vec<Vec<u32>>,
+    index: std::collections::HashMap<Vec<u32>, usize>,
+    labels: Option<Vec<Py<PyAny>>>,
+    label_ids: Option<Py<PyDict>>,
+}
+
+impl phlite_bindings::spectral::CellNames for TupleCells {
+    fn name<'py>(&self, py: Python<'py>, cell: usize) -> PyResult<Bound<'py, PyAny>> {
+        let tuple = &self.tuples[cell];
+        match &self.labels {
+            None => Ok(PyTuple::new(py, tuple)?.into_any()),
+            Some(labels) => Ok(PyTuple::new(py, tuple.iter().map(|&v| labels[v as usize].bind(py)))?.into_any()),
+        }
+    }
+
+    fn index(&self, py: Python<'_>, cell: &Bound<'_, PyAny>) -> PyResult<Option<usize>> {
+        let Ok(items) = cell.try_iter() else {
+            return Ok(None);
+        };
+        let mut tuple = vec![];
+        for item in items {
+            let item = item?;
+            let id = match &self.label_ids {
+                None => item.extract::<u32>().ok(),
+                Some(ids) => ids.bind(py).get_item(&item)?.map(|i| i.extract::<u32>()).transpose()?,
+            };
+            match id {
+                Some(id) => tuple.push(id),
+                None => return Ok(None),
+            }
+        }
+        Ok(self.index.get(&tuple).copied())
+    }
 }

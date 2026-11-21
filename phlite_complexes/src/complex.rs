@@ -688,9 +688,9 @@ impl Chain<Integer> {
         for cell in 0..self.n_cells() as u32 {
             sum.clear();
             for i in self.boundary.range(Cell(cell)) {
-                let (face, a) = (self.boundary.rows[i], i128::from(self.boundary.coeffs[i].0));
+                let (face, a) = (self.boundary.rows[i], i128::from(self.boundary.coeffs[i].get()));
                 for j in self.boundary.range(face) {
-                    *sum.entry(self.boundary.rows[j].0).or_default() += a * i128::from(self.boundary.coeffs[j].0);
+                    *sum.entry(self.boundary.rows[j].0).or_default() += a * i128::from(self.boundary.coeffs[j].get());
                 }
             }
             if let Some((&face, _)) = sum.iter().find(|(_, &total)| total != 0) {
@@ -704,8 +704,10 @@ impl Chain<Integer> {
     }
 }
 
-impl Complex<Integer> {
-    /// This filtered complex over Z, for [`phlite::integral`]: cells by rank, each at its [step](Self::steps).
+impl<CF: ChainCoefficient> Complex<CF> {
+    /// This filtered complex for [`phlite::integral`] and [`phlite::spectral::LocalSpectral`]: cells by
+    /// [rank](Self::rank), each at its [step](Self::steps), coefficients as integers (over `Z/p` their representatives
+    /// in `1..p`, so a complex over Z only modulo `p`: compute with it over `Z/p`).
     pub fn integral(&self) -> phlite::integral::IntegralFiltered {
         let mut step = Vec::with_capacity(self.n_cells());
         let mut current = 0;
@@ -724,7 +726,7 @@ impl Complex<Integer> {
                     self.boundary.rows[range.clone()]
                         .iter()
                         .zip(&self.boundary.coeffs[range])
-                        .map(|(row, coeff)| (row.idx(), coeff.0))
+                        .map(|(row, coeff)| (row.idx(), coeff.to_i64()))
                         .collect()
                 })
                 .collect(),

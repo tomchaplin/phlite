@@ -98,7 +98,8 @@ impl FilteredComplex {
         #[gen_stub(override_type(type_repr = "typing.Optional[core.Algorithm]", imports = ("typing", "phlite.core")))]
         algorithm: Option<Bound<'_, PyAny>>,
     ) -> PyResult<Bound<'py, PyAny>> {
-        use phlite::spectral::{step_of, BarcodeSpectral, LocalSpectral, StepBar};
+        use phlite::integral::Ring;
+        use phlite::spectral::{step_of, BarcodeSpectral, LocalSpectral, StepBar, WithGenerators};
         use phlite_bindings::spectral::{spectral_sequence, SpectralBackend};
         let py = slf.py();
         let complex = &slf.get().complex;
@@ -108,8 +109,11 @@ impl FilteredComplex {
         steps.dedup();
         let top = complex.top_dimension().unwrap_or(0);
         let n_degrees = max_dim.unwrap_or(top) + 1;
-        let backend = if let AnyComplex::Integers(integral) = complex {
-            let filtered = integral.integral();
+        let filtered = complex.integral_filtered();
+        let modulus = complex.modulus();
+        let (input_of_rank, rank_of_input) = complex.rank_maps();
+        let cells = Box::new(ComplexCells { chain: slf.get().chain.clone_ref(py), input_of_rank, rank_of_input });
+        let backend = if let AnyComplex::Integers(_) = complex {
             SpectralBackend::new(Box::new(LocalSpectral::new(filtered, n_degrees, None)), true)
         } else {
             let algorithm = algorithm_from_py(algorithm.as_ref(), &DEFAULTS)?;
@@ -123,8 +127,15 @@ impl FilteredComplex {
                     death: bar.death_value.is_finite().then(|| step_of(&steps, &bar.death_value)),
                 })
                 .collect();
-            SpectralBackend::new(Box::new(BarcodeSpectral::new(&bars, steps.len(), n_degrees, None)), false)
+            let p = modulus.expect("a field");
+            // Entries from the barcode; generators computed over Z/p, entry by entry, when asked for
+            let backend = WithGenerators {
+                entries: BarcodeSpectral::new(&bars, steps.len(), n_degrees, None),
+                generators: LocalSpectral::new(filtered, n_degrees, None).over(Ring::Mod(p)),
+            };
+            SpectralBackend::new(Box::new(backend), false)
         };
+        let backend = backend.with_cells(cells, modulus);
         let kwargs = PyDict::new(py);
         kwargs.set_item("steps", steps)?;
         spectral_sequence(py, backend, &kwargs)
@@ -419,5 +430,23 @@ impl ComplexBarcode {
     fn __traverse__(&self, visit: pyo3::PyVisit<'_>) -> Result<(), pyo3::PyTraverseError> {
         visit.call(&self.complex)?;
         visit.call(&self.algorithm)
+    }
+}
+
+/// The cells of a filtered complex for generators' chains: `phlite::integral` numbers them by rank, Python by the
+/// input's cells.
+struct ComplexCells {
+    chain: Py<ChainComplex>,
+    input_of_rank: Vec<u32>,
+    rank_of_input: Vec<u32>,
+}
+
+impl phlite_bindings::spectral::CellNames for ComplexCells {
+    fn name<'py>(&self, py: Python<'py>, cell: usize) -> PyResult<Bound<'py, PyAny>> {
+        self.chain.get().cell(py, self.input_of_rank[cell])
+    }
+
+    fn index(&self, _py: Python<'_>, cell: &Bound<'_, PyAny>) -> PyResult<Option<usize>> {
+        Ok(self.chain.get().lookup(cell)?.map(|i| self.rank_of_input[i as usize] as usize))
     }
 }

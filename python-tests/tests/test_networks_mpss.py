@@ -2,6 +2,7 @@
 magnitude), the diagonal of its second page is the path homology of the digraph (Asao), computed here as the
 essential bars of phlite.networks.pph with every edge at weight 1, and pages only shrink."""
 
+import pytest
 from hypothesis import given, note, settings
 from hypothesis import strategies as st
 
@@ -134,3 +135,28 @@ def test_plot():
     ss = magnitude_path_spectral_sequence(4, [(0, 1), (1, 2), (2, 3), (3, 0)], l_max=5)
     ax = ss.page(2).plot()
     assert ax.get_xlabel() == "k" and ax.get_ylabel() == "l"
+
+
+def test_groups_and_generators():
+    cycle = [(0, 1), (1, 2), (2, 3), (3, 0)]
+    for integral in (False, True):
+        ss = magnitude_path_spectral_sequence(4, cycle, l_max=4, integral=integral)
+        e1 = ss.page(1)
+        g = e1.group(1, 1)
+        assert g == 4 if not integral else g == (4, [])
+        assert len(g.generators) == 4
+        for i, gen in enumerate(g.generators):
+            assert gen.order is None and all(len(t) == 2 for t in gen.chain)
+            assert g.classify(gen.chain) == [int(i == j) for j in range(4)]
+        # Every edge (a tuple of length 1) is an element of E^1 at (l=1, k=1), and together they span it
+        classes = [g.classify({edge: 1}) for edge in cycle]
+        assert len({tuple(c) for c in classes}) == 4
+        with pytest.raises(ValueError):
+            g.classify({(0, 2): 1})  # not a tuple of the complex at length 1
+    # Node labels name the cells
+    import networkx as nx
+
+    G = nx.DiGraph([("a", "b"), ("b", "c"), ("c", "a")])
+    g = magnitude_path_spectral_sequence(G, l_max=2).page(1).group(1, 1)
+    assert {tuple(t) for gen in g.generators for t in gen.chain} <= {("a", "b"), ("b", "c"), ("c", "a")}
+    assert g.classify({("a", "b"): 1}) is not None

@@ -37,7 +37,7 @@ use std::collections::HashMap;
 use std::ops::RangeInclusive;
 
 use crate::fields::Integer;
-use crate::integral::{self, Group, IntegralFiltered, Overflow};
+use crate::integral::{self, ChainGenerator, Group, IntegralFiltered, Overflow, Ring};
 use crate::matrices::MatrixOracle;
 
 /// A filtered chain complex given lazily: its boundary as a [`MatrixOracle`] (columns and rows both cells), each cell's
@@ -96,6 +96,66 @@ pub trait SpectralBackend: Send + Sync {
     fn differential(&self, r: usize, p: usize, k: usize) -> Result<Option<Group>, Overflow>;
     /// A page from which every differential is zero (so it is `E^∞`), if known.
     fn degenerates_at(&self) -> Option<usize>;
+
+    /// `E^r_p` in degree `k` with a generator of each cyclic summand (torsion, each order dividing the next, then free),
+    /// as chains of cells (by index), or `None` if not determined or if this backend can't give generators.
+    fn generators(&self, r: usize, p: usize, k: usize) -> Result<Option<(Group, Vec<ChainGenerator>)>, Overflow> {
+        let _ = (r, p, k);
+        Ok(None)
+    }
+
+    /// The class in `E^r_p` (degree `k`) of `chain`, as coordinates on the [generators](Self::generators), or `None`
+    /// if it doesn't represent an element (or this backend can't classify).
+    fn classify(&self, r: usize, p: usize, k: usize, chain: &[(usize, i64)]) -> Result<Option<Vec<i128>>, Overflow> {
+        let _ = (r, p, k, chain);
+        Ok(None)
+    }
+
+    /// Whether [`generators`](Self::generators) and [`classify`](Self::classify) are available.
+    fn has_generators(&self) -> bool {
+        false
+    }
+}
+
+/// Entries from one backend (say, a barcode's lookups) and generators from another (say, [`LocalSpectral`] over the
+/// same field), which must agree on the entries.
+pub struct WithGenerators<A, B> {
+    pub entries: A,
+    pub generators: B,
+}
+
+impl<A: SpectralBackend, B: SpectralBackend> SpectralBackend for WithGenerators<A, B> {
+    fn n_steps(&self) -> usize {
+        self.entries.n_steps()
+    }
+
+    fn n_degrees(&self) -> usize {
+        self.entries.n_degrees()
+    }
+
+    fn entry(&self, r: usize, p: usize, k: usize) -> Result<Option<Group>, Overflow> {
+        self.entries.entry(r, p, k)
+    }
+
+    fn differential(&self, r: usize, p: usize, k: usize) -> Result<Option<Group>, Overflow> {
+        self.entries.differential(r, p, k)
+    }
+
+    fn degenerates_at(&self) -> Option<usize> {
+        self.entries.degenerates_at()
+    }
+
+    fn generators(&self, r: usize, p: usize, k: usize) -> Result<Option<(Group, Vec<ChainGenerator>)>, Overflow> {
+        self.generators.generators(r, p, k)
+    }
+
+    fn classify(&self, r: usize, p: usize, k: usize, chain: &[(usize, i64)]) -> Result<Option<Vec<i128>>, Overflow> {
+        self.generators.classify(r, p, k, chain)
+    }
+
+    fn has_generators(&self) -> bool {
+        self.generators.has_generators()
+    }
 }
 
 /// The spectral sequence over a field, from its barcode in steps: each entry and differential a lookup.
@@ -190,13 +250,20 @@ pub struct LocalSpectral<S> {
     complex: S,
     n_degrees: usize,
     truncated_at: Option<usize>,
+    ring: Ring,
 }
 
 impl<S: StepFiltered<CoefficientField = Integer> + Send + Sync> LocalSpectral<S> {
     /// In degrees `0..n_degrees`; if `complex` is a filtration truncated after step `truncated_at`, entries needing later
     /// steps are `None`.
     pub fn new(complex: S, n_degrees: usize, truncated_at: Option<usize>) -> Self {
-        Self { complex, n_degrees, truncated_at }
+        Self { complex, n_degrees, truncated_at, ring: Ring::Integers }
+    }
+
+    /// Compute over `ring` instead of the integers (over `Z/p`, for generators over a field).
+    pub fn over(mut self, ring: Ring) -> Self {
+        self.ring = ring;
+        self
     }
 
     /// The complex.
@@ -206,7 +273,11 @@ impl<S: StepFiltered<CoefficientField = Integer> + Send + Sync> LocalSpectral<S>
 
     /// The quotient complex of the cells of these degrees with steps in `steps`, as an [`IntegralFiltered`] (faces
     /// outside the window are dropped: those below are quotiented out, and none are above).
-    fn window(&self, degrees: RangeInclusive<usize>, steps: RangeInclusive<usize>) -> IntegralFiltered
+    fn window(
+        &self,
+        degrees: RangeInclusive<usize>,
+        steps: RangeInclusive<usize>,
+    ) -> (IntegralFiltered, Vec<S::RowT>, HashMap<S::RowT, usize>)
     where
         S::RowT: std::hash::Hash,
     {
@@ -223,14 +294,34 @@ impl<S: StepFiltered<CoefficientField = Integer> + Send + Sync> LocalSpectral<S>
                     .collect(),
             );
         }
-        out
+        (out, cells, index)
+    }
+
+    /// The window of `E^r_p` in degree `k`, or `None` if the truncation hides it.
+    #[allow(clippy::type_complexity)]
+    fn entry_window(
+        &self,
+        r: usize,
+        p: usize,
+        k: usize,
+    ) -> Option<(IntegralFiltered, Vec<S::RowT>, HashMap<S::RowT, usize>, RangeInclusive<usize>)>
+    where
+        S::RowT: std::hash::Hash,
+    {
+        if self.truncated_at.is_some_and(|t| r >= 1 && p + r > t + 1) {
+            return None;
+        }
+        let reach = r.max(1);
+        let steps = (p + 1).saturating_sub(reach)..=p + reach - 1;
+        let (window, cells, index) = self.window(k.saturating_sub(1)..=k + 1, steps.clone());
+        Some((window, cells, index, steps))
     }
 }
 
 impl<S> SpectralBackend for LocalSpectral<S>
 where
     S: StepFiltered<CoefficientField = Integer> + Send + Sync,
-    S::RowT: std::hash::Hash,
+    S::RowT: std::hash::Hash + Into<usize> + From<usize>,
 {
     fn n_steps(&self) -> usize {
         self.complex.n_steps()
@@ -241,13 +332,46 @@ where
     }
 
     fn entry(&self, r: usize, p: usize, k: usize) -> Result<Option<Group>, Overflow> {
-        if self.truncated_at.is_some_and(|t| r >= 1 && p + r > t + 1) {
+        let Some((window, ..)) = self.entry_window(r, p, k) else {
             return Ok(None);
+        };
+        integral::page_entry_in(&window, self.ring, r, p, k).map(Some)
+    }
+
+    fn generators(&self, r: usize, p: usize, k: usize) -> Result<Option<(Group, Vec<ChainGenerator>)>, Overflow> {
+        let Some((window, cells, ..)) = self.entry_window(r, p, k) else {
+            return Ok(None);
+        };
+        let (group, generators) = integral::page_generators(&window, self.ring, r, p, k)?;
+        let generators = generators
+            .into_iter()
+            .map(|g| ChainGenerator {
+                order: g.order,
+                chain: g.chain.into_iter().map(|(c, x)| (cells[c].clone().into(), x)).collect(),
+            })
+            .collect();
+        Ok(Some((group, generators)))
+    }
+
+    fn classify(&self, r: usize, p: usize, k: usize, chain: &[(usize, i64)]) -> Result<Option<Vec<i128>>, Overflow> {
+        let Some((window, _, index, steps)) = self.entry_window(r, p, k) else {
+            return Ok(None);
+        };
+        // Cells below the window are zero in the quotient; any other cell outside it isn't in F_p (or not of degree k)
+        let mut local = Vec::with_capacity(chain.len());
+        for &(cell, x) in chain {
+            let cell = S::RowT::from(cell);
+            match index.get(&cell) {
+                Some(&i) => local.push((i, x)),
+                None if self.complex.degree(&cell) == k && self.complex.step(&cell) < *steps.start() => {}
+                None => return Ok(None),
+            }
         }
-        let reach = r.max(1);
-        let steps = (p + 1).saturating_sub(reach)..=p + reach - 1;
-        let window = self.window(k.saturating_sub(1)..=k + 1, steps);
-        integral::page_entry(&window, r, p, k).map(Some)
+        integral::page_classify(&window, self.ring, r, p, k, &local)
+    }
+
+    fn has_generators(&self) -> bool {
+        true
     }
 
     fn differential(&self, r: usize, p: usize, k: usize) -> Result<Option<Group>, Overflow> {
@@ -257,8 +381,8 @@ where
         if k == 0 || p < r {
             return Ok(Some(Group::default()));
         }
-        let window = self.window(k - 1..=k, p - r..=p);
-        integral::differential_image(&window, r, p, k).map(Some)
+        let (window, ..) = self.window(k - 1..=k, p - r..=p);
+        integral::differential_image_in(&window, self.ring, r, p, k).map(Some)
     }
 
     fn degenerates_at(&self) -> Option<usize> {
@@ -376,6 +500,39 @@ mod tests {
                 })
                 .collect(),
         };
+        // Generators through windows: chains of the whole complex, in F_p with boundary in F_{p-r}, each classifying to
+        // its unit vector (over Z, and over Z/3)
+        for ring in [Ring::Integers, Ring::Mod(3)] {
+            let local = LocalSpectral::new(complex.clone(), 3, None).over(ring);
+            for r in 1..=6 {
+                for p in 0..6 {
+                    for k in 0..3 {
+                        let (group, generators) = local.generators(r, p, k).unwrap().unwrap();
+                        assert_eq!(Some(group), local.entry(r, p, k).unwrap());
+                        for (i, g) in generators.iter().enumerate() {
+                            let mut boundary: HashMap<usize, i128> = HashMap::new();
+                            for &(cell, x) in &g.chain {
+                                assert!(complex.degree[cell] == k && complex.step[cell] <= p);
+                                for &(face, c) in &complex.boundary[cell] {
+                                    *boundary.entry(face).or_default() += x * i128::from(c);
+                                }
+                            }
+                            let modulus = match ring {
+                                Ring::Mod(m) => i128::from(m),
+                                Ring::Integers => 0,
+                            };
+                            for (face, x) in boundary {
+                                let x = if modulus > 0 { x.rem_euclid(modulus) } else { x };
+                                assert!(x == 0 || complex.step[face] + r <= p);
+                            }
+                            let chain: Vec<(usize, i64)> = g.chain.iter().map(|&(c, x)| (c, x as i64)).collect();
+                            let unit: Vec<i128> = (0..generators.len()).map(|j| i128::from(i == j)).collect();
+                            assert_eq!(local.classify(r, p, k, &chain).unwrap(), Some(unit));
+                        }
+                    }
+                }
+            }
+        }
         let local = LocalSpectral::new(complex.clone(), 3, None);
         let mut torsion = 0;
         for r in 1..=6 {

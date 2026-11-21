@@ -25,8 +25,8 @@ use std::collections::HashMap;
 
 use ordered_float::NotNan;
 use phlite::barcode::{Algorithm, Method};
-use phlite::integral::{Group, IntegralFiltered, Overflow};
-use phlite::spectral::{BarcodeSpectral, LocalSpectral, SpectralBackend};
+use phlite::integral::{ChainGenerator, Group, IntegralFiltered, Overflow, Ring};
+use phlite::spectral::{BarcodeSpectral, LocalSpectral, SpectralBackend, WithGenerators};
 use phlite::reduction::Clearing;
 use phlite::spectral::{spectral_pages, StepBar};
 use phlite_complexes::complex::{Chain, RawChain};
@@ -42,8 +42,12 @@ pub type Pages = Vec<Vec<Vec<Option<usize>>>>;
 /// The bars of the length filtration of the reachability complex, as `(degree, birth, death)` (death `None` for a
 /// bar still alive at `l_max`), over `CF`, of the tuples of length at most `l_max` and degree at most `k_max + 1`.
 fn reachability_bars<CF: IntField>(graph: &MagnitudeGraph, l_max: usize, k_max: usize) -> Vec<(usize, usize, Option<usize>)> {
-    let (raw, values) = reachability_complex(graph, l_max, k_max);
-    let k_top = k_max + 1;
+    let (raw, values, _) = reachability_complex(graph, l_max, k_max);
+    bars_of::<CF>(raw, values, k_max + 1)
+}
+
+/// The bars of the reachability complex `raw` (with `values`), over `CF`, up to degree `k_top`.
+fn bars_of<CF: IntField>(raw: RawChain, values: Vec<f64>, k_top: usize) -> Vec<(usize, usize, Option<usize>)> {
     let complex = Chain::<CF>::from_raw(raw)
         .and_then(|chain| chain.filter(Some(values)))
         .expect("the reachability complex, faces first and no longer than their cofaces");
@@ -57,8 +61,8 @@ fn reachability_bars<CF: IntField>(graph: &MagnitudeGraph, l_max: usize, k_max: 
 }
 
 /// The reachability complex of `graph` up to length `l_max` and degree `k_max + 1`, with integer coefficients, faces
-/// first, and each tuple's length as its value.
-fn reachability_complex(graph: &MagnitudeGraph, l_max: usize, k_max: usize) -> (RawChain, Vec<f64>) {
+/// first, and each tuple's length as its value; and the tuples themselves, in the same order.
+fn reachability_complex(graph: &MagnitudeGraph, l_max: usize, k_max: usize) -> (RawChain, Vec<f64>, Vec<Vec<u32>>) {
     let n = graph.n_vertices() as u32;
     let k_top = k_max + 1;
     let reach = vec![0u32; n as usize];
@@ -96,10 +100,12 @@ fn reachability_complex(graph: &MagnitudeGraph, l_max: usize, k_max: usize) -> (
     };
     raw.indptr.push(0);
     let mut values: Vec<f64> = Vec::with_capacity(n_cells);
+    let mut cells: Vec<Vec<u32>> = Vec::with_capacity(n_cells);
     let mut face: Vec<u32> = Vec::with_capacity(k_top + 1);
     for &(k, s, t, l) in &keys {
         let tuples = &by_source[s as usize][&(t, l, k)];
         for tuple in tuples.chunks_exact(k + 1) {
+            cells.push(tuple.to_vec());
             raw.dimensions.push(k as i64);
             values.push(l as f64);
             if k > 0 {
@@ -130,7 +136,7 @@ fn reachability_complex(graph: &MagnitudeGraph, l_max: usize, k_max: usize) -> (
             raw.indptr.push(raw.indices.len() as i64);
         }
     }
-    (raw, values)
+    (raw, values, cells)
 }
 
 /// The pages `E^1, ..., E^{r_max}` of the MPSS of `graph` over `Z/modulus` (one of [`MODULI`]), for lengths up to
@@ -200,8 +206,12 @@ fn known_empty(r: usize, l: usize, l_max: usize) -> Option<Group> {
 
 /// The reachability complex up to `l_max` and degree `k_max + 1` over Z, for [`LocalSpectral`].
 fn integral_complex(graph: &MagnitudeGraph, l_max: usize, k_max: usize) -> IntegralFiltered {
-    let (raw, values) = reachability_complex(graph, l_max, k_max);
-    let coefficients = raw.coefficients.expect("integer coefficients");
+    let (raw, values, _) = reachability_complex(graph, l_max, k_max);
+    to_integral(&raw, &values)
+}
+
+fn to_integral(raw: &RawChain, values: &[f64]) -> IntegralFiltered {
+    let coefficients = raw.coefficients.as_ref().expect("integer coefficients");
     IntegralFiltered {
         degree: raw.dimensions.iter().map(|&d| d as usize).collect(),
         step: values.iter().map(|&v| v as usize).collect(),
@@ -219,29 +229,42 @@ fn integral_backend(graph: &MagnitudeGraph, l_max: usize, k_max: usize) -> Local
 
 /// The MPSS of `graph` as a [`SpectralBackend`], for computing it a page (or an entry) at a time: over `Z/modulus`
 /// (one of [`MODULI`]) from the barcode, or over the integers (`modulus` `None`) entry by entry, each from the tuples
-/// in its window of lengths ([`LocalSpectral`]). Steps are lengths `0..=l_max` and degrees `0..=k_max` (default
-/// `l_max`); entries needing tuples longer than `l_max` are `None`.
+/// in its window of lengths ([`LocalSpectral`]); generators either way (over a field, computed over `Z/p` the same
+/// way when asked for), as chains of cells numbered as in the tuples returned alongside. Steps are lengths
+/// `0..=l_max` and degrees `0..=k_max` (default `l_max`); entries needing tuples longer than `l_max` are `None`.
 ///
 /// # Panics
 /// If the modulus isn't one of [`MODULI`].
-pub fn mpss_backend(graph: &MagnitudeGraph, l_max: usize, k_max: Option<usize>, modulus: Option<u64>) -> Box<dyn SpectralBackend> {
+pub fn mpss_backend(
+    graph: &MagnitudeGraph,
+    l_max: usize,
+    k_max: Option<usize>,
+    modulus: Option<u64>,
+) -> (Box<dyn SpectralBackend>, Vec<Vec<u32>>) {
     use phlite::fields::{Z2, ZP};
     let k_max = k_max.unwrap_or(l_max).min(l_max);
+    let (raw, values, tuples) = reachability_complex(graph, l_max, k_max);
+    let local = LocalSpectral::new(to_integral(&raw, &values), k_max + 1, Some(l_max));
     let Some(modulus) = modulus else {
-        return Box::new(Padded { inner: integral_backend(graph, l_max, k_max), l_max });
+        return (Box::new(Padded { inner: local, l_max }), tuples);
     };
+    let k_top = k_max + 1;
     let bars = match modulus {
-        2 => reachability_bars::<Z2>(graph, l_max, k_max),
-        3 => reachability_bars::<ZP<3>>(graph, l_max, k_max),
-        5 => reachability_bars::<ZP<5>>(graph, l_max, k_max),
-        7 => reachability_bars::<ZP<7>>(graph, l_max, k_max),
-        11 => reachability_bars::<ZP<11>>(graph, l_max, k_max),
-        13 => reachability_bars::<ZP<13>>(graph, l_max, k_max),
-        251 => reachability_bars::<ZP<251>>(graph, l_max, k_max),
+        2 => bars_of::<Z2>(raw, values, k_top),
+        3 => bars_of::<ZP<3>>(raw, values, k_top),
+        5 => bars_of::<ZP<5>>(raw, values, k_top),
+        7 => bars_of::<ZP<7>>(raw, values, k_top),
+        11 => bars_of::<ZP<11>>(raw, values, k_top),
+        13 => bars_of::<ZP<13>>(raw, values, k_top),
+        251 => bars_of::<ZP<251>>(raw, values, k_top),
         other => panic!("unsupported modulus {other}, expected one of {MODULI:?}"),
     };
     let bars: Vec<StepBar> = bars.into_iter().map(|(degree, birth, death)| StepBar { degree, birth, death }).collect();
-    Box::new(BarcodeSpectral::new(&bars, l_max + 1, k_max + 1, Some(l_max)))
+    let backend = WithGenerators {
+        entries: BarcodeSpectral::new(&bars, l_max + 1, k_max + 1, Some(l_max)),
+        generators: Padded { inner: local.over(Ring::Mod(modulus)), l_max },
+    };
+    (Box::new(backend), tuples)
 }
 
 /// A backend over every length `0..=l_max`, though the complex may have no tuples as long as `l_max`.
@@ -273,6 +296,26 @@ impl<B: SpectralBackend> SpectralBackend for Padded<B> {
         } else {
             Ok(known_empty(r, p, self.l_max))
         }
+    }
+
+    fn generators(&self, r: usize, p: usize, k: usize) -> Result<Option<(Group, Vec<ChainGenerator>)>, Overflow> {
+        if p < self.inner.n_steps() {
+            self.inner.generators(r, p, k)
+        } else {
+            Ok(known_empty(r, p, self.l_max).map(|g| (g, vec![])))
+        }
+    }
+
+    fn classify(&self, r: usize, p: usize, k: usize, chain: &[(usize, i64)]) -> Result<Option<Vec<i128>>, Overflow> {
+        if p < self.inner.n_steps() {
+            self.inner.classify(r, p, k, chain)
+        } else {
+            Ok(known_empty(r, p, self.l_max).filter(|_| chain.is_empty()).map(|_| vec![]))
+        }
+    }
+
+    fn has_generators(&self) -> bool {
+        self.inner.has_generators()
     }
 
     fn degenerates_at(&self) -> Option<usize> {

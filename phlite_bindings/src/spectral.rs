@@ -4,7 +4,19 @@
 
 use phlite::integral::{Group, Overflow};
 use phlite::spectral::SpectralBackend as Backend;
-use pyo3::{exceptions::PyOverflowError, prelude::*, types::PyDict};
+use pyo3::{
+    exceptions::{PyOverflowError, PyValueError},
+    prelude::*,
+    types::{PyDict, PyTuple},
+};
+
+/// How a package names the cells of its complex in Python (the cells of generators' chains), and back.
+pub trait CellNames: Send + Sync {
+    /// The Python object for cell `cell`.
+    fn name<'py>(&self, py: Python<'py>, cell: usize) -> PyResult<Bound<'py, PyAny>>;
+    /// The cell a Python object names, or `None` if it isn't one.
+    fn index(&self, py: Python<'_>, cell: &Bound<'_, PyAny>) -> PyResult<Option<usize>>;
+}
 use rayon::prelude::*;
 
 /// A spectral sequence's entries, for `phlite.core.spectral.SpectralSequence` (which drives it page by page): each
@@ -15,12 +27,30 @@ pub struct SpectralBackend {
     integral: bool,
     /// For each step, how many degrees its row has (by default all of them)
     row_lengths: Option<Vec<usize>>,
+    /// How cells are named, for generators
+    cells: Option<Box<dyn CellNames>>,
+    /// Over `Z/p`, `p` (coefficients of generators are shown between `-p/2` and `p/2`)
+    modulus: Option<u64>,
 }
 
 impl SpectralBackend {
     /// Wrap `inner`; `integral` says whether entries have torsion (over Z) or are ranks (over a field).
     pub fn new(inner: Box<dyn Backend>, integral: bool) -> Self {
-        Self { inner, integral, row_lengths: None }
+        Self { inner, integral, row_lengths: None, cells: None, modulus: None }
+    }
+
+    /// Name the cells of generators' chains with `cells`, coefficients over `Z/modulus` if a modulus is given.
+    pub fn with_cells(mut self, cells: Box<dyn CellNames>, modulus: Option<u64>) -> Self {
+        self.cells = Some(cells);
+        self.modulus = modulus;
+        self
+    }
+
+    fn coefficient(&self, x: i128) -> i128 {
+        match self.modulus {
+            Some(p) if x > i128::from(p) / 2 => x - i128::from(p),
+            _ => x,
+        }
     }
 
     /// Give each step's row only its first `row_lengths[p]` degrees (as magnitude homology's `k <= l`).
@@ -70,6 +100,68 @@ impl SpectralBackend {
     #[getter]
     fn degenerates_at(&self) -> Option<usize> {
         self.inner.degenerates_at()
+    }
+
+    /// The characteristic of the coefficient field, `None` over the integers (or if not given).
+    #[getter]
+    fn modulus(&self) -> Option<u64> {
+        if self.integral {
+            None
+        } else {
+            self.modulus
+        }
+    }
+
+    /// Whether generators (and classifying chains) are available.
+    #[getter]
+    fn has_generators(&self) -> bool {
+        self.cells.is_some() && self.inner.has_generators()
+    }
+
+    /// `E^r_p` in degree `k` with generators: `(entry, [(order, chain)])`, `order` `None` for a free summand and
+    /// `chain` a dict from cells to coefficients; `None` if not determined.
+    #[allow(clippy::type_complexity)]
+    fn generators<'py>(
+        &self,
+        py: Python<'py>,
+        r: usize,
+        p: usize,
+        k: usize,
+    ) -> PyResult<Option<(Bound<'py, PyAny>, Vec<(Option<u128>, Bound<'py, PyDict>)>)>> {
+        let cells = self.cells.as_ref().ok_or_else(|| PyValueError::new_err("this spectral sequence has no generators"))?;
+        let Some((group, generators)) = py.detach(|| self.inner.generators(r, p, k)).map_err(overflow)? else {
+            return Ok(None);
+        };
+        let mut out = vec![];
+        for g in generators {
+            let chain = PyDict::new(py);
+            for (cell, x) in g.chain {
+                chain.set_item(cells.name(py, cell)?, self.coefficient(x))?;
+            }
+            out.push((g.order, chain));
+        }
+        Ok(Some((self.to_py(py, Some(group))?, out)))
+    }
+
+    /// The class of `chain` (a dict from cells to coefficients, or `(cell, coefficient)` pairs) in `E^r_p` (degree
+    /// `k`), as coordinates on the generators, or `None` if it doesn't represent an element.
+    fn classify(&self, py: Python<'_>, r: usize, p: usize, k: usize, chain: &Bound<'_, PyAny>) -> PyResult<Option<Vec<i128>>> {
+        let cells = self.cells.as_ref().ok_or_else(|| PyValueError::new_err("this spectral sequence has no generators"))?;
+        let pairs: Vec<Bound<'_, PyAny>> = match chain.cast::<PyDict>() {
+            Ok(dict) => dict.items().iter().collect(),
+            Err(_) => chain.try_iter()?.collect::<PyResult<_>>()?,
+        };
+        let mut terms = Vec::with_capacity(pairs.len());
+        for pair in pairs {
+            let pair = pair.cast_into::<PyTuple>().map_err(|_| PyValueError::new_err("a chain's terms are (cell, coefficient)"))?;
+            let cell = pair.get_item(0)?;
+            let coefficient: i64 = pair.get_item(1)?.extract()?;
+            let index = cells
+                .index(py, &cell)?
+                .ok_or_else(|| PyValueError::new_err(format!("{} is not a cell of the complex", cell.repr().map_or_else(|_| "?".into(), |r| r.to_string()))))?;
+            terms.push((index, coefficient));
+        }
+        py.detach(|| self.inner.classify(r, p, k, &terms)).map_err(overflow)
     }
 
     /// Page `r`: for each step `p`, the entries of its row (`None` where not determined).
