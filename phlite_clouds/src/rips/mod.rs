@@ -48,6 +48,7 @@ use phlite::{
 };
 
 use crate::rips::{cohomology::RipsCoboundary, homology::RipsBoundary};
+use phlite::union_find::IncidenceReduction;
 
 // TUTORIAL:
 // First we implement the types that index into our boundary an coboundary matrix
@@ -909,30 +910,22 @@ fn connected_components<I: RipsInt, D: Distances>(
     }
     let vertex = |v: u32| RipsIndex(I::from_usize(v as usize + 1));
     let birth = |v: u32| distances.birth(v as usize);
-    // Each vertex's parent, next to its birth, so that comparing roots needs no other lookup
-    let mut nodes: Vec<(u32, NotNan<f64>)> = (0..n as u32).map(|v| (v, birth(v))).collect();
-    fn find(nodes: &mut [(u32, NotNan<f64>)], mut v: u32) -> u32 {
-        while nodes[v as usize].0 != v {
-            let grandparent = nodes[nodes[v as usize].0 as usize].0;
-            nodes[v as usize].0 = grandparent;
-            v = grandparent;
-        }
-        v
-    }
+    // The boundary of each edge, v - w, by phlite's union-find: the root of a component is its oldest vertex (by
+    // birth, then index), and the younger of two roots is the pivot, so dies
+    let mut union_find = IncidenceReduction::<Z2, NotNan<f64>>::with_keys((0..n as u32).map(birth));
     let rep = |cells: &[u32]| {
         representatives.then(|| cells.iter().map(|&v| (<Z2 as NonZeroCoefficient>::one(), vertex(v))).collect())
     };
     let mut bars = vec![];
     let mut deaths = vec![];
     for (value, index, a, b) in edges {
-        let (ra, rb) = (find(&mut nodes, a), find(&mut nodes, b));
-        if ra == rb {
+        let Some(younger) = union_find.join(a, Some(b)) else {
             continue;
-        }
-        let (older, younger) = if (nodes[ra as usize].1, ra) < (nodes[rb as usize].1, rb) { (ra, rb) } else { (rb, ra) };
-        nodes[younger as usize].0 = older;
+        };
+        // (The surviving root only matters for representatives)
+        let older = if representatives { union_find.root(younger) } else { younger };
         deaths.push(index);
-        let birth_value = nodes[younger as usize].1;
+        let birth_value = birth(younger);
         if birth_value != value {
             bars.push(Bar {
                 birth: vertex(younger),
@@ -943,7 +936,7 @@ fn connected_components<I: RipsInt, D: Distances>(
         }
     }
     for v in 0..n as u32 {
-        if present[v as usize] && nodes[v as usize].0 == v {
+        if present[v as usize] && union_find.is_free_root(v) {
             bars.push(Bar { birth: vertex(v), birth_value: birth(v), death: None, representative: rep(&[v]) });
         }
     }

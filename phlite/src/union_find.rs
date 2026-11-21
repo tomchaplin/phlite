@@ -44,76 +44,131 @@ pub enum IncidenceOutcome {
     Pivot(u32),
 }
 
-/// The state of reducing, one at a time, columns with at most two non-zero entries, see the [module docs](self).
-#[derive(Debug, Clone)]
-pub struct IncidenceReduction<CF> {
-    /// `parent[v]`, with the top bit set at a grounded root. A root is its own parent.
-    parent: Vec<u32>,
-    /// `λ(v) = gain[v] · λ(parent[v])`. Zero-sized for [`Z2`](crate::fields::Z2), so free.
-    gain: Vec<CF>,
+/// A row: its parent, the gain `λ(v) = gain · λ(parent)` (zero-sized for [`Z2`](crate::fields::Z2)), and a key to
+/// order roots by, side by side so that one cache line has all three.
+#[derive(Debug, Clone, Copy)]
+struct Node<CF, K> {
+    /// A root is its own parent.
+    parent: u32,
+    gain: CF,
+    key: K,
 }
 
-const GROUNDED: u32 = 1 << 31;
+/// The state of reducing, one at a time, columns with at most two non-zero entries, see the [module docs](self).
+///
+/// Rows are ordered by their numbers ([`add_column`](Self::add_column)), by a function
+/// ([`add_column_by`](Self::add_column_by)), or by keys stored with them, then their numbers
+/// ([`with_keys`](Self::with_keys), [`add_column_keyed`](Self::add_column_keyed) and [`join`](Self::join)), which is
+/// fastest when the order comes from values: comparing two roots then reads nothing but the two rows.
+///
+/// The ground is a node of its own after the rows, never a pivot: a grounded component hangs below it, so finding a
+/// root is the classic one-branch loop, and whether a root is grounded is a comparison of numbers.
+#[derive(Debug, Clone)]
+pub struct IncidenceReduction<CF, K = ()> {
+    /// The rows, then the ground
+    nodes: Vec<Node<CF, K>>,
+}
 
-impl<CF: Invertible> IncidenceReduction<CF> {
-    /// Rows `0..n_rows`, each its own component. At most `2^31 - 1` rows.
-    pub fn new(n_rows: usize) -> Self {
-        assert!(n_rows < GROUNDED as usize, "at most 2^31 - 1 rows");
-        Self {
-            parent: (0..n_rows as u32).collect(),
-            gain: vec![CF::one(); n_rows],
+/// What [`IncidenceReduction::root`] gives for a grounded component.
+pub const GROUND: u32 = u32::MAX;
+
+/// The root of `v`, halving the path, without the gains (all 1 for [`IncidenceReduction::join`]): the classic loop.
+#[inline(always)]
+fn root_plain<CF, K>(nodes: &mut [Node<CF, K>], mut v: u32) -> u32 {
+    loop {
+        let p = nodes[v as usize].parent;
+        if p == v {
+            return v;
         }
+        let g = nodes[p as usize].parent;
+        nodes[v as usize].parent = g;
+        v = g;
+    }
+}
+
+impl<CF: Invertible> IncidenceReduction<CF, ()> {
+    /// Rows `0..n_rows`, each its own component. Fewer than `2^32 - 2` rows.
+    pub fn new(n_rows: usize) -> Self {
+        Self::with_keys(std::iter::repeat_n((), n_rows))
     }
 
+    /// Make room for rows `0..n_rows` (each new row its own component), if there isn't already. Grows by at least
+    /// doubling, so that rows added one by one cost linear time in all.
+    pub fn grow(&mut self, n_rows: usize) {
+        self.grow_with(n_rows, ());
+    }
+}
+
+impl<CF: Invertible, K: Copy + Default> IncidenceReduction<CF, K> {
+    /// Rows `0, 1, ...`, each its own component, with these keys: with [`add_column_keyed`](Self::add_column_keyed)
+    /// and [`join`](Self::join), rows are ordered by `(key, number)`. Fewer than `2^32 - 2` rows.
+    pub fn with_keys(keys: impl IntoIterator<Item = K>) -> Self {
+        let mut nodes: Vec<Node<CF, K>> = keys
+            .into_iter()
+            .enumerate()
+            .map(|(v, key)| Node { parent: v as u32, gain: CF::one(), key })
+            .collect();
+        assert!(nodes.len() + 1 < GROUND as usize, "fewer than 2^32 - 2 rows");
+        let ground = nodes.len() as u32;
+        nodes.push(Node { parent: ground, gain: CF::one(), key: K::default() });
+        Self { nodes }
+    }
+
+    /// Make room for rows `0..n_rows` (each new row its own component, with key `key`), if there isn't already.
+    /// Grows by at least doubling (the ground moves to the end, so every row below it is re-pointed).
+    pub fn grow_with(&mut self, n_rows: usize, key: K) {
+        let old = self.n_rows();
+        if n_rows <= old {
+            return;
+        }
+        let new = n_rows.max(2 * old);
+        assert!(new + 1 < GROUND as usize, "fewer than 2^32 - 2 rows");
+        let (old_ground, ground) = (old as u32, new as u32);
+        for node in &mut self.nodes {
+            if node.parent == old_ground {
+                node.parent = ground;
+            }
+        }
+        // The old ground's place becomes a row like the others
+        self.nodes[old] = Node { parent: old_ground, gain: CF::one(), key };
+        self.nodes.extend((old + 1..new).map(|v| Node { parent: v as u32, gain: CF::one(), key }));
+        self.nodes.push(Node { parent: ground, gain: CF::one(), key: K::default() });
+    }
+}
+
+impl<CF: Invertible, K: Copy> IncidenceReduction<CF, K> {
     /// The number of rows.
     pub fn n_rows(&self) -> usize {
-        self.parent.len()
-    }
-
-    /// Make room for rows `0..n_rows` (each new row its own component), if there isn't already.
-    pub fn grow(&mut self, n_rows: usize) {
-        assert!(n_rows < GROUNDED as usize, "at most 2^31 - 1 rows");
-        let old = self.parent.len();
-        if n_rows > old {
-            self.parent.extend(old as u32..n_rows as u32);
-            self.gain.resize(n_rows, CF::one());
-        }
+        self.nodes.len() - 1
     }
 
     #[inline]
-    fn parent_of(&self, v: u32) -> u32 {
-        self.parent[v as usize] & !GROUNDED
+    fn ground(&self) -> u32 {
+        (self.nodes.len() - 1) as u32
     }
 
-    /// The root of `v`'s component, and `λ(v)` (relative to the root), halving the path on the way.
+    /// The root of `v`'s component and `λ(v)` relative to it (meaningless below the ground), halving the path.
     #[inline]
     fn find(&mut self, mut v: u32) -> (u32, CF) {
         let mut lambda = CF::one();
         loop {
-            let p = self.parent_of(v);
+            let p = self.nodes[v as usize].parent;
             if p == v {
                 return (v, lambda);
             }
-            let g = self.parent_of(p);
-            if g != p {
-                // Point v at its grandparent: λ(v) = gain[v] · gain[p] · λ(g)
-                self.gain[v as usize] = self.gain[v as usize] * self.gain[p as usize];
-                self.parent[v as usize] = g;
-            }
-            lambda = lambda * self.gain[v as usize];
-            v = self.parent_of(v);
+            // Point v at its grandparent: λ(v) = gain[v] · gain[p] · λ(g) (when p is the root, g = p and its gain is 1)
+            let g = self.nodes[p as usize].parent;
+            let gain = if g == p {
+                self.nodes[v as usize].gain
+            } else {
+                self.nodes[v as usize].gain * self.nodes[p as usize].gain
+            };
+            let node = &mut self.nodes[v as usize];
+            node.parent = g;
+            node.gain = gain;
+            lambda = lambda * gain;
+            v = g;
         }
-    }
-
-    /// Whether the root `r` is grounded.
-    #[inline]
-    fn grounded(&self, r: u32) -> bool {
-        self.parent[r as usize] & GROUNDED != 0
-    }
-
-    #[inline]
-    fn ground(&mut self, r: u32) {
-        self.parent[r as usize] |= GROUNDED;
     }
 
     /// Reduce the column with these entries (at most two, with distinct rows), given in any order, where the rows'
@@ -123,63 +178,104 @@ impl<CF: Invertible> IncidenceReduction<CF> {
     /// If there are more than two entries.
     #[inline]
     pub fn add_column(&mut self, entries: &[(CF, u32)]) -> IncidenceOutcome {
-        self.add_column_by(entries, |a, b| a > b)
+        self.reduce(entries, |_, a, b| a > b)
     }
 
     /// As [`add_column`](Self::add_column), but with the rows in another order: `later(a, b)` says whether row `a`
     /// comes after row `b` (so would be the pivot of a column holding both). Every call must use the same order.
+    #[inline]
     pub fn add_column_by(&mut self, entries: &[(CF, u32)], later: impl Fn(u32, u32) -> bool) -> IncidenceOutcome {
+        self.reduce(entries, |_, a, b| later(a, b))
+    }
+
+    #[inline]
+    fn reduce(&mut self, entries: &[(CF, u32)], later: impl Fn(&Self, u32, u32) -> bool) -> IncidenceOutcome {
+        let ground = self.ground();
         match *entries {
             [] => IncidenceOutcome::Zero,
             [(_, v)] => {
                 let (r, _) = self.find(v);
-                if self.grounded(r) {
+                if r == ground {
                     IncidenceOutcome::Zero
                 } else {
-                    self.ground(r);
+                    self.nodes[r as usize].parent = ground;
                     IncidenceOutcome::Pivot(r)
                 }
             }
             [(alpha, a), (beta, b)] => {
                 let (ra, la) = self.find(a);
                 let (rb, lb) = self.find(b);
-                // The column reduces to ca · e_ra + cb · e_rb
-                let (ca, cb) = (alpha * la, beta * lb);
                 if ra == rb {
-                    if self.grounded(ra) {
+                    if ra == ground {
                         return IncidenceOutcome::Zero;
                     }
-                    return match ca + cb {
+                    // The column reduces to (ca + cb) · e_ra
+                    return match alpha * la + beta * lb {
                         None => IncidenceOutcome::Zero,
                         Some(_) => {
-                            self.ground(ra);
+                            self.nodes[ra as usize].parent = ground;
                             IncidenceOutcome::Pivot(ra)
                         }
                     };
                 }
-                match (self.grounded(ra), self.grounded(rb)) {
-                    (true, true) => IncidenceOutcome::Zero,
-                    // A grounded component reduces away, leaving the other's root
-                    (true, false) => {
-                        self.parent[rb as usize] = ra | GROUNDED;
-                        self.parent[ra as usize] = ra | GROUNDED;
-                        IncidenceOutcome::Pivot(rb)
-                    }
-                    (false, true) => {
-                        self.parent[ra as usize] = rb;
-                        IncidenceOutcome::Pivot(ra)
-                    }
-                    (false, false) => {
-                        // The larger root dies; rescale its component so that ca · 1 + t · cb · 1 = 0 (or vice versa)
-                        let (keep, ck, die, cd) = if later(rb, ra) { (ra, ca, rb, cb) } else { (rb, cb, ra, ca) };
-                        let t = (ck * cd.mult_inverse()).additive_inverse();
-                        self.parent[die as usize] = keep;
-                        self.gain[die as usize] = t;
-                        IncidenceOutcome::Pivot(die)
-                    }
+                // A grounded component reduces away, leaving the other's root (which joins the ground)
+                if ra == ground || rb == ground {
+                    let die = if ra == ground { rb } else { ra };
+                    self.nodes[die as usize].parent = ground;
+                    return IncidenceOutcome::Pivot(die);
                 }
+                // The column reduces to ca · e_ra + cb · e_rb: the later root dies, and its component is rescaled so
+                // that ck · 1 + t · cd · 1 = 0
+                let (ca, cb) = (alpha * la, beta * lb);
+                let (keep, ck, die, cd) = if later(self, rb, ra) { (ra, ca, rb, cb) } else { (rb, cb, ra, ca) };
+                let t = (ck * cd.mult_inverse()).additive_inverse();
+                let node = &mut self.nodes[die as usize];
+                node.parent = keep;
+                node.gain = t;
+                IncidenceOutcome::Pivot(die)
             }
             _ => panic!("a column of an incidence dimension has at most two entries"),
+        }
+    }
+
+    /// Reduce a column `±(e_a - e_b)` (the boundary of an edge, with `b`), or `±e_a` (without), with rows ordered by
+    /// `(key, number)`: the root that dies (the pivot), if any. These columns keep every gain 1 over any field, so
+    /// this needs none of [`add_column`](Self::add_column)'s arithmetic, and is the fast path for graphs. Don't mix it
+    /// with columns of other shapes on the same rows.
+    #[inline(always)]
+    pub fn join(&mut self, a: u32, b: Option<u32>) -> Option<u32>
+    where
+        K: Ord,
+    {
+        let ground = self.ground();
+        // On a local slice, so that its address and length stay in registers
+        let nodes = &mut self.nodes[..];
+        let ra = root_plain(nodes, a);
+        let rb = match b {
+            Some(b) => root_plain(nodes, b),
+            None => ground,
+        };
+        if ra == rb {
+            return None;
+        }
+        let (keep, die) = if ra == ground {
+            (ra, rb)
+        } else if rb == ground || (nodes[ra as usize].key, ra) > (nodes[rb as usize].key, rb) {
+            (rb, ra)
+        } else {
+            (ra, rb)
+        };
+        nodes[die as usize].parent = keep;
+        Some(die)
+    }
+
+    /// The root of `v`'s component, or [`GROUND`] if it is grounded, halving the path on the way.
+    #[inline]
+    pub fn root(&mut self, v: u32) -> u32 {
+        let ground = self.ground();
+        match root_plain(&mut self.nodes[..], v) {
+            r if r == ground => GROUND,
+            r => r,
         }
     }
 
@@ -187,7 +283,22 @@ impl<CF: Invertible> IncidenceReduction<CF> {
     /// and no reduced column touching its component reaches `v` with a non-zero coefficient other than via its root.
     /// In other words, whether `v` was never a pivot.
     pub fn is_free_root(&self, v: u32) -> bool {
-        self.parent[v as usize] == v
+        self.nodes[v as usize].parent == v
+    }
+
+    /// The key of row `v`.
+    #[inline]
+    pub fn key(&self, v: u32) -> K {
+        self.nodes[v as usize].key
+    }
+}
+
+impl<CF: Invertible, K: Copy + Ord> IncidenceReduction<CF, K> {
+    /// As [`add_column`](Self::add_column), with rows ordered by `(key, number)` (see
+    /// [`with_keys`](Self::with_keys)).
+    #[inline]
+    pub fn add_column_keyed(&mut self, entries: &[(CF, u32)]) -> IncidenceOutcome {
+        self.reduce(entries, |this, a, b| (this.nodes[a as usize].key, a) > (this.nodes[b as usize].key, b))
     }
 }
 
@@ -295,6 +406,36 @@ mod tests {
                 })
                 .collect();
             prop_assert_eq!(got, expected);
+        }
+    }
+
+    proptest! {
+        /// The fast path for graphs agrees with the general one on columns e_a - e_b and e_a, with keys.
+        #[test]
+        fn join_matches_add_column(
+            keys in prop::collection::vec(0u8..4, 1..12),
+            columns in prop::collection::vec((0usize..12, prop::option::of(0usize..12)), 0..30),
+        ) {
+            let n = keys.len();
+            let mut fast = IncidenceReduction::<Z3, u8>::with_keys(keys.iter().copied());
+            let mut slow = IncidenceReduction::<Z3, u8>::with_keys(keys.iter().copied());
+            let minus = Z3::one().additive_inverse();
+            for (a, b) in columns {
+                let a = (a % n) as u32;
+                let b = b.map(|b| (b % n) as u32).filter(|&b| b != a);
+                let entries: Vec<(Z3, u32)> = match b {
+                    Some(b) => vec![(Z3::one(), a), (minus, b)],
+                    None => vec![(Z3::one(), a)],
+                };
+                let want = match slow.add_column_keyed(&entries) {
+                    IncidenceOutcome::Zero => None,
+                    IncidenceOutcome::Pivot(r) => Some(r),
+                };
+                prop_assert_eq!(fast.join(a, b), want);
+            }
+            for v in 0..n as u32 {
+                prop_assert_eq!(fast.is_free_root(v), slow.is_free_root(v));
+            }
         }
     }
 }

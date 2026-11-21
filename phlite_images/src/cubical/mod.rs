@@ -54,6 +54,7 @@ pub mod homology;
 mod tests;
 
 use ordered_float::NotNan;
+use phlite::union_find::{IncidenceReduction, GROUND};
 use phlite::{
     barcode::{self, Algorithm, Bar},
     columns::ColumnRepresentation,
@@ -737,25 +738,6 @@ fn sort_by_rank(ranks: &[u32], n_ranks: usize, skip_from: u32) -> Vec<u32> {
     keys.into_iter().map(|key| key as u32).collect()
 }
 
-/// A union-find node: its parent, and its rank (to compare roots by, next to the parent so that one cache line has
-/// both).
-#[derive(Clone, Copy)]
-struct Node {
-    parent: u32,
-    rank: u32,
-}
-
-/// Find the root of `v`, halving paths on the way.
-#[inline]
-fn find(nodes: &mut [Node], mut v: u32) -> u32 {
-    while nodes[v as usize].parent != v {
-        let grandparent = nodes[nodes[v as usize].parent as usize].parent;
-        nodes[v as usize].parent = grandparent;
-        v = grandparent;
-    }
-    v
-}
-
 fn not_nan(value: f64) -> NotNan<f64> {
     NotNan::new(value).expect("values are never NaN")
 }
@@ -785,29 +767,24 @@ fn connected_components<const D: usize>(
     let first_edge = grid.cells_of_dimension(1).start;
     let value = |rank: u32| not_nan(ranks.values[rank as usize]);
     let order = sort_by_rank(&edges.ranks, ranks.values.len(), ranks.infinite());
-    // Vertices by index from 0; the root of a component is its oldest vertex
-    let mut nodes: Vec<Node> =
-        vertex_ranks.iter().enumerate().map(|(v, &rank)| Node { parent: v as u32, rank }).collect();
+    // Vertices by index from 0; the boundary of each edge by phlite's union-find, in which the root of a component is
+    // its oldest vertex (by rank, then index) and the younger of two roots is the pivot, so dies
+    let mut union_find = IncidenceReduction::<Z2, u32>::with_keys(vertex_ranks.iter().copied());
     let rep = |cells: &[u32]| representatives.then(|| cells.iter().map(|&v| (one(), Cube(first_vertex + v))).collect());
     let mut bars = vec![];
     let mut deaths = Vec::with_capacity(if want_deaths { vertex_ranks.len() } else { 0 });
     for edge in order {
         let [a, b] = edges.neighbours[edge as usize];
-        let (ra, rb) = (find(&mut nodes, a), find(&mut nodes, b));
-        if ra == rb {
+        let Some(younger) = union_find.join(a, Some(b)) else {
             continue;
-        }
-        let (older, younger) = if (nodes[ra as usize].rank, ra) < (nodes[rb as usize].rank, rb) {
-            (ra, rb)
-        } else {
-            (rb, ra)
         };
-        nodes[younger as usize].parent = older;
+        // (The surviving root only matters for representatives)
+        let older = if representatives { union_find.root(younger) } else { younger };
         let cube = Cube(first_edge + edge);
         if want_deaths {
             deaths.push(cube);
         }
-        let (birth, death) = (nodes[younger as usize].rank, edges.ranks[edge as usize]);
+        let (birth, death) = (union_find.key(younger), edges.ranks[edge as usize]);
         if birth != death {
             bars.push(Bar {
                 birth: Cube(first_vertex + younger),
@@ -818,7 +795,7 @@ fn connected_components<const D: usize>(
         }
     }
     for v in 0..vertex_ranks.len() as u32 {
-        if nodes[v as usize].parent == v && vertex_ranks[v as usize] != ranks.infinite() {
+        if union_find.is_free_root(v) && vertex_ranks[v as usize] != ranks.infinite() {
             bars.push(Bar {
                 birth: Cube(first_vertex + v),
                 birth_value: value(vertex_ranks[v as usize]),
@@ -858,13 +835,16 @@ fn voids<const D: usize>(
     let first_face = grid.cells_of_dimension(D - 1).start;
     let outside = top_ranks.len() as u32;
     let value = |rank: u32| not_nan(ranks.values[rank as usize]);
-    // Top cells by index from 0, then the outside (ranked after everything)
-    let mut nodes: Vec<Node> = top_ranks
-        .iter()
-        .enumerate()
-        .map(|(t, &rank)| Node { parent: t as u32, rank })
-        .chain([Node { parent: outside, rank: u32::MAX }])
-        .collect();
+    // Top cells by index from 0, by phlite's union-find on the coboundary of the (D - 1)-cells: the root of a component is
+    // its youngest top cell (by rank, then index), and the older of two roots is the pivot, so dies. The outside of
+    // the grid, younger than everything, is the union-find's ground: a cell with one top coface grounds its component.
+    // The union-find's rows are the top cells in reverse (row `last - t` for top cell `t`) with reversed ranks as keys, so
+    // that its order on rows, by (key, row), is the reverse of (rank, top cell): the older of two roots is the later.
+    let last_top = outside - 1;
+    let row = |t: u32| last_top - t;
+    let mut union_find = IncidenceReduction::<Z2, std::cmp::Reverse<u32>>::with_keys(
+        top_ranks.iter().rev().map(|&rank| std::cmp::Reverse(rank)),
+    );
     // Every cell, infinite ones too, in decreasing order
     let order = sort_by_rank(&faces.ranks, ranks.values.len(), u32::MAX);
     // With representatives, each component's top cells, as linked lists: `next[v]` follows `v`, and `last[root]`
@@ -876,19 +856,19 @@ fn voids<const D: usize>(
     };
     let mut bars = vec![];
     for cell in order.into_iter().rev() {
-        let [a, b] = faces.neighbours[cell as usize].map(|n| n.min(outside));
-        let (ra, rb) = (find(&mut nodes, a), find(&mut nodes, b));
-        if ra == rb {
-            continue;
-        }
-        // Roots are compared by (rank, number), the outside last
-        let (survivor, dies) = if (nodes[ra as usize].rank, ra) > (nodes[rb as usize].rank, rb) {
-            (ra, rb)
-        } else {
-            (rb, ra)
+        // A cell with one top coface is joined to the outside: the ground
+        let [a, b] = faces.neighbours[cell as usize];
+        let dies = match (a < outside, b < outside) {
+            (true, true) => union_find.join(row(a), Some(row(b))),
+            (true, false) => union_find.join(row(a), None),
+            (false, true) => union_find.join(row(b), None),
+            (false, false) => None,
         };
-        nodes[dies as usize].parent = survivor;
-        let (birth, death) = (faces.ranks[cell as usize], nodes[dies as usize].rank);
+        let Some(dies_row) = dies else {
+            continue;
+        };
+        let dies = row(dies_row);
+        let (birth, death) = (faces.ranks[cell as usize], union_find.key(dies_row).0);
         if birth != ranks.infinite() && birth != death {
             bars.push(Bar {
                 birth: Cube(first_face + cell),
@@ -898,7 +878,11 @@ fn voids<const D: usize>(
             });
         }
         if representatives {
-            // Append the dying list to the survivor's
+            // Append the dying list to the survivor's (grounded: joined to the outside, whose list collects them)
+            let survivor = match union_find.root(dies_row) {
+                GROUND => outside,
+                root => row(root),
+            };
             next[last[survivor as usize] as usize] = dies;
             last[survivor as usize] = last[dies as usize];
         }
