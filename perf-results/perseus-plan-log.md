@@ -259,3 +259,21 @@ and `(k+1, d)` for `r ≤ d − b`. Exact for `l + r ≤ l_max + 1` (others `Non
 (endpoint deletions), so it is for small graphs. Tests: `E^1` = `magnitude`, `E^2` diagonal = path homology (against
 `pph`, weights 1), pages only shrink, directed cycles. Over fields only; the integral version would need the
 persistence of a filtered complex over Z (pivots that aren't units): the Smith-form machinery above is a start.
+
+### Search results (integral, exhaustive unless stated)
+
+| family | count | l ≤ | torsion |
+|---|---:|---:|---|
+| connected graphs, ≤ 7 nodes (atlas) | 996 | 8 | none |
+| connected graphs, 8 nodes (geng) | 11,117 | 6 | none |
+| connected digraphs, ≤ 5 nodes (directg, arcs either or both ways) | 9,578 | 6 | none |
+| connected digraphs, 6 nodes | 1,530,843 | 5 | none |
+
+(8-node graphs and ≤ 5-node digraphs were run with the field comparison over Z/2, Z/3, Z/5 against Z/251; the rest
+over Z.) So no graph on ≤ 8 nodes and no digraph on ≤ 6 nodes has torsion in `MH_{3,4}`, `MH_{3,5}` or `MH_{4,5}`
+(and, for ≤ 8 nodes, up to `l = 6`).
+
+**Local minimality of the known examples** (`phlite_networks/examples/magnitude_torsion_minimise.py`: delete nodes,
+then edges, while some torsion up to `l = 6` survives): Kaneta–Yoshinaga's 15-node graph of the hemicube RP²
+(undirected, torsion (Z/2)² in `MH_{3,4}`) and its one-way Hasse digraph (31 arcs, Z/2 in `MH_{3,4}` from the pair
+(0̂, 1̂) only) are both locally minimal: no single node or edge (arc) can go.
