@@ -119,6 +119,34 @@ impl<C: BasisElement + Hash, CF: crate::fields::NonZeroCoefficient, FT: Filtrati
     }
 }
 
+/// A column with repeated rows summed (and those that cancel dropped): the columns of `V` for cleared cells are
+/// products `D V_d`, sums of boundaries full of repeats.
+fn consolidated<C: BasisElement + Hash, CF: crate::fields::NonZeroCoefficient>(
+    column: impl Iterator<Item = (CF, C)>,
+) -> Vec<(CF, C)> {
+    let mut sums: HashMap<C, Option<CF>> = HashMap::new();
+    for (coefficient, row) in column {
+        let entry = sums.entry(row).or_insert(None);
+        *entry = match *entry {
+            None => Some(coefficient),
+            Some(c) => c + coefficient,
+        };
+    }
+    sums.into_iter().filter_map(|(row, c)| c.map(|c| (c, row))).collect()
+}
+
+/// Run both, in parallel on the current rayon thread pool when phlite is built with it.
+fn join<A: Send, B: Send>(a: impl FnOnce() -> A + Send, b: impl FnOnce() -> B + Send) -> (A, B) {
+    #[cfg(feature = "parallel")]
+    {
+        rayon::join(a, b)
+    }
+    #[cfg(not(feature = "parallel"))]
+    {
+        (a(), b())
+    }
+}
+
 /// The pairs `(low, column)` of the reduced matrix, by the standard algorithm over the columns in `basis` (in order).
 fn pivots<M, R>(matrix: M, basis: Vec<M::ColT>, columns: R) -> HashMap<M::ColT, M::RowT>
 where
@@ -138,11 +166,11 @@ where
 pub fn image_kernel_cokernel<M, R>(
     boundary: M,
     cells: Vec<Vec<M::ColT>>,
-    in_subcomplex: impl Fn(&M::ColT) -> bool,
+    in_subcomplex: impl Fn(&M::ColT) -> bool + Sync,
     columns: R,
 ) -> ImageKernelCokernel<M::ColT>
 where
-    M: MatrixOracle<RowT = <M as MatrixOracle>::ColT> + HasRowFiltration + Clone,
+    M: MatrixOracle<RowT = <M as MatrixOracle>::ColT> + HasRowFiltration + Clone + Send + Sync,
     M::CoefficientField: Invertible + ColumnCoefficient + 'static,
     M::FiltrationT: ColumnFiltration,
     M::ColT: ColumnRow + Hash + Debug + 'static,
@@ -160,8 +188,10 @@ where
     // D_f and D_g: positive and negative cells, and cycles for the positive ones
     let full = || Clearing::new().with_columns(columns.clone()).full_basis(true).skip_zero_apparent_pairs(false);
     let (k_basis, l_basis) = (SplitBasis::from_dimensions(cells.clone()), SplitBasis::from_dimensions(l_cells));
-    let k = full().reduce(boundary.clone().with_basis(k_basis));
-    let l = full().reduce(Restricted(boundary.clone()).with_basis(l_basis));
+    let (k, l) = join(
+        || full().reduce(boundary.clone().with_basis(k_basis)),
+        || full().reduce(Restricted(boundary.clone()).with_basis(l_basis)),
+    );
     let negative_k: HashSet<Cell<M>> = k.diagram.pairings.iter().map(|(_, d)| d.clone()).collect();
     let negative_l: HashSet<Cell<M>> = l.diagram.pairings.iter().map(|(_, d)| d.clone()).collect();
     let positive_l = |c: &Cell<M>| in_subcomplex(c) && !negative_l.contains(c);
@@ -169,34 +199,83 @@ where
 
     // D_im, on the columns negative in K
     let negatives: Vec<Cell<M>> = all.iter().filter(|c| negative_k.contains(c)).cloned().collect();
-    let low_im = pivots(
-        boundary.clone().with_filtration(&subcomplex_first),
-        negatives.clone(),
-        columns.clone(),
-    );
+    let image_matrix = || pivots(boundary.clone().with_filtration(&subcomplex_first), negatives.clone(), columns.clone());
 
-    // D_ker: the cycles of K (columns of V for the positive cells), rows of L first
-    let positives: Vec<Cell<M>> = all.iter().filter(|c| !negative_k.contains(c)).cloned().collect();
-    let kernel_columns = Columns {
-        columns: positives.iter().map(|c| (c.clone(), k.v.column(c.clone()).collect())).collect(),
-        filtration: &subcomplex_first,
+    // D_ker: the cycles of K (columns of V for the positive cells), rows of L first. Only the pivots of kernel deaths
+    // (cells of L negative in L, positive in K) are read, and a column only meets those of its own dimension, so only
+    // the positive cells of dimensions with a kernel death, up to the last one, are reduced
+    let dimension_of: HashMap<Cell<M>, usize> =
+        cells.iter().enumerate().flat_map(|(d, dim)| dim.iter().map(move |c| (c.clone(), d))).collect();
+    let mut last_death: HashMap<usize, usize> = HashMap::new();
+    for (i, c) in all.iter().enumerate() {
+        if in_subcomplex(c) && negative_l.contains(c) && !negative_k.contains(c) {
+            last_death.insert(dimension_of[c], i);
+        }
+    }
+    let positives: Vec<Cell<M>> = all
+        .iter()
+        .enumerate()
+        .filter(|(i, c)| !negative_k.contains(*c) && last_death.get(&dimension_of[*c]).is_some_and(|&last| *i <= last))
+        .map(|(_, c)| c.clone())
+        .collect();
+    let kernel_matrix = || {
+        let kernel_columns = Columns {
+            columns: positives.iter().map(|c| (c.clone(), consolidated(k.v.column(c.clone())))).collect(),
+            filtration: &subcomplex_first,
+        };
+        pivots(kernel_columns, positives.clone(), columns.clone())
     };
-    let low_ker = pivots(kernel_columns, positives.clone(), columns.clone());
 
-    // D_cok: D_f with the cells positive in L replaced by L's cycles
+    // D_cok: D_f with the cells positive in L replaced by L's cycles. A column positive in K and not positive in L is
+    // its boundary, in the span of the earlier boundaries, which the replaced ones (positive in L) are in the span of
+    // L's earlier columns: so it reduces to zero, and is left out
     let row_value = |row: Cell<M>| boundary.filtration_value(row);
-    let cokernel_columns = Columns {
-        columns: all
-            .iter()
-            .map(|c| {
-                let column: Vec<_> =
-                    if positive_l(c) { l.v.column(c.clone()).collect() } else { boundary.column(c.clone()).collect() };
-                (c.clone(), column)
-            })
-            .collect(),
-        filtration: &row_value,
+    let cokernel_matrix = || {
+        let needed: Vec<Cell<M>> =
+            all.iter().filter(|c| negative_k.contains(c) || positive_l(c)).cloned().collect();
+        let cokernel_columns = Columns {
+            columns: needed
+                .iter()
+                .map(|c| {
+                    let column: Vec<_> = if positive_l(c) {
+                        consolidated(l.v.column(c.clone()))
+                    } else {
+                        boundary.column(c.clone()).collect()
+                    };
+                    (c.clone(), column)
+                })
+                .collect(),
+            filtration: &row_value,
+        };
+        pivots(cokernel_columns, needed, columns.clone())
     };
-    let low_cok = pivots(cokernel_columns, all.clone(), columns.clone());
+
+    // (K, L): the quotient's boundary, dropping faces in L, reduced by cohomology (its transpose, with clearing)
+    let relative_matrix = || {
+        let mut coboundary: HashMap<Cell<M>, Vec<(M::CoefficientField, Cell<M>)>> = HashMap::new();
+        for c in all.iter().filter(|c| !in_subcomplex(c)) {
+            coboundary.entry(c.clone()).or_default();
+            for (x, f) in boundary.column(c.clone()) {
+                if !in_subcomplex(&f) {
+                    coboundary.entry(f).or_default().push((x, c.clone()));
+                }
+            }
+        }
+        let quotient = Columns { columns: coboundary, filtration: &row_value }
+            .with_basis(SplitBasis::from_dimensions(quotient_cells));
+        let algorithm = crate::barcode::Algorithm::Clearing(Clearing::new().with_columns(columns.clone()));
+        let bars = crate::barcode::cohomology(&quotient, algorithm);
+        let mut diagram = Diagram { essential: vec![], pairings: vec![] };
+        for bar in bars {
+            match bar.death {
+                Some((death, _)) => diagram.pairings.push((bar.birth, death)),
+                None => diagram.essential.push(bar.birth),
+            }
+        }
+        diagram
+    };
+    let ((low_im, low_ker), (low_cok, relative)) =
+        join(|| join(image_matrix, kernel_matrix), || join(cokernel_matrix, relative_matrix));
 
     // The barcodes
     let mut image = Diagram { essential: vec![], pairings: vec![] };
@@ -233,18 +312,6 @@ where
             cokernel.essential.push(j.clone());
         }
     }
-
-    // (K, L): the quotient's boundary, dropping faces in L
-    let quotient = Columns {
-        columns: all
-            .iter()
-            .filter(|c| !in_subcomplex(c))
-            .map(|c| (c.clone(), boundary.column(c.clone()).filter(|(_, f)| !in_subcomplex(f)).collect()))
-            .collect(),
-        filtration: &row_value,
-    };
-    let quotient_basis = SplitBasis::from_dimensions(quotient_cells);
-    let relative = full().diagram(quotient.with_basis(quotient_basis));
 
     ImageKernelCokernel { image, kernel, cokernel, relative, complex: k.diagram, subcomplex: l.diagram }
 }
