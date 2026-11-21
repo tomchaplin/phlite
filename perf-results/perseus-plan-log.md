@@ -417,3 +417,15 @@ collapse-then-Markowitz approach, which only applies where the complex splits, e
   tables with their differentials, show as HTML in notebooks, and `plot()` with matplotlib.
 * Integral MPSS by windows (and entries in parallel): bidirected C6, pages 1–3, length 5: 0.33 → 0.12 s; length 6:
   7.3 → 2.4 s; length 7 now 47 s. Still dense inside each window: sparse elimination would be next.
+
+## Spectral sequences against other software (see `perf-results/spectral-comparison-2026-11-21.md`)
+
+Kenzo (Romero's spectral sequences, over Z) and spectral-sequence-engine (pure Python, over F_p) agree with phlite on
+every entry of pages 1–4 of every complex either could finish: lens spaces, Hopf models, Künneth products, random
+filtered complexes with torsion, lower-star torus meshes. Over Z phlite is 1–1000× faster than Kenzo (47 s against
+49 ms on a 737-cell random complex; Kenzo didn't finish the three largest within an hour); over F_3 phlite reads pages
+off a barcode, milliseconds throughout, against seconds for the engine. Kenzo overflows (`fixnum` matrices) where
+coefficients grow. PerMaViss computes the same Rips barcodes as phlite on its own example in 203 s against 2.1 ms. What
+Kenzo has that we don't: effective homology (spectral sequences of infinite objects: Serre spectral sequences of
+fibrations, Eilenberg–Moore), and the filtration of H(C) (extension data). Our weak point: dense lattices in big
+windows over Z (14.8 s for a 3,456-cell mesh).

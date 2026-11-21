@@ -138,14 +138,15 @@ def tensor(c, d):
     return [(cells[o][0], {position[f]: x for f, x in cells[o][1].items()}) for o in order], [pairs[o] for o in order]
 
 
-def random_filtered(seed, n_pieces=7, max_degree=3, max_value=4):
+def random_filtered(seed, n_pieces=7, max_degree=3, max_value=4, exact=False, sparse=False):
     """A random filtered complex over Z: a sum of elementary pieces (a free cell, or a pair with d e = m e' for m in
     1, 2, 3, 4 or 6), each cell at a random value (no earlier than its face), then a random unitriangular change of
     basis in each degree (each cell plus multiples of cells no later than it), which keeps faces no later than their
-    cofaces and mixes everything up. Returns `(cells, values)`, cells in order of dimension."""
+    cofaces and mixes everything up (`sparse`: at most two other cells each, keeping coefficients small on big
+    complexes). Returns `(cells, values)`, cells in order of dimension."""
     rng = random.Random(seed)
     raw = []  # (dimension, value, partner index or None, multiplier)
-    for _ in range(rng.randint(1, n_pieces)):
+    for _ in range(n_pieces if exact else rng.randint(1, n_pieces)):
         k = rng.randint(0, max_degree)
         v = rng.randint(0, max_value)
         if k < max_degree and rng.random() < 0.6:
@@ -162,9 +163,13 @@ def random_filtered(seed, n_pieces=7, max_degree=3, max_value=4):
     change = []  # change[i] = {j: a_ij} including i: 1
     for i in range(n):
         row = {i: 1}
-        for j in range(n):
-            if j != i and raw[j][0] == raw[i][0] and key(j) < key(i) and rng.random() < 0.35:
-                row[j] = rng.choice([-2, -1, 1, 2])
+        earlier = [j for j in range(n) if j != i and raw[j][0] == raw[i][0] and key(j) < key(i)]
+        if sparse:
+            chosen = rng.sample(earlier, min(len(earlier), rng.randint(0, 2)))
+        else:
+            chosen = [j for j in earlier if rng.random() < 0.35]
+        for j in chosen:
+            row[j] = rng.choice([-2, -1, 1, 2])
         change.append(row)
     # The inverse change, by forward substitution in the order of `key`: e_i = b_i - sum a_ij e_j
     inverse = {}
