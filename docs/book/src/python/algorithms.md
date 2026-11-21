@@ -48,7 +48,8 @@ GrPPH), when it runs.
 The column representation, caching and storing R are best chosen per kind of input, so the presets leave them unset
 (`None`), and each pipeline fills them in with its own defaults when it runs. So does `with_union_find`: whether, by
 cohomology, to find dimension 0 by union-find (as Ripser and Cubical Ripser do) rather than by reducing it, which the
-pipelines that can (Vietoris–Rips and cubical complexes, `—` below for the others, which refuse it) do by default; and
+pipelines that can (Vietoris–Rips, cubical complexes and the lazy network complexes, `—` below for the others,
+which refuse it) do by default; and
 `with_collapse`: whether to collapse the edges of a flag filtration first (dominated edges moved later or removed, which
 keeps the bars' values but not which simplices are paired), which Vietoris–Rips and implicit flag complexes do by default:
 
@@ -62,9 +63,9 @@ keeps the bars' values but not which simplices are paired), which Vietoris–Rip
 | `clouds.delaunay_cech` | `phlite.clouds.delaunay_cech` | `'pivot'` | `False` | `True` | `'merged'` | `False` | — | — |
 | `networks.grpph` | `phlite.networks.grpph` | `'merged'` | `True` | `False` | `'merged'` | `True` | — | — |
 | `networks.pph` | `phlite.networks.pph` | `'merged'` | `True` | `False` | `'merged'` | `True` | — | — |
-| `networks.directed_flag` | `phlite.networks.directed_flag` | `'merged'` | `True` | `False` | `'merged'` | `True` | — | — |
-| `networks.ordered_tuples` | `phlite.networks.ordered_tuples` | `'merged'` | `True` | `False` | `'merged'` | `True` | — | — |
-| `networks.dowker` | `phlite.networks.dowker` | `'merged'` | `True` | `False` | `'merged'` | `True` | — | — |
+| `networks.directed_flag` | `phlite.networks.directed_flag` | `'merged'` | `True` | `False` | `'merged'` | `True` | `True` | — |
+| `networks.ordered_tuples` | `phlite.networks.ordered_tuples` | `'merged'` | `True` | `False` | `'merged'` | `True` | `True` | — |
+| `networks.dowker` | `phlite.networks.dowker` | `'merged'` | `True` | `False` | `'merged'` | `True` | `True` | — |
 | `networks.flag` | `phlite.networks.flag` | `'pivot'` | `False` | `True` | `'merged'` | `False` | — | — |
 | `networks.flag_implicit` | `phlite.networks.flag` | `'heap'` | `False` | `False` | `'heap'` | `False` | `True` | `True` |
 | `images.cubical` | `phlite.images.cubical` | `'merged'` | `False` | `True` | `'merged'` | `False` | `True` | — |

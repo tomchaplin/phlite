@@ -132,7 +132,7 @@ pub struct Options {
     /// `"cohomology"` (the default) or `"homology"`.
     pub method: Option<String>,
     pub representatives: bool,
-    /// Find dimension 0 by union-find (Rips and images only; the default there).
+    /// Find dimension 0 by union-find (Rips, images and the lazy network complexes; the default there).
     pub union_find: Option<bool>,
     /// Build the matrices in parallel (by default, exactly when the algorithm is parallel clearing).
     pub parallel_setup: Option<bool>,
@@ -189,7 +189,7 @@ const NETWORK_DEFAULTS: Defaults = Defaults {
     cache: true,
     store_r: false,
     row_ranks: false,
-    union_find: None,
+    union_find: Some(true),
     parallel_setup: true,
 };
 const IMAGE_DEFAULTS: Defaults = Defaults {
@@ -968,6 +968,7 @@ fn lazy_bars<K: phlite_networks::lazy::LazyComplex>(
         method: Method,
         representatives: bool,
         parallel_setup: bool,
+        union_find: bool,
     }
     impl<K: phlite_networks::lazy::LazyComplex> Visitor for V<'_, K> {
         type Output = Vec<Bar<phlite_networks::simplex::Simplex, NotNan<f64>, Z2>>;
@@ -979,11 +980,13 @@ fn lazy_bars<K: phlite_networks::lazy::LazyComplex>(
                 algorithm,
                 self.representatives,
                 self.parallel_setup,
+                self.union_find,
             )
         }
     }
     let bars = config.run(V {
         complex,
+        union_find: config.union_find,
         max_dim,
         method: config.method,
         representatives: config.representatives,

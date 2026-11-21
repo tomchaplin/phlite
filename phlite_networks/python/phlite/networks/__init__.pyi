@@ -46,7 +46,7 @@ def directed_flag(graph: typing.Union[networkx.DiGraph, builtins.int], edges: ty
         method: `'cohomology'` (the default) or `'homology'`.
         algorithm: The reduction algorithm and its options, as a `phlite.core.Algorithm` (default:
             `Algorithm.serial()`).
-            Pipeline defaults (`'networks.directed_flag'`): columns='merged', cache=True, store_r=False.
+            Pipeline defaults (`'networks.directed_flag'`): columns='merged', cache=True, store_r=False, union_find=True.
         representatives: Whether to also compute a representative cycle for every bar. Cells are tuples of nodes (node
             labels for a networkx graph), in their order in the simplex.
     
@@ -81,7 +81,7 @@ def dowker(graph: typing.Union[networkx.DiGraph, builtins.int], edges: typing.Op
         method: `'cohomology'` (the default) or `'homology'`.
         algorithm: The reduction algorithm and its options, as a `phlite.core.Algorithm` (default:
             `Algorithm.serial()`).
-            Pipeline defaults (`'networks.dowker'`): columns='merged', cache=True, store_r=False.
+            Pipeline defaults (`'networks.dowker'`): columns='merged', cache=True, store_r=False, union_find=True.
         representatives: Whether to also compute a representative cycle for every bar. Cells are tuples of nodes (node
             labels for a networkx graph), in increasing order of node index.
     
@@ -191,7 +191,7 @@ def ordered_tuples(graph: typing.Union[networkx.DiGraph, builtins.int], edges: t
         method: `'cohomology'` (the default) or `'homology'`.
         algorithm: The reduction algorithm and its options, as a `phlite.core.Algorithm` (default:
             `Algorithm.serial()`).
-            Pipeline defaults (`'networks.ordered_tuples'`): columns='merged', cache=True, store_r=False.
+            Pipeline defaults (`'networks.ordered_tuples'`): columns='merged', cache=True, store_r=False, union_find=True.
         representatives: Whether to also compute a representative cycle for every bar (cells as for `directed_flag`).
     
     Returns:

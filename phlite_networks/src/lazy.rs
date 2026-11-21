@@ -369,11 +369,15 @@ pub fn barcode<K: LazyComplex, R: ColumnRepresentation>(
 ) -> Vec<SimplexBar> {
     #[allow(unreachable_patterns)]
     let parallel = matches!(algorithm, Algorithm::ParallelClearing(_));
-    barcode_with(complex, max_dim, method, algorithm, representatives, parallel)
+    barcode_with(complex, max_dim, method, algorithm, representatives, parallel, true)
 }
 
 /// As [`barcode`], choosing whether to build the bases in parallel on the current rayon thread pool
-/// (`parallel_setup`, which [`barcode`] does only for the parallel algorithm), whatever the algorithm.
+/// (`parallel_setup`, which [`barcode`] does only for the parallel algorithm), whatever the algorithm, and whether
+/// (by cohomology, without representatives) to find dimension 0 by union-find (`union_find`, which [`barcode`] does):
+/// every edge's boundary is the difference of its two vertices, so reducing dimension 0 is a union-find on the edges
+/// in filtration order ([`phlite::union_find`]), and the edges that kill a component are left out of dimension 1, as
+/// clearing would.
 ///
 /// # Panics
 /// As [`barcode`]: if simplices of dimension `max_dim + 1` don't fit in a [`Simplex`] (see [`fits`]).
@@ -384,6 +388,7 @@ pub fn barcode_with<K: LazyComplex, R: ColumnRepresentation>(
     algorithm: Algorithm<'_, R>,
     representatives: bool,
     parallel_setup: bool,
+    union_find: bool,
 ) -> Vec<SimplexBar> {
     assert!(
         fits(complex, max_dim),
@@ -397,6 +402,16 @@ pub fn barcode_with<K: LazyComplex, R: ColumnRepresentation>(
     let coboundary = Coboundary::<K, Z2>::new(complex);
     let boundary = Boundary::<K, Z2>::new(complex);
     match method {
+        Method::Cohomology if union_find && !representatives => {
+            let (mut bars, deaths) = components(complex, parallel);
+            if max_dim >= 1 {
+                let basis = without(build_bases(complex, max_dim, skip, true, parallel), &deaths);
+                let coboundary = coboundary.with_basis(basis);
+                let coboundary = coboundary.by_ref().with_transpose(&boundary);
+                bars.extend(barcode::cohomology(coboundary, algorithm));
+            }
+            bars
+        }
         Method::Cohomology => {
             let basis = build_bases(complex, max_dim, skip, true, parallel);
             let coboundary = coboundary.with_basis(basis);
@@ -418,4 +433,69 @@ pub fn barcode_with<K: LazyComplex, R: ColumnRepresentation>(
             bars
         }
     }
+}
+
+/// The bars of dimension 0 by union-find on the edges, in filtration order (by value, then [`Simplex`], as the
+/// reductions order them), with the elder rule (the root of a component is its oldest vertex, by value then number):
+/// so the pairs a reduction would find. Zero-length bars are left out. Also returns the edges that kill a component
+/// (zero-length bars' included), sorted.
+fn components<K: LazyComplex>(complex: &K, parallel: bool) -> (Vec<SimplexBar>, Vec<Simplex>) {
+    use phlite::union_find::IncidenceReduction;
+    let codec = complex.codec();
+    let n = complex.n_vertices();
+    let vertex = |v: u32| codec.encode(&[v]);
+    // Every edge once, as an extension of its first vertex
+    let edges_of = |v: u32| complex.extensions(vertex(v)).map(|(edge, value)| (value, edge));
+    let mut edges: Vec<(NotNan<f64>, Simplex)> = if parallel {
+        (0..n).into_par_iter().flat_map_iter(edges_of).collect()
+    } else {
+        (0..n).flat_map(edges_of).collect()
+    };
+    if parallel {
+        edges.par_sort_unstable();
+    } else {
+        edges.sort_unstable();
+    }
+    let values: Vec<NotNan<f64>> = (0..n).map(|v| complex.value(vertex(v))).collect();
+    let mut union_find = IncidenceReduction::<Z2, NotNan<f64>>::with_keys(values.iter().copied());
+    let mut bars = vec![];
+    let mut deaths = vec![];
+    for (value, edge) in edges {
+        let (a, b) = (codec.vertex(edge, 0), codec.vertex(edge, 1));
+        let Some(younger) = union_find.join(a, Some(b)) else {
+            continue;
+        };
+        deaths.push(edge);
+        if values[younger as usize] != value {
+            bars.push(Bar {
+                birth: vertex(younger),
+                birth_value: values[younger as usize],
+                death: Some((edge, value)),
+                representative: None,
+            });
+        }
+    }
+    for v in 0..n {
+        if union_find.is_free_root(v) {
+            bars.push(Bar { birth: vertex(v), birth_value: values[v as usize], death: None, representative: None });
+        }
+    }
+    deaths.sort_unstable();
+    (bars, deaths)
+}
+
+/// `basis` without dimension 0 (found by union-find) and without the edges in `excluded` (sorted).
+fn without(basis: SplitBasis<Simplex>, excluded: &[Simplex]) -> SplitBasis<Simplex> {
+    use phlite::matrices::SplitByDimension;
+    let dims: Vec<Vec<Simplex>> = (0..SplitByDimension::n_dimensions(&&basis))
+        .map(|dim| {
+            let slice = (&basis).in_dimension(dim).0;
+            match dim {
+                0 => vec![],
+                1 => slice.iter().copied().filter(|e| excluded.binary_search(e).is_err()).collect(),
+                _ => slice.to_vec(),
+            }
+        })
+        .collect();
+    SplitBasis::from_dimensions(dims)
 }
