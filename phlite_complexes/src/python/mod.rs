@@ -72,6 +72,7 @@ fn no_integral_barcode() -> PyErr {
 mod chain;
 mod extended;
 mod filtered;
+mod zigzag;
 pub use chain::ChainComplex;
 pub use filtered::{ComplexBarcode, FilteredComplex};
 
@@ -887,5 +888,6 @@ fn _complexes(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<FilteredComplex>()?;
     m.add_class::<ComplexBarcode>()?;
     m.add_class::<Bar>()?;
+    m.add_function(wrap_pyfunction!(zigzag::zigzag, m)?)?;
     Ok(())
 }

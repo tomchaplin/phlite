@@ -136,6 +136,14 @@ what of `K`'s homology doesn't come from `L`. It is generic over any boundary or
 point clouds, `phlite.clouds.rips_image_kernel(points=..., subset=...)` does the same for the Rips complex of a subset
 on the lazy Rips boundary.
 
+## Zigzag persistence
+
+`phlite.complexes.zigzag(operations)` is the zigzag persistence of a sequence of simplicial complexes, each obtained
+from the last by inserting or deleting one simplex (`(simplex, True)` or `(simplex, False)`), starting empty: intervals
+`(dimension, birth, death, birth_closed, death_closed)` over positions `0..m`. It uses FastZigzag (Dey and Hou): the
+zigzag becomes an ordinary filtration of a complex twice its length (the insertions, then cones on the deletions),
+reduced as any other, whose bars map back one by one; so it gets every speed-up of ordinary persistence.
+
 ## Choosing cell identifiers yourself
 
 By default cells are matched up through a Python dict, using your `__hash__` and `__eq__`. You can instead give

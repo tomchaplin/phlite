@@ -14,6 +14,7 @@ __all__ = [
     "ChainComplex",
     "ComplexBarcode",
     "FilteredComplex",
+    "zigzag",
 ]
 
 @typing.final
@@ -456,4 +457,31 @@ class FilteredComplex:
         """
     def __len__(self) -> builtins.int: ...
     def __repr__(self) -> builtins.str: ...
+
+def zigzag(operations: typing.Iterable[tuple[typing.Sequence[builtins.int], builtins.bool]], *, algorithm: typing.Optional[core.Algorithm] = None) -> builtins.list[tuple[builtins.int, builtins.int, builtins.int, builtins.bool, builtins.bool]]:
+    r"""
+    Compute the zigzag persistence of a sequence of simplicial complexes, each obtained from the last by inserting or
+    deleting one simplex, starting from the empty complex, over Z/2.
+    
+    A zigzag `K_0 <-> K_1 <-> ... <-> K_m` (with `K_0` empty and `K_{i+1}` the result of operation `i`) has a barcode
+    of intervals `[birth, death]` (homology alive in `K_birth, ..., K_death`), each end *closed* or *open*: a birth is
+    closed if made by an insertion (open if by a deletion), a death closed if followed by a deletion (open if by an
+    insertion). Computed by FastZigzag (Dey and Hou): the zigzag is turned into an ordinary filtration of a complex of
+    twice its length (the insertions, then cones on the deletions), whose barcode phlite computes as usual and maps
+    back interval by interval. Intervals still alive at the end end at `m` (closed).
+    
+    Args:
+        operations: The operations, in order, as `(simplex, insert)` pairs: a simplex as a sequence of integer vertices
+            and `True` to insert it (its faces must be there), `False` to delete it (its cofaces must be gone). A simplex
+            may be inserted again after being deleted.
+        algorithm: The reduction algorithm, as for `FilteredComplex.persistence`.
+    
+    Returns:
+        The intervals, as `(dimension, birth, death, birth_closed, death_closed)` tuples (positions of complexes, from
+        0 to `m`), sorted.
+    
+    Raises:
+        ValueError: If an operation is impossible (inserting a simplex that is there or without its faces, deleting one
+            that isn't there or with a coface).
+    """
 
