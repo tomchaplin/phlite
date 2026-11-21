@@ -25,6 +25,13 @@ fn main() {
     };
     let points: Vec<Vec<f64>> = (0..n).map(|_| (0..dim).map(|_| uniform()).collect()).collect();
     let start = Instant::now();
+    let triangulation = phlite_clouds::alpha::delaunay(&points).expect("a triangulation");
+    println!(
+        "delaunay {:8.1} ms ({} top simplices)",
+        start.elapsed().as_secs_f64() * 1e3,
+        triangulation.simplices.len()
+    );
+    let start = Instant::now();
     let complex = alpha_complex(&points).expect("an alpha complex");
     let filtered = complex.filtered(true);
     println!(

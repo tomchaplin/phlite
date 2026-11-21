@@ -713,8 +713,8 @@ pub fn rips_barcode<R: ColumnRepresentation, I: RipsInt, D: Distances>(
 /// Edges are collapsed only when it can help and is safe: from `max_dim` 1 (dimension 0 is a union-find, cheaper than
 /// collapsing), without representatives, and when the points have no births. The collapsed edges are used only if at
 /// least a tenth of the edges went (when collapsing moves many edges but removes few, the reduction can get slower, as
-/// Perseus 6 found). Collapsing keeps the bars' values but not which simplices are paired: the birth and death
-/// simplices are those of the collapsed filtration.
+/// Perseus 6 found), and then collapsed again while that removes a tenth of what is left. Collapsing keeps the bars'
+/// values but not which simplices are paired: the birth and death simplices are those of the collapsed filtration.
 ///
 /// # Panics
 /// As [`rips_barcode`]: if simplices of dimension `max_dim + 1` don't fit in a [`RipsIndex`].
@@ -737,8 +737,18 @@ pub fn rips_barcode_with<R: ColumnRepresentation, I: RipsInt, D: Distances>(
         .min(enclosing_radius(&distances))
         .min(largest_finite);
     if collapse && max_dim >= 1 && !representatives && !D::HAS_BIRTHS {
-        let (collapsed, stats) = collapse::collapse_edges(&distances, threshold);
+        let (mut collapsed, stats) = collapse::collapse_edges(&distances, threshold);
         if stats.edges_after * 10 <= stats.edges_before * 9 {
+            // Collapsing again removes more (an edge's dominator may only appear after others moved), and is quick on
+            // the sparse result: repeat while a pass removes a tenth of what is left
+            loop {
+                let (again, stats) = collapse::collapse_edges(&collapsed, threshold);
+                collapsed = again;
+                // (An empty graph removes nothing, a tenth of nothing included)
+                if stats.edges_after == stats.edges_before || stats.edges_after * 10 > stats.edges_before * 9 {
+                    break;
+                }
+            }
             return rips_barcode_with(
                 collapsed,
                 max_dim,
