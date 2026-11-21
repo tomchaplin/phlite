@@ -360,3 +360,21 @@ Not used in 2D, where it loses: union-find at both ends already leaves no middle
 alone costs more (smooth 1024²: 1.18 s with Morse against 0.37 s). The 2D gap to Perseus (6–13×) is its planar engine
 (union-find with a sorted sweep and no cell enumeration at all); our 2D time is mostly building the two sorted cell
 lists for the union-finds (`dimension_cells`), which is where to look next for 2D.
+
+## Phase 4: both experiments negative (no code kept except a benchmark case)
+
+**Size-switched working column.** `HybridColumns { threshold }`: a `MergeCol` until more than `threshold` entries
+have been added, then drained into a `BitCol` kept between columns (patch kept at the scratchpad as
+`hybrid-columns.patch`). Swept over the dumped explicit, cubical and Freudenthal complexes (clearing, `store_r`), with
+and without union-find, thresholds 64–8192. Pivot columns win or tie everywhere except the tiny `dense200` (1.2 ms at
+threshold 64 against 1.9 ms); e.g. without union-find grid500 68.8 ms pivot / 76.0 ms hybrid(512) / 103 ms merged,
+cubical3d-noise-40 45.6 / 53.5 / 67.4 ms. The bit column's random slot accesses aren't the cost I expected them to be,
+and merging small columns doesn't beat it. Pivot is already the default for explicit complexes, and cubical images no
+longer reduce much (union-find at both ends, Morse in 3D), so not merged.
+
+**Forward cohomology (annotations) for Linial–Meshulam.** Not implemented, because phlite doesn't trail there: on
+Y_2(n, p) with triangles at 2–5 levels, phlite (serial, pivot, cohomology) is 5–7× faster than Perseus (F2, one
+thread): n=100 p=0.1: 0.11 s vs 0.58 s; n=150 p=0.05: 2.0 s vs 11.8 s; n=200 p=0.03: 5.1 s vs 36.1 s. Column
+representation matters enormously here (n=200: merged columns 178 s against pivot's 5.1 s). Added `linial-meshulam`
+cases to `bench_complexes` (n=100 p=0.1, and n=150 p=0.05 as large): at n=100 phlite 90 ms, PHAT twist 181 ms,
+Perseus 541 ms, lophat 7.1 s.

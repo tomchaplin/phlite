@@ -61,8 +61,11 @@ SUITE = {
         "circles`, Rips complexes of the noisy torus and wedge of circles from the Rips section; `rings`, "
         "cubical complexes of `n`×`n` images of the distance to five overlapping rings, plus noise (a long H1 "
         "bar for each hole); and `torus mesh`, a triangulated torus filtered by its height, plus noise "
-        "(essential bars in every dimension). Perseus 6 (`perseus.simplices`, over Z/2 on one thread) takes "
-        "simplicial complexes as vertex lists, so runs on the Rips complexes and the torus mesh, building the "
+        "(essential bars in every dimension). `linial-meshulam`: the random 2-complex Y_2(n, p) on the complete "
+        "graph (at 0), each triangle with probability `p` at one of a few levels, so that many triangles arrive "
+        "in a few big batches. Perseus 6 (`perseus.simplices`, over Z/2 on one thread) takes "
+        "simplicial complexes as vertex lists, so runs on the Rips complexes, the torus mesh and Linial–Meshulam, "
+        "building the "
         "boundary matrix itself.",
     "order": 90,
     "summary": ["phat (twist)", "phat (twist, reduce)", "lophat (1 thread)", "perseus (F2)", "phlite (serial)", "phlite (serial, reduce)", "phlite (V only, reduce)", "phlite (parallel, reduce)", "phlite (homology, reduce)"],
@@ -166,6 +169,17 @@ def torus_complex(n, seed):
     return _sorted_columns(cells, values, _simplicial_faces)
 
 
+def linial_meshulam_complex(n, p, levels, seed):
+    """Linial–Meshulam Y_2(n, p): the complete graph on `n` vertices at 0, and each triangle with probability `p` at a
+    random level in `1..levels`."""
+    rng = np.random.default_rng(seed)
+    triangles = [t for t in itertools.combinations(range(n), 3) if rng.random() < p]
+    levels_of = rng.integers(1, levels + 1, size=len(triangles)).astype(np.float64)
+    cells = [[(i,) for i in range(n)], list(itertools.combinations(range(n), 2)), triangles]
+    values = [np.zeros(n), np.zeros(len(cells[1])), levels_of]
+    return _sorted_columns(cells, values, _simplicial_faces)
+
+
 def _sorted_columns(cells, values, faces):
     """Columns in filtration order (by value, then dimension), and the values in that order."""
     keys = [(v, k, i) for k, vs in enumerate(values) for i, v in enumerate(vs.tolist())]
@@ -210,6 +224,8 @@ def generate_complex(case):
         columns, values = grid_complex(n, seed, rings_image)
     elif kind == "torus":
         columns, values = torus_complex(n, seed)
+    elif kind == "lm":
+        columns, values = linial_meshulam_complex(n, case["density"], 3, seed)
     else:
         density = case["density"] if kind == "dense" else None
         columns, values = random_complex(random.Random(seed), 3, n, n, 50, density=density)
@@ -249,7 +265,7 @@ def perseus_impl(data):
 
 
 # The kinds of complex that are simplicial, so that Perseus can take them
-SIMPLICIAL = ("rips", "torus")
+SIMPLICIAL = ("rips", "torus", "lm")
 
 
 def phat_impl(reduction=phat.reductions.twist_reduction, representation=None):
@@ -344,8 +360,8 @@ IMPLEMENTATIONS.update(sweep(phlite_impl, ", reduce"))
 # ====== Cases ============================================================
 
 
-def case(kind, n, quick=False, large=False, shape=None):
-    values = {"kind": kind, "n": n, "top_dim": 2, "density": 0.3, "seed": 0, "large": large, "shape": shape}
+def case(kind, n, quick=False, large=False, shape=None, density=0.3):
+    values = {"kind": kind, "n": n, "top_dim": 2, "density": density, "seed": 0, "large": large, "shape": shape}
     marks = [pytest.mark.quick] if quick else [pytest.mark.large] if large else []
     return pytest.param(values, id=label(values), marks=marks)
 
@@ -362,6 +378,8 @@ def label(case):
         return f"torus mesh {n}x{n}"
     if kind == "grid":
         return f"grid {n}x{n}"
+    if kind == "lm":
+        return f"linial-meshulam n={n} p={case['density']}"
     if kind == "dense":
         return f"dense n={n} p={case['density']}"
     return f"cells n={n}"
@@ -381,6 +399,7 @@ CASES = [
     case("rips", 150, shape="circles"),
     case("rings", 500),
     case("torus", 300),
+    case("lm", 100, density=0.1),
     # Timed once each
     case("rips", 200, large=True),
     case("grid", 1000, large=True),
@@ -389,6 +408,7 @@ CASES = [
     case("rips", 200, large=True, shape="torus"),
     case("rings", 1000, large=True),
     case("torus", 700, large=True),
+    case("lm", 150, large=True, density=0.05),
 ]
 
 
