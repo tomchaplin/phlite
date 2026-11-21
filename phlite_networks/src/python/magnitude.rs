@@ -8,7 +8,9 @@ use pyo3::{
 use pyo3_stub_gen::derive::*;
 
 use super::graph::{read_graph, validate};
-use crate::magnitude::{magnitude_ranks, total_ranks, MagnitudeGraph, MagnitudeQuery, PairRanks, MODULI};
+use crate::magnitude::{
+    magnitude_integral, magnitude_ranks, total_ranks, MagnitudeGraph, MagnitudeQuery, PairGroups, PairRanks, MODULI,
+};
 use crate::mpss::mpss_pages;
 
 /// Magnitude homology of a digraph, as defined by Hepworth and Willerton: the ranks of `MH_{k,l}` over `Z/modulus`.
@@ -35,11 +37,16 @@ use crate::mpss::mpss_pages;
 ///         by universal coefficients, if the ranks over `Z/p` and `Z/251` differ in degree `k` or `k + 1`, the integral
 ///         group `MH_{k,l}` has `p`-torsion (unless it has 251-torsion).
 ///     by_pair: Whether to return the ranks of each pair separately.
+///     integral: Whether to compute over the integers instead (`modulus` is then ignored): each piece is collapsed and
+///         eliminated over Z, and what is left (nearly always a few cells) put in Smith normal form.
 ///
 /// Returns:
 ///     The ranks as a list over `l = 0, ..., l_max` of lists over `k = 0, ..., min(l, k_max)`: `ranks[l][k]` is the
 ///     rank of `MH_{k,l}` (summed over the pairs). With `by_pair`, a dict from each pair `(s, t)` with some non-zero
-///     rank to its own such list. With a list of moduli, a dict from each modulus to its result.
+///     rank to its own such list. With a list of moduli, a dict from each modulus to its result. With `integral`, a
+///     dict `{"free": ranks, "torsion": torsion}`, where `ranks[l][k]` is the free rank of `MH_{k,l}` (or `None` if
+///     its Smith form overflowed or was too large) and `torsion` maps `(k, l)` to `{order: multiplicity}` of the
+///     invariant factors of its torsion (with `by_pair`, a dict from each pair to such a dict).
 #[gen_stub_pyfunction(
     python_overload = r#"
     import builtins
@@ -56,6 +63,7 @@ use crate::mpss::mpss_pages;
         pairs: typing.Optional[typing.Sequence[tuple[typing.Any, typing.Any]]] = None,
         modulus: builtins.int | typing.Sequence[builtins.int] = 2,
         by_pair: builtins.bool = False,
+        integral: builtins.bool = False,
     ) -> typing.Any: ...
     @typing.overload
     def magnitude(
@@ -68,13 +76,14 @@ use crate::mpss::mpss_pages;
         pairs: typing.Optional[typing.Sequence[tuple[builtins.int, builtins.int]]] = None,
         modulus: builtins.int | typing.Sequence[builtins.int] = 2,
         by_pair: builtins.bool = False,
+        integral: builtins.bool = False,
     ) -> typing.Any: ...
     "#,
     no_default_overload = true,
     module = "phlite.networks"
 )]
 #[pyfunction]
-#[pyo3(signature = (graph, edges = None, /, l_max = None, *, k_max = None, pairs = None, modulus = None, by_pair = false))]
+#[pyo3(signature = (graph, edges = None, /, l_max = None, *, k_max = None, pairs = None, modulus = None, by_pair = false, integral = false))]
 #[allow(clippy::too_many_arguments)]
 fn magnitude<'py>(
     py: Python<'py>,
@@ -85,6 +94,7 @@ fn magnitude<'py>(
     pairs: Option<&Bound<'py, PyAny>>,
     modulus: Option<&Bound<'py, PyAny>>,
     by_pair: bool,
+    integral: bool,
 ) -> PyResult<Bound<'py, PyAny>> {
     // (2 by default)
     let (moduli, several): (Vec<u64>, bool) = match modulus {
@@ -138,6 +148,14 @@ fn magnitude<'py>(
         .transpose()?;
     let edges: Vec<(u32, u32)> = edges.into_iter().map(|(a, b, _)| (a, b)).collect();
     let query = MagnitudeQuery { l_max, k_max, pairs };
+    if integral {
+        let results: Vec<PairGroups> = py.detach(|| {
+            let graph = MagnitudeGraph::new(n_vertices as usize, &edges);
+            magnitude_integral(&graph, &query, true)
+        });
+        let k_cap = k_max.unwrap_or(l_max).min(l_max);
+        return integral_result(py, &results, l_max, k_cap, by_pair, &labels);
+    }
     let results: Vec<PairRanks> = py.detach(|| {
         let graph = MagnitudeGraph::new(n_vertices as usize, &edges);
         magnitude_ranks(&graph, &query, &moduli, true)
@@ -248,6 +266,66 @@ fn magnitude_path_spectral_sequence<'py>(
         let graph = MagnitudeGraph::new(n_vertices as usize, &edges);
         mpss_pages(&graph, l_max, k_max, r_max, modulus)
     }))
+}
+
+/// The Python result of [`magnitude_integral`]: `{"free": ranks[l][k], "torsion": {(k, l): {order: multiplicity}}}`
+/// summed over the pairs, or a dict from each pair to its own.
+fn integral_result<'py>(
+    py: Python<'py>,
+    results: &[PairGroups],
+    l_max: usize,
+    k_cap: usize,
+    by_pair: bool,
+    labels: &Option<Vec<Py<PyAny>>>,
+) -> PyResult<Bound<'py, PyAny>> {
+    let summary = |pairs: &[&PairGroups]| -> PyResult<Bound<'py, PyAny>> {
+        let mut free: Vec<Vec<Option<usize>>> = (0..=l_max).map(|l| vec![Some(0); k_cap.min(l) + 1]).collect();
+        let mut counts: std::collections::BTreeMap<(usize, usize), std::collections::BTreeMap<u128, usize>> =
+            Default::default();
+        for pair in pairs {
+            for (l, row) in pair.groups.iter().enumerate() {
+                for (k, group) in row.iter().enumerate() {
+                    match group {
+                        None => free[l][k] = None,
+                        Some((f, t)) => {
+                            if let Some(total) = &mut free[l][k] {
+                                *total += f;
+                            }
+                            for &order in t {
+                                *counts.entry((k, l)).or_default().entry(order).or_default() += 1;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        let torsion = PyDict::new(py);
+        for (key, orders) in counts {
+            let orders_dict = PyDict::new(py);
+            for (order, count) in orders {
+                orders_dict.set_item(order, count)?;
+            }
+            torsion.set_item(key, orders_dict)?;
+        }
+        let out = PyDict::new(py);
+        out.set_item("free", free)?;
+        out.set_item("torsion", torsion)?;
+        Ok(out.into_any())
+    };
+    if !by_pair {
+        return summary(&results.iter().collect::<Vec<_>>());
+    }
+    let label = |v: u32| -> Bound<'py, PyAny> {
+        match labels {
+            None => v.into_pyobject(py).expect("an int").into_any(),
+            Some(labels) => labels[v as usize].bind(py).clone(),
+        }
+    };
+    let out = PyDict::new(py);
+    for pair in results {
+        out.set_item(PyTuple::new(py, [label(pair.source), label(pair.target)])?, summary(&[pair])?)?;
+    }
+    Ok(out.into_any())
 }
 
 /// Edges given as pairs or weighted triples (weights are ignored).

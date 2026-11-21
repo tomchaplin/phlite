@@ -103,3 +103,27 @@ def test_rp2_has_2_torsion():
     assert ranks[2][("bottom", "top")][4][4] == 1
     assert ranks[3] == {} or ranks[3][("bottom", "top")][4][3:] == [0, 0]
     assert ranks[251] == {} or ranks[251][("bottom", "top")][4][3:] == [0, 0]
+
+
+@given(digraphs(), st.integers(0, 5))
+@settings(deadline=None)
+def test_integral_matches_perseus(graph, l_max):
+    """Over the integers, free ranks and torsion against Perseus's integral groups."""
+    n, edges = graph
+    if not edges:
+        return
+    ours = magnitude(n, edges, l_max=l_max, integral=True)
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        table = perseus.magnitude(edges, n=n, directed=True, lmax=l_max)["table"]
+    free = {key: g["free"] for key, g in table.items() if g["free"]}
+    assert {(k, l): r for l, row in enumerate(ours["free"]) for k, r in enumerate(row) if r} == free
+    torsion = {key: {int(q): m for q, m in g["torsion"].items()} for key, g in table.items() if g["torsion"]}
+    assert ours["torsion"] == torsion
+
+
+def test_rp2_integral():
+    """Kaneta and Yoshinaga's graph of RP^2: MH_{3,4}(bottom, top) = Z/2, exactly."""
+    g = kaneta_yoshinaga_rp2().to_directed()
+    ours = magnitude(g, l_max=4, pairs=[("bottom", "top")], integral=True)
+    assert ours["torsion"] == {(3, 4): {2: 1}}

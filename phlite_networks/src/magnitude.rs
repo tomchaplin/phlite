@@ -639,19 +639,15 @@ fn collapsed_ranks_mod(piece: &Collapsed, n_degrees: usize, modulus: u64) -> Vec
     }
 }
 
-/// The ranks of the magnitude homology of `graph` over `Z/m` for each `m` in `moduli` (each one of [`MODULI`]), for
-/// each pair asked for (or every pair), with lengths up to `query.l_max` and degrees up to `query.k_max` (or
-/// `l_max`). Pairs whose ranks are all zero are left out. Each piece is collapsed once, whatever the moduli.
-///
-/// Work runs in parallel on the current rayon pool if `parallel`: over sources, and, when there are few sources, also
-/// over each source's tuples and pieces.
-///
-/// # Panics
-/// If a modulus isn't one of [`MODULI`].
-pub fn magnitude_ranks(graph: &MagnitudeGraph, query: &MagnitudeQuery, moduli: &[u64], parallel: bool) -> Vec<PairRanks> {
-    for m in moduli {
-        assert!(MODULI.contains(m), "unsupported modulus {m}, expected one of {MODULI:?}");
-    }
+/// Run `f` on every piece `MC_{*,l}(s, t)` asked for, once collapsed and eliminated (with the number of degrees
+/// wanted, `min(l, k_max) + 1`): `(s, t, l, f(piece))`, sorted. In parallel on the current rayon pool if `parallel`:
+/// over sources, and, when there are few sources, also over each source's tuples and pieces.
+fn for_each_piece<T: Send>(
+    graph: &MagnitudeGraph,
+    query: &MagnitudeQuery,
+    parallel: bool,
+    f: impl Fn(&Collapsed, usize) -> T + Sync,
+) -> Vec<(u32, u32, usize, T)> {
     let n = graph.n;
     let l_max = query.l_max;
     let k_max = query.k_max.unwrap_or(l_max).min(l_max);
@@ -672,7 +668,7 @@ pub fn magnitude_ranks(graph: &MagnitudeGraph, query: &MagnitudeQuery, moduli: &
     let all = vec![true; n];
     // Few sources: parallelise within each instead
     let inner = parallel && sources.len() < 2 * rayon::current_num_threads();
-    let one_source = |&s: &u32| -> Vec<PairRanks> {
+    let one_source = |&s: &u32| -> Vec<(u32, u32, usize, T)> {
         let wanted = if query.pairs.is_some() { &targets[s as usize] } else { &all };
         let buckets = enumerate(graph, s, l_max, k_max + 1, wanted, inner);
         let pieces: Vec<(u32, usize)> = (0..n as u32)
@@ -680,37 +676,219 @@ pub fn magnitude_ranks(graph: &MagnitudeGraph, query: &MagnitudeQuery, moduli: &
             .flat_map(|t| (graph.distance(s, t) as usize..=l_max).map(move |l| (t, l)))
             .collect();
         let piece = |&(t, l): &(u32, usize)| {
-            let n_degrees = k_max.min(l) + 1;
             let collapsed = eliminate(collapse_piece(graph, &buckets, t, l, (k_max + 1).min(l)));
-            let ranks: Vec<Vec<usize>> = moduli.iter().map(|&m| collapsed_ranks_mod(&collapsed, n_degrees, m)).collect();
-            (t, l, ranks)
+            (s, t, l, f(&collapsed, k_max.min(l) + 1))
         };
-        let results: Vec<(u32, usize, Vec<Vec<usize>>)> =
-            if inner { pieces.par_iter().map(piece).collect() } else { pieces.iter().map(piece).collect() };
-        drop(buckets);
-        let mut out: Vec<PairRanks> = vec![];
-        for (t, l, ranks) in results {
-            if out.last().is_none_or(|p| p.target != t) {
-                out.push(PairRanks {
-                    source: s,
-                    target: t,
-                    ranks: moduli.iter().map(|_| (0..=l_max).map(|l| vec![0; k_max.min(l) + 1]).collect()).collect(),
-                });
-            }
-            let pair = out.last_mut().expect("pushed");
-            for (m, r) in ranks.into_iter().enumerate() {
-                pair.ranks[m][l] = r;
-            }
+        if inner {
+            pieces.par_iter().map(piece).collect()
+        } else {
+            pieces.iter().map(piece).collect()
         }
-        out.retain(|p| p.ranks.iter().flatten().flatten().any(|&r| r > 0));
-        out
     };
-    let mut out: Vec<PairRanks> = if parallel && !inner {
+    let mut out: Vec<(u32, u32, usize, T)> = if parallel && !inner {
         sources.par_iter().flat_map_iter(one_source).collect()
     } else {
         sources.iter().flat_map(one_source).collect()
     };
-    out.sort_unstable_by_key(|r| (r.source, r.target));
+    out.sort_unstable_by_key(|&(s, t, l, _)| (s, t, l));
+    out
+}
+
+/// The ranks of the magnitude homology of `graph` over `Z/m` for each `m` in `moduli` (each one of [`MODULI`]), for
+/// each pair asked for (or every pair), with lengths up to `query.l_max` and degrees up to `query.k_max` (or
+/// `l_max`). Pairs whose ranks are all zero are left out. Each piece is collapsed once, whatever the moduli.
+///
+/// Work runs in parallel on the current rayon pool if `parallel`: over sources, and, when there are few sources, also
+/// over each source's tuples and pieces.
+///
+/// # Panics
+/// If a modulus isn't one of [`MODULI`].
+pub fn magnitude_ranks(graph: &MagnitudeGraph, query: &MagnitudeQuery, moduli: &[u64], parallel: bool) -> Vec<PairRanks> {
+    for m in moduli {
+        assert!(MODULI.contains(m), "unsupported modulus {m}, expected one of {MODULI:?}");
+    }
+    let l_max = query.l_max;
+    let k_max = query.k_max.unwrap_or(l_max).min(l_max);
+    let pieces = for_each_piece(graph, query, parallel, |piece, n_degrees| {
+        moduli.iter().map(|&m| collapsed_ranks_mod(piece, n_degrees, m)).collect::<Vec<Vec<usize>>>()
+    });
+    let mut out: Vec<PairRanks> = vec![];
+    for (s, t, l, ranks) in pieces {
+        if out.last().is_none_or(|p| (p.source, p.target) != (s, t)) {
+            out.push(PairRanks {
+                source: s,
+                target: t,
+                ranks: moduli.iter().map(|_| (0..=l_max).map(|l| vec![0; k_max.min(l) + 1]).collect()).collect(),
+            });
+        }
+        let pair = out.last_mut().expect("pushed");
+        for (m, r) in ranks.into_iter().enumerate() {
+            pair.ranks[m][l] = r;
+        }
+    }
+    out.retain(|p| p.ranks.iter().flatten().flatten().any(|&r| r > 0));
+    out
+}
+
+/// An integral magnitude homology group `Z^free ⊕ Z/t_1 ⊕ ... ⊕ Z/t_m`, with the invariant factors `t_i > 1` (each
+/// dividing the next), or `None` if the Smith form overflowed or was too large (see [`magnitude_integral`]).
+pub type Group = Option<(usize, Vec<u128>)>;
+
+/// The integral magnitude homology of one pair: `groups[l][k]` is `MH_{k,l}(s, t; Z)`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PairGroups {
+    pub source: u32,
+    pub target: u32,
+    pub groups: Vec<Vec<Group>>,
+}
+
+/// Matrices of a piece left after elimination with more entries than this are not put in Smith form (their groups
+/// are `None`); after elimination they are nearly always tiny.
+const SMITH_ENTRIES: usize = 1 << 24;
+
+/// The nonzero diagonal of the Smith normal form of a dense integer matrix (the invariant factors, each dividing the
+/// next), or `None` on overflow. A least-modulus pivot at every step, as Perseus 6 does (pivoting on the first nonzero
+/// entry blows up even on small matrices).
+fn smith_diagonal(mut a: Vec<Vec<i128>>) -> Option<Vec<u128>> {
+    let rows = a.len();
+    let cols = if rows == 0 { 0 } else { a[0].len() };
+    let mut diagonal = vec![];
+    let mut t = 0;
+    while t < rows.min(cols) {
+        // The entry of least modulus in the rest
+        let mut best: Option<(u128, usize, usize)> = None;
+        for (i, row) in a.iter().enumerate().skip(t) {
+            for (j, &x) in row.iter().enumerate().skip(t) {
+                if x != 0 && best.is_none_or(|(m, _, _)| x.unsigned_abs() < m) {
+                    best = Some((x.unsigned_abs(), i, j));
+                }
+            }
+        }
+        let Some((_, i, j)) = best else { break };
+        a.swap(t, i);
+        for row in a.iter_mut() {
+            row.swap(t, j);
+        }
+        loop {
+            let p = a[t][t];
+            let mut clean = true;
+            for i in t + 1..rows {
+                if a[i][t] != 0 {
+                    let q = a[i][t] / p;
+                    for j in t..cols {
+                        a[i][j] = a[i][j].checked_sub(q.checked_mul(a[t][j])?)?;
+                    }
+                    clean &= a[i][t] == 0;
+                }
+            }
+            for j in t + 1..cols {
+                if a[t][j] != 0 {
+                    let q = a[t][j] / p;
+                    for row in a.iter_mut().skip(t) {
+                        row[j] = row[j].checked_sub(q.checked_mul(row[t])?)?;
+                    }
+                    clean &= a[t][j] == 0;
+                }
+            }
+            if clean {
+                // The pivot must divide everything left; if not, add that row to the pivot's and go again
+                let bad = (t + 1..rows).find(|&i| a[i][t + 1..].iter().any(|&x| x % p != 0));
+                match bad {
+                    None => break,
+                    Some(i) => {
+                        for j in t..cols {
+                            a[t][j] = a[t][j].checked_add(a[i][j])?;
+                        }
+                    }
+                }
+            } else {
+                // A remainder smaller than the pivot: make it the pivot
+                let mut best = (a[t][t].unsigned_abs(), t, t);
+                for i in t + 1..rows {
+                    if a[i][t] != 0 && a[i][t].unsigned_abs() < best.0 {
+                        best = (a[i][t].unsigned_abs(), i, t);
+                    }
+                }
+                for j in t + 1..cols {
+                    if a[t][j] != 0 && a[t][j].unsigned_abs() < best.0 {
+                        best = (a[t][j].unsigned_abs(), t, j);
+                    }
+                }
+                let (_, i, j) = best;
+                a.swap(t, i);
+                for row in a.iter_mut() {
+                    row.swap(t, j);
+                }
+            }
+        }
+        diagonal.push(a[t][t].unsigned_abs());
+        t += 1;
+    }
+    Some(diagonal)
+}
+
+/// The integral homology of a collapsed piece in degrees `0..n_degrees`, by Smith forms of its boundary matrices.
+fn integral_groups(piece: &Collapsed, n_degrees: usize) -> Vec<Group> {
+    let mut groups: Vec<Group> = vec![Some((0, vec![])); n_degrees];
+    let n = piece.degrees.len();
+    // The cells of each degree, and each cell's position among them
+    let top = piece.degrees.iter().copied().max().map_or(0, |d| d as usize);
+    let mut cells: Vec<Vec<usize>> = vec![vec![]; top + 2];
+    let mut position = vec![0usize; n];
+    for (c, &k) in piece.degrees.iter().enumerate() {
+        position[c] = cells[k as usize].len();
+        cells[k as usize].push(c);
+    }
+    // The diagonal of the Smith form of the boundary from degree k to k - 1, for k = 1..=n_degrees
+    let diagonal = |k: usize| -> Option<Vec<u128>> {
+        if k == 0 || k > top {
+            return Some(vec![]);
+        }
+        let (rows, cols) = (cells[k - 1].len(), cells[k].len());
+        if rows.saturating_mul(cols) > SMITH_ENTRIES {
+            return None;
+        }
+        let mut a = vec![vec![0i128; cols]; rows];
+        for (j, &c) in cells[k].iter().enumerate() {
+            for e in piece.indptr[c]..piece.indptr[c + 1] {
+                a[position[piece.faces[e] as usize]][j] = i128::from(piece.coefficients[e]);
+            }
+        }
+        smith_diagonal(a)
+    };
+    let diagonals: Vec<Option<Vec<u128>>> = (0..=n_degrees).map(diagonal).collect();
+    for k in 0..n_degrees {
+        let size = cells.get(k).map_or(0, Vec::len);
+        groups[k] = match (&diagonals[k], &diagonals[k + 1]) {
+            (Some(out), Some(into)) => {
+                let free = size - out.len() - into.len();
+                Some((free, into.iter().copied().filter(|&d| d > 1).collect()))
+            }
+            _ => None,
+        };
+    }
+    groups
+}
+
+/// The integral magnitude homology of `graph`, for each pair asked for (or every pair), with lengths up to
+/// `query.l_max` and degrees up to `query.k_max` (or `l_max`): each piece collapsed and eliminated over the integers,
+/// then the Smith forms of what is left (nearly always tiny). Pairs whose groups are all zero are left out.
+pub fn magnitude_integral(graph: &MagnitudeGraph, query: &MagnitudeQuery, parallel: bool) -> Vec<PairGroups> {
+    let l_max = query.l_max;
+    let k_max = query.k_max.unwrap_or(l_max).min(l_max);
+    let pieces = for_each_piece(graph, query, parallel, integral_groups);
+    let mut out: Vec<PairGroups> = vec![];
+    for (s, t, l, groups) in pieces {
+        if out.last().is_none_or(|p| (p.source, p.target) != (s, t)) {
+            out.push(PairGroups {
+                source: s,
+                target: t,
+                groups: (0..=l_max).map(|l| vec![Some((0, vec![])); k_max.min(l) + 1]).collect(),
+            });
+        }
+        out.last_mut().expect("pushed").groups[l] = groups;
+    }
+    out.retain(|p| p.groups.iter().flatten().any(|g| g != &Some((0, vec![]))));
     out
 }
 
@@ -846,6 +1024,45 @@ mod tests {
             // MH_{l,l}(K_n) has rank n (n-1)^l
             assert_eq!(row[l], n as usize * (n as usize - 1).pow(l as u32));
         }
+    }
+
+    /// The integral groups give every field's ranks by universal coefficients.
+    #[test]
+    fn integral_groups_agree_with_fields() {
+        let graphs: Vec<(usize, Vec<(u32, u32)>)> = vec![
+            (5, cycle(5, false)),
+            (6, cycle(6, true)),
+            (5, vec![(0, 1), (1, 0), (1, 2), (2, 3), (3, 1), (2, 4), (4, 0), (0, 2)]),
+        ];
+        for (n, edges) in graphs {
+            let graph = MagnitudeGraph::new(n, &edges);
+            let query = MagnitudeQuery { l_max: 5, ..Default::default() };
+            let integral = magnitude_integral(&graph, &query, false);
+            for (m, p) in [(0usize, 2u128), (1, 3)] {
+                let ranks = magnitude_ranks(&graph, &query, &[2, 3], false);
+                for pair in &integral {
+                    let field = ranks.iter().find(|r| (r.source, r.target) == (pair.source, pair.target));
+                    for (l, row) in pair.groups.iter().enumerate() {
+                        for (k, group) in row.iter().enumerate() {
+                            let (free, torsion) = group.clone().expect("small");
+                            let divisible = |g: &Group| g.as_ref().map_or(0, |(_, t)| t.iter().filter(|&&d| d % p == 0).count());
+                            let below = if k > 0 { divisible(&row[k - 1]) } else { 0 };
+                            let want = free + torsion.iter().filter(|&&d| d % p == 0).count() + below;
+                            let got = field.map_or(0, |f| f.ranks[m][l][k]);
+                            assert_eq!(got, want, "{edges:?} ({k}, {l})");
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn smith_forms() {
+        assert_eq!(smith_diagonal(vec![vec![2, 4], vec![6, 8]]), Some(vec![2, 4]));
+        assert_eq!(smith_diagonal(vec![vec![2, 0], vec![0, 3]]), Some(vec![1, 6]));
+        assert_eq!(smith_diagonal(vec![vec![0, 0], vec![0, 0]]), Some(vec![]));
+        assert_eq!(smith_diagonal(vec![vec![4, 6, 0]]), Some(vec![2]));
     }
 
     /// Restricting to pairs, and to degrees, gives the same ranks as computing everything.

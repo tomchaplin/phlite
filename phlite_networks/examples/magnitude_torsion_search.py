@@ -1,10 +1,11 @@
 """Search for graphs and digraphs with torsion in their magnitude homology, with `phlite.networks.magnitude`.
 
-Torsion is found by comparing ranks over several fields: by universal coefficients, if the rank of MH_{k,l} over Z/p
-differs from its rank over Z/251 (a stand-in for Q) then MH_{k,l} or MH_{k-1,l} has p-torsion over the integers
-(unless it has 251-torsion). Every pair (s, t) is one summand, so the search reports the pairs and bidegrees.
-Candidates can be confirmed over the integers with Perseus 6 (`--confirm`, needs `pip install perseus-tda` or the
-pinned build in python-tests), which computes the integral groups and their torsion exactly.
+By default the integral groups are computed exactly (`magnitude(..., integral=True)`: each piece collapsed and
+eliminated over Z, then Smith forms of what is left), and the torsion reported by pair and bidegree. With
+`--fields`, torsion is found instead by comparing ranks over several fields (by universal coefficients, if the rank
+of MH_{k,l} over Z/p differs from its rank over Z/251, a stand-in for Q, then MH_{k,l} or MH_{k-1,l} has p-torsion),
+and candidates can be confirmed with Perseus 6 (`--confirm`, needs `pip install perseus-tda` or the pinned build in
+python-tests).
 
 Magnitude homology is torsion-free in degrees k <= 2 (k = 0, 1 by construction; k = 2: Gomi for metric spaces,
 Ivanov and Mukoseev for digraphs) and on the diagonal k = l, so torsion first shows in k = 3, at l >= 4. The known
@@ -46,6 +47,21 @@ def torsion_candidates(n, edges, l_max, moduli):
                     if r != r0:
                         out.append((*pair, k, l, p, r, r0))
     return out
+
+
+def integral_torsion(n, edges, l_max):
+    """[(s, t, k, l, {order: multiplicity})] of the integral torsion of each pair, and the bidegrees whose Smith form
+    couldn't be computed."""
+    groups = magnitude(n, edges, l_max=l_max, integral=True, by_pair=True)
+    found, unknown = [], []
+    for (s, t), g in groups.items():
+        for (k, l), orders in g["torsion"].items():
+            found.append((s, t, k, l, orders))
+        for l, row in enumerate(g["free"]):
+            for k, r in enumerate(row):
+                if r is None:
+                    unknown.append((s, t, k, l))
+    return found, unknown
 
 
 def confirm(n, edges, l_max, pairs):
@@ -132,7 +148,8 @@ def main():
     parser.add_argument("--count", type=int, default=200)
     parser.add_argument("--moduli", default="2,3,5")
     parser.add_argument("--seed", type=int, default=0)
-    parser.add_argument("--confirm", action="store_true")
+    parser.add_argument("--confirm", action="store_true", help="with --fields: confirm over Z with Perseus")
+    parser.add_argument("--fields", action="store_true", help="compare ranks over fields instead of computing over Z")
     args = parser.parse_args()
     rng = random.Random(args.seed)
     moduli = [int(m) for m in args.moduli.split(",")]
@@ -147,6 +164,16 @@ def main():
     start, checked, found = time.time(), 0, 0
     for n, edges in graphs:
         checked += 1
+        if not args.fields:
+            found_here, unknown = integral_torsion(n, edges, args.l_max)
+            if found_here or unknown:
+                found += bool(found_here)
+                print(f"n={n} edges={edges}", flush=True)
+                for s, t, k, l, orders in found_here:
+                    print(f"    pair ({s}, {t}) MH_{{{k},{l}}} torsion {orders}")
+                for s, t, k, l in unknown:
+                    print(f"    pair ({s}, {t}) MH_{{{k},{l}}}: Smith form not computed")
+            continue
         candidates = torsion_candidates(n, edges, args.l_max, moduli)
         if candidates:
             found += 1
