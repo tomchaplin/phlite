@@ -458,6 +458,7 @@ impl AlgorithmVisitor for RipsRun {
                     self.representatives,
                     self.union_find,
                     self.parallel_setup,
+                    true,
                 )
             };
         }

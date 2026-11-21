@@ -31,6 +31,7 @@
 //! [`rips_barcode`] shows the optimised version.
 
 pub mod cohomology;
+pub mod collapse;
 pub mod distances;
 pub mod explicit;
 pub mod homology;
@@ -700,13 +701,19 @@ pub fn rips_barcode<R: ColumnRepresentation, I: RipsInt, D: Distances>(
 ) -> Vec<RipsBar<I>> {
     #[allow(unreachable_patterns)]
     let parallel = matches!(algorithm, Algorithm::ParallelClearing(_));
-    rips_barcode_with(distances, max_dim, threshold, method, algorithm, representatives, true, parallel)
+    rips_barcode_with(distances, max_dim, threshold, method, algorithm, representatives, true, parallel, true)
 }
 
 /// As [`rips_barcode`], choosing whether (by cohomology) to find dimension 0 by union-find (`union_find`, which
-/// [`rips_barcode`] does) rather than by reducing it, and whether to build the bases (and run the union-find's sorts)
+/// [`rips_barcode`] does) rather than by reducing it, whether to build the bases (and run the union-find's sorts)
 /// in parallel on the current rayon thread pool (`parallel_setup`, which [`rips_barcode`] does only for the parallel
-/// algorithm), whatever the algorithm.
+/// algorithm), whatever the algorithm, and whether to [collapse the edges](collapse) first (`collapse`, which
+/// [`rips_barcode`] does).
+///
+/// Edges are collapsed only when it can help and is safe: from `max_dim` 2 (in dimensions 0 and 1 the reduction is
+/// cheaper than collapsing, as Perseus 6 found too), without representatives, and when the points have no births. The
+/// collapsed edges are used only if at least a tenth of the edges went (when collapsing moves many edges but removes
+/// few, the reduction can get slower).
 ///
 /// # Panics
 /// As [`rips_barcode`]: if simplices of dimension `max_dim + 1` don't fit in a [`RipsIndex`].
@@ -720,6 +727,7 @@ pub fn rips_barcode_with<R: ColumnRepresentation, I: RipsInt, D: Distances>(
     representatives: bool,
     union_find: bool,
     parallel_setup: bool,
+    collapse: bool,
 ) -> Vec<RipsBar<I>> {
     let n_points = distances.n_points();
     // A simplex with an infinite diameter has an edge that never appears, so it never appears either
@@ -727,6 +735,22 @@ pub fn rips_barcode_with<R: ColumnRepresentation, I: RipsInt, D: Distances>(
     let threshold = threshold
         .min(enclosing_radius(&distances))
         .min(largest_finite);
+    if collapse && max_dim >= 2 && !representatives && !D::HAS_BIRTHS {
+        let (collapsed, stats) = collapse::collapse_edges(&distances, threshold);
+        if stats.edges_after * 10 <= stats.edges_before * 9 {
+            return rips_barcode_with(
+                collapsed,
+                max_dim,
+                threshold,
+                method,
+                algorithm,
+                representatives,
+                union_find,
+                parallel_setup,
+                false,
+            );
+        }
+    }
     // Both methods need simplices of dimension max_dim + 1 (as cofacets, or the top of the boundary matrix)
     assert!(
         RipsIndex::<I>::fits(n_points, max_dim + 1),
@@ -925,7 +949,8 @@ mod tests {
     /// `rips_barcode` attaches transposes (enabling apparent pairs); that must not change any bar
     #[test]
     fn apparent_pairs_do_not_change_barcode() {
-        use crate::rips::{cohomology::build_rips_coboundary_matrix, rips_barcode, Method};
+        // Without edge collapse, which changes which simplices pair (not the values)
+        use crate::rips::{cohomology::build_rips_coboundary_matrix, rips_barcode_with, Method};
         use ordered_float::NotNan;
         use phlite::{
             barcode::{self, Algorithm},
@@ -979,32 +1004,41 @@ mod tests {
                         Algorithm::Clearing(clearing.clone().store_r(true)),
                         Algorithm::Clearing(clearing),
                     ]
-                }) {  let bars = rips_barcode::<_, usize, _>(
+                }) {  let bars = rips_barcode_with::<_, usize, _>(
                 distances.clone(),
                 2,
                 INFINITY,
                 Method::Cohomology,
                 algorithm.clone(),
                 false,
+                true,
+                false,
+                false,
             );
             assert_eq!(summary(bars), expected, "{algorithm:?}");
             // With representatives the involution's debug assertions check them against the pairing
-            let bars = rips_barcode::<_, usize, _>(
+            let bars = rips_barcode_with::<_, usize, _>(
                 distances.clone(),
                 2,
                 INFINITY,
                 Method::Cohomology,
                 algorithm.clone(),
                 true,
+                true,
+                false,
+                false,
             );
             assert_eq!(bars.len(), expected.len());
             // Homology pairs simplices the same way (the pairing doesn't depend on the method)
-            let bars = rips_barcode::<_, usize, _>(
+            let bars = rips_barcode_with::<_, usize, _>(
                 distances.clone(),
                 2,
                 INFINITY,
                 Method::Homology,
                 algorithm,
+                false,
+                true,
+                false,
                 false,
             );
             let mut hom: Vec<_> = bars

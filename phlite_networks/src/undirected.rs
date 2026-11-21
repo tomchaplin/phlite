@@ -213,7 +213,7 @@ pub fn flag_barcode<R: ColumnRepresentation, I: RipsInt>(
     union_find: bool,
     parallel_setup: bool,
 ) -> Vec<RipsBar<I>> {
-    rips_barcode_with(graph, max_dim, threshold, method, algorithm, representatives, union_find, parallel_setup)
+    rips_barcode_with(graph, max_dim, threshold, method, algorithm, representatives, union_find, parallel_setup, true)
 }
 
 #[cfg(test)]

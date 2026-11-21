@@ -620,6 +620,7 @@ pub fn rips(
                 self.representatives,
                 self.union_find,
                 self.parallel_setup,
+                true,
             )
         }
     }
