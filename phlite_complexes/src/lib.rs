@@ -16,6 +16,8 @@
 pub mod complex;
 pub mod extended;
 pub mod field;
+#[cfg(test)]
+mod integral_tests;
 #[cfg(feature = "python")]
 mod python;
 

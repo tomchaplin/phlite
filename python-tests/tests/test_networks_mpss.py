@@ -46,3 +46,23 @@ def test_pages_shrink(graph, l_max):
             for b, a in zip(row_before, row_after):
                 if a is not None:
                     assert b is not None and a <= b
+
+
+@st.composite
+def small_digraphs(draw):
+    n = draw(st.integers(1, 5))
+    pairs = [(a, b) for a in range(n) for b in range(n) if a != b]
+    edges = draw(st.lists(st.sampled_from(pairs), unique=True, max_size=min(len(pairs), 8))) if pairs else []
+    return n, edges
+
+
+@given(small_digraphs(), st.integers(0, 3))
+@settings(deadline=None, max_examples=60)
+def test_integral_pages(graph, l_max):
+    """Over the integers: free ranks are the dimensions over Z/251 (where torsion of order 251 is out of reach), and
+    the first page is integral magnitude homology."""
+    n, edges = graph
+    note(f"{n} {edges}")
+    pages = magnitude_path_spectral_sequence(n, edges, l_max=l_max, r_max=3, integral=True)
+    assert [page["free"] for page in pages] == magnitude_path_spectral_sequence(n, edges, l_max=l_max, r_max=3, modulus=251)
+    assert pages[0] == magnitude(n, edges, l_max=l_max, integral=True)

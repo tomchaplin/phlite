@@ -1,4 +1,4 @@
-//! The magnitude-path spectral sequence (MPSS) of a directed graph, over a field.
+//! The magnitude-path spectral sequence (MPSS) of a directed graph, over a field or the integers.
 //!
 //! The *reachability chain complex* `RC_*(G)` has a basis of the tuples `(x_0, ..., x_k)` with `x_i ≠ x_{i+1}` and a
 //! directed path from each to the next, and differential `∂ = Σ_{i=0}^{k} (-1)^i ∂_i`, where `∂_i` deletes `x_i` (and
@@ -18,12 +18,14 @@
 //! least `l_max + 1 - l >= r` whatever happens later. The others are unknown, and given as `None`.
 //!
 //! The complex does not split over pairs of endpoints (deleting `x_0` or `x_k` changes them), so this lists every
-//! tuple up to `l_max` and is for small graphs; over the integers is future work.
+//! tuple up to `l_max` and is for small graphs. Over the integers ([`mpss_integral`]) there is no barcode, and each
+//! entry is computed exactly from lattices ([`phlite::integral`]): far slower, for a handful of nodes.
 
 use std::collections::HashMap;
 
 use ordered_float::NotNan;
 use phlite::barcode::{Algorithm, Method};
+use phlite::integral::{integral_pages, Group, IntegralFiltered, Overflow};
 use phlite::reduction::Clearing;
 use phlite::spectral::{spectral_pages, StepBar};
 use phlite_complexes::complex::{Chain, RawChain};
@@ -39,6 +41,23 @@ pub type Pages = Vec<Vec<Vec<Option<usize>>>>;
 /// The bars of the length filtration of the reachability complex, as `(degree, birth, death)` (death `None` for a
 /// bar still alive at `l_max`), over `CF`, of the tuples of length at most `l_max` and degree at most `k_max + 1`.
 fn reachability_bars<CF: IntField>(graph: &MagnitudeGraph, l_max: usize, k_max: usize) -> Vec<(usize, usize, Option<usize>)> {
+    let (raw, values) = reachability_complex(graph, l_max, k_max);
+    let k_top = k_max + 1;
+    let complex = Chain::<CF>::from_raw(raw)
+        .and_then(|chain| chain.filter(Some(values)))
+        .expect("the reachability complex, faces first and no longer than their cofaces");
+    let algorithm = Algorithm::Clearing(Clearing::new().with_columns(phlite::columns::PivotColumns).store_r(true));
+    let as_length = |v: NotNan<f64>| v.into_inner() as usize;
+    complex
+        .barcode(Some(k_top), Method::Cohomology, algorithm, false)
+        .into_iter()
+        .map(|bar| (complex.dimension(bar.birth), as_length(bar.birth_value), bar.death.map(|(_, d)| as_length(d))))
+        .collect()
+}
+
+/// The reachability complex of `graph` up to length `l_max` and degree `k_max + 1`, with integer coefficients, faces
+/// first, and each tuple's length as its value.
+fn reachability_complex(graph: &MagnitudeGraph, l_max: usize, k_max: usize) -> (RawChain, Vec<f64>) {
     let n = graph.n_vertices() as u32;
     let k_top = k_max + 1;
     let reach = vec![0u32; n as usize];
@@ -110,17 +129,7 @@ fn reachability_bars<CF: IntField>(graph: &MagnitudeGraph, l_max: usize, k_max: 
             raw.indptr.push(raw.indices.len() as i64);
         }
     }
-    drop(by_source);
-    let complex = Chain::<CF>::from_raw(raw)
-        .and_then(|chain| chain.filter(Some(values)))
-        .expect("the reachability complex, faces first and no longer than their cofaces");
-    let algorithm = Algorithm::Clearing(Clearing::new().with_columns(phlite::columns::PivotColumns).store_r(true));
-    let as_length = |v: NotNan<f64>| v.into_inner() as usize;
-    complex
-        .barcode(Some(k_top), Method::Cohomology, algorithm, false)
-        .into_iter()
-        .map(|bar| (complex.dimension(bar.birth), as_length(bar.birth_value), bar.death.map(|(_, d)| as_length(d))))
-        .collect()
+    (raw, values)
 }
 
 /// The pages `E^1, ..., E^{r_max}` of the MPSS of `graph` over `Z/modulus` (one of [`MODULI`]), for lengths up to
@@ -150,6 +159,54 @@ pub fn mpss_pages(graph: &MagnitudeGraph, l_max: usize, k_max: Option<usize>, r_
         .into_iter()
         .map(|page| page.into_iter().enumerate().map(|(l, row)| row[..=k_max.min(l)].to_vec()).collect())
         .collect()
+}
+
+/// The integral pages of the MPSS: `pages[r - 1][l][k]` is the group `E^r_{k,l}` (degree `k`, length `l`) for
+/// `r = 1, ..., r_max`, `l <= l_max` and `k <= min(l, k_max)`, or `None` if `F_{l_max}` doesn't determine it.
+pub type IntegralPages = Vec<Vec<Vec<Option<Group>>>>;
+
+/// The pages `E^1, ..., E^{r_max}` of the MPSS of `graph` over the integers, as [`mpss_pages`] over a field, by exact
+/// lattice computations ([`phlite::integral`]): dense, so for small graphs.
+///
+/// # Errors
+/// If an entry outgrows `i128` (see [`phlite::integral`]).
+pub fn mpss_integral(
+    graph: &MagnitudeGraph,
+    l_max: usize,
+    k_max: Option<usize>,
+    r_max: usize,
+) -> Result<IntegralPages, Overflow> {
+    let k_max = k_max.unwrap_or(l_max).min(l_max);
+    let (raw, values) = reachability_complex(graph, l_max, k_max);
+    let coefficients = raw.coefficients.expect("integer coefficients");
+    let complex = IntegralFiltered {
+        degree: raw.dimensions.iter().map(|&d| d as usize).collect(),
+        step: values.iter().map(|&v| v as usize).collect(),
+        boundary: raw
+            .indptr
+            .windows(2)
+            .map(|w| (w[0] as usize..w[1] as usize).map(|i| (raw.indices[i] as usize, coefficients[i])).collect())
+            .collect(),
+    };
+    let pages = integral_pages(&complex, k_max + 1, r_max, Some(l_max))?;
+    // Lengths past the longest tuple have no cells: zero where the truncation determines them
+    Ok(pages
+        .into_iter()
+        .enumerate()
+        .skip(1)
+        .map(|(r, page)| {
+            (0..=l_max)
+                .map(|l| {
+                    (0..=k_max.min(l))
+                        .map(|k| match page.get(l) {
+                            Some(row) => row[k].clone(),
+                            None => (l + r <= l_max + 1).then(Group::default),
+                        })
+                        .collect()
+                })
+                .collect()
+        })
+        .collect())
 }
 
 /// The largest finite distance between two vertices of `graph` (0 if none).
@@ -305,4 +362,67 @@ mod tests {
             }
         }
     }
+
+    /// The prime-power (elementary) divisors of a torsion part, sorted.
+    fn elementary(torsion: &[u128]) -> Vec<u128> {
+        let mut out = vec![];
+        for &t in torsion {
+            let (mut t, mut p) = (t, 2u128);
+            while t > 1 {
+                let mut q = 1;
+                while t % p == 0 {
+                    t /= p;
+                    q *= p;
+                }
+                if q > 1 {
+                    out.push(q);
+                }
+                p += 1;
+            }
+        }
+        out.sort_unstable();
+        out
+    }
+
+    #[test]
+    #[allow(clippy::needless_range_loop)]
+    fn integral_pages_match_fields_and_magnitude_homology() {
+        use crate::magnitude::magnitude_integral;
+        for (n, edges) in graphs() {
+            let graph = MagnitudeGraph::new(n, &edges);
+            let l_max = 4;
+            let r_max = 3;
+            let integral = mpss_integral(&graph, l_max, None, r_max).unwrap();
+            // Free ranks are the dimensions over Z/251
+            let field = mpss_pages(&graph, l_max, None, r_max, 251);
+            for r in 0..r_max {
+                for l in 0..=l_max {
+                    for k in 0..=l {
+                        assert_eq!(
+                            integral[r][l][k].as_ref().map(|g| g.rank),
+                            field[r][l][k],
+                            "{edges:?}: E^{} ({k}, {l})",
+                            r + 1
+                        );
+                    }
+                }
+            }
+            // E^1 is integral magnitude homology, the sum over pairs
+            let pairs = magnitude_integral(&graph, &MagnitudeQuery { l_max, ..Default::default() }, false);
+            for l in 0..=l_max {
+                for k in 0..=l {
+                    let (mut rank, mut torsion) = (0, vec![]);
+                    for pair in &pairs {
+                        if let Some(Some((r, t))) = pair.groups.get(l).and_then(|row| row.get(k)) {
+                            rank += r;
+                            torsion.extend(t.iter().copied());
+                        }
+                    }
+                    let e1 = integral[0][l][k].clone().unwrap();
+                    assert_eq!((e1.rank, elementary(&e1.torsion)), (rank, elementary(&torsion)), "{edges:?} ({k}, {l})");
+                }
+            }
+        }
+    }
+
 }

@@ -749,82 +749,8 @@ const SMITH_ENTRIES: usize = 1 << 24;
 /// The nonzero diagonal of the Smith normal form of a dense integer matrix (the invariant factors, each dividing the
 /// next), or `None` on overflow. A least-modulus pivot at every step, as Perseus 6 does (pivoting on the first nonzero
 /// entry blows up even on small matrices).
-fn smith_diagonal(mut a: Vec<Vec<i128>>) -> Option<Vec<u128>> {
-    let rows = a.len();
-    let cols = if rows == 0 { 0 } else { a[0].len() };
-    let mut diagonal = vec![];
-    let mut t = 0;
-    while t < rows.min(cols) {
-        // The entry of least modulus in the rest
-        let mut best: Option<(u128, usize, usize)> = None;
-        for (i, row) in a.iter().enumerate().skip(t) {
-            for (j, &x) in row.iter().enumerate().skip(t) {
-                if x != 0 && best.is_none_or(|(m, _, _)| x.unsigned_abs() < m) {
-                    best = Some((x.unsigned_abs(), i, j));
-                }
-            }
-        }
-        let Some((_, i, j)) = best else { break };
-        a.swap(t, i);
-        for row in a.iter_mut() {
-            row.swap(t, j);
-        }
-        loop {
-            let p = a[t][t];
-            let mut clean = true;
-            for i in t + 1..rows {
-                if a[i][t] != 0 {
-                    let q = a[i][t] / p;
-                    for j in t..cols {
-                        a[i][j] = a[i][j].checked_sub(q.checked_mul(a[t][j])?)?;
-                    }
-                    clean &= a[i][t] == 0;
-                }
-            }
-            for j in t + 1..cols {
-                if a[t][j] != 0 {
-                    let q = a[t][j] / p;
-                    for row in a.iter_mut().skip(t) {
-                        row[j] = row[j].checked_sub(q.checked_mul(row[t])?)?;
-                    }
-                    clean &= a[t][j] == 0;
-                }
-            }
-            if clean {
-                // The pivot must divide everything left; if not, add that row to the pivot's and go again
-                let bad = (t + 1..rows).find(|&i| a[i][t + 1..].iter().any(|&x| x % p != 0));
-                match bad {
-                    None => break,
-                    Some(i) => {
-                        for j in t..cols {
-                            a[t][j] = a[t][j].checked_add(a[i][j])?;
-                        }
-                    }
-                }
-            } else {
-                // A remainder smaller than the pivot: make it the pivot
-                let mut best = (a[t][t].unsigned_abs(), t, t);
-                for i in t + 1..rows {
-                    if a[i][t] != 0 && a[i][t].unsigned_abs() < best.0 {
-                        best = (a[i][t].unsigned_abs(), i, t);
-                    }
-                }
-                for j in t + 1..cols {
-                    if a[t][j] != 0 && a[t][j].unsigned_abs() < best.0 {
-                        best = (a[t][j].unsigned_abs(), t, j);
-                    }
-                }
-                let (_, i, j) = best;
-                a.swap(t, i);
-                for row in a.iter_mut() {
-                    row.swap(t, j);
-                }
-            }
-        }
-        diagonal.push(a[t][t].unsigned_abs());
-        t += 1;
-    }
-    Some(diagonal)
+fn smith_diagonal(a: Vec<Vec<i128>>) -> Option<Vec<u128>> {
+    phlite::integral::smith_diagonal(a).ok()
 }
 
 /// The integral homology of a collapsed piece in degrees `0..n_degrees`, by Smith forms of its boundary matrices.

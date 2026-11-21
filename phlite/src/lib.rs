@@ -49,6 +49,7 @@ pub mod bookkeeping;
 pub mod columns;
 pub mod extended;
 pub mod fields;
+pub mod integral;
 mod hash;
 pub mod matrices;
 pub mod reduction;
