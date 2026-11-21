@@ -268,12 +268,22 @@ persistence of a filtered complex over Z (pivots that aren't units): the Smith-f
 | connected graphs, 8 nodes (geng) | 11,117 | 6 | none |
 | connected digraphs, ≤ 5 nodes (directg, arcs either or both ways) | 9,578 | 6 | none |
 | connected digraphs, 6 nodes | 1,530,843 | 5 | none |
+| connected graphs, 9 nodes (geng) | 261,080 | 5 | none |
 
 (8-node graphs and ≤ 5-node digraphs were run with the field comparison over Z/2, Z/3, Z/5 against Z/251; the rest
-over Z.) So no graph on ≤ 8 nodes and no digraph on ≤ 6 nodes has torsion in `MH_{3,4}`, `MH_{3,5}` or `MH_{4,5}`
-(and, for ≤ 8 nodes, up to `l = 6`).
+over Z.) So no graph on ≤ 9 nodes and no digraph on ≤ 6 nodes has torsion in `MH_{3,4}`, `MH_{3,5}` or `MH_{4,5}`
+(and, for graphs on ≤ 8 nodes, up to `l = 6`; on ≤ 7 nodes, up to `l = 8`). The random families (layered Hasse-like
+digraphs, random digraphs) were stopped to free the machine for benchmarks; rerun with the script.
 
 **Local minimality of the known examples** (`phlite_networks/examples/magnitude_torsion_minimise.py`: delete nodes,
 then edges, while some torsion up to `l = 6` survives): Kaneta–Yoshinaga's 15-node graph of the hemicube RP²
 (undirected, torsion (Z/2)² in `MH_{3,4}`) and its one-way Hasse digraph (31 arcs, Z/2 in `MH_{3,4}` from the pair
 (0̂, 1̂) only) are both locally minimal: no single node or edge (arc) can go.
+
+
+### MPSS: checked against Hepworth and Roff's computations
+
+The spectral sequence reproduces, page by page, Hepworth–Roff's Theorem 8.2 (directed m-cycles, m = 3, 4, 5: rank
+m on E¹ and 1 on E² in bidegrees (2i, mi) and (2i+1, mi+1), E² = … = E^{m−1}, E^m a single generator at (0, 0)) and
+Theorem 9.3 (bi-directed cycles C_{m,n} for six (m, n): E² rank 1 at (0,0), (1,1), (2, max(m,n)), then E^{max}
+trivial). Both are Rust tests in `phlite_networks/src/mpss.rs`.
