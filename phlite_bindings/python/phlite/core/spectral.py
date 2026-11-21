@@ -11,6 +11,7 @@ e1[2, 1]                # the entry at step p = 2 in degree k = 1
 g = e1.group(2, 1)      # ... as a group: g.rank, g.torsion, g.elementary_divisors, str(g) = "Z^3 ⊕ Z/2"
 g.generators            # a generator of each cyclic summand: .order (None if free) and .chain ({cell: coefficient})
 g.classify(chain)       # the class of a chain, as coordinates on the generators
+g.d(chain)              # d^r of its class, as coordinates on the generators of g.d_target
 ss.page(3)              # any page, directly
 for page in ss: ...     # every page, until the sequence degenerates
 ss.infinity             # E^infinity
@@ -186,6 +187,26 @@ class Group:
     def contains(self, chain: Any) -> bool:
         """Whether `chain` represents an element (see `classify`)."""
         return self.sequence._backend.classify(self.r, self.p, self.k, chain) is not None
+
+    @property
+    def d_target(self) -> Optional["Group"]:
+        """The group `d^r` maps this one to, `E^r` at `(p - r, k - 1)` (`None` if there is none: `p < r` or `k = 0`)."""
+        if self.p < self.r or self.k == 0:
+            return None
+        return self.sequence.page(self.r).group(self.p - self.r, self.k - 1)
+
+    def d(self, chain: Any) -> list[int]:
+        """The differential `d^r` on the class of `chain`: the class of its boundary in `d_target`, as coordinates on
+        that group's generators (empty if there is no target).
+
+        Raises:
+            ValueError: If the chain doesn't represent an element of this group.
+        """
+        self.classify(chain)
+        target = self.d_target
+        if target is None:
+            return []
+        return target.classify(self.sequence._backend.boundary(chain))
 
 
 @dataclass(frozen=True)

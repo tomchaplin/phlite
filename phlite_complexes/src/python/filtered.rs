@@ -86,15 +86,23 @@ impl FilteredComplex {
     ///
     /// Args:
     ///     max_dim: The largest degree (default: the top dimension).
+    ///     integer_steps: Whether the filtration values are the steps themselves (they must then be non-negative
+    ///         integers): `F_p` is the cells with value at most `p`, for every `p` up to the largest value, so empty
+    ///         levels count (as in a Serre spectral sequence filtered by the dimension of the base). By default the
+    ///         steps are the distinct values, in increasing order.
     ///     algorithm: The reduction algorithm, as for `persistence` (over a field only).
     ///
     /// Returns:
     ///     A `phlite.core.SpectralSequence`, whose steps are labelled by the filtration values.
-    #[pyo3(signature = (max_dim = None, *, algorithm = None))]
+    ///
+    /// Raises:
+    ///     ValueError: With `integer_steps`, if a value isn't a non-negative integer.
+    #[pyo3(signature = (max_dim = None, *, integer_steps = false, algorithm = None))]
     #[gen_stub(override_return_type(type_repr = "core.SpectralSequence", imports = ("phlite.core")))]
     fn spectral_sequence<'py>(
         slf: &Bound<'py, Self>,
         max_dim: Option<usize>,
+        integer_steps: bool,
         #[gen_stub(override_type(type_repr = "typing.Optional[core.Algorithm]", imports = ("typing", "phlite.core")))]
         algorithm: Option<Bound<'_, PyAny>>,
     ) -> PyResult<Bound<'py, PyAny>> {
@@ -107,9 +115,19 @@ impl FilteredComplex {
         let mut steps: Vec<f64> = (0..n_cells as u32).map(|i| complex.value(i)).collect();
         steps.sort_by(f64::total_cmp);
         steps.dedup();
+        if integer_steps {
+            if let Some(bad) = steps.iter().find(|v| **v < 0.0 || v.fract() != 0.0 || **v > 1e7) {
+                return Err(PyValueError::new_err(format!(
+                    "integer_steps needs the filtration values to be non-negative integers, got {bad}"
+                )));
+            }
+            let last = steps.last().map_or(0.0, |&v| v);
+            steps = (0..=last as usize).map(|p| p as f64).collect();
+        }
+        let step_of_value = |v: &f64| if integer_steps { *v as usize } else { step_of(&steps, v) };
         let top = complex.top_dimension().unwrap_or(0);
         let n_degrees = max_dim.unwrap_or(top) + 1;
-        let filtered = complex.integral_filtered();
+        let filtered = if integer_steps { complex.integral_filtered_by_value() } else { complex.integral_filtered() };
         let modulus = complex.modulus();
         let (input_of_rank, rank_of_input) = complex.rank_maps();
         let cells = Box::new(ComplexCells { chain: slf.get().chain.clone_ref(py), input_of_rank, rank_of_input });
@@ -123,8 +141,8 @@ impl FilteredComplex {
                 .iter()
                 .map(|bar| StepBar {
                     degree: bar.dimension as usize,
-                    birth: step_of(&steps, &bar.birth_value),
-                    death: bar.death_value.is_finite().then(|| step_of(&steps, &bar.death_value)),
+                    birth: step_of_value(&bar.birth_value),
+                    death: bar.death_value.is_finite().then(|| step_of_value(&bar.death_value)),
                 })
                 .collect();
             let p = modulus.expect("a field");

@@ -306,7 +306,7 @@ class FilteredComplex:
         Returns:
             The barcode. Bars of length zero (birth and death at the same filtration value) are omitted.
         """
-    def spectral_sequence(self, max_dim: typing.Optional[builtins.int] = None, *, algorithm: typing.Optional[core.Algorithm] = None) -> core.SpectralSequence:
+    def spectral_sequence(self, max_dim: typing.Optional[builtins.int] = None, *, integer_steps: builtins.bool = False, algorithm: typing.Optional[core.Algorithm] = None) -> core.SpectralSequence:
         r"""
         The spectral sequence of this filtration, over the complex's coefficients, computed one page at a time: a
         `phlite.core.SpectralSequence` (`ss.next()` gives `E^1`, then `E^2`, ...; `ss.page(r)` any page; printing a page
@@ -326,10 +326,17 @@ class FilteredComplex:
         
         Args:
             max_dim: The largest degree (default: the top dimension).
+            integer_steps: Whether the filtration values are the steps themselves (they must then be non-negative
+                integers): `F_p` is the cells with value at most `p`, for every `p` up to the largest value, so empty
+                levels count (as in a Serre spectral sequence filtered by the dimension of the base). By default the
+                steps are the distinct values, in increasing order.
             algorithm: The reduction algorithm, as for `persistence` (over a field only).
         
         Returns:
             A `phlite.core.SpectralSequence`, whose steps are labelled by the filtration values.
+        
+        Raises:
+            ValueError: With `integer_steps`, if a value isn't a non-negative integer.
         """
     def persistent_group(self, dim: builtins.int, start: builtins.float, end: builtins.float, *, algorithm: typing.Optional[core.Algorithm] = None) -> tuple[builtins.int, builtins.list[builtins.int]]:
         r"""

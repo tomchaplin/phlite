@@ -318,6 +318,10 @@ impl<B: SpectralBackend> SpectralBackend for Padded<B> {
         self.inner.has_generators()
     }
 
+    fn boundary(&self, chain: &[(usize, i64)]) -> Option<Vec<(usize, i64)>> {
+        self.inner.boundary(chain)
+    }
+
     fn degenerates_at(&self) -> Option<usize> {
         self.inner.degenerates_at()
     }

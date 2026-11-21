@@ -230,6 +230,11 @@ impl AnyComplex {
         dispatch!(Self, self, c => c.integral())
     }
 
+    /// As `integral_filtered`, each cell's step its value (an integer).
+    pub(crate) fn integral_filtered_by_value(&self) -> phlite::integral::IntegralFiltered {
+        dispatch!(Self, self, c => c.integral_by(|v| v as usize))
+    }
+
     /// The modulus of the coefficients, `None` over the integers.
     pub(crate) fn modulus(&self) -> Option<u64> {
         fn of<CF: IntField>(_: &Complex<CF>) -> Option<u64> {

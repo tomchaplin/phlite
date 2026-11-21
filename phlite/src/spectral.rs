@@ -115,6 +115,13 @@ pub trait SpectralBackend: Send + Sync {
     fn has_generators(&self) -> bool {
         false
     }
+
+    /// The boundary of `chain` (cells by index, as for [`generators`](Self::generators)), or `None` if this backend
+    /// can't give it. With [`classify`](Self::classify) this is `d^r` on elements: `d^r [x] = [dx]` in `E^r_{p-r}`.
+    fn boundary(&self, chain: &[(usize, i64)]) -> Option<Vec<(usize, i64)>> {
+        let _ = chain;
+        None
+    }
 }
 
 /// Entries from one backend (say, a barcode's lookups) and generators from another (say, [`LocalSpectral`] over the
@@ -155,6 +162,10 @@ impl<A: SpectralBackend, B: SpectralBackend> SpectralBackend for WithGenerators<
 
     fn has_generators(&self) -> bool {
         self.generators.has_generators()
+    }
+
+    fn boundary(&self, chain: &[(usize, i64)]) -> Option<Vec<(usize, i64)>> {
+        self.generators.boundary(chain)
     }
 }
 
@@ -372,6 +383,26 @@ where
 
     fn has_generators(&self) -> bool {
         true
+    }
+
+    fn boundary(&self, chain: &[(usize, i64)]) -> Option<Vec<(usize, i64)>> {
+        let mut sum: HashMap<usize, i64> = HashMap::new();
+        for &(cell, x) in chain {
+            for (c, face) in self.complex.column(S::RowT::from(cell)) {
+                *sum.entry(face.into()).or_default() += x * c.get();
+            }
+        }
+        let modulus = match self.ring {
+            Ring::Mod(p) => p as i64,
+            Ring::Integers => 0,
+        };
+        let mut out: Vec<(usize, i64)> = sum
+            .into_iter()
+            .map(|(f, x)| (f, if modulus > 0 { x.rem_euclid(modulus) } else { x }))
+            .filter(|&(_, x)| x != 0)
+            .collect();
+        out.sort_unstable();
+        Some(out)
     }
 
     fn differential(&self, r: usize, p: usize, k: usize) -> Result<Option<Group>, Overflow> {

@@ -76,6 +76,28 @@ fn overflow(e: Overflow) -> PyErr {
     PyOverflowError::new_err(e.to_string())
 }
 
+impl SpectralBackend {
+    /// A chain from Python (a dict from cells to coefficients, or `(cell, coefficient)` pairs) as cell indices.
+    fn read_chain(&self, py: Python<'_>, chain: &Bound<'_, PyAny>) -> PyResult<Vec<(usize, i64)>> {
+        let cells = self.cells.as_ref().ok_or_else(|| PyValueError::new_err("this spectral sequence has no generators"))?;
+        let pairs: Vec<Bound<'_, PyAny>> = match chain.cast::<PyDict>() {
+            Ok(dict) => dict.items().iter().collect(),
+            Err(_) => chain.try_iter()?.collect::<PyResult<_>>()?,
+        };
+        let mut terms = Vec::with_capacity(pairs.len());
+        for pair in pairs {
+            let pair = pair.cast_into::<PyTuple>().map_err(|_| PyValueError::new_err("a chain's terms are (cell, coefficient)"))?;
+            let cell = pair.get_item(0)?;
+            let coefficient: i64 = pair.get_item(1)?.extract()?;
+            let index = cells
+                .index(py, &cell)?
+                .ok_or_else(|| PyValueError::new_err(format!("{} is not a cell of the complex", cell.repr().map_or_else(|_| "?".into(), |r| r.to_string()))))?;
+            terms.push((index, coefficient));
+        }
+        Ok(terms)
+    }
+}
+
 #[pymethods]
 impl SpectralBackend {
     /// The number of steps.
@@ -146,22 +168,21 @@ impl SpectralBackend {
     /// The class of `chain` (a dict from cells to coefficients, or `(cell, coefficient)` pairs) in `E^r_p` (degree
     /// `k`), as coordinates on the generators, or `None` if it doesn't represent an element.
     fn classify(&self, py: Python<'_>, r: usize, p: usize, k: usize, chain: &Bound<'_, PyAny>) -> PyResult<Option<Vec<i128>>> {
-        let cells = self.cells.as_ref().ok_or_else(|| PyValueError::new_err("this spectral sequence has no generators"))?;
-        let pairs: Vec<Bound<'_, PyAny>> = match chain.cast::<PyDict>() {
-            Ok(dict) => dict.items().iter().collect(),
-            Err(_) => chain.try_iter()?.collect::<PyResult<_>>()?,
-        };
-        let mut terms = Vec::with_capacity(pairs.len());
-        for pair in pairs {
-            let pair = pair.cast_into::<PyTuple>().map_err(|_| PyValueError::new_err("a chain's terms are (cell, coefficient)"))?;
-            let cell = pair.get_item(0)?;
-            let coefficient: i64 = pair.get_item(1)?.extract()?;
-            let index = cells
-                .index(py, &cell)?
-                .ok_or_else(|| PyValueError::new_err(format!("{} is not a cell of the complex", cell.repr().map_or_else(|_| "?".into(), |r| r.to_string()))))?;
-            terms.push((index, coefficient));
-        }
+        let terms = self.read_chain(py, chain)?;
         py.detach(|| self.inner.classify(r, p, k, &terms)).map_err(overflow)
+    }
+
+    /// The boundary of `chain` (as for `classify`), as a dict from cells to coefficients.
+    fn boundary<'py>(&self, py: Python<'py>, chain: &Bound<'_, PyAny>) -> PyResult<Bound<'py, PyDict>> {
+        let cells = self.cells.as_ref().ok_or_else(|| PyValueError::new_err("this spectral sequence has no generators"))?;
+        let terms = self.read_chain(py, chain)?;
+        let boundary =
+            self.inner.boundary(&terms).ok_or_else(|| PyValueError::new_err("this spectral sequence has no boundary"))?;
+        let out = PyDict::new(py);
+        for (cell, x) in boundary {
+            out.set_item(cells.name(py, cell)?, self.coefficient(i128::from(x)))?;
+        }
+        Ok(out)
     }
 
     /// Page `r`: for each step `p`, the entries of its row (`None` where not determined).

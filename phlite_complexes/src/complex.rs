@@ -717,6 +717,16 @@ impl<CF: ChainCoefficient> Complex<CF> {
             }
             step.push(current);
         }
+        self.integral_with_steps(step)
+    }
+
+    /// As [`integral`](Self::integral), with each cell's step given by `step_of(value)` (which must be monotone).
+    pub fn integral_by(&self, step_of: impl Fn(f64) -> usize) -> phlite::integral::IntegralFiltered {
+        let step = self.ranked.iter().map(|r| step_of(r.value.into_inner())).collect();
+        self.integral_with_steps(step)
+    }
+
+    fn integral_with_steps(&self, step: Vec<usize>) -> phlite::integral::IntegralFiltered {
         phlite::integral::IntegralFiltered {
             degree: self.ranked.iter().map(|r| r.dimension as usize).collect(),
             step,
