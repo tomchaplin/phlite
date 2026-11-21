@@ -247,4 +247,40 @@ mod tests {
             assert_eq!(e2[2][2], Some(0), "m={m}");
         }
     }
+
+    /// Hepworth and Roff, Theorem 8.2: for the directed m-cycle (m >= 3), magnitude homology and bigraded path
+    /// homology live in bidegrees (k, l) = (2i, mi) and (2i + 1, mi + 1), of rank m and 1; E^2 = ... = E^{m-1}, and
+    /// E^m is a single generator at (0, 0).
+    #[test]
+    fn directed_cycles_hepworth_roff() {
+        for m in 3..6usize {
+            let edges: Vec<(u32, u32)> = (0..m as u32).map(|i| (i, (i + 1) % m as u32)).collect();
+            let graph = MagnitudeGraph::new(m, &edges);
+            let l_max = 2 * m + 1;
+            let pages = mpss_pages(&graph, l_max, Some(5), m, 2);
+            let special = |k: usize, l: usize| (0..=2).any(|i| (k, l) == (2 * i, m * i) || (k, l) == (2 * i + 1, m * i + 1));
+            for (l, row) in pages[0].iter().enumerate() {
+                for (k, &e) in row.iter().enumerate() {
+                    let want = if special(k, l) { m } else { 0 };
+                    assert_eq!(e, Some(want), "E1 m={m} ({k}, {l})");
+                }
+            }
+            for r in 2..m {
+                for (l, row) in pages[r - 1].iter().enumerate() {
+                    for (k, &e) in row.iter().enumerate() {
+                        if let Some(e) = e {
+                            assert_eq!(e, usize::from(special(k, l)), "E{r} m={m} ({k}, {l})");
+                        }
+                    }
+                }
+            }
+            for (l, row) in pages[m - 1].iter().enumerate() {
+                for (k, &e) in row.iter().enumerate() {
+                    if let Some(e) = e {
+                        assert_eq!(e, usize::from((k, l) == (0, 0)), "E{m} m={m} ({k}, {l})");
+                    }
+                }
+            }
+        }
+    }
 }
