@@ -28,7 +28,7 @@ use pyo3_stub_gen::derive::*;
 
 use crate::{
     complex::{Cell, Chain, Complex, ComplexError, RawChain},
-    field::IntField,
+    field::{IntField, Integer},
 };
 
 /// Run `$body` with `$c` bound to the inner value of `$any` (an `AnyChain` or `AnyComplex`), whatever its field.
@@ -41,8 +41,32 @@ macro_rules! dispatch {
             $enum::Z7($c) => $body,
             $enum::Z11($c) => $body,
             $enum::Z13($c) => $body,
+            $enum::Integers($c) => $body,
         }
     };
+}
+
+/// As [`dispatch!`] over the fields only, with `$integers` for a complex over the integers (which `phlite` can't reduce).
+macro_rules! dispatch_field {
+    ($enum:ident, $any:expr, $c:ident => $body:expr, integers => $integers:expr) => {
+        match $any {
+            $enum::Z2($c) => $body,
+            $enum::Z3($c) => $body,
+            $enum::Z5($c) => $body,
+            $enum::Z7($c) => $body,
+            $enum::Z11($c) => $body,
+            $enum::Z13($c) => $body,
+            $enum::Integers(_) => $integers,
+        }
+    };
+}
+
+/// The error for asking for a barcode over the integers.
+fn no_integral_barcode() -> PyErr {
+    PyValueError::new_err(
+        "A complex over the integers (modulus=0) has no barcode: use spectral_sequence or persistent_group, or build \
+         the complex over a field",
+    )
 }
 
 mod chain;
@@ -70,7 +94,7 @@ pub(crate) const DEFAULTS: AlgorithmDefaults = AlgorithmDefaults {
 // ====== Coefficient fields ===============================================
 
 /// The supported moduli, for error messages.
-const MODULI: &str = "2, 3, 5, 7, 11 or 13";
+const MODULI: &str = "2, 3, 5, 7, 11, 13 or 0 (the integers)";
 
 /// A chain complex over one of the supported fields.
 /// Each field is a separate monomorphisation of the whole reduction, so we keep the list short.
@@ -81,6 +105,8 @@ pub(crate) enum AnyChain {
     Z7(Chain<Z7>),
     Z11(Chain<Z11>),
     Z13(Chain<Z13>),
+    /// Over Z: no reduction, but spectral sequences and persistent groups by `phlite::integral`
+    Integers(Chain<Integer>),
 }
 
 /// A filtered complex over one of the supported fields.
@@ -91,6 +117,7 @@ pub(crate) enum AnyComplex {
     Z7(Complex<Z7>),
     Z11(Complex<Z11>),
     Z13(Complex<Z13>),
+    Integers(Complex<Integer>),
 }
 
 impl AnyChain {
@@ -104,6 +131,9 @@ impl AnyChain {
             7 => Chain::from_raw(raw).map(Self::Z7),
             11 => Chain::from_raw(raw).map(Self::Z11),
             13 => Chain::from_raw(raw).map(Self::Z13),
+            0 => Chain::<Integer>::from_raw(raw)
+                .and_then(|chain| chain.check_boundary_squared().map(|()| chain))
+                .map(Self::Integers),
             other => {
                 return Err(PyValueError::new_err(format!(
                     "Unsupported modulus {other}, expected one of {MODULI}"
@@ -120,6 +150,7 @@ impl AnyChain {
             Self::Z7(c) => AnyComplex::Z7(c.filter(values)?),
             Self::Z11(c) => AnyComplex::Z11(c.filter(values)?),
             Self::Z13(c) => AnyComplex::Z13(c.filter(values)?),
+            Self::Integers(c) => AnyComplex::Integers(c.filter(values)?),
         })
     }
 
@@ -143,7 +174,7 @@ impl AnyChain {
         fn of<CF: IntField>(_: &Chain<CF>) -> u64 {
             CF::MODULUS
         }
-        dispatch!(Self, self, c => of(c))
+        dispatch_field!(Self, self, c => of(c), integers => 0)
     }
 }
 
@@ -158,14 +189,14 @@ impl AnyComplex {
         representatives: bool,
     ) -> PyResult<BarData> {
         let method = parse_method(method)?;
-        let data = dispatch!(Self, self, complex => py.detach(|| {
+        let data = dispatch_field!(Self, self, complex => py.detach(|| {
             algorithm.run(Run {
                 complex,
                 max_dim,
                 method,
                 representatives,
             })
-        }))?;
+        }), integers => return Err(no_integral_barcode()))?;
         Ok(data)
     }
 
@@ -177,9 +208,9 @@ impl AnyComplex {
         algorithm: &ResolvedAlgorithm,
     ) -> PyResult<Vec<phlite::extended::ExtendedBar<Cell, f64>>> {
         let method = parse_method(method)?;
-        Ok(dispatch!(Self, self, complex => py.detach(|| {
+        Ok(dispatch_field!(Self, self, complex => py.detach(|| {
             algorithm.run(extended::ExtendedRun { complex, method })
-        }))?)
+        }), integers => return Err(no_integral_barcode()))?)
     }
 
     fn n_cells(&self) -> usize {

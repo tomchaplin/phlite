@@ -109,8 +109,10 @@ class ChainComplex:
             boundaries: The boundary of every cell, as a sequence of cell indices. Repeated entries are summed.
             dimensions: The dimension of every cell.
             coefficients: The coefficient of every boundary entry, as a sequence of sequences matching `boundaries`
-                (default: all 1). Reduced modulo `modulus`, and entries that become 0 are dropped.
-            modulus: The characteristic of the coefficient field: 2, 3, 5, 7, 11 or 13.
+                (default: all 1). Reduced modulo `modulus` (unless 0), and entries that become 0 are dropped.
+            modulus: The characteristic of the coefficient field: 2, 3, 5, 7, 11 or 13; or 0 for the integers, where
+                boundaries need their signs (the boundary of every boundary must be zero) and the filtered complex has
+                no barcode, only `spectral_sequence` and `persistent_group`, computed exactly.
         """
     @staticmethod
     def from_pairs(pairs: typing.Iterable[tuple[builtins.int, typing.Sequence[builtins.int]]], *, coefficients: typing.Optional[typing.Iterable[typing.Sequence[builtins.int]]] = None, modulus: builtins.int = 2) -> ChainComplex:
@@ -122,8 +124,10 @@ class ChainComplex:
             pairs: The dimension and boundary of every cell, the boundary as a sequence of cell indices.
                 Repeated entries in a boundary are summed.
             coefficients: The coefficient of every boundary entry, as a sequence of sequences matching the
-                boundaries (default: all 1). Reduced modulo `modulus`, and entries that become 0 are dropped.
-            modulus: The characteristic of the coefficient field: 2, 3, 5, 7, 11 or 13.
+                boundaries (default: all 1). Reduced modulo `modulus` (unless 0), and entries that become 0 are dropped.
+            modulus: The characteristic of the coefficient field: 2, 3, 5, 7, 11 or 13; or 0 for the integers, where
+                boundaries need their signs (the boundary of every boundary must be zero) and the filtered complex has
+                no barcode, only `spectral_sequence` and `persistent_group`, computed exactly.
         """
     @staticmethod
     def from_csc(indptr: typing.Union[numpy.typing.NDArray[numpy.integer], typing.Sequence[builtins.int]], indices: typing.Union[numpy.typing.NDArray[numpy.integer], typing.Sequence[builtins.int]], dimensions: typing.Union[numpy.typing.NDArray[numpy.integer], typing.Sequence[builtins.int]], *, data: typing.Optional[typing.Union[numpy.typing.NDArray[numpy.number], typing.Sequence[builtins.int]]] = None, modulus: builtins.int = 2) -> ChainComplex:
@@ -141,7 +145,9 @@ class ChainComplex:
             indices: The row (face) of every non-zero entry.
             dimensions: The dimension of every cell.
             data: The coefficient of every non-zero entry (default: all 1). Must be whole numbers.
-            modulus: The characteristic of the coefficient field: 2, 3, 5, 7, 11 or 13.
+            modulus: The characteristic of the coefficient field: 2, 3, 5, 7, 11 or 13; or 0 for the integers, where
+                boundaries need their signs (the boundary of every boundary must be zero) and the filtered complex has
+                no barcode, only `spectral_sequence` and `persistent_group`, computed exactly.
         """
     @staticmethod
     def from_cells(cells: typing.Union[typing.Iterable[typing.Any], typing.Mapping[typing.Any, typing.Union[typing.Iterable[typing.Any], typing.Mapping[typing.Any, builtins.int]]]], *, boundary: typing.Optional[typing.Callable[[typing.Any], typing.Union[typing.Iterable[typing.Any], typing.Mapping[typing.Any, builtins.int]]]] = None, dimension: typing.Optional[typing.Callable[[typing.Any], builtins.int]] = None, key: typing.Optional[typing.Callable[[typing.Any], builtins.int]] = None, from_key: typing.Optional[typing.Callable[[builtins.int], typing.Any]] = None, face_keys: builtins.bool = False, modulus: builtins.int = 2) -> ChainComplex:
@@ -176,7 +182,9 @@ class ChainComplex:
                 reconstructs cells for results, saving memory when cells are large.
             face_keys: If true, boundaries list the *keys* of faces rather than faces (needs `key`). This is the fastest
                 way to describe a large complex, since no face objects need to be built.
-            modulus: The characteristic of the coefficient field: 2, 3, 5, 7, 11 or 13.
+            modulus: The characteristic of the coefficient field: 2, 3, 5, 7, 11 or 13; or 0 for the integers, where
+                boundaries need their signs (the boundary of every boundary must be zero) and the filtered complex has
+                no barcode, only `spectral_sequence` and `persistent_group`, computed exactly.
         """
     def filtration(self, values: typing.Union[typing.Sequence[builtins.float], numpy.typing.NDArray[numpy.floating], typing.Mapping[typing.Any, typing.Optional[builtins.float]], typing.Callable[[typing.Any], typing.Optional[builtins.float]], None] = None, *, extend: builtins.bool = False) -> FilteredComplex:
         r"""
@@ -298,9 +306,9 @@ class FilteredComplex:
         Returns:
             The barcode. Bars of length zero (birth and death at the same filtration value) are omitted.
         """
-    def spectral_sequence(self, r_max: builtins.int = 3, max_dim: typing.Optional[builtins.int] = None, *, algorithm: typing.Optional[core.Algorithm] = None) -> tuple[builtins.list[builtins.float], builtins.list[builtins.list[builtins.list[builtins.int]]]]:
+    def spectral_sequence(self, r_max: builtins.int = 3, max_dim: typing.Optional[builtins.int] = None, *, algorithm: typing.Optional[core.Algorithm] = None) -> tuple[list[builtins.float], list[list[list[builtins.int]]] | list[dict[str, typing.Any]]]:
         r"""
-        The spectral sequence of this filtration, over the complex's field: pages `E^1, ..., E^{r_max}`.
+        The spectral sequence of this filtration, over the complex's coefficients: pages `E^1, ..., E^{r_max}`.
         
         The filtration's steps are its distinct values, in increasing order, and `E^r_p` is the page-`r` term at
         step `p`, whose differential `d^r` goes to step `p - r`. Over a field the spectral sequence is read off the
@@ -309,6 +317,10 @@ class FilteredComplex:
         Page `E^1` is the homology of the associated graded `F_p / F_{p-1}`, and the pages converge to the homology of
         the whole complex.
         
+        Over the integers (a complex built with `modulus=0`) there is no barcode, and each entry is computed exactly as
+        a quotient of lattices, `E^r_p = Z^r_p / (Z^{r-1}_{p-1} + d Z^{r-1}_{p+r-1})` with
+        `Z^r_p = {x in F_p : dx in F_{p-r}}`, by dense integer elimination: for up to a few thousand cells per degree.
+        
         Args:
             r_max: The last page (default 3).
             max_dim: The largest degree (default: one above the largest degree of a bar).
@@ -316,7 +328,33 @@ class FilteredComplex:
         
         Returns:
             `(values, pages)`: the distinct filtration values (the steps), and `pages[r - 1][p][k]`, the dimension of
-            `E^r_p` in degree `k`.
+            `E^r_p` in degree `k`. Over the integers, each page is instead a dict
+            `{"free": ranks[p][k], "torsion": {(p, k): {order: multiplicity}}}`: the free rank of every `E^r_p`, and the
+            invariant factors of those with torsion.
+        
+        Raises:
+            OverflowError: If, over the integers, an entry outgrows 128 bits.
+        """
+    def persistent_group(self, dim: builtins.int, start: builtins.float, end: builtins.float, *, algorithm: typing.Optional[core.Algorithm] = None) -> tuple[builtins.int, builtins.list[builtins.int]]:
+        r"""
+        The persistent homology group in dimension `dim` from `start` to `end`: the image of `H_dim` of the subcomplex
+        of cells with value at most `start` in `H_dim` of the one at `end`.
+        
+        Over a field this is the number of bars of dimension `dim` born at or before `start` and alive past `end` (the
+        persistent Betti number), with no torsion. Over the integers (a complex built with `modulus=0`) it is computed
+        exactly, as `Z(F_start) / d{x in F_end : dx in F_start}`, with its torsion.
+        
+        Args:
+            dim: The homology dimension.
+            start: The filtration value of the subcomplex mapped from.
+            end: The filtration value of the subcomplex mapped into (at least `start`).
+            algorithm: The reduction algorithm, as for `persistence` (over a field only).
+        
+        Returns:
+            `(rank, torsion)`: the free rank, and the invariant factors of the torsion (each dividing the next).
+        
+        Raises:
+            OverflowError: If, over the integers, an entry outgrows 128 bits.
         """
     def extended_persistence(self, *, method: typing.Literal['cohomology', 'homology'] = "cohomology", algorithm: typing.Optional[core.Algorithm] = None) -> core.ExtendedBarcode:
         r"""

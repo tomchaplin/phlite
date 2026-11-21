@@ -36,7 +36,7 @@ use phlite::{
     union_find::{IncidenceOutcome, IncidenceReduction},
 };
 
-use crate::field::IntField;
+use crate::field::{ChainCoefficient, IntField, Integer};
 
 /// The largest dimension we accept, so that a stray huge dimension can't make us allocate a huge basis.
 pub const MAX_DIMENSION: u32 = u16::MAX as u32;
@@ -346,7 +346,7 @@ pub struct Chain<CF> {
     boundary: Csc<CF>,
 }
 
-impl<CF: IntField> Chain<CF> {
+impl<CF: ChainCoefficient> Chain<CF> {
     /// Validate `raw`, and sum repeated entries in each column.
     pub fn from_raw(raw: RawChain) -> Result<Self, ComplexError> {
         use ComplexError::Input;
@@ -455,8 +455,10 @@ impl<CF: IntField> Chain<CF> {
                     total += scratch[k].1 as i128;
                     k += 1;
                 }
-                let residue = total.rem_euclid(CF::MODULUS as i128) as i64;
-                if let Some(coeff) = CF::from_int(residue) {
+                let summed = CF::from_sum(total).map_err(|total| {
+                    Input(format!("The coefficient of face {row} of cell {col} ({total}) is out of range"))
+                })?;
+                if let Some(coeff) = summed {
                     out_rows.push(Cell(row));
                     out_coeffs.push(coeff);
                 }
@@ -624,7 +626,7 @@ impl<CF: IntField> Chain<CF> {
     }
 }
 
-impl<CF: IntField> Complex<CF> {
+impl<CF: ChainCoefficient> Complex<CF> {
     /// The number of cells.
     pub fn n_cells(&self) -> usize {
         self.dimensions.len()
@@ -670,6 +672,67 @@ impl<CF: IntField> Complex<CF> {
         )
     }
 
+    /// The distinct filtration values in increasing order: the *steps* of the filtration, as spectral sequences
+    /// count them.
+    pub fn steps(&self) -> Vec<f64> {
+        let mut steps: Vec<f64> = self.ranked.iter().map(|r| r.value.into_inner()).collect();
+        steps.dedup();
+        steps
+    }
+}
+
+impl Chain<Integer> {
+    /// Check that the boundary of every boundary is zero (over Z, unsigned boundaries usually aren't).
+    pub fn check_boundary_squared(&self) -> Result<(), ComplexError> {
+        let mut sum: std::collections::BTreeMap<u32, i128> = std::collections::BTreeMap::new();
+        for cell in 0..self.n_cells() as u32 {
+            sum.clear();
+            for i in self.boundary.range(Cell(cell)) {
+                let (face, a) = (self.boundary.rows[i], i128::from(self.boundary.coeffs[i].0));
+                for j in self.boundary.range(face) {
+                    *sum.entry(self.boundary.rows[j].0).or_default() += a * i128::from(self.boundary.coeffs[j].0);
+                }
+            }
+            if let Some((&face, _)) = sum.iter().find(|(_, &total)| total != 0) {
+                return Err(ComplexError::Input(format!(
+                    "The boundary of the boundary of cell {cell} isn't zero (at cell {face}): over the integers, \
+                     boundaries need their signs (coefficients)"
+                )));
+            }
+        }
+        Ok(())
+    }
+}
+
+impl Complex<Integer> {
+    /// This filtered complex over Z, for [`phlite::integral`]: cells by rank, each at its [step](Self::steps).
+    pub fn integral(&self) -> phlite::integral::IntegralFiltered {
+        let mut step = Vec::with_capacity(self.n_cells());
+        let mut current = 0;
+        for (rank, ranked) in self.ranked.iter().enumerate() {
+            if rank > 0 && self.ranked[rank - 1].value != ranked.value {
+                current += 1;
+            }
+            step.push(current);
+        }
+        phlite::integral::IntegralFiltered {
+            degree: self.ranked.iter().map(|r| r.dimension as usize).collect(),
+            step,
+            boundary: (0..self.n_cells() as u32)
+                .map(|rank| {
+                    let range = self.boundary.range(Cell(rank));
+                    self.boundary.rows[range.clone()]
+                        .iter()
+                        .zip(&self.boundary.coeffs[range])
+                        .map(|(row, coeff)| (row.idx(), coeff.0))
+                        .collect()
+                })
+                .collect(),
+        }
+    }
+}
+
+impl<CF: IntField> Complex<CF> {
     /// The boundary matrix, with cells numbered by [`rank`](Self::rank); its transpose is
     /// [`coboundary`](Self::coboundary).
     pub fn boundary(&self) -> View<'_, CF> {

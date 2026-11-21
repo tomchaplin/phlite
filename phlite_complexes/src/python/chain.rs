@@ -280,8 +280,10 @@ impl ChainComplex {
     ///     boundaries: The boundary of every cell, as a sequence of cell indices. Repeated entries are summed.
     ///     dimensions: The dimension of every cell.
     ///     coefficients: The coefficient of every boundary entry, as a sequence of sequences matching `boundaries`
-    ///         (default: all 1). Reduced modulo `modulus`, and entries that become 0 are dropped.
-    ///     modulus: The characteristic of the coefficient field: 2, 3, 5, 7, 11 or 13.
+    ///         (default: all 1). Reduced modulo `modulus` (unless 0), and entries that become 0 are dropped.
+    ///     modulus: The characteristic of the coefficient field: 2, 3, 5, 7, 11 or 13; or 0 for the integers, where
+    ///         boundaries need their signs (the boundary of every boundary must be zero) and the filtered complex has
+    ///         no barcode, only `spectral_sequence` and `persistent_group`, computed exactly.
     #[staticmethod]
     #[pyo3(signature = (boundaries, dimensions, *, coefficients = None, modulus = 2))]
     fn from_columns(
@@ -305,8 +307,10 @@ impl ChainComplex {
     ///     pairs: The dimension and boundary of every cell, the boundary as a sequence of cell indices.
     ///         Repeated entries in a boundary are summed.
     ///     coefficients: The coefficient of every boundary entry, as a sequence of sequences matching the
-    ///         boundaries (default: all 1). Reduced modulo `modulus`, and entries that become 0 are dropped.
-    ///     modulus: The characteristic of the coefficient field: 2, 3, 5, 7, 11 or 13.
+    ///         boundaries (default: all 1). Reduced modulo `modulus` (unless 0), and entries that become 0 are dropped.
+    ///     modulus: The characteristic of the coefficient field: 2, 3, 5, 7, 11 or 13; or 0 for the integers, where
+    ///         boundaries need their signs (the boundary of every boundary must be zero) and the filtered complex has
+    ///         no barcode, only `spectral_sequence` and `persistent_group`, computed exactly.
     #[staticmethod]
     #[pyo3(signature = (pairs, *, coefficients = None, modulus = 2))]
     fn from_pairs(
@@ -334,7 +338,9 @@ impl ChainComplex {
     ///     indices: The row (face) of every non-zero entry.
     ///     dimensions: The dimension of every cell.
     ///     data: The coefficient of every non-zero entry (default: all 1). Must be whole numbers.
-    ///     modulus: The characteristic of the coefficient field: 2, 3, 5, 7, 11 or 13.
+    ///     modulus: The characteristic of the coefficient field: 2, 3, 5, 7, 11 or 13; or 0 for the integers, where
+    ///         boundaries need their signs (the boundary of every boundary must be zero) and the filtered complex has
+    ///         no barcode, only `spectral_sequence` and `persistent_group`, computed exactly.
     #[staticmethod]
     #[pyo3(signature = (indptr, indices, dimensions, *, data = None, modulus = 2))]
     fn from_csc(
@@ -388,7 +394,9 @@ impl ChainComplex {
     ///         reconstructs cells for results, saving memory when cells are large.
     ///     face_keys: If true, boundaries list the *keys* of faces rather than faces (needs `key`). This is the fastest
     ///         way to describe a large complex, since no face objects need to be built.
-    ///     modulus: The characteristic of the coefficient field: 2, 3, 5, 7, 11 or 13.
+    ///     modulus: The characteristic of the coefficient field: 2, 3, 5, 7, 11 or 13; or 0 for the integers, where
+    ///         boundaries need their signs (the boundary of every boundary must be zero) and the filtered complex has
+    ///         no barcode, only `spectral_sequence` and `persistent_group`, computed exactly.
     #[staticmethod]
     #[pyo3(signature = (cells, *, boundary = None, dimension = None, key = None, from_key = None, face_keys = false, modulus = 2))]
     #[allow(clippy::too_many_arguments)]

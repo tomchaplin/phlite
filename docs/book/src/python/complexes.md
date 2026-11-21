@@ -33,7 +33,8 @@ chain = ChainComplex.from_pairs(pairs)
 | `from_csc(indptr, indices, dimensions, data=None)` | numpy arrays | the fast path: no per-entry Python objects |
 | `from_cells(cells, ...)` | your own objects (or tuples) with a dimension and a boundary | results come back as your objects |
 
-All take `coefficients=` (per boundary entry) and `modulus=` (2, 3, 5, 7, 11 or 13).
+All take `coefficients=` (per boundary entry) and `modulus=` (2, 3, 5, 7, 11 or 13, or 0 for the integers: see
+[Over the integers](#over-the-integers)).
 
 **Your own cells.** Any hashable object with a `dimension` and a `boundary()` works (the same protocol as grpphati's
 `Column`), or plain values with functions saying how to get the pieces:
@@ -87,6 +88,24 @@ values):
 
 Representatives are `(cell, coefficient)` lists in decreasing filtration order, so the birth cell comes first. Bars of
 length zero are omitted (with the default index filtration there are none, so you get every pair, as with PHAT).
+
+## Over the integers
+
+With `modulus=0` the complex has integer coefficients. Over Z a filtration has no barcode, so `persistence()` raises;
+instead `spectral_sequence` and `persistent_group` compute groups exactly, torsion included, by integer elimination
+on dense matrices (fine up to a few thousand cells per degree). Boundaries need their signs: building the complex
+checks that the boundary of every boundary is zero.
+
+```python
+chain = ChainComplex.from_pairs(pairs, coefficients=signs, modulus=0)     # e.g. the projective plane
+filtered = chain.filtration(values)
+filtered.persistent_group(1, 0.0, 0.0)      # (0, [2]): H_1 = Z/2
+steps, pages = filtered.spectral_sequence(r_max=3)
+pages[1]                                    # {"free": ranks[p][k], "torsion": {(p, k): {2: 1}}}
+```
+
+`persistent_group(dim, start, end)` is the image of `H_dim` at `start` in `H_dim` at `end`, as `(rank, torsion)`. It
+works over a field too, where it is the persistent Betti number with no torsion.
 
 ## Choosing cell identifiers yourself
 

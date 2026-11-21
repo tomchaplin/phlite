@@ -45,6 +45,35 @@ where
     }
 }
 
+/// What a chain complex's coefficients can be: any [`IntField`] (whose complexes `phlite` reduces), or the integers
+/// ([`Integer`], whose complexes have spectral sequences and persistent groups computed exactly, by
+/// [`phlite::integral`]).
+pub trait ChainCoefficient: Copy + Debug + Send + Sync + 'static {
+    /// The coefficient of an entry whose input coefficients sum to `total`, `None` if it is zero, or `Err` if it
+    /// doesn't fit.
+    fn from_sum(total: i128) -> Result<Option<Self>, i128>;
+}
+
+impl<CF: IntField> ChainCoefficient for CF {
+    fn from_sum(total: i128) -> Result<Option<Self>, i128> {
+        Ok(CF::from_int(total.rem_euclid(CF::MODULUS as i128) as i64))
+    }
+}
+
+/// An integer coefficient (non-zero), for chain complexes over Z.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Integer(pub i64);
+
+impl ChainCoefficient for Integer {
+    fn from_sum(total: i128) -> Result<Option<Self>, i128> {
+        match i64::try_from(total) {
+            Ok(0) => Ok(None),
+            Ok(x) => Ok(Some(Integer(x))),
+            Err(_) => Err(total),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::IntField;
