@@ -14,6 +14,9 @@ dependencies = [
     # For phlite_complexes' own tests
     "networkx",
     "scipy",
+    # Perseus 6 (Vidit Nanda; MIT): Rips, cubical, flag and simplicial persistence, a reference since 2026-11-21.
+    # PyPI's perseus-tda 6.0.0 predates its current engines, so pinned to a commit and built from source (C++17)
+    "perseus-tda @ git+https://github.com/viditnanda/perseus@cbd001763d094d0cf1a44fd4ed593c4a4c3592da#subdirectory=python",
     "pytest-timeout>=2.3",
 ]
 

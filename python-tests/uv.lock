@@ -1,5 +1,5 @@
 version = 1
-revision = 3
+revision = 5
 requires-python = "==3.11.*"
 
 [[package]]
@@ -45,7 +45,7 @@ name = "cffi"
 version = "2.1.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "pycparser", marker = "implementation_name != 'PyPy'" },
+    { name = "pycparser" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/9e/ef/008a1939e372c06329a3fce4279c02f328488f3526744906eeec3da7ad5f/cffi-2.1.1.tar.gz", hash = "sha256:dd31f52ea1086513bb9df30f8fcee9b8918323ae067a3d5b78bc826a000712be", size = 530807, upload-time = "2026-08-03T21:21:18.939Z" }
 wheels = [
@@ -716,6 +716,14 @@ version = "0.4.0"
 source = { git = "https://github.com/WeilabMSU/PathHom?rev=0184cfa8b5f2fd44d4132853871467a9d6d08e4d#0184cfa8b5f2fd44d4132853871467a9d6d08e4d" }
 
 [[package]]
+name = "perseus-tda"
+version = "6.0.0"
+source = { git = "https://github.com/viditnanda/perseus?subdirectory=python&rev=cbd001763d094d0cf1a44fd4ed593c4a4c3592da#cbd001763d094d0cf1a44fd4ed593c4a4c3592da" }
+dependencies = [
+    { name = "numpy" },
+]
+
+[[package]]
 name = "persim"
 version = "0.4.1"
 source = { registry = "https://pypi.org/simple" }
@@ -746,6 +754,7 @@ dependencies = [
     { name = "networkx" },
     { name = "numpy" },
     { name = "pathhomfast" },
+    { name = "perseus-tda" },
     { name = "pyflagser" },
     { name = "pytest" },
     { name = "pytest-timeout" },
@@ -776,6 +785,7 @@ requires-dist = [
     { name = "networkx" },
     { name = "numpy" },
     { name = "pathhomfast", git = "https://github.com/WeilabMSU/PathHom?rev=0184cfa8b5f2fd44d4132853871467a9d6d08e4d" },
+    { name = "perseus-tda", git = "https://github.com/viditnanda/perseus?subdirectory=python&rev=cbd001763d094d0cf1a44fd4ed593c4a4c3592da" },
     { name = "pyflagser" },
     { name = "pytest", specifier = ">=8" },
     { name = "pytest-timeout", specifier = ">=2.3" },
