@@ -64,6 +64,55 @@ impl FilteredComplex {
         })
     }
 
+    /// The spectral sequence of this filtration, over the complex's field: pages `E^1, ..., E^{r_max}`.
+    ///
+    /// The filtration's steps are its distinct values, in increasing order, and `E^r_p` is the page-`r` term at
+    /// step `p`, whose differential `d^r` goes to step `p - r`. Over a field the spectral sequence is read off the
+    /// barcode: a bar of degree `k` from step `b` to step `d` is a generator of `E^r_b` in degree `k` and of `E^r_d` in
+    /// degree `k + 1` for every `r <= d - b`, and an essential bar one of `E^r_b` for every `r` (see `phlite::spectral`).
+    /// Page `E^1` is the homology of the associated graded `F_p / F_{p-1}`, and the pages converge to the homology of
+    /// the whole complex.
+    ///
+    /// Args:
+    ///     r_max: The last page (default 3).
+    ///     max_dim: The largest degree (default: one above the largest degree of a bar).
+    ///     algorithm: The reduction algorithm, as for `persistence`.
+    ///
+    /// Returns:
+    ///     `(values, pages)`: the distinct filtration values (the steps), and `pages[r - 1][p][k]`, the dimension of
+    ///     `E^r_p` in degree `k`.
+    #[pyo3(signature = (r_max = 3, max_dim = None, *, algorithm = None))]
+    fn spectral_sequence(
+        slf: &Bound<'_, Self>,
+        r_max: usize,
+        max_dim: Option<usize>,
+        #[gen_stub(override_type(type_repr = "typing.Optional[core.Algorithm]", imports = ("typing", "phlite.core")))]
+        algorithm: Option<Bound<'_, PyAny>>,
+    ) -> PyResult<(Vec<f64>, Vec<Vec<Vec<usize>>>)> {
+        use phlite::spectral::{spectral_pages, step_of, StepBar};
+        let algorithm = algorithm_from_py(algorithm.as_ref(), &DEFAULTS)?;
+        let complex = &slf.get().complex;
+        let data = complex.persistence(slf.py(), max_dim, "cohomology", &algorithm, false)?;
+        let mut steps: Vec<f64> = (0..complex.n_cells() as u32).map(|i| complex.value(i)).collect();
+        steps.sort_by(f64::total_cmp);
+        steps.dedup();
+        let bars: Vec<StepBar> = data
+            .bars
+            .iter()
+            .map(|bar| StepBar {
+                degree: bar.dimension as usize,
+                birth: step_of(&steps, &bar.birth_value),
+                death: bar.death_value.is_finite().then(|| step_of(&steps, &bar.death_value)),
+            })
+            .collect();
+        let n_degrees = max_dim.map_or_else(|| bars.iter().map(|b| b.degree + 2).max().unwrap_or(1), |d| d + 1);
+        let pages = spectral_pages(&bars, steps.len(), n_degrees, r_max, None)
+            .into_iter()
+            .map(|page| page.into_iter().map(|row| row.into_iter().map(|x| x.unwrap_or(0)).collect()).collect())
+            .collect();
+        Ok((steps, pages))
+    }
+
     /// Compute the extended persistence (Cohen-Steiner, Edelsbrunner and Harer) of this filtration: up through the
     /// filtration, then back down through the pairs (complex, superlevel subcomplex), so that every class dies, each
     /// bar being ordinary, relative, extended+ or extended- (see `ExtendedBarcode`). As GUDHI's

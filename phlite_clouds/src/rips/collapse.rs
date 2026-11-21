@@ -33,6 +33,10 @@ struct Time {
     i: u32,
 }
 
+/// The most points [`rips_barcode_with`](super::rips_barcode_with) collapses: the two bitsets then take at most
+/// 16 MB together. (Above this, on sparse inputs, the bitsets cost more than collapsing saves.)
+pub const MAX_POINTS: usize = 8192;
+
 /// What [`collapse_edges`] did.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct CollapseStats {

@@ -439,12 +439,12 @@ pub(crate) fn read_columns(
 pub(crate) struct Record {
     birth: u32,
     death: Option<u32>,
-    dimension: u32,
+    pub(crate) dimension: u32,
     /// The index of the representative in [`BarData::representatives`], or [`NO_REPRESENTATIVE`].
     representative: u32,
-    birth_value: f64,
+    pub(crate) birth_value: f64,
     /// Infinite for essential bars.
-    death_value: f64,
+    pub(crate) death_value: f64,
 }
 
 const NO_REPRESENTATIVE: u32 = u32::MAX;

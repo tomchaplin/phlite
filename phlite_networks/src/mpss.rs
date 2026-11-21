@@ -11,12 +11,9 @@
 //! * `E^2` is bigraded path homology, whose diagonal `E^2_{k,k}` is the path homology of `G`;
 //! * it converges (for graphs whose finite distances are bounded) to reachability homology.
 //!
-//! **How.** A spectral sequence of a filtered complex is read off its persistence barcode: a bar `[b, d)` of degree
-//! `k` (born at length `b`, dying at length `d`, or never) contributes a generator to `E^r_{k,b}` and one to
-//! `E^r_{k+1,d}` for every `r <= d - b`, and nothing to later pages (where the differential `d^{d-b}` cancels the
-//! two); an essential bar contributes to `E^r_{k,b}` for every `r`. So the rank of `E^r_{k,l}` is the number of bars
-//! of degree `k` born at `l` of length at least `r`, plus the number of bars of degree `k - 1` dying at `l` of length
-//! at least `r`. The barcode is phlite's, of `F_{l_max} RC_*(G)` up to degree `k_max + 1`, so the entries with
+//! **How.** A spectral sequence of a filtered complex over a field is read off its persistence barcode
+//! ([`phlite::spectral`]): a bar `[b, d)` of degree `k` gives a generator of `E^r_{k,b}` and of `E^r_{k+1,d}` for
+//! every `r <= d - b`, an essential bar one of `E^r_{k,b}` for every `r`. The barcode is phlite's, of `F_{l_max} RC_*(G)` up to degree `k_max + 1`, so the entries with
 //! `l + r <= l_max + 1` (and `k <= k_max`) are exact: a bar born at `l` and still alive at `l_max` has length at
 //! least `l_max + 1 - l >= r` whatever happens later. The others are unknown, and given as `None`.
 //!
@@ -28,6 +25,7 @@ use std::collections::HashMap;
 use ordered_float::NotNan;
 use phlite::barcode::{Algorithm, Method};
 use phlite::reduction::Clearing;
+use phlite::spectral::{spectral_pages, StepBar};
 use phlite_complexes::complex::{Chain, RawChain};
 use phlite_complexes::field::IntField;
 use rayon::prelude::*;
@@ -143,30 +141,14 @@ pub fn mpss_pages(graph: &MagnitudeGraph, l_max: usize, k_max: Option<usize>, r_
         251 => reachability_bars::<ZP<251>>(graph, l_max, k_max),
         other => panic!("unsupported modulus {other}, expected one of {MODULI:?}"),
     };
-    (1..=r_max)
-        .map(|r| {
-            (0..=l_max)
-                .map(|l| {
-                    (0..=k_max.min(l))
-                        .map(|k| {
-                            if l + r > l_max + 1 {
-                                return None;
-                            }
-                            // Bars of degree k born at l lasting at least r, and of degree k - 1 dying at l lasting r
-                            let born = bars
-                                .iter()
-                                .filter(|&&(dim, b, d)| dim == k && b == l && d.is_none_or(|d| d - b >= r))
-                                .count();
-                            let dying = bars
-                                .iter()
-                                .filter(|&&(dim, b, d)| k > 0 && dim == k - 1 && d == Some(l) && l - b >= r)
-                                .count();
-                            Some(born + dying)
-                        })
-                        .collect()
-                })
-                .collect()
-        })
+    // Lengths are the steps (every length 0..=l_max is a value), and the filtration is cut after l_max
+    let bars: Vec<StepBar> =
+        bars.into_iter().map(|(degree, birth, death)| StepBar { degree, birth, death }).collect();
+    let pages = spectral_pages(&bars, l_max + 1, k_max + 1, r_max, Some(l_max));
+    // In the bigrading of magnitude homology: degrees up to min(l, k_max) at length l
+    pages
+        .into_iter()
+        .map(|page| page.into_iter().enumerate().map(|(l, row)| row[..=k_max.min(l)].to_vec()).collect())
         .collect()
 }
 

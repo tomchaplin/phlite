@@ -298,6 +298,26 @@ class FilteredComplex:
         Returns:
             The barcode. Bars of length zero (birth and death at the same filtration value) are omitted.
         """
+    def spectral_sequence(self, r_max: builtins.int = 3, max_dim: typing.Optional[builtins.int] = None, *, algorithm: typing.Optional[core.Algorithm] = None) -> tuple[builtins.list[builtins.float], builtins.list[builtins.list[builtins.list[builtins.int]]]]:
+        r"""
+        The spectral sequence of this filtration, over the complex's field: pages `E^1, ..., E^{r_max}`.
+        
+        The filtration's steps are its distinct values, in increasing order, and `E^r_p` is the page-`r` term at
+        step `p`, whose differential `d^r` goes to step `p - r`. Over a field the spectral sequence is read off the
+        barcode: a bar of degree `k` from step `b` to step `d` is a generator of `E^r_b` in degree `k` and of `E^r_d` in
+        degree `k + 1` for every `r <= d - b`, and an essential bar one of `E^r_b` for every `r` (see `phlite::spectral`).
+        Page `E^1` is the homology of the associated graded `F_p / F_{p-1}`, and the pages converge to the homology of
+        the whole complex.
+        
+        Args:
+            r_max: The last page (default 3).
+            max_dim: The largest degree (default: one above the largest degree of a bar).
+            algorithm: The reduction algorithm, as for `persistence`.
+        
+        Returns:
+            `(values, pages)`: the distinct filtration values (the steps), and `pages[r - 1][p][k]`, the dimension of
+            `E^r_p` in degree `k`.
+        """
     def extended_persistence(self, *, method: typing.Literal['cohomology', 'homology'] = "cohomology", algorithm: typing.Optional[core.Algorithm] = None) -> core.ExtendedBarcode:
         r"""
         Compute the extended persistence (Cohen-Steiner, Edelsbrunner and Harer) of this filtration: up through the
