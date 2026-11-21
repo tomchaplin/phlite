@@ -317,3 +317,46 @@ is now 6–13× faster than phlite (smooth 1024²: 27.7 ms against 340 ms); in 3
 and the planar engine is image-specific; the generic route would be Morse pre-reduction of the implicit cubical
 complex (the tie-ordering experiment on explicit complexes didn't pay, because union-find already covers both ends).
 The parallel flag pipeline's slowness (277 ms against 10 ms serial at n = 300) predates today.
+
+## Union-find everywhere (a667d50, 64b49b5)
+
+Every union-find in the workspace is now `phlite::union_find::IncidenceReduction`: explicit complexes (H0 and top
+dimension), Rips H0, cubical H0 and the dual top dimension, and (new) H0 of the lazy network complexes (directed flag,
+ordered tuples, Dowker), which is on by default in those three pipelines and the web playground. Getting the generic
+union-find to parity with the hand-written cubical ones took a trailing ground node (instead of a grounded bit or array),
+the classic path-halving loop, `#[inline(always)]` on `join`, and reversed numbering with `u32` keys on the dual. The
+lazy network complexes barely move (directed flag on 1000 sparse nodes 18.8 → 15.8 ms; elsewhere neutral): dimension 0
+isn't where they spend their time.
+
+## Cubical Morse: volumes by a filtered discrete gradient (3c11e7f)
+
+`phlite_images::cubical::morse`. For the T-construction with three axes (cohomology, no representatives, union_find
+on): each pixel's *block* (the faces of its top cell that enter with it) is matched by a greedy collapse inside the
+block, cached by the block's shape (a 27-bit set; 3–9 thousand shapes on the benchmark images), giving a filtered
+discrete gradient; the Morse boundaries follow gradient paths with memoised flows; the Morse complex is reduced by
+`phlite_complexes` (union-find at both ends). The matching is perfect on the benchmark images (smooth 128³: 400,053
+critical cells = 2 × 200,026 finite bars + 1 essential), so all of the remaining cost is implementation:
+
+* Caching blocks by the 26-bit neighbour mask missed (524k distinct masks for 2M pixels); by block shape, it hits.
+* HashMaps for flows and indices cost 4 s; one `u32` of state per cell (partner + the partner's axis mask, critical
+  index, or memoised flow span) and spans into an arena made it ~1 s, and carrying axis masks removed every division
+  from the traversal (another 20%).
+* Blocks are disjoint, so the gradient runs over pixels in parallel (index order, critical cells sorted afterwards);
+  flows into each dimension only touch that dimension, so the three boundary dimensions run in parallel.
+
+| 3D T-construction | previous default (serial / parallel) | Morse (serial / parallel) | Perseus (1 thread) |
+|---|---:|---:|---:|
+| smooth 128³ | 3.05 / 2.34 s | 1.24 / 0.73 s | 0.77 s |
+| noise 128³ | 6.06 / 21.2 s | 2.88 / 2.89 s | — |
+| noise 64³ | 0.57 / 1.02 s | 0.22 / 0.20 s | — |
+| noise 32³ | 25 / 22 ms | 23 / 19 ms | 17 ms |
+
+What's left in 3D: the Morse boundaries dominate (noise 128³: 1.5 s serial of 2.9 s, dimension 2 most of it), and
+`ParallelClearing` on the explicit Morse complex is *slower* than serial (1.8 s against 0.6 s on noise 128³), which is
+why parallel doesn't help there; that is a general weakness of parallel clearing on explicit complexes, not specific to
+Morse, so I didn't override the user's algorithm.
+
+Not used in 2D, where it loses: union-find at both ends already leaves no middle dimension, and the gradient pass
+alone costs more (smooth 1024²: 1.18 s with Morse against 0.37 s). The 2D gap to Perseus (6–13×) is its planar engine
+(union-find with a sorted sweep and no cell enumeration at all); our 2D time is mostly building the two sorted cell
+lists for the union-finds (`dimension_cells`), which is where to look next for 2D.
