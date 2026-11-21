@@ -12,6 +12,7 @@
 //! filtration.
 
 pub mod alpha;
+pub mod cech;
 pub mod error;
 pub mod rips;
 

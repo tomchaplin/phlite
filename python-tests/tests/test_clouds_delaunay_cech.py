@@ -6,6 +6,7 @@ import math
 
 import gudhi
 import numpy as np
+import pytest
 from hypothesis import given, note
 
 from grid import algorithm_grid
@@ -76,3 +77,48 @@ def test_larger_clouds_match_gudhi():
 def test_default_columns():
     resolved = Algorithm.serial().resolve("clouds.delaunay_cech")
     assert (resolved.columns, resolved.cache, resolved.store_r) == ("pivot", False, True)
+
+
+# ====== The full Čech complex ======
+
+
+def _bars(barcode, top):
+    return [
+        sorted([tuple(round(x, 9) for x in p) for p in barcode.pairings[k]] + [(round(b, 9), math.inf) for b in barcode.essential[k]])
+        for k in range(top + 1)
+    ]
+
+
+@pytest.mark.parametrize("dim", [2, 3])
+def test_cech_has_the_delaunay_cech_barcode(dim):
+    """Čech and Delaunay–Čech filtrations have the same barcode (Bauer and Edelsbrunner)."""
+    from phlite.clouds import cech, delaunay_cech
+
+    rng = np.random.default_rng(dim)
+    for n in (5, 9, 13):
+        points = rng.random((n, dim))
+        top = dim - 1
+        assert _bars(cech(points, top), top) == _bars(delaunay_cech(points, top), top)
+        assert _bars(cech(points, top, squared=True), top) == _bars(delaunay_cech(points, top, squared=True), top)
+
+
+def test_cech_in_more_dimensions():
+    from phlite.clouds import cech, cech_complex
+    from phlite.core import Barcode
+
+    # A circle in R^5: one H_1 bar, dying at the circumradius
+    t = np.linspace(0, 2 * np.pi, 10, endpoint=False)
+    circle = np.zeros((10, 5))
+    circle[:, 0], circle[:, 1] = np.cos(t), np.sin(t)
+    barcode = cech(circle, 1)
+    assert isinstance(barcode, Barcode) and len(barcode.pairings[1]) == 1
+    assert barcode.pairings[1][0][1] == pytest.approx(1.0)
+    # max_radius truncates, leaving essential what is still alive
+    assert len(cech(circle, 1, max_radius=0.9).essential[1]) == 1
+    # The complex: edges at half their length, faces never after cofaces
+    simplices = dict(cech_complex(circle, 2))
+    assert simplices[(0, 1)] == pytest.approx(np.linalg.norm(circle[0] - circle[1]) / 2)
+    for s, v in simplices.items():
+        for i in range(len(s)):
+            if len(s) > 1:
+                assert simplices[s[:i] + s[i + 1:]] <= v
