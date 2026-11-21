@@ -283,4 +283,44 @@ mod tests {
             }
         }
     }
+
+    /// Hepworth and Roff, Theorem 9.3: for the bi-directed cycle C_{m,n} (directed paths of lengths m and n from one
+    /// vertex to another), with M = max(m, n) >= 3, bigraded path homology is a single generator in each of the
+    /// bidegrees (k, l) = (0, 0), (1, 1) and (2, M); E^2 = ... = E^{M-1}, and E^M is a single generator at (0, 0).
+    #[test]
+    fn bidirected_cycles_hepworth_roff() {
+        for (m, n) in [(3, 1), (3, 2), (3, 3), (4, 1), (4, 3), (5, 2)] {
+            // 0 is the source, 1 the sink; then the inner vertices of the top path, then those of the bottom one
+            let path = |len: usize, first: u32| -> Vec<(u32, u32)> {
+                let mut vertices = vec![0];
+                vertices.extend(first..first + len as u32 - 1);
+                vertices.push(1);
+                vertices.windows(2).map(|w| (w[0], w[1])).collect()
+            };
+            let mut edges = path(m, 2);
+            edges.extend(path(n, 2 + m as u32 - 1));
+            let n_vertices = 2 + (m - 1) + (n - 1);
+            let graph = MagnitudeGraph::new(n_vertices, &edges);
+            let big = m.max(n);
+            let l_max = 2 * big + 1;
+            let pages = mpss_pages(&graph, l_max, Some(4), big, 2);
+            let special = |k: usize, l: usize| [(0, 0), (1, 1), (2, big)].contains(&(k, l));
+            for r in 2..big {
+                for (l, row) in pages[r - 1].iter().enumerate() {
+                    for (k, &e) in row.iter().enumerate() {
+                        if let Some(e) = e {
+                            assert_eq!(e, usize::from(special(k, l)), "C_({m},{n}) E{r} ({k}, {l})");
+                        }
+                    }
+                }
+            }
+            for (l, row) in pages[big - 1].iter().enumerate() {
+                for (k, &e) in row.iter().enumerate() {
+                    if let Some(e) = e {
+                        assert_eq!(e, usize::from((k, l) == (0, 0)), "C_({m},{n}) E{big} ({k}, {l})");
+                    }
+                }
+            }
+        }
+    }
 }
