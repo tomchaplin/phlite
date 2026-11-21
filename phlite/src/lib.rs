@@ -52,6 +52,7 @@ pub mod fields;
 mod hash;
 pub mod matrices;
 pub mod reduction;
+pub mod union_find;
 pub mod values;
 
 // TODO: Better system for column algebra
