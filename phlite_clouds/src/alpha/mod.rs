@@ -84,15 +84,32 @@ pub struct Delaunay {
 
 /// Triangulate points in the plane (given by their coordinates, labelled `labels`) with spade.
 fn delaunay_2d(coords: &[[f64; 2]], labels: &[u32]) -> Result<(usize, Vec<Simplex>), CloudError> {
-    use spade::{DelaunayTriangulation, Point2, Triangulation};
-    let mut triangulation: DelaunayTriangulation<Point2<f64>> = DelaunayTriangulation::new();
-    let mut label_of = HashMap::new();
-    for (p, &label) in coords.iter().zip(labels) {
-        let handle = triangulation
-            .insert(Point2::new(p[0], p[1]))
-            .map_err(|e| CloudError::Triangulation(format!("{e:?}")))?;
-        label_of.entry(handle).or_insert(label);
+    use spade::{DelaunayTriangulation, HasPosition, Point2, Triangulation};
+    /// A point and its label, so that the label survives `bulk_load` (which inserts in its own order)
+    #[derive(Clone, Copy)]
+    struct Labelled {
+        position: Point2<f64>,
+        label: u32,
     }
+    impl HasPosition for Labelled {
+        type Scalar = f64;
+        fn position(&self) -> Point2<f64> {
+            self.position
+        }
+    }
+    // Bulk loading sorts the points along a space-filling curve first, so that each insertion finds its place in a
+    // few steps: inserting them one by one in the input's order walks across the triangulation each time (100,000
+    // random points took 6 s that way, 1,000,000 over 3 minutes)
+    let vertices: Vec<Labelled> = coords
+        .iter()
+        .zip(labels)
+        .map(|(p, &label)| Labelled {
+            position: Point2::new(p[0], p[1]),
+            label,
+        })
+        .collect();
+    let triangulation: DelaunayTriangulation<Labelled> =
+        DelaunayTriangulation::bulk_load(vertices).map_err(|e| CloudError::Triangulation(format!("{e:?}")))?;
     let sorted = |mut vs: Vec<u32>| {
         vs.sort_unstable();
         let mut simplex = [PAD; 4];
@@ -101,7 +118,7 @@ fn delaunay_2d(coords: &[[f64; 2]], labels: &[u32]) -> Result<(usize, Vec<Simple
     };
     let triangles: Vec<Simplex> = triangulation
         .inner_faces()
-        .map(|face| sorted(face.vertices().iter().map(|v| label_of[&v.fix()]).collect()))
+        .map(|face| sorted(face.vertices().iter().map(|v| v.data().label).collect()))
         .collect();
     if !triangles.is_empty() {
         return Ok((2, triangles));
@@ -109,7 +126,7 @@ fn delaunay_2d(coords: &[[f64; 2]], labels: &[u32]) -> Result<(usize, Vec<Simple
     // Collinear: a path
     let edges: Vec<Simplex> = triangulation
         .undirected_edges()
-        .map(|edge| sorted(edge.vertices().iter().map(|v| label_of[&v.fix()]).collect()))
+        .map(|edge| sorted(edge.vertices().iter().map(|v| v.data().label).collect()))
         .collect();
     Ok((1, edges))
 }
