@@ -378,3 +378,27 @@ thread): n=100 p=0.1: 0.11 s vs 0.58 s; n=150 p=0.05: 2.0 s vs 11.8 s; n=200 p=0
 representation matters enormously here (n=200: merged columns 178 s against pivot's 5.1 s). Added `linial-meshulam`
 cases to `bench_complexes` (n=100 p=0.1, and n=150 p=0.05 as large): at n=100 phlite 90 ms, PHAT twist 181 ms,
 Perseus 541 ms, lophat 7.1 s.
+
+## Integral spectral sequences and persistent groups (8df1ca3)
+
+Over Z a filtered complex has no barcode (it doesn't decompose into intervals), so `phlite::integral` works with the
+subgroups themselves, as lattices: `Z^r_p = {x ∈ F_p : dx ∈ F_{p-r}}` is a kernel, and
+`E^r_p = Z^r_p / (Z^{r-1}_{p-1} + d Z^{r-1}_{p+r-1})` and `H^{i,j}_k = Z_k(F_i) / d{x ∈ F_j : dx ∈ F_i}` are quotients,
+read off Smith normal forms. Exact, dense, `i128` with checked arithmetic (`Overflow`, never a wrong answer),
+least-modulus pivots throughout. Checks: RP² (H_1 = Z/2 at every step, and as E² = E^∞ when filtered by dimension),
+homology against the classical Smith-form formula on random complexes, free ranks against the field pages over Z/251
+on 150 random filtered complexes.
+
+`phlite.networks.magnitude_path_spectral_sequence(..., integral=True)` (Rust `mpss_integral`) returns each page as
+`magnitude(..., integral=True)` does: E¹ equals integral magnitude homology and the free ranks the pages over Z/251
+(Rust and Python tests). It is dense over the whole reachability complex, so ~20× slower per unit of length:
+bidirected C6 to length 5 in 0.3 s, to 6 in 7 s (the field version: 1–2 ms).
+
+**Search for torsion on later pages** (all connected digraphs, nauty `geng -c | directg`): none on 3 or 4 nodes up to
+length 5 (pages 1–5); 5 nodes up to length 4: see below.
+
+**Not done, needs a decision:** explicit complexes. `phlite.complexes.ChainComplex` reduces integer coefficients mod p
+on input and doesn't keep them, so integral pages or persistent groups there need either the integer columns kept in
+`ChainComplex` (memory for every complex, only used by the integral path) or a separate entry point taking columns,
+coefficients and values. Also open: making it faster than dense (sparse elimination with the magnitude module's
+collapse-then-Markowitz approach, which only applies where the complex splits, e.g. per degree and step).
