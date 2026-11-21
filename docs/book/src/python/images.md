@@ -27,3 +27,10 @@ and Cubical Ripser's periodic option: along a periodic axis the first and last p
 image is a torus (and by default the top dimension is computed too). The periodic complex is built explicitly and
 reduced as `phlite.complexes` does, with union-find at both ends: exact, in any number of axes, but slower than the
 non-periodic complex on large volumes, and without representatives.
+
+## Filtrations of binary images
+
+`phlite.images.filtrations` turns a binary image into a greyscale one to filter, as giotto-tda's `gtda.images`
+filtrations: `height`, `radial`, `dilation`, `erosion`, `signed_distance` (Manhattan distances, exactly) and
+`density`. For example `cubical(filtrations.signed_distance(binary))`. Pixels a filtration doesn't reach are `inf` (they
+never enter), or with `unreached="last"` enter after everything else, as giotto-tda's do.

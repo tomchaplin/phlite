@@ -8,7 +8,10 @@ import builtins
 import numpy.typing
 from phlite import core
 import typing
+from . import filtrations as filtrations
+
 __all__ = [
+    "filtrations",
     "cubical",
     "cubical_complex",
 ]

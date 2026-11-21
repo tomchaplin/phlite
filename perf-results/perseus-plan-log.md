@@ -429,3 +429,26 @@ coefficients grow. PerMaViss computes the same Rips barcodes as phlite on its ow
 Kenzo has that we don't: effective homology (spectral sequences of infinite objects: Serre spectral sequences of
 fibrations, Eilenberg–Moore), and the filtration of H(C) (extension data). Our weak point: dense lattices in big
 windows over Z (14.8 s for a 3,456-cell mesh).
+
+## Over the integers for any filtration, and filtrations from other packages (f5a12a2 .. this commit)
+
+* **Persistence over Z** (`phlite::integral_persistence`): the barcode over Q by a fraction-free reduction over Z,
+  and the bad primes (Perseus's approach: a prime dividing none of the reduction's pivots and contents sees the same
+  reduction mod p, so only those are candidates, each checked mod p), with their barcodes over F_p. Torsion in the
+  steps alone isn't enough (a loop later p times another has none). Python: over `modulus=0`, `persistence()` is the
+  Q barcode and `torsion()` `{p: barcode}`; `ChainComplex.from_simplices` fills in signs; `clouds.rips_complex` and
+  `images.cubical_complex` (signed CSC) export the other filtrations, so any of them (with `alpha_complex`,
+  `delaunay_cech_complex`, `cech_complex`, `witness_complex`) can be brought over Z. Fuzzed against the Z/p barcodes
+  for every p ≤ 13.
+* **New filtrations**, against the packages that have them:
+  * periodic cubical complexes (`cubical(periodic=...)`), explicit, any axes wrapping: identical to GUDHI's
+    `PeriodicCubicalComplex` (T and V, 1–3 dimensions);
+  * Čech complexes in any dimension (`clouds.cech`), minimal enclosing balls by trying subsets: the same barcode as
+    `delaunay_cech` in 2D/3D (Bauer–Edelsbrunner);
+  * witness complexes (`clouds.witness`, relaxed and strong): identical simplices, values and barcodes to GUDHI's
+    `EuclideanWitnessComplex` / `EuclideanStrongWitnessComplex`;
+  * binary image filtrations (`images.filtrations`: height, radial, dilation, erosion, signed distance, density), as
+    giotto-tda's, checked against brute force.
+* Still missing from other packages: weighted alpha (GUDHI; needs a regular triangulation), zigzag persistence
+  (Dionysus, GUDHI; a different reduction), Rips/cubical/alpha over Z/p natively (Ripser's `--modulus`; today through
+  the exporters and `modulus=p`), and a native (implicit) periodic cubical complex for large volumes.

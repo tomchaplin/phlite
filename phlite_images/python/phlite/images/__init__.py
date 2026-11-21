@@ -3,5 +3,7 @@
 from . import _images
 from ._images import *  # noqa: F403
 
+from . import filtrations  # noqa: E402
+
 __doc__ = _images.__doc__
-__all__ = [name for name in getattr(_images, "__all__", []) if not name.startswith("_")]
+__all__ = [name for name in getattr(_images, "__all__", []) if not name.startswith("_")] + ["filtrations"]
