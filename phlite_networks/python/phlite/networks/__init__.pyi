@@ -14,6 +14,7 @@ __all__ = [
     "flag",
     "grpph",
     "magnitude",
+    "magnitude_path_spectral_sequence",
     "ordered_tuples",
     "pph",
 ]
@@ -159,6 +160,12 @@ def magnitude(graph: networkx.DiGraph, /, l_max: builtins.int, *, k_max: typing.
 
 @typing.overload
 def magnitude(n_vertices: builtins.int, edges: typing.Sequence[tuple[builtins.int, builtins.int] | tuple[builtins.int, builtins.int, builtins.float]], /, l_max: builtins.int, *, k_max: typing.Optional[builtins.int] = None, pairs: typing.Optional[typing.Sequence[tuple[builtins.int, builtins.int]]] = None, modulus: builtins.int | typing.Sequence[builtins.int] = 2, by_pair: builtins.bool = False) -> typing.Any: ...
+
+@typing.overload
+def magnitude_path_spectral_sequence(graph: networkx.DiGraph, /, l_max: builtins.int, *, k_max: typing.Optional[builtins.int] = None, r_max: builtins.int = 3, modulus: builtins.int = 2) -> list[list[list[typing.Optional[builtins.int]]]]: ...
+
+@typing.overload
+def magnitude_path_spectral_sequence(n_vertices: builtins.int, edges: typing.Sequence[tuple[builtins.int, builtins.int] | tuple[builtins.int, builtins.int, builtins.float]], /, l_max: builtins.int, *, k_max: typing.Optional[builtins.int] = None, r_max: builtins.int = 3, modulus: builtins.int = 2) -> list[list[list[typing.Optional[builtins.int]]]]: ...
 
 def ordered_tuples(graph: typing.Union[networkx.DiGraph, builtins.int], edges: typing.Optional[typing.Sequence[tuple[builtins.int, builtins.int, builtins.float]]] = None, /, max_dim: builtins.int = 1, *, weight: builtins.str = 'weight', filtration: typing.Literal['weight', 'shortest_path'] = "weight", method: typing.Literal['cohomology', 'homology'] = "cohomology", algorithm: typing.Optional[core.Algorithm] = None, representatives: builtins.bool = False) -> core.Barcode:
     r"""

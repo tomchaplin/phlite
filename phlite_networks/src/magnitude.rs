@@ -110,12 +110,12 @@ pub const MODULI: [u64; 7] = [2, 3, 5, 7, 11, 13, 251];
 
 /// The tuples of each piece `(t, l)` and size `k + 1`, found from one source, flattened: `tuples[(t, l, k)]` holds
 /// the tuples one after another, `k + 1` vertices each, in lexicographic order.
-type Buckets = HashMap<(u32, usize, usize), Vec<u32>>;
+pub(crate) type Buckets = HashMap<(u32, usize, usize), Vec<u32>>;
 
 /// The tuples extending `prefix` (itself not included) of length at most `l_max` and at most `k_top + 1` vertices,
 /// ending at a target (`reach[t] == 0`), into [`Buckets`]. `reach[x]` is the distance from `x` to the nearest target,
 /// so tuples that can't reach one in time aren't extended.
-fn enumerate_from(
+pub(crate) fn enumerate_from(
     graph: &MagnitudeGraph,
     prefix: &[u32],
     prefix_length: usize,

@@ -9,6 +9,7 @@ use pyo3_stub_gen::derive::*;
 
 use super::graph::{read_graph, validate};
 use crate::magnitude::{magnitude_ranks, total_ranks, MagnitudeGraph, MagnitudeQuery, PairRanks, MODULI};
+use crate::mpss::mpss_pages;
 
 /// Magnitude homology of a digraph, as defined by Hepworth and Willerton: the ranks of `MH_{k,l}` over `Z/modulus`.
 ///
@@ -104,24 +105,7 @@ fn magnitude<'py>(
         }
     }
     let l_max = l_max.ok_or_else(|| PyTypeError::new_err("magnitude needs l_max, the largest length to compute"))?;
-    // Edges as pairs or weighted triples (weights are ignored)
-    let edges: Option<Vec<(u32, u32, f64)>> = edges
-        .map(|edges| -> PyResult<Vec<(u32, u32, f64)>> {
-            edges
-                .try_iter()?
-                .map(|edge| {
-                    let edge = edge?;
-                    if let Ok((a, b)) = edge.extract::<(u32, u32)>() {
-                        Ok((a, b, 1.0))
-                    } else {
-                        edge.extract::<(u32, u32, f64)>().map_err(|_| {
-                            PyTypeError::new_err("Edges must be (source, target) or (source, target, weight) tuples")
-                        })
-                    }
-                })
-                .collect()
-        })
-        .transpose()?;
+    let edges = read_edges(edges)?;
     let (n_vertices, edges, labels) = read_graph(graph, edges, "weight", "magnitude", u32::MAX >> 1)?;
     validate(n_vertices, &edges, u32::MAX >> 1)?;
     // Pairs, by node label if read from networkx
@@ -185,6 +169,109 @@ fn magnitude<'py>(
     Ok(out.into_any())
 }
 
+/// The magnitude-path spectral sequence of a digraph (Asao; Hepworth and Roff): pages `E^1, ..., E^{r_max}` over
+/// `Z/modulus`, in the bigrading of magnitude homology.
+///
+/// The reachability chain complex (tuples of nodes with a directed path from each to the next, with the alternating
+/// sum of deletions of every node as differential) is filtered by the length of a tuple; this is its spectral
+/// sequence. `E^1` is magnitude homology (as `magnitude` computes), `E^2` is *bigraded path homology*, whose diagonal
+/// `E^2_{k,k}` is the path homology of the digraph, and later pages converge to reachability homology. The pages are
+/// read off the persistence barcode of the length filtration up to `l_max`: an entry `E^r_{k,l}` is known exactly
+/// when `l + r <= l_max + 1`, and is `None` otherwise. The complex doesn't split over pairs of nodes, so every tuple
+/// up to `l_max` is listed: this is for small graphs. Over fields only, for now.
+///
+/// Call either as `magnitude_path_spectral_sequence(G, l_max=...)` with a networkx `DiGraph`, or as
+/// `magnitude_path_spectral_sequence(n_vertices, edges, l_max=...)`.
+///
+/// Args:
+///     graph: Either a networkx `DiGraph`, or the number of nodes, which are then labelled `0, ..., n_vertices - 1`.
+///     edges: Only when the first argument is the number of nodes: the edges, as `(source, target)` tuples.
+///     l_max: The largest length to list tuples up to.
+///     k_max: The largest degree (default: `l_max`).
+///     r_max: The last page (default 3).
+///     modulus: The characteristic of the coefficient field: 2 (the default), 3, 5, 7, 11, 13 or 251.
+///
+/// Returns:
+///     A list of pages `r = 1, ..., r_max`, each a list over `l = 0, ..., l_max` of lists over
+///     `k = 0, ..., min(l, k_max)`: `pages[r - 1][l][k]` is the rank of `E^r_{k,l}` (degree `k`, length `l`), or
+///     `None` if not determined by tuples up to `l_max`.
+#[gen_stub_pyfunction(
+    python_overload = r#"
+    import builtins
+    import typing
+    import networkx
+
+    @typing.overload
+    def magnitude_path_spectral_sequence(
+        graph: networkx.DiGraph,
+        /,
+        l_max: builtins.int,
+        *,
+        k_max: typing.Optional[builtins.int] = None,
+        r_max: builtins.int = 3,
+        modulus: builtins.int = 2,
+    ) -> list[list[list[typing.Optional[builtins.int]]]]: ...
+    @typing.overload
+    def magnitude_path_spectral_sequence(
+        n_vertices: builtins.int,
+        edges: typing.Sequence[tuple[builtins.int, builtins.int] | tuple[builtins.int, builtins.int, builtins.float]],
+        /,
+        l_max: builtins.int,
+        *,
+        k_max: typing.Optional[builtins.int] = None,
+        r_max: builtins.int = 3,
+        modulus: builtins.int = 2,
+    ) -> list[list[list[typing.Optional[builtins.int]]]]: ...
+    "#,
+    no_default_overload = true,
+    module = "phlite.networks"
+)]
+#[pyfunction]
+#[pyo3(signature = (graph, edges = None, /, l_max = None, *, k_max = None, r_max = 3, modulus = 2))]
+fn magnitude_path_spectral_sequence<'py>(
+    py: Python<'py>,
+    graph: &Bound<'py, PyAny>,
+    edges: Option<&Bound<'py, PyAny>>,
+    l_max: Option<usize>,
+    k_max: Option<usize>,
+    r_max: usize,
+    modulus: u64,
+) -> PyResult<Vec<Vec<Vec<Option<usize>>>>> {
+    let l_max = l_max.ok_or_else(|| PyTypeError::new_err("magnitude_path_spectral_sequence needs l_max"))?;
+    if !MODULI.contains(&modulus) {
+        return Err(PyValueError::new_err(format!("Unsupported modulus {modulus}, expected one of {MODULI:?}")));
+    }
+    let edges = read_edges(edges)?;
+    let (n_vertices, edges, _) = read_graph(graph, edges, "weight", "magnitude_path_spectral_sequence", u32::MAX >> 1)?;
+    let edges: Vec<(u32, u32)> = edges.into_iter().map(|(a, b, _)| (a, b)).collect();
+    Ok(py.detach(|| {
+        let graph = MagnitudeGraph::new(n_vertices as usize, &edges);
+        mpss_pages(&graph, l_max, k_max, r_max, modulus)
+    }))
+}
+
+/// Edges given as pairs or weighted triples (weights are ignored).
+fn read_edges(edges: Option<&Bound<'_, PyAny>>) -> PyResult<Option<Vec<(u32, u32, f64)>>> {
+    edges
+        .map(|edges| -> PyResult<Vec<(u32, u32, f64)>> {
+            edges
+                .try_iter()?
+                .map(|edge| {
+                    let edge = edge?;
+                    if let Ok((a, b)) = edge.extract::<(u32, u32)>() {
+                        Ok((a, b, 1.0))
+                    } else {
+                        edge.extract::<(u32, u32, f64)>().map_err(|_| {
+                            PyTypeError::new_err("Edges must be (source, target) or (source, target, weight) tuples")
+                        })
+                    }
+                })
+                .collect()
+        })
+        .transpose()
+}
+
 pub(crate) fn register(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_function(wrap_pyfunction!(magnitude, m)?)
+    m.add_function(wrap_pyfunction!(magnitude, m)?)?;
+    m.add_function(wrap_pyfunction!(magnitude_path_spectral_sequence, m)?)
 }
