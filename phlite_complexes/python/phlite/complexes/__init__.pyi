@@ -100,6 +100,25 @@ class ChainComplex:
         The characteristic of the coefficient field.
         """
     @staticmethod
+    def from_simplices(simplices: typing.Any, *, modulus: builtins.int = 2) -> ChainComplex:
+        r"""
+        The chain complex of a simplicial complex, from its simplices, with the usual signs: the boundary of
+        `(v_0, ..., v_k)` (vertices in increasing order) is `sum_i (-1)^i (v_0, ..., v_i omitted, ..., v_k)`. So it is
+        right over the integers too (`modulus=0`), and any simplicial filtration (an alpha or Delaunay-Čech complex,
+        a Rips complex, a triangulated mesh) can be brought over Z: `ChainComplex.from_simplices(s, modulus=0)
+        .filtration(values)`.
+        
+        Cells are the simplices, as tuples of their vertices in increasing order (in the order given, so values can be
+        listed alongside); every face of a simplex must be one of them.
+        
+        Args:
+            simplices: The simplices, each a sequence of distinct integer vertices (in any order).
+            modulus: The characteristic of the coefficient field, or 0 for the integers (as for `from_pairs`).
+        
+        Raises:
+            ValueError: If a simplex is repeated, has a repeated vertex, or has a face that isn't listed.
+        """
+    @staticmethod
     def from_columns(boundaries: typing.Iterable[typing.Sequence[builtins.int]], dimensions: typing.Union[numpy.typing.NDArray[numpy.integer], typing.Sequence[builtins.int]], *, coefficients: typing.Optional[typing.Iterable[typing.Sequence[builtins.int]]] = None, modulus: builtins.int = 2) -> ChainComplex:
         r"""
         A chain complex from its boundary columns and the dimension of every cell. Cells are the integers
@@ -303,8 +322,16 @@ class FilteredComplex:
             representatives: Whether to also compute a representative cycle for every bar.
                 With `method='cohomology'` these are computed via involution.
         
+        Over the integers (a complex built with `modulus=0`) there is no barcode: this is the barcode over Q, computed
+        exactly by a fraction-free reduction over Z (`method` and `algorithm` are ignored, and there are no
+        representatives); `torsion()` gives the primes whose barcodes differ from it.
+        
         Returns:
             The barcode. Bars of length zero (birth and death at the same filtration value) are omitted.
+        
+        Raises:
+            ValueError: Over the integers, if `representatives` is set.
+            OverflowError: Over the integers, if an entry outgrows 128 bits.
         """
     def spectral_sequence(self, max_dim: typing.Optional[builtins.int] = None, *, integer_steps: builtins.bool = False, algorithm: typing.Optional[core.Algorithm] = None) -> core.SpectralSequence:
         r"""
@@ -337,6 +364,26 @@ class FilteredComplex:
         
         Raises:
             ValueError: With `integer_steps`, if a value isn't a non-negative integer.
+        """
+    def torsion(self, max_dim: typing.Optional[builtins.int] = None) -> dict[builtins.int, ComplexBarcode]:
+        r"""
+        The torsion of persistence over the integers (a complex built with `modulus=0`): every prime `p` whose barcode
+        over `F_p` differs from that over Q (which `persistence()` gives), with that barcode.
+        
+        These are the primes of the torsion, whether in the homology of a subcomplex of the filtration or only in the
+        maps between them (a loop that, later, is `p` times another). They are found exactly: a fraction-free reduction
+        over Z, whose pivot pattern is that over Q, bounds them (a prime dividing none of its pivots and contents sees
+        the same reduction mod p), and each candidate is checked by reducing mod p, as Perseus does.
+        
+        Args:
+            max_dim: The maximum dimension of the bars (default: the largest dimension of a cell).
+        
+        Returns:
+            A dict from each such prime (increasing) to its barcode over `F_p` (bars of length zero omitted).
+        
+        Raises:
+            ValueError: If the complex isn't over the integers.
+            OverflowError: If an entry outgrows 128 bits.
         """
     def persistent_group(self, dim: builtins.int, start: builtins.float, end: builtins.float, *, algorithm: typing.Optional[core.Algorithm] = None) -> tuple[builtins.int, builtins.list[builtins.int]]:
         r"""

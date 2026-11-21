@@ -117,15 +117,18 @@ def test_projective_plane_over_the_integers():
     assert field.page(2).rows == [[1, 0, 0], [0, 1, 0], [0, 0, 1]]
 
 
-def test_integers_need_signs_and_have_no_barcode():
+def test_integers_need_signs():
     pairs, _, values = signed_simplicial(RP2, lambda s: 0)
     with pytest.raises(ValueError, match="signs"):
         ChainComplex.from_pairs(pairs, modulus=0)
     pairs, coefficients, values = signed_simplicial(RP2, lambda s: 0)
     filtered = ChainComplex.from_pairs(pairs, coefficients=coefficients, modulus=0).filtration(values)
     assert filtered.chain.modulus == 0
-    with pytest.raises(ValueError, match="no barcode"):
-        filtered.persistence()
+    # Over Z, persistence() is the barcode over Q (no representatives), and torsion() the primes that differ
+    assert [len(d) for d in filtered.persistence().diagrams()] == [1, 0, 0]
+    assert list(filtered.torsion()) == [2]
+    with pytest.raises(ValueError, match="representatives"):
+        filtered.persistence(representatives=True)
     with pytest.raises(ValueError, match="start <= end"):
         filtered.persistent_group(1, 1.0, 0.0)
 

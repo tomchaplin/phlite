@@ -526,3 +526,48 @@ def test_cell_order_does_not_matter(case, modulus):
         for p, row in enumerate(a.page(r).rows):
             for k in range(len(row)):
                 assert a.page(r).group(p, k) == b.page(r).group(p, k)
+
+
+# ====== Persistence over the integers ======
+
+RP2 = [(0, 1, 2), (0, 2, 3), (0, 3, 4), (0, 4, 5), (0, 1, 5), (1, 2, 4), (2, 3, 5), (1, 3, 4), (2, 4, 5), (1, 3, 5)]
+
+
+def diagram_lists(barcode, top):
+    return [sorted(map(tuple, barcode.diagrams()[k].tolist())) if k < len(barcode.diagrams()) else [] for k in range(top + 1)]
+
+
+@given(cases)
+@settings(deadline=None, max_examples=200)
+def test_integral_persistence_bad_primes(case):
+    """Over Z, persistence() is the barcode over Q and torsion() the primes whose barcode differs: so for each p up to
+    13 the barcode over F_p is torsion()[p] if p is reported, and the rational one otherwise."""
+    cells, values = random_case(*case)
+    note(f"{cells} {values}")
+    top = max(d for d, _ in cells)
+    integral = filtered(cells, values, 0)
+    rational = diagram_lists(integral.persistence(), top)
+    torsion = {p: diagram_lists(b, top) for p, b in integral.torsion().items()}
+    for p in (2, 3, 5, 7, 11, 13):
+        over_p = diagram_lists(filtered(cells, values, p).persistence(), top)
+        assert over_p == torsion.get(p, rational), p
+    for p, bars in torsion.items():
+        assert bars != rational
+
+
+def test_integral_persistence_known():
+    # RP^2, each simplex at its largest vertex: over Q only H_0; over F_2 also H_1 and H_2 (born at 3 and 5)
+    simplices = sorted({f for t in RP2 for k in range(1, 4) for f in itertools.combinations(t, k)}, key=lambda s: (len(s), s))
+    f = ChainComplex.from_simplices(simplices, modulus=0).filtration(lambda s: float(max(s)))
+    essential = lambda b: [[x for x, d in diagram.tolist() if d == math.inf] for diagram in b.diagrams()]  # noqa: E731
+    assert essential(f.persistence()) == [[0.0], [], []]
+    torsion = f.torsion()
+    assert list(torsion) == [2]
+    assert essential(torsion[2]) == [[0.0], [3.0], [5.0]]
+    # A loop, then 3 times another: no step has torsion, but 3 is a bad prime
+    g = ChainComplex.from_pairs([(0, []), (1, []), (1, []), (2, [2, 1])], coefficients=[[], [], [], [3, -1]], modulus=0)
+    g = g.filtration([0, 0, 1, 2])
+    assert list(g.torsion()) == [3]
+    # from_simplices: signs make d∘d = 0, so modulus=0 is accepted; a missing face isn't
+    with pytest.raises(ValueError, match="not listed"):
+        ChainComplex.from_simplices([(0,), (0, 1)], modulus=0)

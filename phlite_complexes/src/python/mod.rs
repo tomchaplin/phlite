@@ -64,8 +64,8 @@ macro_rules! dispatch_field {
 /// The error for asking for a barcode over the integers.
 fn no_integral_barcode() -> PyErr {
     PyValueError::new_err(
-        "A complex over the integers (modulus=0) has no barcode: use spectral_sequence or persistent_group, or build \
-         the complex over a field",
+        "Extended persistence isn't available over the integers (modulus=0): persistence() gives the barcode over Q \
+         and torsion() the primes that differ; or build the complex over a field",
     )
 }
 
@@ -545,6 +545,36 @@ fn radix_sort(keys: &mut Vec<(u32, u32)>) {
 }
 
 impl BarData {
+    /// From pairs of ranks (`(birth, Some(death))`, or `(birth, None)` if essential), up to dimension `max_dim`,
+    /// dropping those of length zero (no representatives).
+    pub(crate) fn from_rank_pairs<CF: crate::field::ChainCoefficient>(
+        complex: &Complex<CF>,
+        pairs: &[(usize, Option<usize>)],
+        max_dim: Option<usize>,
+    ) -> Self {
+        let n_dims = max_dim.or(complex.top_dimension()).map_or(0, |d| d + 1);
+        let mut bars: Vec<Record> = pairs
+            .iter()
+            .filter_map(|&(birth, death)| {
+                let (birth, birth_value, dimension) = complex.at_rank(Cell(birth as u32));
+                let death = death.map(|d| complex.at_rank(Cell(d as u32)));
+                if dimension >= n_dims || death.is_some_and(|(_, value, _)| value == birth_value) {
+                    return None;
+                }
+                Some(Record {
+                    birth: birth.0,
+                    death: death.map(|(cell, _, _)| cell.0),
+                    dimension: dimension as u32,
+                    representative: NO_REPRESENTATIVE,
+                    birth_value,
+                    death_value: death.map_or(f64::INFINITY, |(_, value, _)| value),
+                })
+            })
+            .collect();
+        bars.sort_unstable_by_key(|bar| bar.birth);
+        Self { bars, representative_chains: vec![], n_dims, representatives: false }
+    }
+
     /// From the bars of [`Complex::barcode_by_rank`], dropping those of length zero.
     pub(crate) fn new<CF: IntField>(
         complex: &Complex<CF>,

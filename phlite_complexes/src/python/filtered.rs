@@ -41,8 +41,16 @@ impl FilteredComplex {
     ///     representatives: Whether to also compute a representative cycle for every bar.
     ///         With `method='cohomology'` these are computed via involution.
     ///
+    /// Over the integers (a complex built with `modulus=0`) there is no barcode: this is the barcode over Q, computed
+    /// exactly by a fraction-free reduction over Z (`method` and `algorithm` are ignored, and there are no
+    /// representatives); `torsion()` gives the primes whose barcodes differ from it.
+    ///
     /// Returns:
     ///     The barcode. Bars of length zero (birth and death at the same filtration value) are omitted.
+    ///
+    /// Raises:
+    ///     ValueError: Over the integers, if `representatives` is set.
+    ///     OverflowError: Over the integers, if an entry outgrows 128 bits.
     #[pyo3(signature = (max_dim = None, *, method = "cohomology", algorithm = None, representatives = false))]
     fn persistence(
         slf: &Bound<'_, Self>,
@@ -53,6 +61,19 @@ impl FilteredComplex {
         algorithm: Option<Bound<'_, PyAny>>,
         representatives: bool,
     ) -> PyResult<ComplexBarcode> {
+        if let AnyComplex::Integers(integral) = &slf.get().complex {
+            if representatives {
+                return Err(PyValueError::new_err("no representatives over the integers"));
+            }
+            let _ = method;
+            let result = integral_persistence(slf.py(), integral)?;
+            let algorithm = algorithm_from_py(algorithm.as_ref(), &DEFAULTS)?;
+            return Ok(ComplexBarcode {
+                data: super::BarData::from_rank_pairs(integral, &result.rational, max_dim),
+                complex: slf.clone().unbind(),
+                algorithm: algorithm_to_py(slf.py(), &algorithm)?.unbind(),
+            });
+        }
         let algorithm = algorithm_from_py(algorithm.as_ref(), &DEFAULTS)?;
         let data = slf.get().complex.persistence(
             slf.py(),
@@ -157,6 +178,44 @@ impl FilteredComplex {
         let kwargs = PyDict::new(py);
         kwargs.set_item("steps", steps)?;
         spectral_sequence(py, backend, &kwargs)
+    }
+
+    /// The torsion of persistence over the integers (a complex built with `modulus=0`): every prime `p` whose barcode
+    /// over `F_p` differs from that over Q (which `persistence()` gives), with that barcode.
+    ///
+    /// These are the primes of the torsion, whether in the homology of a subcomplex of the filtration or only in the
+    /// maps between them (a loop that, later, is `p` times another). They are found exactly: a fraction-free reduction
+    /// over Z, whose pivot pattern is that over Q, bounds them (a prime dividing none of its pivots and contents sees
+    /// the same reduction mod p), and each candidate is checked by reducing mod p, as Perseus does.
+    ///
+    /// Args:
+    ///     max_dim: The maximum dimension of the bars (default: the largest dimension of a cell).
+    ///
+    /// Returns:
+    ///     A dict from each such prime (increasing) to its barcode over `F_p` (bars of length zero omitted).
+    ///
+    /// Raises:
+    ///     ValueError: If the complex isn't over the integers.
+    ///     OverflowError: If an entry outgrows 128 bits.
+    #[pyo3(signature = (max_dim = None))]
+    #[gen_stub(override_return_type(type_repr = "dict[builtins.int, ComplexBarcode]", imports = ("builtins")))]
+    fn torsion<'py>(slf: &Bound<'py, Self>, max_dim: Option<usize>) -> PyResult<Bound<'py, PyDict>> {
+        let AnyComplex::Integers(integral) = &slf.get().complex else {
+            return Err(PyValueError::new_err("torsion() is for complexes over the integers (modulus=0)"));
+        };
+        let py = slf.py();
+        let result = integral_persistence(py, integral)?;
+        let algorithm = algorithm_to_py(py, &algorithm_from_py(None, &DEFAULTS)?)?;
+        let out = PyDict::new(py);
+        for (p, bars) in &result.torsion {
+            let barcode = ComplexBarcode {
+                data: super::BarData::from_rank_pairs(integral, bars, max_dim),
+                complex: slf.clone().unbind(),
+                algorithm: algorithm.clone().unbind(),
+            };
+            out.set_item(p, Bound::new(py, barcode)?)?;
+        }
+        Ok(out)
     }
 
     /// The persistent homology group in dimension `dim` from `start` to `end`: the image of `H_dim` of the subcomplex
@@ -467,4 +526,14 @@ impl phlite_bindings::spectral::CellNames for ComplexCells {
     fn index(&self, _py: Python<'_>, cell: &Bound<'_, PyAny>) -> PyResult<Option<usize>> {
         Ok(self.chain.get().lookup(cell)?.map(|i| self.rank_of_input[i as usize] as usize))
     }
+}
+
+/// The persistence over Z of a complex over the integers (see `phlite::integral_persistence`), without the GIL.
+fn integral_persistence(
+    py: Python<'_>,
+    complex: &crate::complex::Complex<crate::field::Integer>,
+) -> PyResult<phlite::integral_persistence::IntegralPersistence> {
+    let filtered = complex.integral();
+    py.detach(|| phlite::integral_persistence::integral_persistence(&filtered.boundary, &filtered.degree))
+        .map_err(|e| PyOverflowError::new_err(e.to_string()))
 }

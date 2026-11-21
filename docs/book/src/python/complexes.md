@@ -91,10 +91,19 @@ length zero are omitted (with the default index filtration there are none, so yo
 
 ## Over the integers
 
-With `modulus=0` the complex has integer coefficients. Over Z a filtration has no barcode, so `persistence()` raises;
-instead `spectral_sequence` and `persistent_group` compute groups exactly, torsion included, by integer elimination
-on dense matrices (fine up to a few thousand cells per degree). Boundaries need their signs: building the complex
-checks that the boundary of every boundary is zero.
+With `modulus=0` the complex has integer coefficients. Over Z a filtration has no barcode (its persistence module
+needn't decompose into intervals), but everything around one is computed exactly:
+
+* `persistence()` is the barcode over Q, by a fraction-free reduction over Z, and `torsion()` the primes whose
+  barcode over `F_p` differs from it, with those barcodes: the primes of the torsion, whether in the homology of a
+  subcomplex or only in the maps between them (as Perseus finds its bad primes: the reduction over Z bounds them,
+  and each candidate is checked mod p);
+* `spectral_sequence` and `persistent_group` give groups, torsion included, by integer elimination on dense
+  matrices (fine up to a few thousand cells per degree).
+
+Boundaries need their signs: building the complex checks that the boundary of every boundary is zero.
+`ChainComplex.from_simplices(simplices, modulus=0)` fills them in for a simplicial complex, so any simplicial
+filtration (`phlite.clouds.alpha_complex`, a mesh, ...) can be brought over Z.
 
 ```python
 chain = ChainComplex.from_pairs(pairs, coefficients=signs, modulus=0)     # e.g. the projective plane

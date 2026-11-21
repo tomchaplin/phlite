@@ -11,7 +11,7 @@ use std::collections::HashMap;
 use pyo3::{
     exceptions::{PyIndexError, PyKeyError, PyTypeError, PyValueError},
     prelude::*,
-    types::{PyDict, PyList, PyMapping},
+    types::{PyDict, PyList, PyMapping, PyTuple},
 };
 use pyo3_stub_gen::derive::*;
 
@@ -273,6 +273,74 @@ impl ChainComplex {
 #[gen_stub_pymethods]
 #[pymethods]
 impl ChainComplex {
+    /// The chain complex of a simplicial complex, from its simplices, with the usual signs: the boundary of
+    /// `(v_0, ..., v_k)` (vertices in increasing order) is `sum_i (-1)^i (v_0, ..., v_i omitted, ..., v_k)`. So it is
+    /// right over the integers too (`modulus=0`), and any simplicial filtration (an alpha or Delaunay-Čech complex,
+    /// a Rips complex, a triangulated mesh) can be brought over Z: `ChainComplex.from_simplices(s, modulus=0)
+    /// .filtration(values)`.
+    ///
+    /// Cells are the simplices, as tuples of their vertices in increasing order (in the order given, so values can be
+    /// listed alongside); every face of a simplex must be one of them.
+    ///
+    /// Args:
+    ///     simplices: The simplices, each a sequence of distinct integer vertices (in any order).
+    ///     modulus: The characteristic of the coefficient field, or 0 for the integers (as for `from_pairs`).
+    ///
+    /// Raises:
+    ///     ValueError: If a simplex is repeated, has a repeated vertex, or has a face that isn't listed.
+    #[staticmethod]
+    #[pyo3(signature = (simplices, *, modulus = 2))]
+    fn from_simplices(py: Python<'_>, simplices: &Bound<'_, PyAny>, modulus: u64) -> PyResult<Self> {
+        let mut cells: Vec<Vec<i64>> = vec![];
+        for simplex in simplices.try_iter()? {
+            let mut s: Vec<i64> = simplex?.extract()?;
+            s.sort_unstable();
+            if s.is_empty() || s.windows(2).any(|w| w[0] == w[1]) {
+                return Err(PyValueError::new_err(format!("{s:?} is not a simplex (empty, or a repeated vertex)")));
+            }
+            cells.push(s);
+        }
+        let mut index: HashMap<Vec<i64>, u32> = HashMap::with_capacity(cells.len());
+        for (i, s) in cells.iter().enumerate() {
+            if index.insert(s.clone(), i as u32).is_some() {
+                return Err(PyValueError::new_err(format!("the simplex {s:?} is listed twice")));
+            }
+        }
+        let mut raw = RawChain {
+            dimensions: Vec::with_capacity(cells.len()),
+            indptr: vec![0],
+            indices: vec![],
+            coefficients: Some(vec![]),
+        };
+        let mut face = vec![];
+        for s in &cells {
+            raw.dimensions.push(s.len() as i64 - 1);
+            if s.len() > 1 {
+                for i in 0..s.len() {
+                    face.clear();
+                    face.extend(s.iter().enumerate().filter(|&(j, _)| j != i).map(|(_, &v)| v));
+                    let f = index.get(&face).ok_or_else(|| {
+                        PyValueError::new_err(format!("the face {face:?} of {s:?} is not listed"))
+                    })?;
+                    raw.indices.push(i64::from(*f));
+                    raw.coefficients.as_mut().expect("set").push(if i % 2 == 0 { 1 } else { -1 });
+                }
+            }
+            raw.indptr.push(raw.indices.len() as i64);
+        }
+        let mut chain = Self::from_raw(py, raw, modulus)?;
+        let tuples = PyList::empty(py);
+        let lookup = PyDict::new(py);
+        for (i, s) in cells.iter().enumerate() {
+            let t = PyTuple::new(py, s)?;
+            lookup.set_item(&t, i)?;
+            tuples.append(t)?;
+        }
+        chain.index = CellIndex::Hash(lookup.unbind());
+        chain.store = CellStore::Objects(tuples.unbind());
+        Ok(chain)
+    }
+
     /// A chain complex from its boundary columns and the dimension of every cell. Cells are the integers
     /// `0, ..., n - 1`.
     ///
