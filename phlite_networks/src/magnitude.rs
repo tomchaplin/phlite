@@ -222,7 +222,7 @@ struct Collapsed {
     degrees: Vec<u32>,
     indptr: Vec<usize>,
     faces: Vec<u32>,
-    signs: Vec<i8>,
+    coefficients: Vec<i64>,
 }
 
 /// Build the piece `(t, l)` from its tuples and collapse it.
@@ -299,20 +299,24 @@ fn collapse_piece(graph: &MagnitudeGraph, buckets: &Buckets, t: u32, l: usize, k
     let mut alive = vec![true; n_cells];
     let mut n_faces: Vec<u32> = (0..n_cells).map(|c| (indptr[c + 1] - indptr[c]) as u32).collect();
     let mut n_cofaces: Vec<u32> = (0..n_cells).map(|c| (co_ptr[c + 1] - co_ptr[c]) as u32).collect();
-    let mut queue: Vec<u32> = (0..n_cells as u32).filter(|&c| n_faces[c as usize] == 1 || n_cofaces[c as usize] == 1).collect();
+    // First in, first out: removing pairs in the order they become free removes far more than last in, first out
+    // (on Kaneta and Yoshinaga's graph of RP^2 at l = 10, 99.99% of the cells against 20%, the rest left to the
+    // costlier second phase)
+    let mut queue: std::collections::VecDeque<u32> =
+        (0..n_cells as u32).filter(|&c| n_faces[c as usize] == 1 || n_cofaces[c as usize] == 1).collect();
     // Remove a cell: its live faces lose a coface and its live cofaces a face
     let remove = |c: usize,
                   alive: &mut [bool],
                   n_faces: &mut [u32],
                   n_cofaces: &mut [u32],
-                  queue: &mut Vec<u32>| {
+                  queue: &mut std::collections::VecDeque<u32>| {
         alive[c] = false;
         for &f in &faces[indptr[c]..indptr[c + 1]] {
             let f = f as usize;
             if alive[f] {
                 n_cofaces[f] -= 1;
                 if n_cofaces[f] == 1 {
-                    queue.push(f as u32);
+                    queue.push_back(f as u32);
                 }
             }
         }
@@ -321,12 +325,12 @@ fn collapse_piece(graph: &MagnitudeGraph, buckets: &Buckets, t: u32, l: usize, k
             if alive[g] {
                 n_faces[g] -= 1;
                 if n_faces[g] == 1 {
-                    queue.push(g as u32);
+                    queue.push_back(g as u32);
                 }
             }
         }
     };
-    while let Some(c) = queue.pop() {
+    while let Some(c) = queue.pop_front() {
         let c = c as usize;
         if !alive[c] {
             continue;
@@ -345,7 +349,7 @@ fn collapse_piece(graph: &MagnitudeGraph, buckets: &Buckets, t: u32, l: usize, k
     }
     // The cells left, renumbered in order (so faces still come first)
     let mut new_index = vec![u32::MAX; n_cells];
-    let mut out = Collapsed { degrees: vec![], indptr: vec![0], faces: vec![], signs: vec![] };
+    let mut out = Collapsed { degrees: vec![], indptr: vec![0], faces: vec![], coefficients: vec![] };
     for c in 0..n_cells {
         if alive[c] {
             new_index[c] = out.degrees.len() as u32;
@@ -354,8 +358,228 @@ fn collapse_piece(graph: &MagnitudeGraph, buckets: &Buckets, t: u32, l: usize, k
                 let f = faces[e] as usize;
                 if alive[f] {
                     out.faces.push(new_index[f]);
-                    out.signs.push(signs[e]);
+                    out.coefficients.push(i64::from(signs[e]));
                 }
+            }
+            out.indptr.push(out.faces.len());
+        }
+    }
+    out
+}
+
+/// Pairs costlier than this to eliminate (in entries changed) are left to the reduction.
+const ELIMINATION_COST: u64 = 1 << 12;
+
+/// The second phase of the algebraic Morse reduction (as in Perseus 6): eliminate unit pairs, least Markowitz cost
+/// first, over the integers.
+///
+/// A pair `(σ, τ)` with `[τ : σ] = ε = ±1` is eliminated by Gaussian elimination: every other coface `ρ` of `σ` gets
+/// `∂ρ - [ρ : σ] ε ∂τ` (which no longer has `σ`), `τ` is dropped from the boundary of its cofaces, and `σ` and `τ`
+/// go. The complex left is chain homotopy equivalent to the one before, over the integers. The cost of a pair is
+/// `(|∂τ| - 1)(|δσ| - 1)`, the most entries it can change, so the fill-in-free pairs of the first phase (a cell with
+/// one face, or one coface) cost nothing and still come first. A pair costing more than [`ELIMINATION_COST`], or
+/// whose coefficients would overflow, is left alone.
+fn eliminate(piece: Collapsed) -> Collapsed {
+    use std::cmp::Reverse;
+    use std::collections::BinaryHeap;
+    let n = piece.degrees.len();
+    if piece.faces.is_empty() {
+        return piece;
+    }
+    let mut faces: Vec<Vec<(u32, i64)>> = (0..n)
+        .map(|c| {
+            let range = piece.indptr[c]..piece.indptr[c + 1];
+            let mut row: Vec<(u32, i64)> =
+                piece.faces[range.clone()].iter().copied().zip(piece.coefficients[range].iter().copied()).collect();
+            row.sort_unstable();
+            row
+        })
+        .collect();
+    drop(piece.faces);
+    drop(piece.coefficients);
+    let mut cofaces: Vec<Vec<u32>> = vec![vec![]; n];
+    for (c, row) in faces.iter().enumerate() {
+        for &(f, _) in row {
+            cofaces[f as usize].push(c as u32);
+        }
+    }
+    let mut alive = vec![true; n];
+    let unit = |x: i64| x == 1 || x == -1;
+    // The cheapest pair with tau = c: a unit face with the fewest cofaces
+    let best = |c: usize, faces: &[Vec<(u32, i64)>], cofaces: &[Vec<u32>]| -> Option<(u64, u32, u32)> {
+        let row = &faces[c];
+        row.iter()
+            .filter(|&&(_, x)| unit(x))
+            .map(|&(f, _)| ((row.len() as u64 - 1) * (cofaces[f as usize].len() as u64 - 1), c as u32, f))
+            .min()
+    };
+    let remove_from = |list: &mut Vec<u32>, x: u32| {
+        if let Some(i) = list.iter().position(|&y| y == x) {
+            list.swap_remove(i);
+        }
+    };
+    // Cells to look at for a free pair: one face (a unit), or one coface (with a unit coefficient)
+    let mut work: std::collections::VecDeque<u32> = (0..n as u32).collect();
+    let mut heap: BinaryHeap<Reverse<(u64, u32, u32)>> = BinaryHeap::new();
+    let mut heap_built = false;
+    let mut new_row: Vec<(u32, i64)> = vec![];
+    let mut updated: Vec<(u32, Vec<(u32, i64)>)> = vec![];
+    loop {
+        // A free pair, if the work list has one: (sigma, tau)
+        let mut free = None;
+        while let Some(c) = work.pop_front() {
+            let c = c as usize;
+            if !alive[c] {
+                continue;
+            }
+            if let [(f, x)] = faces[c][..] {
+                if unit(x) {
+                    free = Some((f as usize, c));
+                    break;
+                }
+            }
+            if let [g] = cofaces[c][..] {
+                let x = faces[g as usize].iter().find(|&&(f, _)| f as usize == c).expect("a coface").1;
+                if unit(x) {
+                    free = Some((c, g as usize));
+                    break;
+                }
+            }
+        }
+        let (sg, t) = match free {
+            Some(pair) => pair,
+            None => {
+                // Otherwise the cheapest pair, by Markowitz cost
+                if !heap_built {
+                    heap = (0..n).filter(|&c| alive[c]).filter_map(|c| best(c, &faces, &cofaces)).map(Reverse).collect();
+                    heap_built = true;
+                }
+                let mut found = None;
+                while let Some(Reverse((cost, tau, sigma))) = heap.pop() {
+                    if !alive[tau as usize] || !alive[sigma as usize] {
+                        continue;
+                    }
+                    match best(tau as usize, &faces, &cofaces) {
+                        Some(now) if now == (cost, tau, sigma) => {
+                            if cost <= ELIMINATION_COST {
+                                found = Some((sigma as usize, tau as usize));
+                            }
+                            break;
+                        }
+                        Some(now) => heap.push(Reverse(now)),
+                        None => {}
+                    }
+                }
+                match found {
+                    Some(pair) => pair,
+                    None => break,
+                }
+            }
+        };
+        let (tau, sigma) = (t as u32, sg as u32);
+        let epsilon = faces[t].iter().find(|&&(f, _)| f == sigma).expect("a face").1;
+        // The new boundaries of sigma's other cofaces: row - [row : sigma] epsilon faces[tau], computed before any is
+        // changed (so an overflow leaves everything as it was). With tau's only face sigma, that just drops sigma.
+        updated.clear();
+        let mut overflow = false;
+        for &rho in &cofaces[sg] {
+            if rho == tau {
+                continue;
+            }
+            let row = &faces[rho as usize];
+            let c = row.iter().find(|&&(f, _)| f == sigma).expect("a coface").1;
+            let Some(factor) = c.checked_mul(epsilon).and_then(i64::checked_neg) else {
+                overflow = true;
+                break;
+            };
+            new_row.clear();
+            let (a, b) = (row, &faces[t]);
+            let (mut i, mut j) = (0, 0);
+            while i < a.len() || j < b.len() {
+                if j == b.len() || (i < a.len() && a[i].0 < b[j].0) {
+                    new_row.push(a[i]);
+                    i += 1;
+                } else if i == a.len() || b[j].0 < a[i].0 {
+                    let Some(x) = b[j].1.checked_mul(factor) else {
+                        overflow = true;
+                        break;
+                    };
+                    new_row.push((b[j].0, x));
+                    j += 1;
+                } else {
+                    let Some(x) = b[j].1.checked_mul(factor).and_then(|x| x.checked_add(a[i].1)) else {
+                        overflow = true;
+                        break;
+                    };
+                    if x != 0 {
+                        new_row.push((a[i].0, x));
+                    }
+                    i += 1;
+                    j += 1;
+                }
+            }
+            if overflow {
+                break;
+            }
+            updated.push((rho, new_row.clone()));
+        }
+        if overflow {
+            // Leave this pair: it won't come back from the heap, since its entry is gone
+            continue;
+        }
+        for (rho, row) in updated.drain(..) {
+            let old = std::mem::replace(&mut faces[rho as usize], row);
+            for &(f, _) in &old {
+                if faces[rho as usize].binary_search_by_key(&f, |&(g, _)| g).is_err() {
+                    remove_from(&mut cofaces[f as usize], rho);
+                    work.push_back(f);
+                }
+            }
+            for &(f, _) in &faces[rho as usize] {
+                if old.binary_search_by_key(&f, |&(g, _)| g).is_err() {
+                    cofaces[f as usize].push(rho);
+                }
+            }
+            work.push_back(rho);
+            if heap_built {
+                if let Some(pair) = best(rho as usize, &faces, &cofaces) {
+                    heap.push(Reverse(pair));
+                }
+            }
+        }
+        // Drop tau (from its cofaces' boundaries) and sigma
+        alive[t] = false;
+        alive[sg] = false;
+        for rho in std::mem::take(&mut cofaces[t]) {
+            let row = &mut faces[rho as usize];
+            if let Ok(i) = row.binary_search_by_key(&tau, |&(g, _)| g) {
+                row.remove(i);
+            }
+            work.push_back(rho);
+            if heap_built {
+                if let Some(pair) = best(rho as usize, &faces, &cofaces) {
+                    heap.push(Reverse(pair));
+                }
+            }
+        }
+        for cell in [t, sg] {
+            for (f, _) in std::mem::take(&mut faces[cell]) {
+                remove_from(&mut cofaces[f as usize], cell as u32);
+                work.push_back(f);
+            }
+        }
+        cofaces[sg].clear();
+    }
+    // The cells left, renumbered in order
+    let mut new_index = vec![u32::MAX; n];
+    let mut out = Collapsed { degrees: vec![], indptr: vec![0], faces: vec![], coefficients: vec![] };
+    for c in 0..n {
+        if alive[c] {
+            new_index[c] = out.degrees.len() as u32;
+            out.degrees.push(piece.degrees[c]);
+            for &(f, x) in &faces[c] {
+                out.faces.push(new_index[f as usize]);
+                out.coefficients.push(x);
             }
             out.indptr.push(out.faces.len());
         }
@@ -383,7 +607,7 @@ fn collapsed_ranks<CF: IntField>(piece: &Collapsed, n_degrees: usize) -> Vec<usi
         dimensions: piece.degrees.iter().map(|&k| i64::from(k)).collect(),
         indptr: piece.indptr.iter().map(|&p| p as i64).collect(),
         indices: piece.faces.iter().map(|&f| i64::from(f)).collect(),
-        coefficients: Some(piece.signs.iter().map(|&s| i64::from(s)).collect()),
+        coefficients: Some(piece.coefficients.clone()),
     };
     let complex = Chain::<CF>::from_raw(raw)
         .and_then(|chain| chain.filter(Some(vec![0.0; n])))
@@ -457,7 +681,7 @@ pub fn magnitude_ranks(graph: &MagnitudeGraph, query: &MagnitudeQuery, moduli: &
             .collect();
         let piece = |&(t, l): &(u32, usize)| {
             let n_degrees = k_max.min(l) + 1;
-            let collapsed = collapse_piece(graph, &buckets, t, l, (k_max + 1).min(l));
+            let collapsed = eliminate(collapse_piece(graph, &buckets, t, l, (k_max + 1).min(l)));
             let ranks: Vec<Vec<usize>> = moduli.iter().map(|&m| collapsed_ranks_mod(&collapsed, n_degrees, m)).collect();
             (t, l, ranks)
         };
