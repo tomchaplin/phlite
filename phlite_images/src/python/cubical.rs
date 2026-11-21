@@ -235,6 +235,7 @@ fn cubical_complex<'py>(
     };
     let (pixels, shape) = read_image(py, image)?;
     let ndim = shape.len();
+    #[allow(clippy::type_complexity)]
     fn export<const D: usize>(
         pixels: Vec<f64>,
         shape: Vec<usize>,
