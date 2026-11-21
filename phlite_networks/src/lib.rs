@@ -30,6 +30,7 @@ pub mod error;
 pub mod flag;
 pub mod grpph;
 pub mod lazy;
+pub mod magnitude;
 pub mod pph;
 pub mod simplex;
 pub mod undirected;
