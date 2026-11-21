@@ -46,10 +46,14 @@
 //!   with the cell's own value is its oldest one (an *emergent pair*, as in Cubical Ripser), and similarly for faces.
 //! * [`build_reduction_bases`] builds the column bases, leaving out every cell in a zero-persistence apparent pair
 //!   (see [`CubicalComplex::in_zero_apparent_pair`]); in images with smooth regions these are most cells.
+//! * By cohomology without representatives, dimension 0 and the top dimension are found by union-find (on the edges
+//!   and on the dual), and the T-construction of a volume (three axes) by a filtered discrete gradient instead, as
+//!   Perseus does: only its critical cells are reduced (`morse`).
 
 pub mod cohomology;
 pub mod grid;
 pub mod homology;
+mod morse;
 #[cfg(test)]
 mod tests;
 
@@ -961,7 +965,8 @@ pub fn cubical_barcode<R: ColumnRepresentation, const D: usize>(
 /// As [`cubical_barcode`], but for superlevel sets only negates the values back to the image's if
 /// `negate_superlevel` (otherwise the bars are those of the sublevel filtration of the negated image), and choosing
 /// whether, by cohomology, to find dimension 0 and the top dimension by union-find (`union_find`, which
-/// [`cubical_barcode`] does) rather than by reducing them, and whether to build the bases and run the union-finds'
+/// [`cubical_barcode`] does) rather than by reducing them (and the T-construction with three axes by its Morse complex,
+/// see the [module docs](self)), and whether to build the bases and run the union-finds'
 /// sorts in parallel on the current rayon thread pool (`parallel_setup`, which [`cubical_barcode`] does only for the
 /// parallel algorithm), whatever the algorithm.
 pub fn filtration_barcode<R: ColumnRepresentation, const D: usize>(
@@ -993,6 +998,25 @@ pub fn filtration_barcode<R: ColumnRepresentation, const D: usize>(
             let coboundary = coboundary.with_basis(basis);
             let coboundary = coboundary.by_ref().with_transpose(boundary);
             barcode::cohomology_with_involution(coboundary, algorithm)
+        }
+        Method::Cohomology
+            if D == 3
+                && complex.construction == Construction::T
+                && !representatives
+                && complex.grid_ref().n_cells() as usize <= morse::MAX_MORSE_CELLS =>
+        {
+            // The T-construction in three dimensions by a filtered discrete gradient: the Morse complex of its
+            // critical cells, reduced explicitly (union-find at both ends included)
+            let ranks = Ranks::new(&complex.pixels, parallel);
+            morse::morse_barcode(
+                complex,
+                &ranks.pixels,
+                &ranks.values,
+                ranks.infinite(),
+                max_dim,
+                algorithm,
+                parallel,
+            )
         }
         Method::Cohomology => {
             // Dimension 0 by union-find, as Ripser and Cubical Ripser do: reducing it is most of the work otherwise.

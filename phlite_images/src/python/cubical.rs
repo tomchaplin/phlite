@@ -46,6 +46,8 @@ pub(crate) const DEFAULTS: AlgorithmDefaults = AlgorithmDefaults {
 ///     algorithm: The reduction algorithm and its options, as a `phlite.core.Algorithm` (default:
 ///         `Algorithm.serial()`).
 ///         Pipeline defaults (`'images.cubical'`): columns='merged', cache=False, store_r=True, union_find=True.
+///         With `union_find` (by cohomology, without representatives), dimension 0 and the top dimension are found by
+///         union-find, and the T-construction of a volume (3 axes) by a filtered discrete gradient (as Perseus).
 ///     representatives: Whether to also compute a representative cycle for every bar.
 ///
 /// Returns:

@@ -1048,6 +1048,7 @@ dependencies = [
  "ordered-float",
  "phlite",
  "phlite_bindings",
+ "phlite_complexes",
  "pyo3",
  "pyo3-log",
  "pyo3-stub-gen",
