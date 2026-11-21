@@ -62,6 +62,7 @@ keeps the bars' values but not which simplices are paired), which Vietoris–Rip
 | `clouds.alpha` | `phlite.clouds.alpha` | `'pivot'` | `False` | `True` | `'merged'` | `False` | — | — |
 | `clouds.delaunay_cech` | `phlite.clouds.delaunay_cech` | `'pivot'` | `False` | `True` | `'merged'` | `False` | — | — |
 | `clouds.cech` | `phlite.clouds.cech` | `'pivot'` | `False` | `True` | `'merged'` | `False` | — | — |
+| `clouds.witness` | `phlite.clouds.witness` | `'pivot'` | `False` | `True` | `'merged'` | `False` | — | — |
 | `networks.grpph` | `phlite.networks.grpph` | `'merged'` | `True` | `False` | `'merged'` | `True` | — | — |
 | `networks.pph` | `phlite.networks.pph` | `'merged'` | `True` | `False` | `'merged'` | `True` | — | — |
 | `networks.directed_flag` | `phlite.networks.directed_flag` | `'merged'` | `True` | `False` | `'merged'` | `True` | `True` | — |

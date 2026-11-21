@@ -151,10 +151,28 @@ pub fn cech_barcode<R: ColumnRepresentation>(
     squared: bool,
     algorithm: Algorithm<'_, R>,
 ) -> Vec<CechBar> {
-    let simplices = cech_simplices(points, max_dim + 1, max_radius);
+    let simplices: Vec<(f64, Vec<u32>)> = cech_simplices(points, max_dim + 1, max_radius)
+        .into_iter()
+        .map(|(r2, s)| (if squared { r2 } else { r2.sqrt() }, s))
+        .collect();
+    simplicial_barcode(&simplices, max_dim, algorithm)
+}
+
+/// The barcode, in dimensions `0..=max_dim`, of the filtered simplicial complex given by its simplices with their
+/// values (every face of each included, faces never later than their cofaces), reduced as an explicit complex over
+/// Z/2. Zero-length bars are left out.
+pub fn simplicial_barcode<R: ColumnRepresentation>(
+    simplices: &[(f64, Vec<u32>)],
+    max_dim: usize,
+    algorithm: Algorithm<'_, R>,
+) -> Vec<CechBar> {
     if simplices.is_empty() {
         return vec![];
     }
+    // Faces first (by dimension), so that ties in value are broken the right way
+    let mut order: Vec<usize> = (0..simplices.len()).collect();
+    order.sort_by_key(|&i| (simplices[i].1.len(), i));
+    let simplices: Vec<(f64, Vec<u32>)> = order.into_iter().map(|i| simplices[i].clone()).collect();
     let index: std::collections::HashMap<&[u32], usize> =
         simplices.iter().enumerate().map(|(i, (_, s))| (s.as_slice(), i)).collect();
     let mut raw = RawChain { dimensions: vec![], indptr: vec![0], indices: vec![], coefficients: None };
@@ -168,7 +186,7 @@ pub fn cech_barcode<R: ColumnRepresentation>(
         }
         raw.indptr.push(raw.indices.len() as i64);
     }
-    let values = simplices.iter().map(|(r2, _)| if squared { *r2 } else { r2.sqrt() }).collect();
+    let values = simplices.iter().map(|(v, _)| *v).collect();
     let complex = Chain::<Z2>::from_raw(raw)
         .and_then(|chain| chain.filter(Some(values)))
         .expect("a simplicial complex, faces no later than their cofaces");

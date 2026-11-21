@@ -21,9 +21,16 @@ options it fills in with its own defaults (the pipeline names are `clouds.<funct
 `max_dim + 2` points within `max_radius` (candidates from the Rips complex at twice the radius), so give a radius for
 more than a few hundred points.
 
+## Witness complexes
+
+`witness(landmarks, witnesses, max_dim)` is the persistence of a witness complex, as GUDHI's `EuclideanWitnessComplex`
+(relaxed, the default) or with `strong=True` its `EuclideanStrongWitnessComplex`: simplices on a few landmarks,
+entering (at `α²`) as the other points vouch for them, a small complex approximating the topology of all the points.
+`witness_complex` lists it.
+
 ## The complexes themselves
 
-`alpha_complex`, `delaunay_cech_complex`, `cech_complex` and `rips_complex` list the complexes as `(simplex, value)` pairs, for
+`alpha_complex`, `delaunay_cech_complex`, `cech_complex`, `witness_complex` and `rips_complex` list the complexes as `(simplex, value)` pairs, for
 drawing or your own computations: `phlite.complexes.ChainComplex.from_simplices(simplices, modulus=0)` with the values
 gives their persistence over the integers (see [explicit complexes](complexes.md#over-the-integers)). Unlike `rips`,
 which stops at the enclosing radius, `rips_complex` lists every simplex up to its `threshold`.

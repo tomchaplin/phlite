@@ -13,6 +13,7 @@
 
 pub mod alpha;
 pub mod cech;
+pub mod witness;
 pub mod error;
 pub mod rips;
 
