@@ -139,7 +139,7 @@ def flag(graph: typing.Any, edges: typing.Optional[typing.Sequence[typing.Union[
             `Algorithm.serial()`).
             Listed explicitly: Pipeline defaults (`'networks.flag'`): columns='pivot', cache=False, store_r=True.
             Computed implicitly: Pipeline defaults (`'networks.flag_implicit'`): columns='heap', cache=False,
-            store_r=False, union_find=True.
+            store_r=False, union_find=True, collapse=True.
         representatives: Whether to also compute a representative cycle for every bar. Cells are tuples of nodes (node
             labels for a networkx graph).
     

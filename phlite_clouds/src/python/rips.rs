@@ -31,6 +31,7 @@ pub(crate) const DEFAULTS: AlgorithmDefaults = AlgorithmDefaults {
     store_r: false,
     row_ranks: false,
     union_find: Some(true),
+    collapse: Some(true),
 };
 
 /// The pipeline `'clouds.rips_explicit'`: the Rips complex of a sparse input listed and reduced as an explicit complex
@@ -42,6 +43,7 @@ pub(crate) const EXPLICIT_DEFAULTS: AlgorithmDefaults = AlgorithmDefaults {
     store_r: true,
     row_ranks: true,
     union_find: None,
+    collapse: None,
 };
 
 /// The most simplices listed explicitly when `explicit` isn't given: beyond this, the complex is computed implicitly.
@@ -265,7 +267,7 @@ fn read_points(points: &Bound<'_, PyAny>, metric: Metric, threshold: NotNan<f64>
 ///         `Algorithm.serial()`).
 ///         For example `Algorithm.parallel(threads=8)`.
 ///         Computed implicitly: Pipeline defaults (`'clouds.rips'`): columns='heap', cache=False, store_r=False,
-///         union_find=True.
+///         union_find=True, collapse=True.
 ///         Listed explicitly: Pipeline defaults (`'clouds.rips_explicit'`): columns='pivot', cache=False,
 ///         store_r=True.
 ///     representatives: Whether to also compute a representative cycle for every bar.
@@ -372,6 +374,7 @@ fn rips<'py>(
             representatives,
             union_find: algorithm.union_find(),
             parallel_setup: algorithm.parallel_setup(),
+            collapse: algorithm.collapse(),
         })
     })?;
     bars.into_python(py, &algorithm, representatives, None)
@@ -440,6 +443,7 @@ struct RipsRun {
     representatives: bool,
     union_find: bool,
     parallel_setup: bool,
+    collapse: bool,
 }
 
 impl AlgorithmVisitor for RipsRun {
@@ -458,7 +462,7 @@ impl AlgorithmVisitor for RipsRun {
                     self.representatives,
                     self.union_find,
                     self.parallel_setup,
-                    true,
+                    self.collapse,
                 )
             };
         }

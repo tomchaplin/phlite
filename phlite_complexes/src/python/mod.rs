@@ -64,6 +64,7 @@ pub(crate) const DEFAULTS: AlgorithmDefaults = AlgorithmDefaults {
     // The complex knows the position of every cell in the filtration
     row_ranks: true,
     union_find: None,
+    collapse: None,
 };
 
 // ====== Coefficient fields ===============================================

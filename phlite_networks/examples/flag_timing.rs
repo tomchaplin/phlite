@@ -52,6 +52,7 @@ fn main() {
         false,
         true,
         false,
+        true,
     );
     println!("implicit (Rips' machinery): {:>8.3}s, {} bars", start.elapsed().as_secs_f64(), bars.len());
 

@@ -492,6 +492,7 @@ dependencies = [
  "phlite_complexes",
  "rayon",
  "robust",
+ "rustc-hash",
  "spade",
 ]
 

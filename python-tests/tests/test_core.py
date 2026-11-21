@@ -59,9 +59,10 @@ def test_docstrings_state_the_defaults(name):
     serial = defaults()[name]["serial"]
     doc = " ".join(pipeline_function(name).__doc__.split())
     union_find = "" if serial.union_find is None else f", union_find={serial.union_find!r}"
+    collapse = "" if serial.collapse is None else f", collapse={serial.collapse!r}"
     expected = (
         f"Pipeline defaults (`'{name}'`): columns={serial.columns!r}, cache={serial.cache!r}, "
-        f"store_r={serial.store_r!r}{union_find}."
+        f"store_r={serial.store_r!r}{union_find}{collapse}."
     )
     assert expected in doc
 
@@ -83,7 +84,7 @@ def test_book_table_matches_the_registry():
     table = book_table()
     registry = defaults()
     assert set(table) == set(registry), "add a row to the table in docs/book/src/python/algorithms.md"
-    for name, (function, columns, cache, store_r, parallel_columns, parallel_cache, union_find) in table.items():
+    for name, (function, columns, cache, store_r, parallel_columns, parallel_cache, union_find, collapse) in table.items():
         serial, parallel = registry[name]["serial"], registry[name]["parallel"]
         expected_function = (
             "phlite.complexes.FilteredComplex.persistence"
@@ -95,6 +96,8 @@ def test_book_table_matches_the_registry():
         assert [parallel_columns, parallel_cache] == [repr(parallel.columns), repr(parallel.cache)]
         assert union_find == ("—" if serial.union_find is None else repr(serial.union_find))
         assert parallel.union_find == serial.union_find
+        assert collapse == ("—" if serial.collapse is None else repr(serial.collapse))
+        assert parallel.collapse == serial.collapse
 
 
 def test_unset_options_are_shown():
@@ -131,6 +134,16 @@ def test_parallel_setup():
         barcode = rips(points=points, algorithm=algorithm)
         assert (barcode.pairings, barcode.essential) == (expected.pairings, expected.essential)
         assert barcode.algorithm.parallel_setup == algorithm.parallel_setup
+
+
+def test_collapse_only_where_supported():
+    assert Algorithm.serial().resolve("clouds.rips").collapse is True
+    assert Algorithm.serial().with_collapse(False).resolve("clouds.rips").collapse is False
+    assert Algorithm.serial().resolve("networks.grpph").collapse is None
+    assert "collapse" not in repr(Algorithm.serial().resolve("networks.grpph"))
+    assert repr(Algorithm.serial().with_collapse()).endswith("collapse=True)")
+    with pytest.raises(ValueError):
+        Algorithm.serial().with_collapse().resolve("networks.grpph")
 
 
 def test_union_find_only_where_supported():

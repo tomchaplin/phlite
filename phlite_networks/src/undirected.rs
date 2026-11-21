@@ -197,7 +197,8 @@ impl Distances for Graph {
 /// The barcode of the flag complex of `graph` in dimensions `0..=max_dim`, as
 /// [`rips_barcode_with`](phlite_clouds::rips::rips_barcode_with) (whose simplices are cliques of the graph): up to
 /// `threshold` (bars still alive there are essential), by cohomology or homology, with union-find in dimension 0 if
-/// `union_find`, building the bases in parallel if `parallel_setup`, and optionally with representatives.
+/// `union_find`, building the bases in parallel if `parallel_setup`, collapsing edges first if `collapse` (see
+/// [`collapse`](phlite_clouds::rips::collapse); not with node values), and optionally with representatives.
 ///
 /// # Panics
 /// If simplices of dimension `max_dim + 1` don't fit in a `RipsIndex<I>` (see
@@ -212,8 +213,9 @@ pub fn flag_barcode<R: ColumnRepresentation, I: RipsInt>(
     representatives: bool,
     union_find: bool,
     parallel_setup: bool,
+    collapse: bool,
 ) -> Vec<RipsBar<I>> {
-    rips_barcode_with(graph, max_dim, threshold, method, algorithm, representatives, union_find, parallel_setup, true)
+    rips_barcode_with(graph, max_dim, threshold, method, algorithm, representatives, union_find, parallel_setup, collapse)
 }
 
 #[cfg(test)]
@@ -232,6 +234,7 @@ mod tests {
             false,
             true,
             false,
+            true,
         )
         .into_iter()
         .map(|bar| {

@@ -28,6 +28,7 @@ pub(crate) const DEFAULTS: AlgorithmDefaults = AlgorithmDefaults {
     store_r: true,
     row_ranks: true,
     union_find: None,
+    collapse: None,
 };
 
 /// The pipeline `'networks.flag_implicit'`, for a complex too big to list: Rips' machinery, so with Rips' defaults.
@@ -38,6 +39,7 @@ pub(crate) const IMPLICIT_DEFAULTS: AlgorithmDefaults = AlgorithmDefaults {
     store_r: false,
     row_ranks: false,
     union_find: Some(true),
+    collapse: Some(true),
 };
 
 /// The most simplices listed explicitly when `explicit` isn't given: beyond this, the complex is computed implicitly.
@@ -226,7 +228,7 @@ pub(crate) fn read(
 ///         `Algorithm.serial()`).
 ///         Listed explicitly: Pipeline defaults (`'networks.flag'`): columns='pivot', cache=False, store_r=True.
 ///         Computed implicitly: Pipeline defaults (`'networks.flag_implicit'`): columns='heap', cache=False,
-///         store_r=False, union_find=True.
+///         store_r=False, union_find=True, collapse=True.
 ///     representatives: Whether to also compute a representative cycle for every bar. Cells are tuples of nodes (node
 ///         labels for a networkx graph).
 ///
@@ -319,6 +321,7 @@ fn flag<'py>(
             representatives,
             union_find: algorithm.union_find(),
             parallel_setup: algorithm.parallel_setup(),
+            collapse: algorithm.collapse(),
         })
     })?;
     bars.into_python(py, &algorithm, representatives, labels.as_deref())
@@ -333,6 +336,7 @@ struct FlagRun<'a> {
     representatives: bool,
     union_find: bool,
     parallel_setup: bool,
+    collapse: bool,
 }
 
 impl AlgorithmVisitor for FlagRun<'_> {
@@ -350,6 +354,7 @@ impl AlgorithmVisitor for FlagRun<'_> {
             self.representatives,
             self.union_find,
             self.parallel_setup,
+            self.collapse,
         );
         SortedBars::new(bars, self.max_dim + 1, |simplex| {
             let vertices = simplex.to_vec(n);

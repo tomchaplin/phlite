@@ -154,6 +154,7 @@ pub fn init_package(
             defaults.store_r,
             defaults.row_ranks,
             defaults.union_find,
+            defaults.collapse,
         ))?;
     }
     Ok(())

@@ -24,6 +24,7 @@ pub(crate) const DEFAULTS: AlgorithmDefaults = AlgorithmDefaults {
     store_r: true,
     row_ranks: false,
     union_find: Some(true),
+    collapse: None,
 };
 
 /// Compute the persistent homology of the cubical complex of an image (or a volume, or any grid with 1 to 4 axes), in

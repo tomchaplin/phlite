@@ -37,6 +37,11 @@ class Algorithm:
     algorithm that computed it (`barcode.algorithm`).
     """
     @property
+    def collapse(self) -> typing.Optional[builtins.bool]:
+        r"""
+        Whether edges are collapsed, or `None` for the pipeline's default.
+        """
+    @property
     def parallel_setup(self) -> typing.Optional[builtins.bool]:
         r"""
         Whether the setup runs in parallel, or `None` to follow the algorithm.
@@ -209,6 +214,19 @@ class Algorithm:
         the dimensions above are reduced. Reducing dimension 0 is most of the time of a Vietoris–Rips barcode of points
         in the plane (2–3× slower than union-find), and of a cubical one. Representatives come from the union-find too
         (a component's: its birth vertex plus the oldest vertex of the component it joins).
+        """
+    def with_collapse(self, collapse: typing.Optional[builtins.bool] = True) -> Algorithm:
+        r"""
+        Whether to collapse the edges of the flag filtration before reducing, or `None` for the pipeline's default:
+        collapse in `phlite.clouds.rips` and `phlite.networks.flag` (implicit); other pipelines can't, and refuse it.
+        
+        An edge that is dominated (some other vertex is adjacent to every common neighbour of its ends) can be moved to
+        the time it stops being dominated, or removed if it never does, without changing the barcode (Boissonnat and
+        Pritam; Glisse and Pritam). On point clouds this removes most edges, and the reduction then takes a fraction of
+        the time (10–75× faster in dimensions up to 2 on phlite's benchmarks). It is used only from `max_dim` 1, without
+        representatives, with every point born at 0 (not with weights or node values), and when it removes at least a
+        tenth of the edges. The bars' values are unchanged, but their birth and death simplices are those of the
+        collapsed filtration; turn it off for the original filtration's.
         """
     def with_parallel_setup(self, parallel: typing.Optional[builtins.bool] = True) -> Algorithm:
         r"""

@@ -710,10 +710,11 @@ pub fn rips_barcode<R: ColumnRepresentation, I: RipsInt, D: Distances>(
 /// algorithm), whatever the algorithm, and whether to [collapse the edges](collapse) first (`collapse`, which
 /// [`rips_barcode`] does).
 ///
-/// Edges are collapsed only when it can help and is safe: from `max_dim` 2 (in dimensions 0 and 1 the reduction is
-/// cheaper than collapsing, as Perseus 6 found too), without representatives, and when the points have no births. The
-/// collapsed edges are used only if at least a tenth of the edges went (when collapsing moves many edges but removes
-/// few, the reduction can get slower).
+/// Edges are collapsed only when it can help and is safe: from `max_dim` 1 (dimension 0 is a union-find, cheaper than
+/// collapsing), without representatives, and when the points have no births. The collapsed edges are used only if at
+/// least a tenth of the edges went (when collapsing moves many edges but removes few, the reduction can get slower, as
+/// Perseus 6 found). Collapsing keeps the bars' values but not which simplices are paired: the birth and death
+/// simplices are those of the collapsed filtration.
 ///
 /// # Panics
 /// As [`rips_barcode`]: if simplices of dimension `max_dim + 1` don't fit in a [`RipsIndex`].
@@ -735,7 +736,7 @@ pub fn rips_barcode_with<R: ColumnRepresentation, I: RipsInt, D: Distances>(
     let threshold = threshold
         .min(enclosing_radius(&distances))
         .min(largest_finite);
-    if collapse && max_dim >= 2 && !representatives && !D::HAS_BIRTHS {
+    if collapse && max_dim >= 1 && !representatives && !D::HAS_BIRTHS {
         let (collapsed, stats) = collapse::collapse_edges(&distances, threshold);
         if stats.edges_after * 10 <= stats.edges_before * 9 {
             return rips_barcode_with(

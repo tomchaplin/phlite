@@ -17,7 +17,7 @@ pub const SPEC_PROTOCOL: u32 = 1;
 ///  "columns": None | "merged" | "heap" | "sorted" | "pivot" | "dynamic", "threshold": None | int,
 ///  "cache": None | bool, "store_r": None | bool,
 ///  "skip_zero_apparent_pairs": bool, "dimension_order": None | list[int], "storage": "locking" | "lock-free",
-///  "threads": None | int, "union_find": None | bool, "parallel_setup": None | bool}
+///  "threads": None | int, "union_find": None | bool, "collapse": None | bool, "parallel_setup": None | bool}
 /// ```
 ///
 /// `None` means the pipeline's default.
@@ -34,6 +34,7 @@ pub fn spec_to_dict<'py>(py: Python<'py>, spec: &AlgorithmSpec) -> PyResult<Boun
     dict.set_item("storage", storage_name(spec.storage))?;
     dict.set_item("threads", spec.threads)?;
     dict.set_item("union_find", spec.union_find)?;
+    dict.set_item("collapse", spec.collapse)?;
     dict.set_item("parallel_setup", spec.parallel_setup)?;
     Ok(dict)
 }
@@ -63,6 +64,7 @@ pub fn spec_from_dict(dict: &Bound<'_, PyDict>) -> PyResult<AlgorithmSpec> {
         storage: storage_from_name(&get("storage")?.extract::<String>()?)?,
         threads: get("threads")?.extract()?,
         union_find: get("union_find")?.extract()?,
+        collapse: get("collapse")?.extract()?,
         parallel_setup: get("parallel_setup")?.extract()?,
     };
     spec.validate()?;

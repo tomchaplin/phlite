@@ -173,7 +173,7 @@ def rips(distance_matrix: typing.Optional[typing.Union[numpy.typing.NDArray[nump
             `Algorithm.serial()`).
             For example `Algorithm.parallel(threads=8)`.
             Computed implicitly: Pipeline defaults (`'clouds.rips'`): columns='heap', cache=False, store_r=False,
-            union_find=True.
+            union_find=True, collapse=True.
             Listed explicitly: Pipeline defaults (`'clouds.rips_explicit'`): columns='pivot', cache=False,
             store_r=True.
         representatives: Whether to also compute a representative cycle for every bar.

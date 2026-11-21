@@ -194,17 +194,13 @@ pub fn collapse_edges<D: Distances + ?Sized>(distances: &D, threshold: NotNan<f6
         last_dominator[v] = w as u32;
         // Dominated at e. If w is already adjacent to every vertex that will ever be a common neighbour, the edge stays
         // dominated forever. (`now` no longer has e, but w's row never held it.)
-        let mut forever = true;
-        for k in 0..words {
-            later[k] = fin.row(u)[k] & fin.row(v)[k] & !common[k];
-            let mut outside = later[k] & !now.row(w)[k];
+        let forever = (0..words).all(|k| {
+            let mut outside = fin.row(u)[k] & fin.row(v)[k] & !common[k] & !now.row(w)[k];
             if w / 64 == k {
                 outside &= !(1 << (w % 64));
             }
-            if outside != 0 {
-                forever = false;
-            }
-        }
+            outside == 0
+        });
         if forever {
             fin.clear(u, v);
             time[rank] = NEVER_RANK;
@@ -212,6 +208,9 @@ pub fn collapse_edges<D: Distances + ?Sized>(distances: &D, threshold: NotNan<f6
         }
         // Otherwise list the common neighbours that join after e (those present at e are in `common`), with when
         stats.scanned += 1;
+        for k in 0..words {
+            later[k] = fin.row(u)[k] & fin.row(v)[k] & !common[k];
+        }
         joins.clear();
         for x in ones(&later) {
             joins.push((x, current(&fin, &time, u, x).max(current(&fin, &time, v, x))));
