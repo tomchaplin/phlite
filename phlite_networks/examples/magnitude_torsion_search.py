@@ -164,6 +164,8 @@ def main():
     start, checked, found = time.time(), 0, 0
     for n, edges in graphs:
         checked += 1
+        if checked % 20000 == 0:
+            print(f"... {checked} graphs, {time.time() - start:.0f} s, {found} with torsion", file=sys.stderr, flush=True)
         if not args.fields:
             found_here, unknown = integral_torsion(n, edges, args.l_max)
             if found_here or unknown:
