@@ -1,0 +1,293 @@
+diff --git a/phlite_complexes/examples/reduce_file.rs b/phlite_complexes/examples/reduce_file.rs
+index b70a3e7..6e25e35 100644
+--- a/phlite_complexes/examples/reduce_file.rs
++++ b/phlite_complexes/examples/reduce_file.rs
+@@ -4,11 +4,12 @@
+ //! (`n + 1` i64), the faces (`nnz` i64) and the filtration values (`n` f64).
+ //!
+ //! ```text
+-//! cargo run --release -p phlite_complexes --example reduce_file -- complex.bin [repetitions] [homology|no-union-find]
++//! cargo run --release -p phlite_complexes --example reduce_file -- complex.bin [repetitions] [flags...]
+ //! ```
+ //!
+-//! `no-union-find` computes every dimension by cohomology with the reduction, instead of dimension 0 and (where it can)
+-//! the top dimension by union-find.
++//! Flags: `homology` reduces the boundary instead of the coboundary; `no-union-find` computes every dimension with the
++//! reduction, instead of dimension 0 and (where it can) the top dimension by union-find; `morse` orders cells with the
++//! same value by a discrete gradient (`Ties::Morse`) rather than by index.
+ //!
+ //! It prints the time of each stage: building the chain, filtering it, and computing the barcode (the configuration
+ //! `phlite.complexes` uses by default: serial clearing with pivot columns, storing R, no cache).
+@@ -19,7 +20,7 @@ use phlite::barcode::{Algorithm, Method};
+ use phlite::columns::PivotColumns;
+ use phlite::fields::Z2;
+ use phlite::reduction::Clearing;
+-use phlite_complexes::complex::{Chain, RawChain};
++use phlite_complexes::complex::{Chain, RawChain, Ties};
+ 
+ fn read(path: &str) -> (RawChain, Vec<f64>) {
+     let bytes = std::fs::read(path).expect("can't read the file");
+@@ -48,20 +49,19 @@ fn main() {
+     let args: Vec<String> = std::env::args().collect();
+     let path = args
+         .get(1)
+-        .expect("usage: reduce_file FILE [repetitions] [homology|no-union-find]");
++        .expect("usage: reduce_file FILE [repetitions] [flags...]");
+     let repetitions: usize = args.get(2).map_or(5, |r| r.parse().expect("repetitions"));
+-    let method = match args.get(3).map(String::as_str) {
+-        Some("homology") => Method::Homology,
+-        _ => Method::Cohomology,
+-    };
+-    let union_find = args.get(3).map(String::as_str) != Some("no-union-find");
++    let flags: Vec<&str> = args.iter().skip(3).map(String::as_str).collect();
++    let method = if flags.contains(&"homology") { Method::Homology } else { Method::Cohomology };
++    let union_find = !flags.contains(&"no-union-find");
++    let ties = if flags.contains(&"morse") { Ties::Morse } else { Ties::Index };
+     let (raw, values) = read(path);
+ 
+     let start = Instant::now();
+     let chain = Chain::<Z2>::from_raw(raw).expect("a valid chain complex");
+     println!("chain   {:8.1} ms", start.elapsed().as_secs_f64() * 1e3);
+     let start = Instant::now();
+-    let complex = chain.filter(Some(values)).expect("a valid filtration");
++    let complex = chain.filter_with(Some(values), ties).expect("a valid filtration");
+     println!("filter  {:8.1} ms", start.elapsed().as_secs_f64() * 1e3);
+ 
+     let mut best = f64::INFINITY;
+diff --git a/phlite_complexes/src/complex.rs b/phlite_complexes/src/complex.rs
+index 3d5b833..4b3132c 100644
+--- a/phlite_complexes/src/complex.rs
++++ b/phlite_complexes/src/complex.rs
+@@ -527,6 +527,11 @@ impl<CF: IntField> Chain<CF> {
+     ///
+     /// Cells enter in order of value, breaking ties by index; every face must enter before its cofaces.
+     pub fn filter(&self, values: Option<Vec<f64>>) -> Result<Complex<CF>, ComplexError> {
++        self.filter_with(values, Ties::Index)
++    }
++
++    /// As [`filter`](Self::filter), breaking ties between cells with the same value as `ties` says.
++    pub fn filter_with(&self, values: Option<Vec<f64>>, ties: Ties) -> Result<Complex<CF>, ComplexError> {
+         let n = self.n_cells();
+         let values: Vec<NotNan<f64>> = match values {
+             None => (0..n).map(|i| NotNan::new(i as f64).expect("an integer is not NaN")).collect(),
+@@ -549,6 +554,9 @@ impl<CF: IntField> Chain<CF> {
+         let key = |cell: usize| (values[cell], cell);
+         let mut order: Vec<Cell> = (0..n as u32).map(Cell).collect();
+         order.sort_unstable_by_key(|cell| key(cell.idx()));
++        if ties == Ties::Morse {
++            self.morse_ties(&mut order, &values);
++        }
+         let mut ranks = vec![0u32; n];
+         for (rank, cell) in order.iter().enumerate() {
+             ranks[cell.idx()] = rank as u32;
+@@ -624,6 +632,144 @@ impl<CF: IntField> Chain<CF> {
+     }
+ }
+ 
++/// How [`Chain::filter_with`] orders cells with the same value (which changes which cells are paired, but not the
++/// values of the bars).
++#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
++pub enum Ties {
++    /// By index, as given. Every face must then enter before its cofaces in that order.
++    #[default]
++    Index,
++    /// So that as many of them as possible pair with each other as apparent pairs, which the reduction skips: within
++    /// each run of cells with the same value, the reverse of a greedy collapse of the run (a discrete gradient, as in
++    /// the filtered Morse reduction of Mischaikow and Nanda, which Perseus 6 uses on cubical grids). Cells with the
++    /// same value as a face no longer need a larger index than it.
++    Morse,
++}
++
++impl<CF: IntField> Chain<CF> {
++    /// Reorder each run of cells of `order` (sorted by value) that share a value, as [`Ties::Morse`] says.
++    ///
++    /// Within a run, repeatedly remove either a pair `(σ, τ)`, where `τ` is the only coface of `σ` left in the run
++    /// and `τ` has none left itself (an elementary collapse), or, when there is none, a cell with no coface left in
++    /// the run (preferring the highest dimension), which stays critical. In the reverse of that sequence each pair is
++    /// adjacent, `σ`'s other cofaces in the run come after `τ` and `τ`'s other faces before `σ`: so `σ`'s earliest
++    /// coface is `τ` and `τ`'s latest face is `σ`, an apparent pair. Faces still come before cofaces, since a cell is
++    /// only removed once none of its cofaces in the run are left.
++    fn morse_ties(&self, order: &mut [Cell], values: &[NotNan<f64>]) {
++        let n = self.n_cells();
++        // Runs of equal values, by position in `order`
++        let mut run_of = vec![u32::MAX; n];
++        let mut runs: Vec<std::ops::Range<usize>> = vec![];
++        let mut start = 0;
++        while start < n {
++            let mut end = start + 1;
++            while end < n && values[order[end].idx()] == values[order[start].idx()] {
++                end += 1;
++            }
++            if end - start > 1 {
++                for &cell in &order[start..end] {
++                    run_of[cell.idx()] = runs.len() as u32;
++                }
++                runs.push(start..end);
++            }
++            start = end;
++        }
++        if runs.is_empty() {
++            return;
++        }
++        // The cofaces of every cell (the transpose of the boundary, by index)
++        let cofaces = transpose(&self.boundary, n);
++        let faces = &self.boundary;
++        let mut left = vec![0u32; n];
++        let mut removed = vec![false; n];
++        let mut sequence: Vec<Cell> = vec![];
++        let mut free: Vec<Cell> = vec![];
++        let mut maximal: Vec<Vec<Cell>> = vec![];
++        for (r, range) in runs.iter().enumerate() {
++            let r = r as u32;
++            let in_run = |c: Cell| run_of[c.idx()] == r;
++            free.clear();
++            for m in &mut maximal {
++                m.clear();
++            }
++            let push = |c: Cell, count: u32, free: &mut Vec<Cell>, maximal: &mut Vec<Vec<Cell>>| {
++                if count == 1 {
++                    free.push(c);
++                } else if count == 0 {
++                    let dim = self.dimensions[c.idx()] as usize;
++                    if maximal.len() <= dim {
++                        maximal.resize_with(dim + 1, Vec::new);
++                    }
++                    maximal[dim].push(c);
++                }
++            };
++            for &c in &order[range.clone()] {
++                let count = cofaces.range(c).filter(|&i| in_run(cofaces.rows[i])).count() as u32;
++                left[c.idx()] = count;
++                push(c, count, &mut free, &mut maximal);
++            }
++            sequence.clear();
++            let mut remaining = range.len();
++            // Remove a cell: its faces in the run each lose a coface
++            let remove = |c: Cell,
++                              left: &mut [u32],
++                              removed: &mut [bool],
++                              sequence: &mut Vec<Cell>,
++                              free: &mut Vec<Cell>,
++                              maximal: &mut Vec<Vec<Cell>>| {
++                removed[c.idx()] = true;
++                sequence.push(c);
++                for i in faces.range(c) {
++                    let f = faces.rows[i];
++                    if in_run(f) && !removed[f.idx()] {
++                        left[f.idx()] -= 1;
++                        push(f, left[f.idx()], free, maximal);
++                    }
++                }
++            };
++            while remaining > 0 {
++                // An elementary collapse, if there is one
++                let mut paired = false;
++                while let Some(s) = free.pop() {
++                    if removed[s.idx()] || left[s.idx()] != 1 {
++                        continue;
++                    }
++                    let t = cofaces
++                        .range(s)
++                        .map(|i| cofaces.rows[i])
++                        .find(|&t| in_run(t) && !removed[t.idx()])
++                        .expect("a coface is left");
++                    if left[t.idx()] != 0 {
++                        continue;
++                    }
++                    // Removed τ then σ, so that the reverse has σ just before τ
++                    remove(t, &mut left, &mut removed, &mut sequence, &mut free, &mut maximal);
++                    remove(s, &mut left, &mut removed, &mut sequence, &mut free, &mut maximal);
++                    remaining -= 2;
++                    paired = true;
++                    break;
++                }
++                if paired {
++                    continue;
++                }
++                // Otherwise a cell with no coface left, of the highest dimension: critical
++                let c = loop {
++                    let top = maximal.iter_mut().rev().find(|m| !m.is_empty()).expect("a maximal cell is left");
++                    let c = top.pop().expect("not empty");
++                    if !removed[c.idx()] && left[c.idx()] == 0 {
++                        break c;
++                    }
++                };
++                remove(c, &mut left, &mut removed, &mut sequence, &mut free, &mut maximal);
++                remaining -= 1;
++            }
++            for (slot, &c) in order[range.clone()].iter_mut().zip(sequence.iter().rev()) {
++                *slot = c;
++            }
++        }
++    }
++}
++
+ impl<CF: IntField> Complex<CF> {
+     /// The number of cells.
+     pub fn n_cells(&self) -> usize {
+@@ -1446,6 +1592,35 @@ mod tests {
+         (raw, values)
+     }
+ 
++    fn morse_ties_agree<CF: IntField>(raw: RawChain, values: Vec<f64>) {
++        let chain = Chain::<CF>::from_raw(raw).unwrap();
++        let by_values = |complex: &Complex<CF>| {
++            let mut bars: Vec<(usize, NotNan<f64>, Option<NotNan<f64>>)> = complex
++                .barcode(None, Method::Cohomology, Algorithm::default(), false)
++                .into_iter()
++                .map(|bar| (complex.dimension(bar.birth), bar.birth_value, bar.death.map(|(_, v)| v)))
++                .collect();
++            bars.sort();
++            bars
++        };
++        let morse = chain.filter_with(Some(values.clone()), Ties::Morse).unwrap();
++        if morse.top_dimension().is_none() {
++            return;
++        }
++        // Every face before its cofaces, whatever their indices
++        for rank in 0..morse.n_cells() as u32 {
++            assert!(morse.boundary().column(Cell(rank)).all(|(_, face)| face.0 < rank));
++        }
++        let want = Standard::new();
++        let reference = bars_from_views(&morse, Method::Cohomology, Algorithm::Standard(want));
++        let got = summary(morse.barcode(None, Method::Cohomology, Algorithm::default(), false));
++        assert_eq!(got, reference);
++        // The same values as breaking ties by index (where that is a valid order)
++        if let Ok(index) = chain.filter_with(Some(values), Ties::Index) {
++            assert_eq!(by_values(&morse), by_values(&index));
++        }
++    }
++
+     /// With union-find (in dimension 0 and, where every `(d - 1)`-cell has at most two cofaces, the top dimension),
+     /// `barcode` gives the bars of the standard algorithm, in every dimension up to each `max_dim`.
+     fn union_find_agrees<CF: IntField>(raw: RawChain, values: Vec<f64>, what: &str) {
+@@ -1501,6 +1676,17 @@ mod tests {
+             union_find_agrees::<Z3>(raw, values, &format!("grid {seed} Z3"));
+         }
+ 
++        /// Ordering ties by a discrete gradient keeps the bars' values, on grids and random complexes, over Z/2 and Z/3.
++        #[test]
++        fn morse_ties_keep_the_barcode(seed in proptest::prelude::any::<u64>()) {
++            let (raw, values) = random_grid_complex(seed);
++            morse_ties_agree::<Z2>(raw.clone(), values.clone());
++            morse_ties_agree::<Z3>(raw, values);
++            let (raw, values) = random_simplicial(seed);
++            morse_ties_agree::<Z2>(raw.clone(), values.clone());
++            morse_ties_agree::<Z3>(raw, values);
++        }
++
+         /// And on random simplicial complexes (mostly dimension 0 only).
+         #[test]
+         fn union_find_agrees_on_random_complexes(seed in proptest::prelude::any::<u64>()) {
+diff --git a/phlite_complexes/src/python/mod.rs b/phlite_complexes/src/python/mod.rs
+index ea863cd..ca167cc 100644
+--- a/phlite_complexes/src/python/mod.rs
++++ b/phlite_complexes/src/python/mod.rs
+@@ -64,6 +64,7 @@ pub(crate) const DEFAULTS: AlgorithmDefaults = AlgorithmDefaults {
+     // The complex knows the position of every cell in the filtration
+     row_ranks: true,
+     union_find: None,
++    collapse: None,
+ };
+ 
+ // ====== Coefficient fields ===============================================
