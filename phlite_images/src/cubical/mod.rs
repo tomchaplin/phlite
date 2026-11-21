@@ -54,6 +54,7 @@ pub mod cohomology;
 pub mod grid;
 pub mod homology;
 mod morse;
+pub mod periodic;
 #[cfg(test)]
 mod tests;
 

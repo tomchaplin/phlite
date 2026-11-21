@@ -13,7 +13,7 @@ __all__ = [
     "cubical_complex",
 ]
 
-def cubical(image: numpy.typing.ArrayLike, max_dim: typing.Optional[builtins.int] = None, *, construction: typing.Literal['T', 'V'] = "T", filtration: typing.Literal['sublevel', 'superlevel'] = "sublevel", method: typing.Literal['cohomology', 'homology'] = "cohomology", algorithm: typing.Optional[core.Algorithm] = None, representatives: builtins.bool = False) -> core.Barcode:
+def cubical(image: numpy.typing.ArrayLike, max_dim: typing.Optional[builtins.int] = None, *, construction: typing.Literal['T', 'V'] = "T", filtration: typing.Literal['sublevel', 'superlevel'] = "sublevel", method: typing.Literal['cohomology', 'homology'] = "cohomology", algorithm: typing.Optional[core.Algorithm] = None, representatives: builtins.bool = False, periodic: typing.Union[builtins.bool, typing.Sequence[builtins.bool], None] = None) -> core.Barcode:
     r"""
     Compute the persistent homology of the cubical complex of an image (or a volume, or any grid with 1 to 4 axes), in
     dimensions `0, ..., max_dim`.
@@ -22,8 +22,8 @@ def cubical(image: numpy.typing.ArrayLike, max_dim: typing.Optional[builtins.int
         image: The pixel values: a numpy array (or anything numpy can make one of) with 1 to 4 axes. NaN pixels are
             left out of the complex, as are those that would enter at infinity (`+inf` for sublevel sets, `-inf` for
             superlevel sets).
-        max_dim: The maximum homology dimension to compute (default: one less than the number of axes, the highest
-            that can be non-zero).
+        max_dim: The maximum homology dimension to compute (default: the highest that can be non-zero, one less than
+            the number of axes, or the number of axes if every axis is periodic).
         construction: `'T'` (the default, as GUDHI's `top_dimensional_cells`): pixels are the top-dimensional cells
             (squares, cubes), and every other cell enters with the smallest of the top cells around it; or `'V'` (as
             Cubical Ripser's default, and GUDHI's `vertices`): pixels are the vertices, and every other cell enters
@@ -37,6 +37,11 @@ def cubical(image: numpy.typing.ArrayLike, max_dim: typing.Optional[builtins.int
             With `union_find` (by cohomology, without representatives), dimension 0 and the top dimension are found by
             union-find, and the T-construction of a volume (3 axes) by a filtered discrete gradient (as Perseus).
         representatives: Whether to also compute a representative cycle for every bar.
+        periodic: Which axes wrap round (periodic boundary conditions, as GUDHI's `PeriodicCubicalComplex` and Cubical
+            Ripser's periodic option): `True` for all, `False` (the default) for none, or one bool per axis. Along a
+            periodic axis the first and last pixels are neighbours, so a constant image is a torus. The periodic
+            complex is built explicitly and reduced as `phlite.complexes` does (union-find at both ends): exact for any
+            number of axes, but slower than the non-periodic complex on large volumes, and without representatives.
     
     Returns:
         The barcode, with dimensions `0, ..., max_dim`. Cells (births, deaths and representatives) are given by their

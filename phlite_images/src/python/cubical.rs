@@ -34,8 +34,8 @@ pub(crate) const DEFAULTS: AlgorithmDefaults = AlgorithmDefaults {
 ///     image: The pixel values: a numpy array (or anything numpy can make one of) with 1 to 4 axes. NaN pixels are
 ///         left out of the complex, as are those that would enter at infinity (`+inf` for sublevel sets, `-inf` for
 ///         superlevel sets).
-///     max_dim: The maximum homology dimension to compute (default: one less than the number of axes, the highest
-///         that can be non-zero).
+///     max_dim: The maximum homology dimension to compute (default: the highest that can be non-zero, one less than
+///         the number of axes, or the number of axes if every axis is periodic).
 ///     construction: `'T'` (the default, as GUDHI's `top_dimensional_cells`): pixels are the top-dimensional cells
 ///         (squares, cubes), and every other cell enters with the smallest of the top cells around it; or `'V'` (as
 ///         Cubical Ripser's default, and GUDHI's `vertices`): pixels are the vertices, and every other cell enters
@@ -49,6 +49,11 @@ pub(crate) const DEFAULTS: AlgorithmDefaults = AlgorithmDefaults {
 ///         With `union_find` (by cohomology, without representatives), dimension 0 and the top dimension are found by
 ///         union-find, and the T-construction of a volume (3 axes) by a filtered discrete gradient (as Perseus).
 ///     representatives: Whether to also compute a representative cycle for every bar.
+///     periodic: Which axes wrap round (periodic boundary conditions, as GUDHI's `PeriodicCubicalComplex` and Cubical
+///         Ripser's periodic option): `True` for all, `False` (the default) for none, or one bool per axis. Along a
+///         periodic axis the first and last pixels are neighbours, so a constant image is a torus. The periodic
+///         complex is built explicitly and reduced as `phlite.complexes` does (union-find at both ends): exact for any
+///         number of axes, but slower than the non-periodic complex on large volumes, and without representatives.
 ///
 /// Returns:
 ///     The barcode, with dimensions `0, ..., max_dim`. Cells (births, deaths and representatives) are given by their
@@ -58,7 +63,7 @@ pub(crate) const DEFAULTS: AlgorithmDefaults = AlgorithmDefaults {
 #[gen_stub_pyfunction(module = "phlite.images")]
 #[gen_stub(override_return_type(type_repr = "core.Barcode", imports = ("phlite.core")))]
 #[pyfunction]
-#[pyo3(signature = (image, max_dim = None, *, construction = "T", filtration = "sublevel", method = "cohomology", algorithm = None, representatives = false))]
+#[pyo3(signature = (image, max_dim = None, *, construction = "T", filtration = "sublevel", method = "cohomology", algorithm = None, representatives = false, periodic = None))]
 #[allow(clippy::too_many_arguments)]
 fn cubical<'py>(
     py: Python<'py>,
@@ -74,6 +79,8 @@ fn cubical<'py>(
     #[gen_stub(override_type(type_repr = "typing.Optional[core.Algorithm]", imports = ("typing", "phlite.core")))]
     algorithm: Option<Bound<'_, PyAny>>,
     representatives: bool,
+    #[gen_stub(override_type(type_repr = "typing.Union[builtins.bool, typing.Sequence[builtins.bool], None]", imports = ("builtins", "typing")))]
+    periodic: Option<&Bound<'_, PyAny>>,
 ) -> PyResult<Bound<'py, PyAny>> {
     let construction = match construction {
         "T" | "t" => Construction::T,
@@ -94,9 +101,39 @@ fn cubical<'py>(
         }
     };
     let (pixels, shape) = read_image(py, image)?;
-    let max_dim = max_dim.unwrap_or(shape.len() - 1);
     let method = parse_method(method)?;
     let algorithm = algorithm_from_py(algorithm.as_ref(), &DEFAULTS)?;
+    let periodic: Vec<bool> = match periodic {
+        None => vec![false; shape.len()],
+        Some(p) => match p.extract::<bool>() {
+            Ok(all) => vec![all; shape.len()],
+            Err(_) => {
+                let axes: Vec<bool> = p.extract().map_err(|_| {
+                    PyValueError::new_err("periodic must be a bool or a sequence of bools, one per axis")
+                })?;
+                if axes.len() != shape.len() {
+                    return Err(PyValueError::new_err(format!(
+                        "periodic has {} entries but the image has {} axes",
+                        axes.len(),
+                        shape.len()
+                    )));
+                }
+                axes
+            }
+        },
+    };
+    // The top dimension can only be non-zero if every axis wraps round (a closed torus)
+    let max_dim = max_dim.unwrap_or(if periodic.iter().all(|&p| p) { shape.len() } else { shape.len() - 1 });
+    if periodic.iter().any(|&p| p) {
+        if representatives {
+            return Err(PyValueError::new_err("representatives aren't available for periodic complexes"));
+        }
+        let _ = method;
+        let bars = py.detach(|| {
+            algorithm.run(PeriodicRun { pixels, shape, periodic, construction, filtration, max_dim })
+        })?;
+        return bars.into_python(py, &algorithm, false, None);
+    }
     let bars = py.detach(|| {
         algorithm.run(CubicalRun {
             pixels,
@@ -267,6 +304,37 @@ fn cubical_complex<'py>(
     let coordinates: Bound<'_, PyArray2<u32>> = coordinates.into_pyarray(py);
     out.set_item("coordinates", coordinates)?;
     Ok(out)
+}
+
+/// The barcode of a (partly) periodic cubical complex with whichever algorithm is configured.
+struct PeriodicRun {
+    pixels: Vec<f64>,
+    shape: Vec<usize>,
+    periodic: Vec<bool>,
+    construction: Construction,
+    filtration: Filtration,
+    max_dim: usize,
+}
+
+impl AlgorithmVisitor for PeriodicRun {
+    type Output = SortedBars;
+
+    fn visit<R: ColumnRepresentation>(self, algorithm: Algorithm<'_, R>) -> SortedBars {
+        let bars = crate::cubical::periodic::periodic_barcode(
+            &self.pixels,
+            &self.shape,
+            &self.periodic,
+            self.construction,
+            self.filtration,
+            self.max_dim,
+            algorithm,
+        );
+        let bars = SortedBars::new(bars, self.max_dim + 1, |(dimension, coordinates)| (*dimension, coordinates.clone()));
+        match self.filtration {
+            Filtration::Sublevel => bars,
+            Filtration::Superlevel => bars.negate(),
+        }
+    }
 }
 
 pub(crate) fn register(m: &Bound<'_, PyModule>) -> PyResult<()> {

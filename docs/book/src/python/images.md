@@ -19,3 +19,11 @@ To compute persistence of a cubical complex you have built yourself (or any othe
 boundary (coefficients ±1), as arrays for `phlite.complexes.ChainComplex.from_csc`, with each cell's value and
 coordinates: for your own computations, such as persistence over the integers (`modulus=0`: the barcode over Q and the
 primes of the torsion, see [explicit complexes](complexes.md#over-the-integers)).
+
+## Periodic images
+
+`cubical(image, periodic=True)` (or one bool per axis) wraps the image round, as GUDHI's `PeriodicCubicalComplex`
+and Cubical Ripser's periodic option: along a periodic axis the first and last pixels are neighbours, so a constant
+image is a torus (and by default the top dimension is computed too). The periodic complex is built explicitly and
+reduced as `phlite.complexes` does, with union-find at both ends: exact, in any number of axes, but slower than the
+non-periodic complex on large volumes, and without representatives.
