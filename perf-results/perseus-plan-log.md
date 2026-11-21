@@ -402,3 +402,18 @@ on input and doesn't keep them, so integral pages or persistent groups there nee
 `ChainComplex` (memory for every complex, only used by the integral path) or a separate entry point taking columns,
 coefficients and values. Also open: making it faster than dense (sparse elimination with the magnitude module's
 collapse-then-Markowitz approach, which only applies where the complex splits, e.g. per degree and step).
+
+## Integers in `phlite.complexes`, and lazy spectral sequences (70edce4, edbd79f)
+
+* `ChainComplex.from_*(..., modulus=0)`: complexes over Z, the same classes (`Chain`/`Complex` take any
+  `ChainCoefficient`, a field or `Integer`), with a d∘d = 0 check (so unsigned input is caught); `persistence()`
+  raises (no barcode), `spectral_sequence()` and the new `persistent_group(dim, start, end)` are exact.
+* `phlite::spectral::StepFiltered` (a boundary oracle whose cells have a degree and a step and can be listed by
+  window of steps) and `SpectralBackend` (one entry or differential at a time): `BarcodeSpectral` over fields,
+  `LocalSpectral` over Z. Key fact, checked on 9,020 entries before relying on it: `E^r_p` depends only on
+  `F_{p+r-1}/F_{p-r}`, and the image of `d^r` out of it (`Z^r_p / (Z^{r+1}_p + Z^{r-1}_{p-1})`) on `F_p/F_{p-r-1}`.
+* Python: `phlite.core.SpectralSequence`, returned by `FilteredComplex.spectral_sequence()` and
+  `magnitude_path_spectral_sequence()`: `next()`, `page(r)`, iteration, `infinity`; pages print as gramag-style
+  tables with their differentials, show as HTML in notebooks, and `plot()` with matplotlib.
+* Integral MPSS by windows (and entries in parallel): bidirected C6, pages 1–3, length 5: 0.33 → 0.12 s; length 6:
+  7.3 → 2.4 s; length 7 now 47 s. Still dense inside each window: sparse elimination would be next.
