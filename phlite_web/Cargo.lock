@@ -510,6 +510,7 @@ version = "0.2.0"
 dependencies = [
  "ordered-float",
  "phlite",
+ "phlite_complexes",
  "rayon",
 ]
 

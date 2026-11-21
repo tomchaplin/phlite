@@ -41,6 +41,7 @@ mod bars;
 #[cfg(feature = "extension")]
 mod core;
 pub mod spec;
+pub mod spectral;
 
 use phlite::barcode::Method;
 use pyo3::{

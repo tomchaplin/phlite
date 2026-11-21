@@ -306,34 +306,30 @@ class FilteredComplex:
         Returns:
             The barcode. Bars of length zero (birth and death at the same filtration value) are omitted.
         """
-    def spectral_sequence(self, r_max: builtins.int = 3, max_dim: typing.Optional[builtins.int] = None, *, algorithm: typing.Optional[core.Algorithm] = None) -> tuple[list[builtins.float], list[list[list[builtins.int]]] | list[dict[str, typing.Any]]]:
+    def spectral_sequence(self, max_dim: typing.Optional[builtins.int] = None, *, algorithm: typing.Optional[core.Algorithm] = None) -> core.SpectralSequence:
         r"""
-        The spectral sequence of this filtration, over the complex's coefficients: pages `E^1, ..., E^{r_max}`.
+        The spectral sequence of this filtration, over the complex's coefficients, computed one page at a time: a
+        `phlite.core.SpectralSequence` (`ss.next()` gives `E^1`, then `E^2`, ...; `ss.page(r)` any page; printing a page
+        shows it as a table, with its differentials).
         
         The filtration's steps are its distinct values, in increasing order, and `E^r_p` is the page-`r` term at
-        step `p`, whose differential `d^r` goes to step `p - r`. Over a field the spectral sequence is read off the
-        barcode: a bar of degree `k` from step `b` to step `d` is a generator of `E^r_b` in degree `k` and of `E^r_d` in
-        degree `k + 1` for every `r <= d - b`, and an essential bar one of `E^r_b` for every `r` (see `phlite::spectral`).
-        Page `E^1` is the homology of the associated graded `F_p / F_{p-1}`, and the pages converge to the homology of
-        the whole complex.
+        step `p`, whose differential `d^r` goes to step `p - r` (and down one degree). Page `E^1` is the homology of
+        the associated graded `F_p / F_{p-1}`, and the pages converge to the homology of the whole complex.
         
-        Over the integers (a complex built with `modulus=0`) there is no barcode, and each entry is computed exactly as
-        a quotient of lattices, `E^r_p = Z^r_p / (Z^{r-1}_{p-1} + d Z^{r-1}_{p+r-1})` with
-        `Z^r_p = {x in F_p : dx in F_{p-r}}`, by dense integer elimination: for up to a few thousand cells per degree.
+        Over a field the spectral sequence is read off the barcode (computed once, here): a bar of degree `k` from step
+        `b` to step `d` is a generator of `E^r_b` in degree `k` and of `E^r_d` in degree `k + 1` for every `r <= d - b`,
+        cancelled by `d^{d-b}`. Over the integers (a complex built with `modulus=0`) there is no barcode, and each entry
+        is computed exactly when its page is asked for, as a quotient of lattices,
+        `E^r_p = Z^r_p / (Z^{r-1}_{p-1} + d Z^{r-1}_{p+r-1})` with `Z^r_p = {x in F_p : dx in F_{p-r}}`, from the cells
+        with steps `p - r + 1, ..., p + r - 1` alone (by dense integer elimination: for up to a few thousand cells in
+        such a window).
         
         Args:
-            r_max: The last page (default 3).
-            max_dim: The largest degree (default: one above the largest degree of a bar).
-            algorithm: The reduction algorithm, as for `persistence`.
+            max_dim: The largest degree (default: the top dimension).
+            algorithm: The reduction algorithm, as for `persistence` (over a field only).
         
         Returns:
-            `(values, pages)`: the distinct filtration values (the steps), and `pages[r - 1][p][k]`, the dimension of
-            `E^r_p` in degree `k`. Over the integers, each page is instead a dict
-            `{"free": ranks[p][k], "torsion": {(p, k): {order: multiplicity}}}`: the free rank of every `E^r_p`, and the
-            invariant factors of those with torsion.
-        
-        Raises:
-            OverflowError: If, over the integers, an entry outgrows 128 bits.
+            A `phlite.core.SpectralSequence`, whose steps are labelled by the filtration values.
         """
     def persistent_group(self, dim: builtins.int, start: builtins.float, end: builtins.float, *, algorithm: typing.Optional[core.Algorithm] = None) -> tuple[builtins.int, builtins.list[builtins.int]]:
         r"""

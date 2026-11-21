@@ -386,6 +386,30 @@ impl<'a> Arranged<'a> {
     }
 }
 
+impl Arranged<'_> {
+    /// The image of `d^r` out of `E^r_p` in degree `k` (into `E^r_{p-r}` in degree `k - 1`), for `r >= 1`:
+    /// `Z^r_p / (Z^{r+1}_p + Z^{r-1}_{p-1})`, `E^r_p` modulo the kernel of `d^r`.
+    fn differential_image(&self, r: usize, p: usize, k: usize) -> Result<Group, Overflow> {
+        assert!(r >= 1, "d^0 is the differential of the associated graded");
+        let (p, r) = (p as isize, r as isize);
+        let numerator = self.cycles(k, p, p - r)?;
+        let mut kernel = self.cycles(k, p, p - r - 1)?;
+        kernel.extend(self.cycles(k, p - 1, p - r)?);
+        quotient(numerator, kernel, self.size(k))
+    }
+}
+
+/// `E^r_p` in degree `k` of `complex` (see the [module docs](self)).
+pub fn page_entry(complex: &IntegralFiltered, r: usize, p: usize, k: usize) -> Result<Group, Overflow> {
+    Arranged::new(complex).page_entry(r, p, k)
+}
+
+/// The image of the differential `d^r` (`r >= 1`) out of `E^r_p` in degree `k`, a subgroup of `E^r_{p-r}` in degree
+/// `k - 1`: `Z^r_p / (Z^{r+1}_p + Z^{r-1}_{p-1})`.
+pub fn differential_image(complex: &IntegralFiltered, r: usize, p: usize, k: usize) -> Result<Group, Overflow> {
+    Arranged::new(complex).differential_image(r, p, k)
+}
+
 /// Integral pages `E^0, ..., E^{r_max}`: `pages[r][p][k]` is `E^r_p` in degree `k`, or `None` where the complex, if
 /// it is the truncation of a larger filtration after step `truncated_at`, doesn't determine it (as in
 /// [`crate::spectral::spectral_pages`]: page `r` at step `p` needs `p + r <= truncated_at + 1`).
@@ -573,6 +597,45 @@ mod tests {
                     &high.iter().copied().filter(|&t| t > 1).collect::<Vec<_>>(),
                 );
                 assert_eq!(persistent_group(&complex, k, 0, 0).unwrap(), expected);
+            }
+        }
+    }
+
+    #[test]
+    fn differentials_account_for_the_next_page() {
+        // Over Z, rank E^{r+1}_p = rank E^r_p - rank(d^r out) - rank(d^r in), and filtered by dimension d^1 is the
+        // boundary: on RP^2, d^1 from (2, 2) is injective (H_2 = 0), image Z^10 in the Z^10 of 1-cycles, leaving Z/2
+        let complex = simplicial(&RP2, |s| s.len() - 1);
+        assert_eq!(differential_image(&complex, 1, 2, 2).unwrap(), group(10, &[]));
+        assert_eq!(differential_image(&complex, 1, 1, 1).unwrap(), group(5, &[]));
+        let mut state = 3u64;
+        let mut next = move |m: u64| {
+            state ^= state << 13;
+            state ^= state >> 7;
+            state ^= state << 17;
+            state % m
+        };
+        for _ in 0..30 {
+            let n = 4 + next(3) as usize;
+            let tops: Vec<Vec<usize>> = (0..2 + next(5))
+                .map(|_| (0..n).filter(|_| next(2) == 0).take(4).collect::<Vec<_>>())
+                .filter(|s| !s.is_empty())
+                .collect();
+            let refs: Vec<&[usize]> = tops.iter().map(Vec::as_slice).collect();
+            let complex = simplicial(&refs, |s| s.iter().max().copied().unwrap_or(0) + s.len() % 2);
+            let n_steps = complex.step.iter().max().map_or(0, |s| s + 1);
+            for r in 1..4 {
+                for p in 0..n_steps {
+                    for k in 0..4 {
+                        let out = if k >= 1 { differential_image(&complex, r, p, k).unwrap().rank } else { 0 };
+                        let into = if p + r < n_steps { differential_image(&complex, r, p + r, k + 1).unwrap().rank } else { 0 };
+                        assert_eq!(
+                            page_entry(&complex, r + 1, p, k).unwrap().rank,
+                            page_entry(&complex, r, p, k).unwrap().rank - out - into,
+                            "r {r} p {p} k {k}"
+                        );
+                    }
+                }
             }
         }
     }

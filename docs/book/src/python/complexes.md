@@ -100,8 +100,9 @@ checks that the boundary of every boundary is zero.
 chain = ChainComplex.from_pairs(pairs, coefficients=signs, modulus=0)     # e.g. the projective plane
 filtered = chain.filtration(values)
 filtered.persistent_group(1, 0.0, 0.0)      # (0, [2]): H_1 = Z/2
-steps, pages = filtered.spectral_sequence(r_max=3)
-pages[1]                                    # {"free": ranks[p][k], "torsion": {(p, k): {2: 1}}}
+ss = filtered.spectral_sequence()          # computed one page at a time
+print(ss.next())                            # E^1, as a table, with its differentials
+ss.page(2)[1, 1]                            # (0, [2]): Z/2 at step 1 in degree 1
 ```
 
 `persistent_group(dim, start, end)` is the image of `H_dim` at `start` in `H_dim` at `end`, as `(rank, torsion)`. It

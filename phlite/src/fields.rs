@@ -4,7 +4,7 @@
 //! There is no implementaion of the field of real numbers.
 //! Due to floating point error, this would require additional support in the [`reduction`](crate::reduction) module to ensure that pivots are properly cleared.
 
-use num::Integer;
+use num::Integer as _;
 use std::fmt::Debug;
 use std::num::NonZeroU8;
 use std::ops::{Add, Mul};
@@ -90,6 +90,54 @@ impl NonZeroCoefficient for Z2 {
 
     fn additive_inverse(self) -> Self {
         Self
+    }
+}
+
+/// A non-zero integer: coefficients over Z, a ring rather than a field, so not [`Invertible`] and not reducible by
+/// [`crate::reduction`], but enough for a [`MatrixOracle`](crate::matrices::MatrixOracle) whose integral spectral
+/// sequence [`crate::spectral::LocalSpectral`] computes (with [`crate::integral`]).
+///
+/// Arithmetic panics on overflow (of `i64`); the integral computations themselves work in checked `i128`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct Integer(std::num::NonZeroI64);
+
+impl Integer {
+    /// The integer `value`, or `None` if it is zero.
+    pub fn new(value: i64) -> Option<Self> {
+        std::num::NonZeroI64::new(value).map(Self)
+    }
+
+    /// Its value (never zero).
+    pub fn get(self) -> i64 {
+        self.0.get()
+    }
+}
+
+impl Add for Integer {
+    type Output = Option<Integer>;
+
+    fn add(self, rhs: Self) -> Option<Integer> {
+        Integer::new(self.get().checked_add(rhs.get()).expect("integer coefficient overflow"))
+    }
+}
+
+impl_add_options!(Integer);
+
+impl Mul for Integer {
+    type Output = Integer;
+
+    fn mul(self, rhs: Self) -> Integer {
+        Integer::new(self.get().checked_mul(rhs.get()).expect("integer coefficient overflow")).expect("non-zero")
+    }
+}
+
+impl NonZeroCoefficient for Integer {
+    fn one() -> Self {
+        Integer::new(1).expect("non-zero")
+    }
+
+    fn additive_inverse(self) -> Self {
+        Integer::new(self.get().checked_neg().expect("integer coefficient overflow")).expect("non-zero")
     }
 }
 

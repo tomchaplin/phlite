@@ -68,98 +68,66 @@ impl FilteredComplex {
         })
     }
 
-    /// The spectral sequence of this filtration, over the complex's coefficients: pages `E^1, ..., E^{r_max}`.
+    /// The spectral sequence of this filtration, over the complex's coefficients, computed one page at a time: a
+    /// `phlite.core.SpectralSequence` (`ss.next()` gives `E^1`, then `E^2`, ...; `ss.page(r)` any page; printing a page
+    /// shows it as a table, with its differentials).
     ///
     /// The filtration's steps are its distinct values, in increasing order, and `E^r_p` is the page-`r` term at
-    /// step `p`, whose differential `d^r` goes to step `p - r`. Over a field the spectral sequence is read off the
-    /// barcode: a bar of degree `k` from step `b` to step `d` is a generator of `E^r_b` in degree `k` and of `E^r_d` in
-    /// degree `k + 1` for every `r <= d - b`, and an essential bar one of `E^r_b` for every `r` (see `phlite::spectral`).
-    /// Page `E^1` is the homology of the associated graded `F_p / F_{p-1}`, and the pages converge to the homology of
-    /// the whole complex.
+    /// step `p`, whose differential `d^r` goes to step `p - r` (and down one degree). Page `E^1` is the homology of
+    /// the associated graded `F_p / F_{p-1}`, and the pages converge to the homology of the whole complex.
     ///
-    /// Over the integers (a complex built with `modulus=0`) there is no barcode, and each entry is computed exactly as
-    /// a quotient of lattices, `E^r_p = Z^r_p / (Z^{r-1}_{p-1} + d Z^{r-1}_{p+r-1})` with
-    /// `Z^r_p = {x in F_p : dx in F_{p-r}}`, by dense integer elimination: for up to a few thousand cells per degree.
+    /// Over a field the spectral sequence is read off the barcode (computed once, here): a bar of degree `k` from step
+    /// `b` to step `d` is a generator of `E^r_b` in degree `k` and of `E^r_d` in degree `k + 1` for every `r <= d - b`,
+    /// cancelled by `d^{d-b}`. Over the integers (a complex built with `modulus=0`) there is no barcode, and each entry
+    /// is computed exactly when its page is asked for, as a quotient of lattices,
+    /// `E^r_p = Z^r_p / (Z^{r-1}_{p-1} + d Z^{r-1}_{p+r-1})` with `Z^r_p = {x in F_p : dx in F_{p-r}}`, from the cells
+    /// with steps `p - r + 1, ..., p + r - 1` alone (by dense integer elimination: for up to a few thousand cells in
+    /// such a window).
     ///
     /// Args:
-    ///     r_max: The last page (default 3).
-    ///     max_dim: The largest degree (default: one above the largest degree of a bar).
-    ///     algorithm: The reduction algorithm, as for `persistence`.
+    ///     max_dim: The largest degree (default: the top dimension).
+    ///     algorithm: The reduction algorithm, as for `persistence` (over a field only).
     ///
     /// Returns:
-    ///     `(values, pages)`: the distinct filtration values (the steps), and `pages[r - 1][p][k]`, the dimension of
-    ///     `E^r_p` in degree `k`. Over the integers, each page is instead a dict
-    ///     `{"free": ranks[p][k], "torsion": {(p, k): {order: multiplicity}}}`: the free rank of every `E^r_p`, and the
-    ///     invariant factors of those with torsion.
-    ///
-    /// Raises:
-    ///     OverflowError: If, over the integers, an entry outgrows 128 bits.
-    #[pyo3(signature = (r_max = 3, max_dim = None, *, algorithm = None))]
-    #[gen_stub(override_return_type(
-        type_repr = "tuple[list[builtins.float], list[list[list[builtins.int]]] | list[dict[str, typing.Any]]]",
-        imports = ("builtins", "typing")
-    ))]
+    ///     A `phlite.core.SpectralSequence`, whose steps are labelled by the filtration values.
+    #[pyo3(signature = (max_dim = None, *, algorithm = None))]
+    #[gen_stub(override_return_type(type_repr = "core.SpectralSequence", imports = ("phlite.core")))]
     fn spectral_sequence<'py>(
         slf: &Bound<'py, Self>,
-        r_max: usize,
         max_dim: Option<usize>,
         #[gen_stub(override_type(type_repr = "typing.Optional[core.Algorithm]", imports = ("typing", "phlite.core")))]
         algorithm: Option<Bound<'_, PyAny>>,
-    ) -> PyResult<(Vec<f64>, Bound<'py, PyAny>)> {
-        use phlite::spectral::{spectral_pages, step_of, StepBar};
+    ) -> PyResult<Bound<'py, PyAny>> {
+        use phlite::spectral::{step_of, BarcodeSpectral, LocalSpectral, StepBar};
+        use phlite_bindings::spectral::{spectral_sequence, SpectralBackend};
         let py = slf.py();
         let complex = &slf.get().complex;
-        if let AnyComplex::Integers(integral) = complex {
-            let n_degrees = max_dim.map_or_else(|| integral.top_dimension().map_or(1, |d| d + 1), |d| d + 1);
-            let filtered = integral.integral();
-            let pages = py
-                .detach(|| phlite::integral::integral_pages(&filtered, n_degrees, r_max, None))
-                .map_err(|e| PyOverflowError::new_err(e.to_string()))?;
-            let out = PyList::empty(py);
-            for page in pages.into_iter().skip(1) {
-                let free: Vec<Vec<usize>> =
-                    page.iter().map(|row| row.iter().map(|g| g.as_ref().map_or(0, |g| g.rank)).collect()).collect();
-                let torsion = PyDict::new(py);
-                for (p, row) in page.iter().enumerate() {
-                    for (k, group) in row.iter().enumerate() {
-                        let Some(group) = group.as_ref().filter(|g| !g.torsion.is_empty()) else {
-                            continue;
-                        };
-                        let orders = PyDict::new(py);
-                        for &order in &group.torsion {
-                            let count: usize = orders.get_item(order)?.map_or(Ok(0), |c| c.extract())?;
-                            orders.set_item(order, count + 1)?;
-                        }
-                        torsion.set_item((p, k), orders)?;
-                    }
-                }
-                let entry = PyDict::new(py);
-                entry.set_item("free", free)?;
-                entry.set_item("torsion", torsion)?;
-                out.append(entry)?;
-            }
-            return Ok((integral.steps(), out.into_any()));
-        }
-        let algorithm = algorithm_from_py(algorithm.as_ref(), &DEFAULTS)?;
-        let data = complex.persistence(slf.py(), max_dim, "cohomology", &algorithm, false)?;
-        let mut steps: Vec<f64> = (0..complex.n_cells() as u32).map(|i| complex.value(i)).collect();
+        let n_cells = complex.n_cells();
+        let mut steps: Vec<f64> = (0..n_cells as u32).map(|i| complex.value(i)).collect();
         steps.sort_by(f64::total_cmp);
         steps.dedup();
-        let bars: Vec<StepBar> = data
-            .bars
-            .iter()
-            .map(|bar| StepBar {
-                degree: bar.dimension as usize,
-                birth: step_of(&steps, &bar.birth_value),
-                death: bar.death_value.is_finite().then(|| step_of(&steps, &bar.death_value)),
-            })
-            .collect();
-        let n_degrees = max_dim.map_or_else(|| bars.iter().map(|b| b.degree + 2).max().unwrap_or(1), |d| d + 1);
-        let pages: Vec<Vec<Vec<usize>>> = spectral_pages(&bars, steps.len(), n_degrees, r_max, None)
-            .into_iter()
-            .map(|page| page.into_iter().map(|row| row.into_iter().map(|x| x.unwrap_or(0)).collect()).collect())
-            .collect();
-        Ok((steps, pages.into_pyobject(py)?.into_any()))
+        let top = complex.top_dimension().unwrap_or(0);
+        let n_degrees = max_dim.unwrap_or(top) + 1;
+        let backend = if let AnyComplex::Integers(integral) = complex {
+            let filtered = integral.integral();
+            SpectralBackend::new(Box::new(LocalSpectral::new(filtered, n_degrees, None)), true)
+        } else {
+            let algorithm = algorithm_from_py(algorithm.as_ref(), &DEFAULTS)?;
+            let data = complex.persistence(py, Some(n_degrees - 1), "cohomology", &algorithm, false)?;
+            let bars: Vec<StepBar> = data
+                .bars
+                .iter()
+                .map(|bar| StepBar {
+                    degree: bar.dimension as usize,
+                    birth: step_of(&steps, &bar.birth_value),
+                    death: bar.death_value.is_finite().then(|| step_of(&steps, &bar.death_value)),
+                })
+                .collect();
+            SpectralBackend::new(Box::new(BarcodeSpectral::new(&bars, steps.len(), n_degrees, None)), false)
+        };
+        let kwargs = PyDict::new(py);
+        kwargs.set_item("steps", steps)?;
+        spectral_sequence(py, backend, &kwargs)
     }
 
     /// The persistent homology group in dimension `dim` from `start` to `end`: the image of `H_dim` of the subcomplex

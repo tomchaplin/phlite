@@ -6,7 +6,11 @@ The core of phlite's Python packages: `Algorithm`, to choose how a barcode is co
 
 import builtins
 import typing
+from . import spectral as spectral
+from .spectral import SpectralSequence as SpectralSequence
+
 __all__ = [
+    "SpectralSequence",
     "Algorithm",
     "Barcode",
     "ExtendedBarcode",

@@ -3,7 +3,7 @@
 use pyo3::{
     exceptions::{PyTypeError, PyValueError},
     prelude::*,
-    types::{PyDict, PyList, PyTuple},
+    types::{PyDict, PyTuple},
 };
 use pyo3_stub_gen::derive::*;
 
@@ -11,7 +11,7 @@ use super::graph::{read_graph, validate};
 use crate::magnitude::{
     magnitude_integral, magnitude_ranks, total_ranks, MagnitudeGraph, MagnitudeQuery, PairGroups, PairRanks, MODULI,
 };
-use crate::mpss::{mpss_integral, mpss_pages};
+use crate::mpss::mpss_backend;
 
 /// Magnitude homology of a digraph, as defined by Hepworth and Willerton: the ranks of `MH_{k,l}` over `Z/modulus`.
 ///
@@ -187,20 +187,23 @@ fn magnitude<'py>(
     Ok(out.into_any())
 }
 
-/// The magnitude-path spectral sequence of a digraph (Asao; Hepworth and Roff): pages `E^1, ..., E^{r_max}` over
-/// `Z/modulus` or the integers, in the bigrading of magnitude homology.
+/// The magnitude-path spectral sequence of a digraph (Asao; Hepworth and Roff) over `Z/modulus` or the integers, in
+/// the bigrading of magnitude homology, computed one page at a time: a `phlite.core.SpectralSequence`, whose steps are
+/// the lengths `l` and whose degrees are `k` (`ss.next()` gives `E^1`, then `E^2`, ...; printing a page shows it as a
+/// table, as gramag's, with its differentials `d^r` from `(l, k)` to `(l - r, k - 1)`).
 ///
 /// The reachability chain complex (tuples of nodes with a directed path from each to the next, with the alternating
 /// sum of deletions of every node as differential) is filtered by the length of a tuple; this is its spectral
 /// sequence. `E^1` is magnitude homology (as `magnitude` computes), `E^2` is *bigraded path homology*, whose diagonal
-/// `E^2_{k,k}` is the path homology of the digraph, and later pages converge to reachability homology. The pages are
-/// read off the persistence barcode of the length filtration up to `l_max`: an entry `E^r_{k,l}` is known exactly
-/// when `l + r <= l_max + 1`, and is `None` otherwise. The complex doesn't split over pairs of nodes, so every tuple
-/// up to `l_max` is listed: this is for small graphs.
+/// `E^2_{k,k}` is the path homology of the digraph, and later pages converge to reachability homology. Tuples are
+/// listed up to length `l_max`, so an entry `E^r_{k,l}` is known exactly when `l + r <= l_max + 1`, and is `None`
+/// (shown as `?`) otherwise. The complex doesn't split over pairs of nodes, so every tuple up to `l_max` is listed:
+/// this is for small graphs.
 ///
-/// Over the integers (`integral=True`) a filtered complex has no barcode, so each entry is computed exactly as a
-/// quotient of lattices, `E^r_p = Z^r_p / (Z^{r-1}_{p-1} + d Z^{r-1}_{p+r-1})`, by dense integer elimination: far
-/// slower, for graphs of a handful of nodes and short lengths.
+/// Over a field the pages are read off the persistence barcode of the length filtration, computed here. Over the
+/// integers (`integral=True`) there is no barcode, and each entry is computed exactly when its page is asked for, as
+/// a quotient of lattices, `E^r_l = Z^r_l / (Z^{r-1}_{l-1} + d Z^{r-1}_{l+r-1})`, from the tuples of lengths
+/// `l - r + 1, ..., l + r - 1` alone, by dense integer elimination: far slower, for a handful of nodes.
 ///
 /// Call either as `magnitude_path_spectral_sequence(G, l_max=...)` with a networkx `DiGraph`, or as
 /// `magnitude_path_spectral_sequence(n_vertices, edges, l_max=...)`.
@@ -210,24 +213,21 @@ fn magnitude<'py>(
 ///     edges: Only when the first argument is the number of nodes: the edges, as `(source, target)` tuples.
 ///     l_max: The largest length to list tuples up to.
 ///     k_max: The largest degree (default: `l_max`).
-///     r_max: The last page (default 3).
 ///     modulus: The characteristic of the coefficient field: 2 (the default), 3, 5, 7, 11, 13 or 251.
 ///     integral: Compute over the integers instead (`modulus` is then ignored).
 ///
 /// Returns:
-///     A list of pages `r = 1, ..., r_max`, each a list over `l = 0, ..., l_max` of lists over
-///     `k = 0, ..., min(l, k_max)`: `pages[r - 1][l][k]` is the rank of `E^r_{k,l}` (degree `k`, length `l`), or
-///     `None` if not determined by tuples up to `l_max`. With `integral=True`, each page is instead a dict as
-///     `magnitude(..., integral=True)` returns: `{"free": ranks[l][k], "torsion": {(k, l): {order: multiplicity}}}`,
-///     the free ranks as above and the torsion as the invariant factors of each `E^r_{k,l}`.
+///     A `phlite.core.SpectralSequence`: `ss.page(r)[l, k]` is the dimension of `E^r_{k,l}` (degree `k`, length `l`),
+///     or over the integers `(rank, torsion)`, or `None` if not determined by tuples up to `l_max`.
 ///
 /// Raises:
-///     OverflowError: If, over the integers, an entry outgrows 128 bits.
+///     OverflowError: If, over the integers, an entry outgrows 128 bits (when its page is computed).
 #[gen_stub_pyfunction(
     python_overload = r#"
     import builtins
     import typing
     import networkx
+    from phlite import core
 
     @typing.overload
     def magnitude_path_spectral_sequence(
@@ -236,10 +236,9 @@ fn magnitude<'py>(
         l_max: builtins.int,
         *,
         k_max: typing.Optional[builtins.int] = None,
-        r_max: builtins.int = 3,
         modulus: builtins.int = 2,
         integral: builtins.bool = False,
-    ) -> list[list[list[typing.Optional[builtins.int]]]] | list[dict[str, typing.Any]]: ...
+    ) -> core.SpectralSequence: ...
     @typing.overload
     def magnitude_path_spectral_sequence(
         n_vertices: builtins.int,
@@ -248,27 +247,25 @@ fn magnitude<'py>(
         l_max: builtins.int,
         *,
         k_max: typing.Optional[builtins.int] = None,
-        r_max: builtins.int = 3,
         modulus: builtins.int = 2,
         integral: builtins.bool = False,
-    ) -> list[list[list[typing.Optional[builtins.int]]]] | list[dict[str, typing.Any]]: ...
+    ) -> core.SpectralSequence: ...
     "#,
     no_default_overload = true,
     module = "phlite.networks"
 )]
 #[pyfunction]
-#[pyo3(signature = (graph, edges = None, /, l_max = None, *, k_max = None, r_max = 3, modulus = 2, integral = false))]
-#[allow(clippy::too_many_arguments)]
+#[pyo3(signature = (graph, edges = None, /, l_max = None, *, k_max = None, modulus = 2, integral = false))]
 fn magnitude_path_spectral_sequence<'py>(
     py: Python<'py>,
     graph: &Bound<'py, PyAny>,
     edges: Option<&Bound<'py, PyAny>>,
     l_max: Option<usize>,
     k_max: Option<usize>,
-    r_max: usize,
     modulus: u64,
     integral: bool,
 ) -> PyResult<Bound<'py, PyAny>> {
+    use phlite_bindings::spectral::{spectral_sequence, SpectralBackend};
     let l_max = l_max.ok_or_else(|| PyTypeError::new_err("magnitude_path_spectral_sequence needs l_max"))?;
     if !integral && !MODULI.contains(&modulus) {
         return Err(PyValueError::new_err(format!("Unsupported modulus {modulus}, expected one of {MODULI:?}")));
@@ -276,38 +273,18 @@ fn magnitude_path_spectral_sequence<'py>(
     let edges = read_edges(edges)?;
     let (n_vertices, edges, _) = read_graph(graph, edges, "weight", "magnitude_path_spectral_sequence", u32::MAX >> 1)?;
     let edges: Vec<(u32, u32)> = edges.into_iter().map(|(a, b, _)| (a, b)).collect();
-    let graph = MagnitudeGraph::new(n_vertices as usize, &edges);
-    if !integral {
-        let pages = py.detach(|| mpss_pages(&graph, l_max, k_max, r_max, modulus));
-        return Ok(pages.into_pyobject(py)?.into_any());
-    }
-    let pages = py
-        .detach(|| mpss_integral(&graph, l_max, k_max, r_max))
-        .map_err(|e| pyo3::exceptions::PyOverflowError::new_err(e.to_string()))?;
-    let out = PyList::empty(py);
-    for page in pages {
-        let free: Vec<Vec<Option<usize>>> =
-            page.iter().map(|row| row.iter().map(|g| g.as_ref().map(|g| g.rank)).collect()).collect();
-        let torsion = PyDict::new(py);
-        for (l, row) in page.iter().enumerate() {
-            for (k, group) in row.iter().enumerate() {
-                let Some(group) = group.as_ref().filter(|g| !g.torsion.is_empty()) else {
-                    continue;
-                };
-                let orders = PyDict::new(py);
-                for &order in &group.torsion {
-                    let count: usize = orders.get_item(order)?.map_or(Ok(0), |c| c.extract())?;
-                    orders.set_item(order, count + 1)?;
-                }
-                torsion.set_item((k, l), orders)?;
-            }
-        }
-        let entry = PyDict::new(py);
-        entry.set_item("free", free)?;
-        entry.set_item("torsion", torsion)?;
-        out.append(entry)?;
-    }
-    Ok(out.into_any())
+    let k_cap = k_max.unwrap_or(l_max).min(l_max);
+    let backend = py.detach(|| {
+        let graph = MagnitudeGraph::new(n_vertices as usize, &edges);
+        mpss_backend(&graph, l_max, k_max, (!integral).then_some(modulus))
+    });
+    let backend =
+        SpectralBackend::new(backend, integral).with_row_lengths((0..=l_max).map(|l| k_cap.min(l) + 1).collect());
+    let kwargs = PyDict::new(py);
+    kwargs.set_item("step_label", "l")?;
+    kwargs.set_item("degree_label", "k")?;
+    kwargs.set_item("title", "the MPSS")?;
+    spectral_sequence(py, backend, &kwargs)
 }
 
 /// The Python result of [`magnitude_integral`]: `{"free": ranks[l][k], "torsion": {(k, l): {order: multiplicity}}}`

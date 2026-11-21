@@ -220,6 +220,10 @@ impl AnyComplex {
     fn value(&self, cell: u32) -> f64 {
         dispatch!(Self, self, c => c.value(Cell(cell)))
     }
+
+    fn top_dimension(&self) -> Option<usize> {
+        dispatch!(Self, self, c => c.top_dimension())
+    }
 }
 
 /// Compute a barcode with whichever algorithm is configured.

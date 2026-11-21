@@ -25,7 +25,8 @@ use std::collections::HashMap;
 
 use ordered_float::NotNan;
 use phlite::barcode::{Algorithm, Method};
-use phlite::integral::{integral_pages, Group, IntegralFiltered, Overflow};
+use phlite::integral::{Group, IntegralFiltered, Overflow};
+use phlite::spectral::{BarcodeSpectral, LocalSpectral, SpectralBackend};
 use phlite::reduction::Clearing;
 use phlite::spectral::{spectral_pages, StepBar};
 use phlite_complexes::complex::{Chain, RawChain};
@@ -166,7 +167,8 @@ pub fn mpss_pages(graph: &MagnitudeGraph, l_max: usize, k_max: Option<usize>, r_
 pub type IntegralPages = Vec<Vec<Vec<Option<Group>>>>;
 
 /// The pages `E^1, ..., E^{r_max}` of the MPSS of `graph` over the integers, as [`mpss_pages`] over a field, by exact
-/// lattice computations ([`phlite::integral`]): dense, so for small graphs.
+/// lattice computations ([`phlite::integral`]), each entry from the tuples in its window of lengths
+/// ([`LocalSpectral`]): dense, so for small graphs.
 ///
 /// # Errors
 /// If an entry outgrows `i128` (see [`phlite::integral`]).
@@ -177,9 +179,30 @@ pub fn mpss_integral(
     r_max: usize,
 ) -> Result<IntegralPages, Overflow> {
     let k_max = k_max.unwrap_or(l_max).min(l_max);
+    let backend = integral_backend(graph, l_max, k_max);
+    (1..=r_max)
+        .map(|r| {
+            (0..=l_max)
+                .map(|l| {
+                    (0..=k_max.min(l))
+                        .map(|k| if l < backend.n_steps() { backend.entry(r, l, k) } else { Ok(known_empty(r, l, l_max)) })
+                        .collect()
+                })
+                .collect()
+        })
+        .collect()
+}
+
+/// An entry at a length no tuple has: zero, where the truncation determines it.
+fn known_empty(r: usize, l: usize, l_max: usize) -> Option<Group> {
+    (l + r <= l_max + 1).then(Group::default)
+}
+
+/// The reachability complex up to `l_max` and degree `k_max + 1` over Z, for [`LocalSpectral`].
+fn integral_complex(graph: &MagnitudeGraph, l_max: usize, k_max: usize) -> IntegralFiltered {
     let (raw, values) = reachability_complex(graph, l_max, k_max);
     let coefficients = raw.coefficients.expect("integer coefficients");
-    let complex = IntegralFiltered {
+    IntegralFiltered {
         degree: raw.dimensions.iter().map(|&d| d as usize).collect(),
         step: values.iter().map(|&v| v as usize).collect(),
         boundary: raw
@@ -187,26 +210,74 @@ pub fn mpss_integral(
             .windows(2)
             .map(|w| (w[0] as usize..w[1] as usize).map(|i| (raw.indices[i] as usize, coefficients[i])).collect())
             .collect(),
+    }
+}
+
+fn integral_backend(graph: &MagnitudeGraph, l_max: usize, k_max: usize) -> LocalSpectral<IntegralFiltered> {
+    LocalSpectral::new(integral_complex(graph, l_max, k_max), k_max + 1, Some(l_max))
+}
+
+/// The MPSS of `graph` as a [`SpectralBackend`], for computing it a page (or an entry) at a time: over `Z/modulus`
+/// (one of [`MODULI`]) from the barcode, or over the integers (`modulus` `None`) entry by entry, each from the tuples
+/// in its window of lengths ([`LocalSpectral`]). Steps are lengths `0..=l_max` and degrees `0..=k_max` (default
+/// `l_max`); entries needing tuples longer than `l_max` are `None`.
+///
+/// # Panics
+/// If the modulus isn't one of [`MODULI`].
+pub fn mpss_backend(graph: &MagnitudeGraph, l_max: usize, k_max: Option<usize>, modulus: Option<u64>) -> Box<dyn SpectralBackend> {
+    use phlite::fields::{Z2, ZP};
+    let k_max = k_max.unwrap_or(l_max).min(l_max);
+    let Some(modulus) = modulus else {
+        return Box::new(Padded { inner: integral_backend(graph, l_max, k_max), l_max });
     };
-    let pages = integral_pages(&complex, k_max + 1, r_max, Some(l_max))?;
-    // Lengths past the longest tuple have no cells: zero where the truncation determines them
-    Ok(pages
-        .into_iter()
-        .enumerate()
-        .skip(1)
-        .map(|(r, page)| {
-            (0..=l_max)
-                .map(|l| {
-                    (0..=k_max.min(l))
-                        .map(|k| match page.get(l) {
-                            Some(row) => row[k].clone(),
-                            None => (l + r <= l_max + 1).then(Group::default),
-                        })
-                        .collect()
-                })
-                .collect()
-        })
-        .collect())
+    let bars = match modulus {
+        2 => reachability_bars::<Z2>(graph, l_max, k_max),
+        3 => reachability_bars::<ZP<3>>(graph, l_max, k_max),
+        5 => reachability_bars::<ZP<5>>(graph, l_max, k_max),
+        7 => reachability_bars::<ZP<7>>(graph, l_max, k_max),
+        11 => reachability_bars::<ZP<11>>(graph, l_max, k_max),
+        13 => reachability_bars::<ZP<13>>(graph, l_max, k_max),
+        251 => reachability_bars::<ZP<251>>(graph, l_max, k_max),
+        other => panic!("unsupported modulus {other}, expected one of {MODULI:?}"),
+    };
+    let bars: Vec<StepBar> = bars.into_iter().map(|(degree, birth, death)| StepBar { degree, birth, death }).collect();
+    Box::new(BarcodeSpectral::new(&bars, l_max + 1, k_max + 1, Some(l_max)))
+}
+
+/// A backend over every length `0..=l_max`, though the complex may have no tuples as long as `l_max`.
+struct Padded<B> {
+    inner: B,
+    l_max: usize,
+}
+
+impl<B: SpectralBackend> SpectralBackend for Padded<B> {
+    fn n_steps(&self) -> usize {
+        self.l_max + 1
+    }
+
+    fn n_degrees(&self) -> usize {
+        self.inner.n_degrees()
+    }
+
+    fn entry(&self, r: usize, p: usize, k: usize) -> Result<Option<Group>, Overflow> {
+        if p < self.inner.n_steps() {
+            self.inner.entry(r, p, k)
+        } else {
+            Ok(known_empty(r, p, self.l_max))
+        }
+    }
+
+    fn differential(&self, r: usize, p: usize, k: usize) -> Result<Option<Group>, Overflow> {
+        if p < self.inner.n_steps() {
+            self.inner.differential(r, p, k)
+        } else {
+            Ok(known_empty(r, p, self.l_max))
+        }
+    }
+
+    fn degenerates_at(&self) -> Option<usize> {
+        self.inner.degenerates_at()
+    }
 }
 
 /// The largest finite distance between two vertices of `graph` (0 if none).

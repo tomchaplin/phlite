@@ -51,8 +51,11 @@ def test_first_page_and_convergence(seed):
     pairs, values = random_filtered_simplicial(seed)
     filtered = ChainComplex.from_pairs(pairs).filtration(values)
     top = max(d for d, _ in pairs)
-    steps, pages = filtered.spectral_sequence(r_max=len(set(values)) + 1, max_dim=top)
+    ss = filtered.spectral_sequence(max_dim=top)
+    steps = ss.steps
+    pages = [ss.page(r).rows for r in range(1, len(set(values)) + 2)]
     assert steps == sorted(set(values))
+    assert [page.r for page in ss][-1] == ss.degenerates_at
     for p, value in enumerate(steps):
         graded = homology_ranks(pairs, [c for c, v in enumerate(values) if v == value])
         assert {k: r for k, r in enumerate(pages[0][p]) if r} == graded
@@ -96,14 +99,22 @@ def test_projective_plane_over_the_integers():
     # Filtered by dimension: E^1 is the chain groups, E^2 = E^infinity the homology, Z/2 in degree 1 at step 1
     pairs, coefficients, values = signed_simplicial(RP2, lambda s: len(s) - 1)
     filtered = ChainComplex.from_pairs(pairs, coefficients=coefficients, modulus=0).filtration(values)
-    steps, pages = filtered.spectral_sequence(r_max=3)
-    assert steps == [0.0, 1.0, 2.0]
-    assert pages[0]["free"] == [[6, 0, 0], [0, 15, 0], [0, 0, 10]] and pages[0]["torsion"] == {}
-    for page in pages[1:]:
-        assert page["free"] == [[1, 0, 0], [0, 0, 0], [0, 0, 0]]
-        assert page["torsion"] == {(1, 1): {2: 1}}
+    ss = filtered.spectral_sequence()
+    assert ss.steps == [0.0, 1.0, 2.0] and ss.integral
+    assert ss.page(1).rows == [[(6, []), (0, []), (0, [])], [(0, []), (15, []), (0, [])], [(0, []), (0, []), (10, [])]]
+    # d^1 is the boundary: from the triangles injectively (H_2 = 0) onto Z^10 of the edges' Z^15
+    assert {(d.source, d.target): d.image for d in ss.page(1).differentials} == {
+        ((2, 2), (1, 1)): (10, []),
+        ((1, 1), (0, 0)): (5, []),
+    }
+    for r in (2, 3):
+        assert ss.page(r).rows == [[(1, []), (0, []), (0, [])], [(0, []), (0, [2]), (0, [])], [(0, []), (0, []), (0, [])]]
+        assert ss.page(r).differentials == []
+    assert ss.infinity.torsion(1, 1) == [2]
+    assert "Z/2" in ss.page(2).table()
     # Over Z/2 the same filtration has H_1 = H_2 = Z/2 instead
-    assert ChainComplex.from_pairs(pairs).filtration(values).spectral_sequence(r_max=2, max_dim=2)[1][1] == [[1, 0, 0], [0, 1, 0], [0, 0, 1]]
+    field = ChainComplex.from_pairs(pairs).filtration(values).spectral_sequence()
+    assert field.page(2).rows == [[1, 0, 0], [0, 1, 0], [0, 0, 1]]
 
 
 def test_integers_need_signs_and_have_no_barcode():
@@ -131,10 +142,13 @@ def test_integral_free_ranks(seed):
     field = ChainComplex.from_pairs(pairs, coefficients=coefficients, modulus=13).filtration(values)
     top = max(d for d, _ in pairs)
     r_max = len(set(values)) + 1
-    steps, pages = integral.spectral_sequence(r_max=r_max, max_dim=top)
-    if any(page["torsion"] for page in pages):
+    ss = integral.spectral_sequence(max_dim=top)
+    steps = ss.steps
+    pages = [ss.page(r) for r in range(1, r_max + 1)]
+    if any(page.torsion(p, k) for page in pages for (p, k), _ in page.entries()):
         return
-    assert [page["free"] for page in pages] == field.spectral_sequence(r_max=r_max, max_dim=top)[1]
+    field_ss = field.spectral_sequence(max_dim=top)
+    assert [[[e[0] for e in row] for row in page.rows] for page in pages] == [field_ss.page(r).rows for r in range(1, r_max + 1)]
     for dim in range(top + 1):
         for i, start in enumerate(steps):
             for end in steps[i:]:
