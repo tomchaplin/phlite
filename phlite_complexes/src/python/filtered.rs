@@ -218,6 +218,79 @@ impl FilteredComplex {
         Ok(out)
     }
 
+    /// The persistent homology of the image, kernel and cokernel of the map `H(L) -> H(K)` induced by the inclusion of
+    /// a subcomplex `L` (with the restricted filtration) into this filtered complex `K` (Cohen-Steiner, Edelsbrunner,
+    /// Harer and Morozov), as phimaker computes them, and of the pair `(K, L)`.
+    ///
+    /// The image is what of `L`'s homology survives in `K`; the kernel what of it dies in `K` (a class of `L` that bounds
+    /// in `K`); the cokernel what of `K`'s homology doesn't come from `L`. The barcodes of `K` and `L` come from the
+    /// fast reductions (clearing, apparent pairs), which also tell which columns of the other matrices need reducing.
+    ///
+    /// Args:
+    ///     subcomplex: The cells of `L`: a sequence of cells, or of booleans (one per cell, in the cells' order). Every
+    ///         face of a cell of `L` must be in `L`.
+    ///     max_dim: The maximum dimension of the bars (default: the largest dimension of a cell).
+    ///
+    /// Returns:
+    ///     A dict of barcodes: `'image'`, `'kernel'`, `'cokernel'` and `'relative'` (of `(K, L)`), each bar in the
+    ///     dimension of its homology (a kernel class of `H_k` is born at the `(k + 1)`-cell that makes a cycle of `L` a
+    ///     boundary in `K`, and its cells are given as such). Bars of length zero are omitted.
+    ///
+    /// Raises:
+    ///     ValueError: If the cells aren't a subcomplex, or the complex is over the integers.
+    #[pyo3(signature = (subcomplex, max_dim = None))]
+    #[gen_stub(override_return_type(type_repr = "dict[builtins.str, ComplexBarcode]", imports = ("builtins")))]
+    fn image_kernel_cokernel<'py>(
+        slf: &Bound<'py, Self>,
+        subcomplex: &Bound<'py, PyAny>,
+        max_dim: Option<usize>,
+    ) -> PyResult<Bound<'py, PyDict>> {
+        let py = slf.py();
+        let this = slf.get();
+        let n = this.complex.n_cells();
+        let chain = this.chain.get();
+        // A mask, or cells
+        let items: Vec<Bound<'py, PyAny>> = subcomplex.try_iter()?.collect::<PyResult<_>>()?;
+        let mut mask = vec![false; n];
+        // (Python's bools, or numpy's)
+        let is_bool = |x: &Bound<'py, PyAny>| {
+            x.is_instance_of::<pyo3::types::PyBool>()
+                || x.get_type().name().is_ok_and(|name| name.to_cow().is_ok_and(|name| name == "bool" || name == "bool_"))
+        };
+        let is_mask = items.len() == n && items.iter().all(is_bool);
+        if is_mask {
+            for (m, x) in mask.iter_mut().zip(&items) {
+                *m = x.extract()?;
+            }
+        } else {
+            for x in &items {
+                mask[chain.index_or_err(x)? as usize] = true;
+            }
+        }
+        let pairs = py
+            .detach(|| this.complex.image_kernel_cokernel(&mask))?
+            .map_err(|(cell, face)| {
+                PyValueError::new_err(format!(
+                    "not a subcomplex: {} is in it but its face {} isn't",
+                    chain.name(py, cell),
+                    chain.name(py, face)
+                ))
+            })?;
+        let algorithm = algorithm_to_py(py, &algorithm_from_py(None, &DEFAULTS)?)?;
+        let out = PyDict::new(py);
+        let AnyComplex::Integers(_) = &this.complex else {
+            for (name, bars) in ["image", "kernel", "cokernel", "relative"].into_iter().zip(pairs) {
+                // (A kernel class of H_k is born at the (k + 1)-cell that makes it a boundary in K)
+                let shift = usize::from(name == "kernel");
+                let data = this.complex.bar_data_from_rank_pairs(&bars, max_dim, shift);
+                let barcode = ComplexBarcode { data, complex: slf.clone().unbind(), algorithm: algorithm.clone().unbind() };
+                out.set_item(name, Bound::new(py, barcode)?)?;
+            }
+            return Ok(out);
+        };
+        unreachable!("refused over the integers")
+    }
+
     /// The persistent homology group in dimension `dim` from `start` to `end`: the image of `H_dim` of the subcomplex
     /// of cells with value at most `start` in `H_dim` of the one at `end`.
     ///

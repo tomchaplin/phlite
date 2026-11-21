@@ -19,6 +19,7 @@ __all__ = [
     "dtm",
     "rips",
     "rips_complex",
+    "rips_image_kernel",
     "witness",
     "witness_complex",
 ]
@@ -251,6 +252,32 @@ def rips_complex(distance_matrix: typing.Optional[typing.Union[numpy.typing.NDAr
     
     Returns:
         A list of `(simplex, value)` pairs, each simplex a tuple of point indices in increasing order.
+    """
+
+def rips_image_kernel(distance_matrix: typing.Optional[typing.Union[numpy.typing.NDArray[numpy.floating], typing.Sequence[typing.Sequence[builtins.float]], typing.Any]] = None, subset: typing.Optional[typing.Sequence[typing.Any]] = None, max_dim: builtins.int = 1, *, points: typing.Optional[typing.Union[numpy.typing.NDArray[numpy.floating], typing.Sequence[typing.Sequence[builtins.float]]]] = None, metric: typing.Literal['euclidean', 'manhattan', 'cityblock', 'chebyshev'] = "euclidean", threshold: typing.Optional[builtins.float] = None) -> dict[builtins.str, core.Barcode]:
+    r"""
+    The persistent homology of the image, kernel and cokernel of the map `H(Rips(subset)) -> H(Rips(points))` induced by
+    including the Rips complex of some of the points into that of all of them (the same distances), over Z/2, in
+    dimensions `0, ..., max_dim`, and of the pair (Cohen-Steiner, Edelsbrunner, Harer and Morozov; as phimaker).
+    
+    The image is what of the subset's homology survives among all the points (the features the subset sees that are
+    really there); the kernel what of it dies there; the cokernel what of the whole's homology the subset doesn't see.
+    Computed on the lazy Rips boundary, by `phlite::image_kernel`: the barcodes of the two complexes by the fast
+    reductions, which also say which columns of the image, kernel and cokernel matrices need reducing. Every simplex up
+    to dimension `max_dim + 1` and `threshold` is listed, so give a threshold for more than a few hundred points.
+    
+    Args:
+        distance_matrix: The distances, as for `rips` (dense, or a scipy sparse matrix).
+        subset: The points of the subset: their indices, or a boolean mask (one per point).
+        max_dim: The maximum homology dimension.
+        points: Or the points, as for `rips`.
+        metric: The metric for `points`, as for `rips`.
+        threshold: The largest diameter (default: all); bars still alive there are essential.
+    
+    Returns:
+        A dict of barcodes: `'image'`, `'kernel'`, `'cokernel'` and `'relative'` (of the pair), each bar in the dimension
+        of its homology (a kernel class of `H_k` is born at the `(k + 1)`-simplex that makes a cycle of the subset a
+        boundary among all the points).
     """
 
 def witness(landmarks: typing.Union[numpy.typing.NDArray[numpy.floating], typing.Sequence[typing.Sequence[builtins.float]]], witnesses: typing.Union[numpy.typing.NDArray[numpy.floating], typing.Sequence[typing.Sequence[builtins.float]]], max_dim: builtins.int = 1, *, strong: builtins.bool = False, max_alpha_square: typing.Optional[builtins.float] = None, algorithm: typing.Optional[core.Algorithm] = None) -> core.Barcode:

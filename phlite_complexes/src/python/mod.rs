@@ -243,6 +243,44 @@ impl AnyComplex {
         dispatch_field!(Self, self, c => of(c), integers => None)
     }
 
+    /// The barcodes of the image, kernel, cokernel and pair for the subcomplex `in_subcomplex` (by input cell), as rank
+    /// pairs, or the offending (cell, face) if it isn't a subcomplex.
+    #[allow(clippy::type_complexity)]
+    pub(crate) fn image_kernel_cokernel(
+        &self,
+        in_subcomplex: &[bool],
+    ) -> PyResult<Result<[Vec<(usize, Option<usize>)>; 4], (u32, u32)>> {
+        fn pairs(d: phlite::reduction::Diagram<Cell>) -> Vec<(usize, Option<usize>)> {
+            d.pairings
+                .into_iter()
+                .map(|(b, e)| (b.0 as usize, Some(e.0 as usize)))
+                .chain(d.essential.into_iter().map(|b| (b.0 as usize, None)))
+                .collect()
+        }
+        fn run<CF: IntField>(
+            c: &Complex<CF>,
+            mask: &[bool],
+        ) -> Result<[Vec<(usize, Option<usize>)>; 4], (u32, u32)> {
+            let result = c.image_kernel_cokernel(mask).map_err(|(a, b)| (a.0, b.0))?;
+            Ok([pairs(result.image), pairs(result.kernel), pairs(result.cokernel), pairs(result.relative)])
+        }
+        Ok(dispatch_field!(Self, self, c => run(c, in_subcomplex), integers => {
+            return Err(PyValueError::new_err(
+                "image_kernel_cokernel needs a field (build the complex with a modulus other than 0)",
+            ));
+        }))
+    }
+
+    /// [`BarData`] from rank pairs.
+    pub(crate) fn bar_data_from_rank_pairs(
+        &self,
+        pairs: &[(usize, Option<usize>)],
+        max_dim: Option<usize>,
+        shift: usize,
+    ) -> BarData {
+        dispatch!(Self, self, c => BarData::from_rank_pairs_shifted(c, pairs, max_dim, shift))
+    }
+
     /// For each rank, the input cell there; and for each input cell, its rank.
     pub(crate) fn rank_maps(&self) -> (Vec<u32>, Vec<u32>) {
         dispatch!(Self, self, c => {
@@ -552,11 +590,23 @@ impl BarData {
         pairs: &[(usize, Option<usize>)],
         max_dim: Option<usize>,
     ) -> Self {
+        Self::from_rank_pairs_shifted(complex, pairs, max_dim, 0)
+    }
+
+    /// As [`from_rank_pairs`](Self::from_rank_pairs), each bar in the dimension of its birth cell less `shift` (a kernel
+    /// class of `H_k` is born at a `(k + 1)`-cell).
+    pub(crate) fn from_rank_pairs_shifted<CF: crate::field::ChainCoefficient>(
+        complex: &Complex<CF>,
+        pairs: &[(usize, Option<usize>)],
+        max_dim: Option<usize>,
+        shift: usize,
+    ) -> Self {
         let n_dims = max_dim.or(complex.top_dimension()).map_or(0, |d| d + 1);
         let mut bars: Vec<Record> = pairs
             .iter()
             .filter_map(|&(birth, death)| {
                 let (birth, birth_value, dimension) = complex.at_rank(Cell(birth as u32));
+                let dimension = dimension - shift;
                 let death = death.map(|d| complex.at_rank(Cell(d as u32)));
                 if dimension >= n_dims || death.is_some_and(|(_, value, _)| value == birth_value) {
                     return None;

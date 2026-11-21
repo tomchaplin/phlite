@@ -385,6 +385,29 @@ class FilteredComplex:
             ValueError: If the complex isn't over the integers.
             OverflowError: If an entry outgrows 128 bits.
         """
+    def image_kernel_cokernel(self, subcomplex: typing.Any, max_dim: typing.Optional[builtins.int] = None) -> dict[builtins.str, ComplexBarcode]:
+        r"""
+        The persistent homology of the image, kernel and cokernel of the map `H(L) -> H(K)` induced by the inclusion of
+        a subcomplex `L` (with the restricted filtration) into this filtered complex `K` (Cohen-Steiner, Edelsbrunner,
+        Harer and Morozov), as phimaker computes them, and of the pair `(K, L)`.
+        
+        The image is what of `L`'s homology survives in `K`; the kernel what of it dies in `K` (a class of `L` that bounds
+        in `K`); the cokernel what of `K`'s homology doesn't come from `L`. The barcodes of `K` and `L` come from the
+        fast reductions (clearing, apparent pairs), which also tell which columns of the other matrices need reducing.
+        
+        Args:
+            subcomplex: The cells of `L`: a sequence of cells, or of booleans (one per cell, in the cells' order). Every
+                face of a cell of `L` must be in `L`.
+            max_dim: The maximum dimension of the bars (default: the largest dimension of a cell).
+        
+        Returns:
+            A dict of barcodes: `'image'`, `'kernel'`, `'cokernel'` and `'relative'` (of `(K, L)`), each bar in the
+            dimension of its homology (a kernel class of `H_k` is born at the `(k + 1)`-cell that makes a cycle of `L` a
+            boundary in `K`, and its cells are given as such). Bars of length zero are omitted.
+        
+        Raises:
+            ValueError: If the cells aren't a subcomplex, or the complex is over the integers.
+        """
     def persistent_group(self, dim: builtins.int, start: builtins.float, end: builtins.float, *, algorithm: typing.Optional[core.Algorithm] = None) -> tuple[builtins.int, builtins.list[builtins.int]]:
         r"""
         The persistent homology group in dimension `dim` from `start` to `end`: the image of `H_dim` of the subcomplex

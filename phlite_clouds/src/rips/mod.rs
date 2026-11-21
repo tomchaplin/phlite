@@ -35,6 +35,7 @@ pub mod collapse;
 pub mod distances;
 pub mod explicit;
 pub mod homology;
+pub mod image;
 
 pub use distances::{distance_to_measure, Distances, Metric, SparseDistances, Weighted};
 

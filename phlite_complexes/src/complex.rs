@@ -745,6 +745,40 @@ impl<CF: ChainCoefficient> Complex<CF> {
 }
 
 impl<CF: IntField> Complex<CF> {
+    /// The barcodes of the image, kernel and cokernel of `H(L) -> H(K)` for the subcomplex `L` (with the restricted
+    /// filtration) of cells `in_subcomplex[cell]` (input cells; every face of a cell in it must be in it too), and of
+    /// the pair `(K, L)`, by [`phlite::image_kernel`]. Bars are on ranks (see [`rank`](Self::rank)).
+    ///
+    /// # Errors
+    /// If the cells given aren't a subcomplex, with a face of one of them that isn't.
+    pub fn image_kernel_cokernel(
+        &self,
+        in_subcomplex: &[bool],
+    ) -> Result<phlite::image_kernel::ImageKernelCokernel<Cell>, (Cell, Cell)> {
+        let n = self.n_cells();
+        let by_rank: Vec<bool> = (0..n as u32).map(|r| in_subcomplex[self.cell(Cell(r)).idx()]).collect();
+        for r in 0..n as u32 {
+            if by_rank[r as usize] {
+                for i in self.boundary.range(Cell(r)) {
+                    let face = self.boundary.rows[i];
+                    if !by_rank[face.idx()] {
+                        return Err((self.cell(Cell(r)), self.cell(face)));
+                    }
+                }
+            }
+        }
+        let mut cells: Vec<Vec<Cell>> = vec![vec![]; self.top_dimension().map_or(0, |d| d + 1)];
+        for r in 0..n as u32 {
+            cells[self.ranked[r as usize].dimension as usize].push(Cell(r));
+        }
+        Ok(phlite::image_kernel::image_kernel_cokernel(
+            self.boundary(),
+            cells,
+            |c: &Cell| by_rank[c.idx()],
+            phlite::columns::MergedColumns,
+        ))
+    }
+
     /// The boundary matrix, with cells numbered by [`rank`](Self::rank); its transpose is
     /// [`coboundary`](Self::coboundary).
     pub fn boundary(&self) -> View<'_, CF> {

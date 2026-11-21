@@ -126,6 +126,16 @@ the integers it is not canonical, so `classify` (or `contains`) is the way to co
 `persistent_group(dim, start, end)` is the image of `H_dim` at `start` in `H_dim` at `end`, as `(rank, torsion)`. It
 works over a field too, where it is the persistent Betti number with no torsion.
 
+## Images, kernels and cokernels
+
+`filtered.image_kernel_cokernel(subcomplex)` gives the persistence of the image, kernel and cokernel of
+`H(L) -> H(K)` for a subcomplex `L` (with the restricted filtration), and of the pair `(K, L)` (Cohen-Steiner,
+Edelsbrunner, Harer and Morozov), as phimaker does: a dict of barcodes `'image'`, `'kernel'`, `'cokernel'` and
+`'relative'`. The image is what of `L`'s homology survives in `K`, the kernel what of it dies there, and the cokernel
+what of `K`'s homology doesn't come from `L`. It is generic over any boundary oracle (`phlite::image_kernel`): for
+point clouds, `phlite.clouds.rips_image_kernel(points=..., subset=...)` does the same for the Rips complex of a subset
+on the lazy Rips boundary.
+
 ## Choosing cell identifiers yourself
 
 By default cells are matched up through a Python dict, using your `__hash__` and `__eq__`. You can instead give
