@@ -9,8 +9,9 @@ import functools
 import cripser
 import gudhi
 import numpy as np
+import perseus
 import pytest
-from common import THREADS, fingerprint, run, sweep
+from common import THREADS, fingerprint, perseus_fingerprint, run, sweep
 
 from phlite.core import Algorithm
 from phlite.images import cubical
@@ -23,9 +24,10 @@ SUITE = {
     "description": "Sublevel persistence, in every dimension, of a random image (`noise`: uniform; `smooth`: noise "
         "averaged over a 5-pixel window along each axis, then rounded to float32) of the given shape, in the T- or "
         "V-construction: GUDHI's `CubicalComplex` (`top_dimensional_cells` or `vertices`) and Cubical Ripser "
-        "(`computePH_T` or `computePH`) against `cubical(image, construction=...)`.",
+        "(`computePH_T` or `computePH`) against `cubical(image, construction=...)`. Perseus 6 (`perseus.cubical`, over "
+        "Z/2 on one thread) takes top cells, so only runs the T-construction.",
     "order": 30,
-    "summary": ["gudhi", "cripser", "phlite (serial)", "phlite (parallel)"],
+    "summary": ["gudhi", "cripser", "perseus (F2)", "phlite (serial)", "phlite (parallel)"],
     "default": "phlite (serial)",
     "light_references": ["gudhi"],
 }
@@ -76,8 +78,17 @@ def phlite(algorithm=Algorithm.serial):
     return compute
 
 
+def perseus_cubical(case):
+    """Perseus 6 over Z/2, one thread: top cells only, so the T-construction (see `params`)."""
+    image, construction = case
+    assert construction == "T"
+    result = perseus.cubical(image, coeff=2, threads=1)
+    return lambda: perseus_fingerprint(result, image.ndim - 1)
+
+
 IMPLEMENTATIONS = {
     "gudhi": gudhi_cubical,
+    "perseus (F2)": perseus_cubical,
     "cripser": cripser_cubical,
     "phlite (serial)": phlite(),
     "phlite (parallel)": phlite(lambda: Algorithm.parallel(THREADS)),
@@ -108,6 +119,8 @@ def params():
         marks = [pytest.mark.quick] if case in QUICK else [pytest.mark.large] if case in LARGE else []
         size = "x".join(map(str, shape))
         for implementation in IMPLEMENTATIONS:
+            if implementation.startswith("perseus") and construction != "T":
+                continue
             yield pytest.param(kind, shape, construction, implementation, marks=marks, id=f"{kind}-{size}-{construction}-{implementation}")
 
 

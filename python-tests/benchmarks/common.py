@@ -80,6 +80,16 @@ def peak_heap_mb(function):
 # ====== Barcodes =========================================================
 
 
+def perseus_fingerprint(result, max_dim):
+    """The fingerprint of a Perseus 6 result (`perseus.rips(...)` and the like) in dimensions `0..=max_dim`: its
+    `barcode` is a list, by dimension, of `(birth, death)` arrays (death infinite for an essential bar), which may stop
+    before `max_dim`."""
+    dims = result["barcode"]
+    return fingerprint(
+        [[(float(b), float(d)) for b, d in (dims[k] if k < len(dims) else [])] for k in range(max_dim + 1)]
+    )
+
+
 def fingerprint(dims):
     """Summarise a barcode (a list, per dimension, of (birth, death) bars) so implementations can be compared:
     the number of finite and infinite bars, and the total finite persistence, ignoring zero-length bars."""

@@ -30,7 +30,7 @@ import tempfile
 
 import numpy as np
 import pytest
-from common import THREADS, fingerprint, run, sweep
+from common import THREADS, fingerprint, perseus_fingerprint, run, sweep
 
 # Import everything up front, so that import costs are not counted
 import lophat
@@ -61,9 +61,11 @@ SUITE = {
         "circles`, Rips complexes of the noisy torus and wedge of circles from the Rips section; `rings`, "
         "cubical complexes of `n`×`n` images of the distance to five overlapping rings, plus noise (a long H1 "
         "bar for each hole); and `torus mesh`, a triangulated torus filtered by its height, plus noise "
-        "(essential bars in every dimension).",
+        "(essential bars in every dimension). Perseus 6 (`perseus.simplices`, over Z/2 on one thread) takes "
+        "simplicial complexes as vertex lists, so runs on the Rips complexes and the torus mesh, building the "
+        "boundary matrix itself.",
     "order": 90,
-    "summary": ["phat (twist)", "phat (twist, reduce)", "lophat (1 thread)", "phlite (serial)", "phlite (serial, reduce)", "phlite (V only, reduce)", "phlite (parallel, reduce)", "phlite (homology, reduce)"],
+    "summary": ["phat (twist)", "phat (twist, reduce)", "lophat (1 thread)", "perseus (F2)", "phlite (serial)", "phlite (serial, reduce)", "phlite (V only, reduce)", "phlite (parallel, reduce)", "phlite (homology, reduce)"],
     "default": "phlite (serial, reduce)",
     "compare_only": "reduce",
     "light_references": ["phat (twist)"],
@@ -236,6 +238,20 @@ def pairs_fingerprint(columns, values, pairs):
     return compute
 
 
+def perseus_impl(data):
+    """Perseus 6's `simplices` over Z/2 on one thread (the simplicial kinds only: it takes vertex lists, which
+    `make_input` lists before the clock starts; its time includes building the boundary matrix from them)."""
+    import perseus
+
+    columns = data["columns"]
+    result = perseus.simplices(data["simplices"], coeff=2, threads=1)
+    return lambda: perseus_fingerprint(result, max(d for d, _ in columns))
+
+
+# The kinds of complex that are simplicial, so that Perseus can take them
+SIMPLICIAL = ("rips", "torus")
+
+
 def phat_impl(reduction=phat.reductions.twist_reduction, representation=None):
     def compute(data):
         # The `(reduce)` variants get a prebuilt matrix, see `make_input`
@@ -308,6 +324,7 @@ IMPLEMENTATIONS = {
     "phat (chunk)": phat_impl(phat.reductions.chunk_reduction),
     "phat (standard, vector_vector)": phat_impl(phat.reductions.standard_reduction, phat.representations.vector_vector),
     "lophat (1 thread)": lophat_impl(1),
+    "perseus (F2)": perseus_impl,
     "lophat (parallel)": lophat_impl(THREADS),
     "phlite (serial)": phlite_impl(),
     "phlite (serial, csc)": phlite_impl(csc=True),
@@ -378,6 +395,11 @@ CASES = [
 def make_input(case, implementation):
     columns, values = cached_complex(case_key(case))
     data = {"columns": columns, "values": values}
+    if implementation.startswith("perseus"):
+        vertices = []
+        for dim, boundary in columns:
+            vertices.append((len(vertices),) if dim == 0 else tuple(sorted(set().union(*(vertices[f] for f in boundary)))))
+        data["simplices"] = [(list(s), float(v)) for s, v in zip(vertices, values)]
     if "reduce)" in implementation:
         if implementation.startswith("phat"):
             data["matrix"] = phat.boundary_matrix(columns=columns)
@@ -398,6 +420,8 @@ def reference(key):
 @pytest.mark.parametrize("implementation", IMPLEMENTATIONS)
 @pytest.mark.parametrize("case", CASES)
 def test_sparse(benchmark, case, implementation):
+    if implementation.startswith("perseus") and case["kind"] not in SIMPLICIAL:
+        pytest.skip("Perseus takes simplicial complexes as vertex lists")
     run(
         benchmark,
         group=label(case),
