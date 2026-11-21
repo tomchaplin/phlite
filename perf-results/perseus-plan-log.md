@@ -395,7 +395,7 @@ on 150 random filtered complexes.
 bidirected C6 to length 5 in 0.3 s, to 6 in 7 s (the field version: 1–2 ms).
 
 **Search for torsion on later pages** (all connected digraphs, nauty `geng -c | directg`): none on 3 or 4 nodes up to
-length 5 (pages 1–5); 5 nodes up to length 4: see below.
+length 5 (pages 1–5); none on 5 nodes (9,364 digraphs) up to length 4 (pages 1–4), in 5 minutes.
 
 **Not done, needs a decision:** explicit complexes. `phlite.complexes.ChainComplex` reduces integer coefficients mod p
 on input and doesn't keep them, so integral pages or persistent groups there need either the integer columns kept in
