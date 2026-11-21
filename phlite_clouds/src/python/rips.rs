@@ -380,6 +380,82 @@ fn rips<'py>(
     bars.into_python(py, &algorithm, representatives, None)
 }
 
+/// The Vietoris-Rips complex itself: every simplex of dimension at most `dimension` whose value (the largest distance
+/// between its points, or with `weights`, as for `rips`) is at most `threshold`, with that value, in filtration order
+/// (by value, then dimension). For drawing, or for your own computations: for instance over the integers, with
+/// `phlite.complexes.ChainComplex.from_simplices(simplices, modulus=0)` (homology up to `dimension - 1`).
+///
+/// Unlike `rips`, which stops at the enclosing radius (past which the complex is a cone), this lists every simplex
+/// up to `threshold`, so give one for anything but small inputs.
+///
+/// Args:
+///     distance_matrix: The distances, as for `rips` (dense, or a scipy sparse matrix whose missing entries are
+///         missing edges).
+///     dimension: The largest dimension of a simplex.
+///     points: Or the points, as for `rips`.
+///     metric: The metric for `points`, as for `rips`.
+///     weights: Vertex weights, as for `rips`.
+///     threshold: The largest value listed (default: all).
+///
+/// Returns:
+///     A list of `(simplex, value)` pairs, each simplex a tuple of point indices in increasing order.
+#[gen_stub_pyfunction(module = "phlite.clouds")]
+#[gen_stub(override_return_type(type_repr = "builtins.list[tuple[tuple[builtins.int, ...], builtins.float]]", imports = ("builtins")))]
+#[pyfunction]
+#[pyo3(signature = (distance_matrix = None, dimension = 2, *, points = None, metric = "euclidean", weights = None, threshold = None))]
+#[allow(clippy::too_many_arguments)]
+fn rips_complex<'py>(
+    py: Python<'py>,
+    #[gen_stub(override_type(type_repr = "typing.Optional[typing.Union[numpy.typing.NDArray[numpy.floating], typing.Sequence[typing.Sequence[builtins.float]], typing.Any]]", imports = ("builtins", "numpy", "numpy.typing", "typing")))]
+    distance_matrix: Option<&Bound<'_, PyAny>>,
+    dimension: usize,
+    #[gen_stub(override_type(type_repr = "typing.Optional[typing.Union[numpy.typing.NDArray[numpy.floating], typing.Sequence[typing.Sequence[builtins.float]]]]", imports = ("builtins", "numpy", "numpy.typing", "typing")))]
+    points: Option<&Bound<'_, PyAny>>,
+    #[gen_stub(override_type(type_repr = "typing.Literal['euclidean', 'manhattan', 'cityblock', 'chebyshev']", imports = ("typing")))]
+    metric: &str,
+    #[gen_stub(override_type(type_repr = "typing.Optional[typing.Union[numpy.typing.NDArray[numpy.floating], typing.Sequence[builtins.float]]]", imports = ("builtins", "numpy", "numpy.typing", "typing")))]
+    weights: Option<Vec<f64>>,
+    threshold: Option<f64>,
+) -> PyResult<Vec<(Bound<'py, pyo3::types::PyTuple>, f64)>> {
+    let threshold = match threshold {
+        None => INFINITY,
+        Some(t) => NotNan::new(t).map_err(|_| PyValueError::new_err("threshold must not be NaN"))?,
+    };
+    let metric = parse_metric(metric)?;
+    let input = match (distance_matrix, points) {
+        (Some(_), Some(_)) => return Err(PyValueError::new_err("Give either a distance matrix or points, not both")),
+        (None, None) => return Err(PyValueError::new_err("Give a distance matrix (the first argument) or points")),
+        (Some(matrix), None) if is_scipy_sparse(matrix) => Input::Sparse(read_sparse(matrix)?),
+        (Some(matrix), None) => Input::Dense(read_dense(matrix)?),
+        (None, Some(points)) => read_points(points, metric, threshold)?,
+    };
+    if let Some(weights) = &weights {
+        if weights.len() != input.n_points() || weights.iter().any(|w| !w.is_finite()) {
+            return Err(PyValueError::new_err(format!(
+                "Give one finite weight per point ({} points)",
+                input.n_points()
+            )));
+        }
+    }
+    let mut simplices = py.detach(|| {
+        fn all<D: Distances>(d: &D, dimension: usize, threshold: NotNan<f64>) -> Vec<(NotNan<f64>, Vec<u32>)> {
+            cliques_within(d, dimension, threshold, usize::MAX).expect("no budget")
+        }
+        let weighted = "the weights were checked";
+        match (&input, weights.as_deref()) {
+            (Input::Dense(d), None) => all(d, dimension, threshold),
+            (Input::Sparse(d), None) => all(d, dimension, threshold),
+            (Input::Dense(d), Some(w)) => all(&Weighted::new(d, w).expect(weighted), dimension, threshold),
+            (Input::Sparse(d), Some(w)) => all(&Weighted::new(d, w).expect(weighted), dimension, threshold),
+        }
+    });
+    simplices.sort_by(|(a, s), (b, t)| a.cmp(b).then(s.len().cmp(&t.len())).then(s.cmp(t)));
+    simplices
+        .into_iter()
+        .map(|(value, simplex)| Ok((pyo3::types::PyTuple::new(py, simplex)?, value.into_inner())))
+        .collect()
+}
+
 /// The simplices of the Rips complex of `input` (weighted by `weights`) up to dimension `max_dim + 1` and `threshold`
 /// (and the enclosing radius, past which nothing changes), or `None` if there are more than `budget`.
 fn list(
@@ -550,5 +626,6 @@ fn dtm(
 
 pub(crate) fn register(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(rips, m)?)?;
+    m.add_function(wrap_pyfunction!(rips_complex, m)?)?;
     m.add_function(wrap_pyfunction!(dtm, m)?)
 }

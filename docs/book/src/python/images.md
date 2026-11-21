@@ -12,3 +12,10 @@ options it fills in with its own defaults (the pipeline names are `images.<funct
 
 To compute persistence of a cubical complex you have built yourself (or any other filtered cell complex), use
 `phlite.complexes`, as the [image notebook](notebooks.md#an-image-phlitecomplexes) does.
+
+## The complex itself
+
+`phlite.images.cubical_complex(image)` lists the cubical complex as an explicit chain complex with its oriented
+boundary (coefficients ±1), as arrays for `phlite.complexes.ChainComplex.from_csc`, with each cell's value and
+coordinates: for your own computations, such as persistence over the integers (`modulus=0`: the barcode over Q and the
+primes of the torsion, see [explicit complexes](complexes.md#over-the-integers)).

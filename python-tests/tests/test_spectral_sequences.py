@@ -571,3 +571,31 @@ def test_integral_persistence_known():
     # from_simplices: signs make d∘d = 0, so modulus=0 is accepted; a missing face isn't
     with pytest.raises(ValueError, match="not listed"):
         ChainComplex.from_simplices([(0,), (0, 1)], modulus=0)
+
+
+def test_any_filtration_over_the_integers():
+    """The exporters bring other filtrations over Z: a cubical complex (images.cubical_complex) and a Rips complex
+    (clouds.rips_complex), whose barcodes over Q agree with the pipelines' over Z/2 when there's no 2-torsion."""
+    images = pytest.importorskip("phlite.images")
+    clouds = pytest.importorskip("phlite.clouds")
+    import numpy as np
+
+    rng = np.random.default_rng(1)
+
+    def as_lists(barcode, top):
+        return [sorted([tuple(x) for x in barcode.pairings[k]] + [(b, math.inf) for b in barcode.essential[k]]) for k in range(top)]
+
+    for _ in range(5):
+        image = rng.integers(0, 6, size=(5, 6)).astype(float)
+        c = images.cubical_complex(image)
+        chain = ChainComplex.from_csc(c["indptr"], c["indices"], c["dimensions"], data=c["coefficients"], modulus=0)
+        f = chain.filtration(c["values"])
+        assert 2 not in f.torsion()
+        assert [sorted(map(tuple, d.tolist())) for d in f.persistence().diagrams()][:2] == as_lists(images.cubical(image), 2)
+        assert c["coordinates"].shape == (len(c["values"]), 2)
+        points = rng.random((20, 2))
+        simplices = clouds.rips_complex(points=points, dimension=2, threshold=0.6)
+        g = ChainComplex.from_simplices([s for s, _ in simplices], modulus=0).filtration([v for _, v in simplices])
+        assert 2 not in g.torsion()
+        ours = [sorted(map(tuple, d.tolist())) for d in g.persistence().diagrams()][:2]
+        assert ours == as_lists(clouds.rips(points=points, max_dim=1, threshold=0.6), 2)

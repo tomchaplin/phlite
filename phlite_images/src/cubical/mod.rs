@@ -341,6 +341,40 @@ impl<const D: usize> CubicalComplex<D> {
         }
     }
 
+    /// Every cell of the complex (those that enter at a finite value, in order of number) as an explicit chain complex
+    /// with the oriented boundary (coefficients ±1, so right over the integers): each cell's dimension, its boundary
+    /// as CSC arrays (`indptr`, then faces as positions in this list, then their coefficients), its value in the sublevel
+    /// filtration (of the negated image, for superlevel sets), and its coordinates on the doubled grid.
+    #[allow(clippy::type_complexity)]
+    pub fn explicit(&self) -> (Vec<i64>, Vec<i64>, Vec<i64>, Vec<i64>, Vec<f64>, Vec<[u32; D]>) {
+        let Some(grid) = self.grid.as_ref() else {
+            return (vec![], vec![0], vec![], vec![], vec![], vec![]);
+        };
+        let n = grid.n_cells();
+        let mut position = vec![u32::MAX; n as usize];
+        let mut kept = vec![];
+        for c in 0..n {
+            if self.internal_value_of(Cube(c)) < f64::INFINITY {
+                position[c as usize] = kept.len() as u32;
+                kept.push(Cube(c));
+            }
+        }
+        let (mut dims, mut indptr, mut indices, mut coefficients, mut values, mut coordinates) =
+            (vec![], vec![0i64], vec![], vec![], vec![], vec![]);
+        for &cube in &kept {
+            let decoded = grid.decode(cube);
+            dims.push(grid.dimension(cube) as i64);
+            for face in grid.faces(&decoded) {
+                indices.push(i64::from(position[face.cube.0 as usize]));
+                coefficients.push(if face.negative { -1 } else { 1 });
+            }
+            indptr.push(indices.len() as i64);
+            values.push(self.internal_value(&decoded));
+            coordinates.push(decoded.coordinates());
+        }
+        (dims, indptr, indices, coefficients, values, coordinates)
+    }
+
     /// The value of the cell numbered `cube`, as [`internal_value`](Self::internal_value).
     #[inline]
     pub(crate) fn internal_value_of(&self, cube: Cube) -> f64 {

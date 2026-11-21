@@ -10,6 +10,7 @@ from phlite import core
 import typing
 __all__ = [
     "cubical",
+    "cubical_complex",
 ]
 
 def cubical(image: numpy.typing.ArrayLike, max_dim: typing.Optional[builtins.int] = None, *, construction: typing.Literal['T', 'V'] = "T", filtration: typing.Literal['sublevel', 'superlevel'] = "sublevel", method: typing.Literal['cohomology', 'homology'] = "cohomology", algorithm: typing.Optional[core.Algorithm] = None, representatives: builtins.bool = False) -> core.Barcode:
@@ -42,5 +43,28 @@ def cubical(image: numpy.typing.ArrayLike, max_dim: typing.Optional[builtins.int
         coordinates on the doubled grid, as GUDHI does, in the order of the image's axes: a coordinate is even where
         the cell sits at a vertex along that axis and odd where it spans an interval, so in the T-construction pixel
         `p` is the top cell `2 p + 1`, and in the V-construction the vertex `2 p`.
+    """
+
+def cubical_complex(image: numpy.typing.ArrayLike, *, construction: typing.Literal['T', 'V'] = "T", filtration: typing.Literal['sublevel', 'superlevel'] = "sublevel") -> dict[str, numpy.typing.NDArray[typing.Any]]:
+    r"""
+    The cubical complex of an image as an explicit chain complex, with the oriented boundary (coefficients ±1), for
+    your own computations: for instance over the integers,
+    
+    ```python
+    c = cubical_complex(image)
+    chain = ChainComplex.from_csc(c["indptr"], c["indices"], c["dimensions"], data=c["coefficients"], modulus=0)
+    filtered = chain.filtration(c["values"])     # then .persistence(), .torsion(), .spectral_sequence()
+    ```
+    
+    Args:
+        image: The pixel values, as for `cubical`.
+        construction: `'T'` or `'V'`, as for `cubical`.
+        filtration: `'sublevel'` or `'superlevel'`, as for `cubical`; for superlevel sets the values are those of the
+            negated image (so that they increase).
+    
+    Returns:
+        A dict of numpy arrays, one entry per cell that enters the filtration: `dimensions`, the boundary as `indptr`,
+        `indices` (faces as positions among the cells) and `coefficients`, `values` (sublevel), and `coordinates`
+        (each cell's coordinates on the doubled grid, as `cubical`'s cells).
     """
 

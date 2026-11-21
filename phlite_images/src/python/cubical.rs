@@ -186,6 +186,89 @@ impl AlgorithmVisitor for CubicalRun {
     }
 }
 
+/// The cubical complex of an image as an explicit chain complex, with the oriented boundary (coefficients ±1), for
+/// your own computations: for instance over the integers,
+///
+/// ```python
+/// c = cubical_complex(image)
+/// chain = ChainComplex.from_csc(c["indptr"], c["indices"], c["dimensions"], data=c["coefficients"], modulus=0)
+/// filtered = chain.filtration(c["values"])     # then .persistence(), .torsion(), .spectral_sequence()
+/// ```
+///
+/// Args:
+///     image: The pixel values, as for `cubical`.
+///     construction: `'T'` or `'V'`, as for `cubical`.
+///     filtration: `'sublevel'` or `'superlevel'`, as for `cubical`; for superlevel sets the values are those of the
+///         negated image (so that they increase).
+///
+/// Returns:
+///     A dict of numpy arrays, one entry per cell that enters the filtration: `dimensions`, the boundary as `indptr`,
+///     `indices` (faces as positions among the cells) and `coefficients`, `values` (sublevel), and `coordinates`
+///     (each cell's coordinates on the doubled grid, as `cubical`'s cells).
+#[gen_stub_pyfunction(module = "phlite.images")]
+#[gen_stub(override_return_type(type_repr = "dict[str, numpy.typing.NDArray[typing.Any]]", imports = ("numpy.typing", "typing")))]
+#[pyfunction]
+#[pyo3(signature = (image, *, construction = "T", filtration = "sublevel"))]
+fn cubical_complex<'py>(
+    py: Python<'py>,
+    #[gen_stub(override_type(type_repr = "numpy.typing.ArrayLike", imports = ("numpy.typing")))]
+    image: &Bound<'_, PyAny>,
+    #[gen_stub(override_type(type_repr = "typing.Literal['T', 'V']", imports = ("typing")))]
+    construction: &str,
+    #[gen_stub(override_type(type_repr = "typing.Literal['sublevel', 'superlevel']", imports = ("typing")))]
+    filtration: &str,
+) -> PyResult<Bound<'py, pyo3::types::PyDict>> {
+    use numpy::{IntoPyArray, PyArray2};
+    let construction = match construction {
+        "T" | "t" => Construction::T,
+        "V" | "v" => Construction::V,
+        other => return Err(PyValueError::new_err(format!("Unknown construction {other:?}: expected 'T' or 'V'"))),
+    };
+    let filtration = match filtration {
+        "sublevel" => Filtration::Sublevel,
+        "superlevel" => Filtration::Superlevel,
+        other => {
+            return Err(PyValueError::new_err(format!(
+                "Unknown filtration {other:?}: expected 'sublevel' or 'superlevel'"
+            )))
+        }
+    };
+    let (pixels, shape) = read_image(py, image)?;
+    let ndim = shape.len();
+    fn export<const D: usize>(
+        pixels: Vec<f64>,
+        shape: Vec<usize>,
+        construction: Construction,
+        filtration: Filtration,
+    ) -> Result<(Vec<i64>, Vec<i64>, Vec<i64>, Vec<i64>, Vec<f64>, Vec<u32>), String> {
+        let shape: [usize; D] = shape.try_into().expect("checked the number of axes");
+        let complex = CubicalComplex::new(pixels, shape, construction, filtration).map_err(|e| e.to_string())?;
+        let (d, p, i, c, v, coordinates) = complex.explicit();
+        Ok((d, p, i, c, v, coordinates.into_iter().flatten().collect()))
+    }
+    let (dims, indptr, indices, coefficients, values, coordinates) = py
+        .detach(|| match ndim {
+            1 => export::<1>(pixels, shape, construction, filtration),
+            2 => export::<2>(pixels, shape, construction, filtration),
+            3 => export::<3>(pixels, shape, construction, filtration),
+            4 => export::<4>(pixels, shape, construction, filtration),
+            _ => unreachable!("checked the number of axes"),
+        })
+        .map_err(PyValueError::new_err)?;
+    let n = dims.len();
+    let out = pyo3::types::PyDict::new(py);
+    out.set_item("dimensions", dims.into_pyarray(py))?;
+    out.set_item("indptr", indptr.into_pyarray(py))?;
+    out.set_item("indices", indices.into_pyarray(py))?;
+    out.set_item("coefficients", coefficients.into_pyarray(py))?;
+    out.set_item("values", values.into_pyarray(py))?;
+    let coordinates = numpy::ndarray::Array2::from_shape_vec((n, ndim), coordinates).expect("ndim per cell");
+    let coordinates: Bound<'_, PyArray2<u32>> = coordinates.into_pyarray(py);
+    out.set_item("coordinates", coordinates)?;
+    Ok(out)
+}
+
 pub(crate) fn register(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_function(wrap_pyfunction!(cubical, m)?)
+    m.add_function(wrap_pyfunction!(cubical, m)?)?;
+    m.add_function(wrap_pyfunction!(cubical_complex, m)?)
 }

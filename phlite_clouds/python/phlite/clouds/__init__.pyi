@@ -16,6 +16,7 @@ __all__ = [
     "delaunay_cech_complex",
     "dtm",
     "rips",
+    "rips_complex",
 ]
 
 def alpha(points: typing.Union[numpy.typing.NDArray[numpy.floating], typing.Sequence[typing.Sequence[builtins.float]]], max_dim: typing.Optional[builtins.int] = None, *, squared: builtins.bool = False, method: typing.Literal['cohomology', 'homology'] = "cohomology", algorithm: typing.Optional[core.Algorithm] = None, representatives: builtins.bool = False) -> core.Barcode:
@@ -181,5 +182,28 @@ def rips(distance_matrix: typing.Optional[typing.Union[numpy.typing.NDArray[nump
     
     Returns:
         The barcode, with dimensions `0, ..., max_dim`.
+    """
+
+def rips_complex(distance_matrix: typing.Optional[typing.Union[numpy.typing.NDArray[numpy.floating], typing.Sequence[typing.Sequence[builtins.float]], typing.Any]] = None, dimension: builtins.int = 2, *, points: typing.Optional[typing.Union[numpy.typing.NDArray[numpy.floating], typing.Sequence[typing.Sequence[builtins.float]]]] = None, metric: typing.Literal['euclidean', 'manhattan', 'cityblock', 'chebyshev'] = "euclidean", weights: typing.Optional[typing.Union[numpy.typing.NDArray[numpy.floating], typing.Sequence[builtins.float]]] = None, threshold: typing.Optional[builtins.float] = None) -> builtins.list[tuple[tuple[builtins.int, ...], builtins.float]]:
+    r"""
+    The Vietoris-Rips complex itself: every simplex of dimension at most `dimension` whose value (the largest distance
+    between its points, or with `weights`, as for `rips`) is at most `threshold`, with that value, in filtration order
+    (by value, then dimension). For drawing, or for your own computations: for instance over the integers, with
+    `phlite.complexes.ChainComplex.from_simplices(simplices, modulus=0)` (homology up to `dimension - 1`).
+    
+    Unlike `rips`, which stops at the enclosing radius (past which the complex is a cone), this lists every simplex
+    up to `threshold`, so give one for anything but small inputs.
+    
+    Args:
+        distance_matrix: The distances, as for `rips` (dense, or a scipy sparse matrix whose missing entries are
+            missing edges).
+        dimension: The largest dimension of a simplex.
+        points: Or the points, as for `rips`.
+        metric: The metric for `points`, as for `rips`.
+        weights: Vertex weights, as for `rips`.
+        threshold: The largest value listed (default: all).
+    
+    Returns:
+        A list of `(simplex, value)` pairs, each simplex a tuple of point indices in increasing order.
     """
 

@@ -12,3 +12,10 @@ Persistent homology of point clouds and distance matrices: the `phlite-clouds` p
 
 Every function returns a `phlite.core.Barcode`, and takes a [`phlite.core.Algorithm`](algorithms.md) whose unset
 options it fills in with its own defaults (the pipeline names are `clouds.<function>`, e.g. `clouds.rips`).
+
+## The complexes themselves
+
+`alpha_complex`, `delaunay_cech_complex` and `rips_complex` list the complexes as `(simplex, value)` pairs, for
+drawing or your own computations: `phlite.complexes.ChainComplex.from_simplices(simplices, modulus=0)` with the values
+gives their persistence over the integers (see [explicit complexes](complexes.md#over-the-integers)). Unlike `rips`,
+which stops at the enclosing radius, `rips_complex` lists every simplex up to its `threshold`.
