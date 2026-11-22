@@ -26,7 +26,7 @@ def _binary_filtration(kind: builtins.str, image: numpy.typing.NDArray[numpy.boo
     boolean image, as an array of its shape (unreached pixels `inf`). See `phlite.images.filtrations`.
     """
 
-def _video_zigzag(video: numpy.typing.ArrayLike, threshold: builtins.float, max_dim: builtins.int, construction: builtins.str, superlevel: builtins.bool, periodic: typing.Sequence[builtins.bool], algorithm: typing.Optional[typing.Any] = None) -> builtins.list[tuple[builtins.int, builtins.int, builtins.int]]:
+def _video_zigzag(video: numpy.typing.ArrayLike, threshold: builtins.float, max_dim: builtins.int, construction: builtins.str, superlevel: builtins.bool, periodic: typing.Sequence[builtins.bool], join: builtins.str = 'union', algorithm: typing.Optional[typing.Any] = None) -> builtins.list[tuple[builtins.int, builtins.int, builtins.int]]:
     r"""
     The zigzag barcode of a video (frames along the first axis) cut at `threshold`, as `(dimension, birth, death)` in
     levels (frame `i` at `2 i`). See `phlite.images.video_zigzag`, which calls this.

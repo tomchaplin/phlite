@@ -34,6 +34,9 @@ barcode.pairings[1]                                    # (birth, death) of the f
 * **Maps of point clouds**: `rips_six_pack` (a subset) and `rips_map_six_pack` (a map that never increases distances)
   give the barcodes of the image, kernel and cokernel of the induced maps of Rips filtrations, with the other three of
   the six-pack and representatives, lazily. [Book chapter.](https://phlite.tomchaplin.xyz/book/python/maps.html)
+* **Zigzags of point clouds** (`cloud_zigzag`, `sliding_windows`): sliding windows, moving points, or any frames of
+  labelled points, each frame's Rips (any metric or a distance matrix), Čech, alpha, Delaunay–Čech or witness complex
+  joined to the next by a union or an intersection, by Dey and Hou's FastZigzag. [Book chapter.](https://phlite.tomchaplin.xyz/book/python/zigzag.html)
 * **Every filtration exported** (`rips_complex`, `alpha_complex`, `delaunay_cech_complex`, `cech_complex`,
   `witness_complex`) as `(simplex, value)` pairs, for `phlite.complexes.FilteredComplex.from_simplices`: persistence
   over the integers, spectral sequences, six-packs of subcomplexes.

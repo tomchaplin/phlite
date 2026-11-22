@@ -38,7 +38,9 @@ barcode.representative(6)           # the cycle born at edge 6, as [(cell, coeff
 * **Maps** (`six_pack(subcomplex)`, `FilteredMap`): the six-pack of a map of filtrations (the barcodes of the domain,
   codomain, image, kernel, cokernel and mapping cone), with representatives, after Cohen-Steiner, Edelsbrunner, Harer
   and Morozov and [phimaker](https://github.com/tomchaplin/phimaker). [Book chapter.](https://phlite.tomchaplin.xyz/book/python/maps.html)
-* **Zigzag persistence** (`Zigzag`, `zigzag`), by Dey and Hou's FastZigzag. [Book chapter.](https://phlite.tomchaplin.xyz/book/python/zigzag.html)
+* **Zigzag persistence** (`Zigzag`, `zigzag`), by Dey and Hou's FastZigzag; in Rust, the trait
+  `zigzag::ZigzagComplex` makes any complex a term of a zigzag (`ComplexZigzag`, joined by unions or intersections),
+  which `phlite_clouds`, `phlite_networks` and `phlite_images` use for point clouds, networks and videos. [Book chapter.](https://phlite.tomchaplin.xyz/book/python/zigzag.html)
 * **Over the integers** (`modulus=0`): the barcode over Q and the primes of the torsion, found as Perseus finds them,
   and persistent groups. [Book chapter.](https://phlite.tomchaplin.xyz/book/python/integers.html)
 * **Spectral sequences** (`spectral_sequence`) of any filtration, over a field or Z, a page at a time, with groups,
@@ -72,6 +74,9 @@ Morozov and Nigmetov, as does [LoPHAT](https://github.com/tomchaplin/lophat).
   [book](https://phlite.tomchaplin.xyz/book/python/maps.html#performance).
 * **[Dionysus 2](https://mrzv.org/software/dionysus2/)** (zigzag persistence): identical barcodes, phlite 17–385×
   faster on sliding-window zigzags.
+* **[fzz](https://github.com/TDA-Jyamiti/fzz)** (Dey and Hou's FastZigzag, on PHAT): identical barcodes. Reducing by
+  cohomology, fzz (patched to reduce the dual) is 1.25–1.6× faster than phlite; as released it reduces by homology, as
+  slow as phlite by homology (minutes at 460k operations, against under a second).
 * **[Kenzo](https://github.com/miguelmarco/kenzo)** (spectral sequences over Z): identical pages, phlite 1–1000×
   faster.
 

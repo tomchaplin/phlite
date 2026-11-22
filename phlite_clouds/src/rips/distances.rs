@@ -525,9 +525,10 @@ pub fn distance_to_measure(n: usize, row: impl Fn(usize) -> Vec<f64>, k: usize, 
 // ====== Points ============================================================
 
 /// A metric on points in `R^d`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum Metric {
     /// The usual distance, `sqrt(sum (x_i - y_i)^2)`.
+    #[default]
     Euclidean,
     /// `sum |x_i - y_i|`.
     Manhattan,

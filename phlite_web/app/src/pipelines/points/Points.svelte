@@ -33,6 +33,8 @@
   type Filtration = 'rips' | 'dtm' | 'alpha' | 'cech' | 'sixpack' | 'zigzag';
   /** For the sliding-window zigzag: the number of consecutive points in a window. */
   let windowSize = $state(20);
+  /** For the zigzag: join consecutive windows by intersections rather than unions. */
+  let intersection = $state(false);
   let filtration = $state<Filtration>('rips');
   let dtmK = $state(10);
   const isDelaunay = $derived(filtration === 'alpha' || filtration === 'cech');
@@ -155,6 +157,7 @@
         threshold: thresholdValue,
         maxDim: Math.min(maxDim, 2),
         metric,
+        intersection,
       };
     }
     if (filtration === 'sixpack') {
@@ -341,11 +344,18 @@
         <label class="field"><span>Threshold</span><input type="text" placeholder="none (the enclosing radius)" bind:value={threshold} /></label>
         {#if filtration === 'zigzag'}
           <label class="field"><span>Window (points)</span><input type="range" min="2" max={Math.max(2, cloud.points.length)} bind:value={windowSize} /><span>{windowSize}</span></label>
+          <div class="field"><span>Join</span>
+            <div class="tools">
+              <button class:on={!intersection} onclick={() => (intersection = false)}>Unions</button>
+              <button class:on={intersection} onclick={() => (intersection = true)}>Intersections</button>
+            </div>
+          </div>
           <p class="note">
             <strong>Zigzag persistence</strong>: the Rips complexes, at the threshold's scale, of every window of
-            {windowSize} consecutive points (in the cloud's order), each included in the union with the next. A bar is a
+            {windowSize} consecutive points (in the cloud's order), each joined to the next by their
+            {intersection ? 'intersection (K₀ ← K₀ ∩ K₁ → K₁ …)' : 'union (K₀ → K₀ ∪ K₁ ← K₁ …)'}. A bar is a
             feature that persists from window to window; the axis counts windows. Computed by FastZigzag (Dey and Hou), as
-            <code>Zigzag.rips_windows</code>. Try the noisy circle: the loop lives while a window spans it.
+            <code>phlite.clouds.cloud_zigzag</code>. Try the noisy circle: the loop lives while a window spans it.
           </p>
         {/if}
         {#if filtration === 'sixpack'}

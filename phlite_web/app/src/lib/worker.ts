@@ -52,11 +52,11 @@ self.onmessage = async (event: MessageEvent<Message>) => {
         barcode = phlite.delaunay(job.coords, job.pointDim, job.cech, job.options);
         break;
       case 'rips-zigzag':
-        barcode = phlite.rips_zigzag(job.coords, job.pointDim, job.window, job.threshold, job.maxDim, job.metric);
+        barcode = phlite.rips_zigzag(job.coords, job.pointDim, job.window, job.threshold, job.maxDim, job.metric, job.intersection);
         break;
       case 'video-zigzag':
         barcode = phlite.video_zigzag(
-          job.pixels, job.width, job.height, job.nFrames, job.threshold, job.superlevel, job.construction, job.periodic,
+          job.pixels, job.width, job.height, job.nFrames, job.threshold, job.superlevel, job.construction, job.periodic, job.intersection,
         );
         break;
       case 'mpss':

@@ -5,6 +5,8 @@ from ._networks import *  # noqa: F403
 
 from . import magnitudes  # noqa: E402
 from .magnitudes import MagnitudeHomology  # noqa: E402
+from . import zigzags  # noqa: E402
+from .zigzags import network_zigzag  # noqa: E402
 
 
 def magnitude(graph, edges=None, /, l_max=None, *, k_max=None, pairs=None, modulus=None, by_pair=False, integral=False):
@@ -18,4 +20,4 @@ def magnitude(graph, edges=None, /, l_max=None, *, k_max=None, pairs=None, modul
 magnitude.__doc__ = _networks.magnitude.__doc__
 
 __doc__ = _networks.__doc__
-__all__ = [name for name in getattr(_networks, "__all__", []) if not name.startswith("_")] + ["MagnitudeHomology"]
+__all__ = [name for name in getattr(_networks, "__all__", []) if not name.startswith("_")] + ["MagnitudeHomology", "network_zigzag"]

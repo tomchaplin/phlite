@@ -37,6 +37,7 @@ def video_zigzag(
     construction: Literal["T", "V"] = "T",
     filtration: Literal["sublevel", "superlevel"] = "sublevel",
     periodic: Union[bool, Sequence[bool]] = False,
+    join: Literal["union", "intersection"] = "union",
     algorithm=None,
 ) -> ZigzagBarcode:
     """The zigzag barcode of a video, each frame cut at `threshold`.
@@ -51,11 +52,14 @@ def video_zigzag(
             `cubical`.
         filtration: `'sublevel'` (dark pixels) or `'superlevel'` (bright pixels).
         periodic: Whether the frames wrap round: `True` for every axis, or one bool per axis.
+        join: How consecutive frames are joined: `'union'` (`K_0 -> K_0 ∪ K_1 <- K_1 ...`: a feature lasts while it
+            overlaps itself from frame to frame) or `'intersection'` (`K_0 <- K_0 ∩ K_1 -> K_1 ...`: while what it
+            shares with the next frame carries it).
         algorithm: The reduction algorithm (a `phlite.core.Algorithm`), as for `cubical`.
 
     Returns:
-        A `phlite.core.ZigzagBarcode` over levels: frame `i` is level `2 i` and the union of frames `i` and `i + 1`
-        level `2 i + 1`. Each interval is the levels where its class is alive (both ends inclusive).
+        A `phlite.core.ZigzagBarcode` over levels: frame `i` is level `2 i` and the union (or intersection) of frames `i`
+        and `i + 1` level `2 i + 1`. Each interval is the levels where its class is alive (both ends inclusive).
     """
     frames = np.asarray(video if isinstance(video, np.ndarray) else np.stack([np.asarray(f) for f in video]), dtype=float)
     if frames.ndim < 2:
@@ -73,6 +77,7 @@ def video_zigzag(
     if max_dim is None:
         max_dim = axes if all(periodic) else axes - 1
     bars = _video_zigzag(
-        frames, float(threshold), max_dim, construction, filtration == "superlevel", periodic, algorithm=algorithm
+        frames, float(threshold), max_dim, construction, filtration == "superlevel", periodic, join=join,
+        algorithm=algorithm,
     )
     return ZigzagBarcode((ZigzagBar(d, b, e, True, True) for d, b, e in bars), 2 * frames.shape[0] - 1)

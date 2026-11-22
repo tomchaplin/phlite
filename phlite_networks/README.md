@@ -33,6 +33,7 @@ Every function takes a networkx graph or `(number of nodes, edge list)`, and `al
 | `dowker` | Dowker complexes (sink or source) | [Dowker](https://phlite.tomchaplin.xyz/book/python/networks/dowker.html) |
 | `flag` | flag (clique) complexes of undirected graphs, by edge weight, node values or shortest paths | [Flag](https://phlite.tomchaplin.xyz/book/python/networks/flag.html) |
 | `magnitude` | magnitude homology (Hepworth and Willerton [[4]](#4)) over Z/p or Z, with its torsion | [Magnitude](https://phlite.tomchaplin.xyz/book/python/networks/magnitude.html) |
+| `network_zigzag` | zigzag persistence of snapshots of a network (clique or directed flag complexes, joined by unions or intersections), by FastZigzag | [Zigzag](https://phlite.tomchaplin.xyz/book/python/zigzag.html) |
 | `magnitude_path_spectral_sequence` | the magnitude-path spectral sequence (Asao; Hepworth and Roff [[5]](#5)), a page at a time | [Magnitude](https://phlite.tomchaplin.xyz/book/python/networks/magnitude.html) |
 
 Extended persistence of a function on a graph's nodes is in `phlite.complexes`

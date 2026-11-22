@@ -4,31 +4,86 @@
 //! The unions are of the complexes, so a feature need only overlap itself (share a cell) from one frame to the next
 //! to keep its bar.
 //!
-//! Each frame's complex is [`crate::cubical::periodic::explicit_cubical`] (T- or V-construction, any axes periodic)
-//! cut at the threshold, cells keyed by their position on the doubled grid, so a cell present in consecutive frames is
-//! the same cell; the zigzag is computed by FastZigzag ([`phlite_complexes::zigzag`]) on phlite's reductions.
+//! Each frame's complex is a [`CubicalCut`]: [`crate::cubical::periodic::explicit_cubical`] (T- or V-construction,
+//! any axes periodic) cut at the threshold, a [`ZigzagComplex`] with cells keyed by their position on the doubled
+//! grid, so a cell present in consecutive frames is the same cell. The zigzag is a [`ComplexZigzag`], computed by
+//! FastZigzag ([`phlite_complexes::zigzag`]) on phlite's reductions. Frames can also be joined by intersections
+//! (`K_0 <- K_0 ∩ K_1 -> K_1 ...`, [`Join::Intersection`]), and any sequence of [`CubicalCut`]s (each frame at its
+//! own threshold, or slices of a volume) pushed onto a [`ComplexZigzag`] directly.
 
-use std::collections::{BTreeSet, HashMap};
+use std::collections::HashMap;
 
 use phlite::barcode::Algorithm;
 use phlite::columns::ColumnRepresentation;
-use phlite_complexes::zigzag::{zigzag_barcode, Operation, ZigzagError};
+use phlite_complexes::zigzag::{ComplexZigzag, Join, LevelBar, ZigzagComplex, ZigzagError};
 
-use crate::cubical::periodic::explicit_cubical;
+use crate::cubical::periodic::{explicit_cubical, ExplicitCubical};
 use crate::cubical::{Construction, Filtration};
 
-/// An interval of a video's zigzag barcode, in *levels*: frame `i` is level `2 i`, the union of frames `i` and `i + 1`
-/// level `2 i + 1`. The class is alive at every level from `birth` to `death` (inclusive).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct VideoBar {
-    pub dimension: usize,
-    pub birth: usize,
-    pub death: usize,
+/// An interval of a video's zigzag barcode, in levels: frame `i` is level `2 i`, the join of frames `i` and `i + 1`
+/// level `2 i + 1` (see [`LevelBar`]).
+pub type VideoBar = LevelBar;
+
+/// The cubical complex of an image (or volume) cut at a threshold, as a term of a zigzag ([`ZigzagComplex`]): cells
+/// keyed by their position on the doubled grid, so the same cube in two images of one shape is the same cell.
+#[derive(Debug, Clone)]
+pub struct CubicalCut {
+    complex: ExplicitCubical,
+    /// The cells kept (positions in `complex`)
+    kept: Vec<usize>,
+    /// Grid index to position in `complex`
+    position: HashMap<usize, usize>,
 }
 
-/// The zigzag barcode of a video: `frames` (each with `pixels_per_frame` pixels in C order of `shape`) cut at
-/// `threshold` (pixels at most `threshold` for sublevel sets, at least for superlevel ones), in dimensions up to
-/// `max_dim`.
+impl CubicalCut {
+    /// The cells of `pixels` (in C order of `shape`) with value at most `threshold` for sublevel sets, at least for
+    /// superlevel ones, by `construction`, with the `periodic` axes wrapped round.
+    ///
+    /// # Panics
+    /// If `pixels` doesn't fill `shape`, or the shape has more axes than [`crate::cubical::MAX_AXES`].
+    pub fn new(
+        pixels: &[f64],
+        shape: &[usize],
+        periodic: &[bool],
+        threshold: f64,
+        construction: Construction,
+        filtration: Filtration,
+    ) -> Self {
+        assert_eq!(pixels.len(), shape.iter().product::<usize>(), "the pixels fill the shape");
+        let cut = match filtration {
+            Filtration::Sublevel => threshold,
+            Filtration::Superlevel => -threshold,
+        };
+        let complex = explicit_cubical(pixels, shape, periodic, construction, filtration);
+        let kept: Vec<usize> = (0..complex.values.len()).filter(|&c| complex.values[c] <= cut).collect();
+        let position = kept.iter().map(|&c| (complex.grid[c], c)).collect();
+        Self { complex, kept, position }
+    }
+
+    /// The number of cells.
+    pub fn len(&self) -> usize {
+        self.kept.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.kept.is_empty()
+    }
+}
+
+impl ZigzagComplex for CubicalCut {
+    type Key = usize;
+    fn cells(&self) -> Vec<(usize, usize)> {
+        self.kept.iter().map(|&c| (self.complex.grid[c], self.complex.dimensions[c])).collect()
+    }
+    fn faces(&self, cell: &usize) -> Vec<usize> {
+        let c = self.position[cell];
+        let ExplicitCubical { faces, indptr, grid, .. } = &self.complex;
+        faces[indptr[c]..indptr[c + 1]].iter().map(|&(f, _)| grid[f]).collect()
+    }
+}
+
+/// The zigzag barcode of a video: `frames` (each a frame of `shape`, in C order) cut at `threshold` as cubical
+/// complexes ([`CubicalCut`]) joined frame to frame by `join`, in dimensions up to `max_dim`, in levels.
 ///
 /// # Errors
 /// If FastZigzag finds an impossible operation (it can't: each frame's cut is a subcomplex).
@@ -45,53 +100,18 @@ pub fn video_zigzag<R: ColumnRepresentation>(
     construction: Construction,
     filtration: Filtration,
     max_dim: usize,
+    join: Join,
     algorithm: Algorithm<'_, R>,
 ) -> Result<Vec<VideoBar>, ZigzagError> {
     let per_frame: usize = shape.iter().product();
     assert!(per_frame > 0 && frames.len().is_multiple_of(per_frame), "a whole number of frames");
-    let cut = match filtration {
-        Filtration::Sublevel => threshold,
-        Filtration::Superlevel => -threshold,
-    };
-    let mut ops: Vec<Operation<usize>> = vec![];
-    // The position of each level (frame i at 2i, unions between)
-    let mut levels: Vec<(usize, usize)> = vec![];
-    let mut current: BTreeSet<(usize, usize)> = BTreeSet::new(); // (dimension, grid index)
-    for (i, frame) in frames.chunks(per_frame).enumerate() {
-        let complex = explicit_cubical(frame, shape, periodic, construction, filtration);
-        let position: HashMap<usize, usize> = complex.grid.iter().enumerate().map(|(c, &g)| (g, c)).collect();
-        let next: BTreeSet<(usize, usize)> = (0..complex.values.len())
-            .filter(|&c| complex.values[c] <= cut)
-            .map(|c| (complex.dimensions[c], complex.grid[c]))
-            .collect();
-        // Insert what is new, faces first (by dimension)
-        for &(dimension, cell) in next.difference(&current) {
-            let c = position[&cell];
-            let faces: Vec<usize> =
-                complex.faces[complex.indptr[c]..complex.indptr[c + 1]].iter().map(|&(f, _)| complex.grid[f]).collect();
-            ops.push(Operation::Insert { cell, dimension, faces });
-        }
-        if i > 0 {
-            levels.push((2 * i - 1, ops.len()));
-        }
-        // Delete what is gone, cofaces first
-        for &(_, cell) in current.difference(&next).collect::<Vec<_>>().into_iter().rev() {
-            ops.push(Operation::Delete(cell));
-        }
-        levels.push((2 * i, ops.len()));
-        current = next;
+    let mut zigzag = ComplexZigzag::new(join);
+    for frame in frames.chunks(per_frame) {
+        zigzag.push(&CubicalCut::new(frame, shape, periodic, threshold, construction, filtration));
     }
-    let bars = zigzag_barcode(&ops, algorithm)?;
-    let mut out = vec![];
-    for bar in bars.into_iter().filter(|b| b.dimension <= max_dim) {
-        let mut inside = levels.iter().filter(|&&(_, p)| bar.birth <= p && p <= bar.death).map(|&(l, _)| l);
-        if let Some(birth) = inside.next() {
-            let death = inside.last().unwrap_or(birth);
-            out.push(VideoBar { dimension: bar.dimension, birth, death });
-        }
-    }
-    out.sort_unstable();
-    Ok(out)
+    let mut bars = zigzag.barcode(algorithm)?;
+    bars.retain(|b| b.dimension <= max_dim);
+    Ok(bars)
 }
 
 #[cfg(test)]
@@ -119,6 +139,7 @@ mod tests {
                 Construction::V,
                 Filtration::Sublevel,
                 1,
+                Join::Union,
                 Algorithm::Clearing(Clearing::new()),
             )
             .unwrap()

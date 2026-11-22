@@ -19,6 +19,7 @@
   let superlevel = $state(EXAMPLES[0].superlevel);
   let construction = $state<'T' | 'V'>('T');
   let periodic = $state(false);
+  let intersection = $state(false);
   const runner = new Runner();
   runner.t = 0;
 
@@ -74,6 +75,7 @@
     superlevel,
     construction,
     periodic,
+    intersection,
   });
   $effect(() => {
     const j = job;
@@ -160,12 +162,19 @@
           <button class:on={construction === 'V'} onclick={() => (construction = 'V')}>V: pixels as vertices</button>
         </div>
       </div>
+      <div class="field"><span>Join</span>
+        <div class="tools">
+          <button class:on={!intersection} onclick={() => (intersection = false)}>Unions</button>
+          <button class:on={intersection} onclick={() => (intersection = true)}>Intersections</button>
+        </div>
+      </div>
       <label class="field"><span>Periodic</span><input type="checkbox" bind:checked={periodic} /><span class="note">wrap the frames round (a torus)</span></label>
       <p class="note">
         <strong>Zigzag persistence</strong> of the video: each frame cut at the threshold is a cubical complex, and each is
-        joined to the next (K₀ → K₀ ∪ K₁ ← K₁ → …). A bar is a component (H₀) or a loop (H₁) followed from frame to
-        frame, for as long as it overlaps itself: merging ends a bar, splitting starts one. The axis counts frames (a bar
-        ending at i + 0.5 lasted into the union of frames i and i + 1). Computed by FastZigzag (Dey and Hou), as
+        joined to the next by their union (K₀ → K₀ ∪ K₁ ← K₁ → …) or their intersection (K₀ ← K₀ ∩ K₁ → K₁ → …).
+        A bar is a component (H₀) or a loop (H₁) followed from frame to frame, for as long as it overlaps itself (with
+        unions) or what it shares with the next frame carries it (with intersections): merging ends a bar, splitting
+        starts one. The axis counts frames (a bar ending at i + 0.5 lasted into the join of frames i and i + 1). Computed by FastZigzag (Dey and Hou), as
         <code>phlite.images.video_zigzag</code>.
       </p>
       <ComputeRow {runner} {job} />

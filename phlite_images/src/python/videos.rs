@@ -9,12 +9,13 @@ use phlite_bindings::{algorithm_from_py, AlgorithmVisitor};
 use super::cubical::{read_image, DEFAULTS};
 use crate::cubical::{Construction, Filtration};
 use crate::zigzag::{video_zigzag, VideoBar};
+use phlite_complexes::zigzag::Join;
 
 /// The zigzag barcode of a video (frames along the first axis) cut at `threshold`, as `(dimension, birth, death)` in
 /// levels (frame `i` at `2 i`). See `phlite.images.video_zigzag`, which calls this.
 #[gen_stub_pyfunction(module = "phlite.images")]
 #[pyfunction]
-#[pyo3(signature = (video, threshold, max_dim, construction, superlevel, periodic, algorithm = None))]
+#[pyo3(signature = (video, threshold, max_dim, construction, superlevel, periodic, join = "union", algorithm = None))]
 #[allow(clippy::too_many_arguments)]
 fn _video_zigzag(
     py: Python<'_>,
@@ -24,6 +25,7 @@ fn _video_zigzag(
     construction: &str,
     superlevel: bool,
     periodic: Vec<bool>,
+    join: &str,
     #[gen_stub(override_type(type_repr = "typing.Optional[typing.Any]", imports = ("typing")))] algorithm: Option<Bound<'_, PyAny>>,
 ) -> PyResult<Vec<(usize, usize, usize)>> {
     let construction = match construction {
@@ -31,6 +33,7 @@ fn _video_zigzag(
         "V" | "v" => Construction::V,
         other => return Err(PyValueError::new_err(format!("Unknown construction {other:?}: expected 'T' or 'V'"))),
     };
+    let join = parse_join(join)?;
     let filtration = if superlevel { Filtration::Superlevel } else { Filtration::Sublevel };
     let (pixels, shape) = read_image(py, video)?;
     if shape.len() < 2 {
@@ -41,7 +44,7 @@ fn _video_zigzag(
         return Err(PyValueError::new_err("periodic needs one entry per axis of a frame"));
     }
     let algorithm = algorithm_from_py(algorithm.as_ref(), &DEFAULTS)?;
-    let run = Run { pixels, shape: frame_shape, periodic, threshold, construction, filtration, max_dim };
+    let run = Run { pixels, shape: frame_shape, periodic, threshold, construction, filtration, max_dim, join };
     let bars = py.detach(|| algorithm.run(run))?.map_err(|e| PyValueError::new_err(e.to_string()))?;
     Ok(bars.into_iter().map(|b| (b.dimension, b.birth, b.death)).collect())
 }
@@ -54,6 +57,16 @@ struct Run {
     construction: Construction,
     filtration: Filtration,
     max_dim: usize,
+    join: Join,
+}
+
+/// `"union"` or `"intersection"`.
+pub(crate) fn parse_join(join: &str) -> PyResult<Join> {
+    match join {
+        "union" => Ok(Join::Union),
+        "intersection" => Ok(Join::Intersection),
+        other => Err(PyValueError::new_err(format!("Unknown join {other:?}: expected 'union' or 'intersection'"))),
+    }
 }
 
 impl AlgorithmVisitor for Run {
@@ -68,6 +81,7 @@ impl AlgorithmVisitor for Run {
             self.construction,
             self.filtration,
             self.max_dim,
+            self.join,
             algorithm,
         )
     }

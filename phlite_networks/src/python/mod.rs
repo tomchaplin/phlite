@@ -13,12 +13,13 @@ mod graph;
 mod grpph;
 mod magnitude;
 mod pph;
+mod zigzag;
 
 const DOC: &str = "Persistent homology of networks. Of weighted digraphs: `grpph` (grounded persistent path homology), \
                    `pph` (persistent path homology), `directed_flag` (directed flag complexes, as flagser, grounded or \
                    not), `ordered_tuples` (Turner's directed Rips) and `dowker` (Dowker sink and source complexes). Of \
                    undirected graphs: `flag` (flag complexes, by edge weights, node values or shortest paths). And `magnitude`, the \
-                   magnitude homology of a digraph.";
+                   magnitude homology of a digraph. And `network_zigzag`, zigzag persistence of networks that change.";
 pyo3_stub_gen::module_doc!("phlite.networks", "{}", DOC);
 
 /// This package's pipelines, registered with `phlite.core` on import.
@@ -30,6 +31,7 @@ const PIPELINES: &[AlgorithmDefaults] = &[
     complexes::DOWKER_DEFAULTS,
     flag::DEFAULTS,
     flag::IMPLICIT_DEFAULTS,
+    zigzag::DEFAULTS,
 ];
 
 #[pymodule(gil_used = false)]
@@ -43,6 +45,7 @@ fn _networks(m: &Bound<'_, PyModule>) -> PyResult<()> {
         complexes::register(m)?;
         flag::register(m)?;
         magnitude::register(m)?;
+        zigzag::register(m)?;
         Ok(())
     })?;
     Ok(())

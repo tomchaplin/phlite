@@ -131,6 +131,8 @@ export type Job =
       threshold: number;
       maxDim: number;
       metric: Metric;
+      /** Join consecutive windows by intersections rather than unions. */
+      intersection: boolean;
     }
   | {
       /** Zigzag persistence of a video's frames cut at a threshold. */
@@ -143,6 +145,8 @@ export type Job =
       superlevel: boolean;
       construction: 'T' | 'V';
       periodic: boolean;
+      /** Join consecutive frames by intersections rather than unions. */
+      intersection: boolean;
     }
   | { pipeline: 'mpss'; n: number; sources: Uint32Array; targets: Uint32Array; lMax: number; modulus: number; rMax: number }
   | { pipeline: 'magnitude'; n: number; sources: Uint32Array; targets: Uint32Array; lMax: number; integral: boolean }

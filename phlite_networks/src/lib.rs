@@ -35,6 +35,7 @@ pub mod mpss;
 pub mod pph;
 pub mod simplex;
 pub mod undirected;
+pub mod zigzag;
 #[cfg(feature = "python")]
 mod python;
 

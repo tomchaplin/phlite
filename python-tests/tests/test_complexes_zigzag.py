@@ -206,19 +206,19 @@ def closure(simplices):
     return {f for s in simplices for k in range(1, len(s) + 1) for f in itertools.combinations(sorted(s), k)}
 
 
-@given(st.integers(0, 10**9))
+@given(st.integers(0, 10**9), st.sampled_from(["union", "intersection"]))
 @settings(deadline=None, max_examples=100)
-def test_from_complexes_levels(seed):
-    """Zigzag.from_complexes: at each level, the Betti numbers are those of K_i (even levels) or K_i ∪ K_{i+1} (odd),
-    and over each arrow the intervals spanning it number the rank of the map."""
+def test_from_complexes_levels(seed, join):
+    """Zigzag.from_complexes: at each level, the Betti numbers are those of K_i (even levels) or K_i ∪ K_{i+1}
+    (K_i ∩ K_{i+1}) (odd), and over each arrow the intervals spanning it number the rank of the map."""
     rng = random.Random(seed)
     ks = [closure([tuple(rng.sample(range(5), rng.randint(1, 3))) for _ in range(rng.randint(1, 5))])
           for _ in range(rng.randint(1, 5))]
     note(ks)
     levels = [ks[0]]
     for a, b in zip(ks, ks[1:]):
-        levels += [a | b, b]
-    barcode = Zigzag.from_complexes(ks).barcode(levels=True)
+        levels += [a | b if join == "union" else a & b, b]
+    barcode = Zigzag.from_complexes(ks, join=join).barcode(levels=True)
     assert barcode.n_positions == len(levels)
     everything = sorted(set().union(*levels), key=lambda s: (len(s), s))
     index = {s: i for i, s in enumerate(everything)}
@@ -226,7 +226,7 @@ def test_from_complexes_levels(seed):
         for i, k in enumerate(levels):
             assert barcode.rank(i, p) == map_rank(k, k, p, index), (p, i)
         for i in range(len(levels) - 1):
-            small, big = (levels[i], levels[i + 1]) if i % 2 == 0 else (levels[i + 1], levels[i])
+            small, big = (levels[i], levels[i + 1]) if (i % 2 == 0) == (join == "union") else (levels[i + 1], levels[i])
             spanning = sum(1 for b in barcode.in_dimension(p) if b.birth <= i and i + 1 <= b.death)
             assert spanning == map_rank(small, big, p, index), (p, i)
 

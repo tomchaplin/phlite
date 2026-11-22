@@ -14,6 +14,7 @@
 pub mod alpha;
 pub mod cech;
 pub mod witness;
+pub mod zigzag;
 pub mod error;
 pub mod rips;
 

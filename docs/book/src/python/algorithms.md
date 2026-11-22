@@ -62,6 +62,7 @@ keeps the bars' values but not which simplices are paired), which Vietoris–Rip
 | `clouds.alpha` | `phlite.clouds.alpha` | `'pivot'` | `False` | `True` | `'merged'` | `False` | — | — |
 | `clouds.delaunay_cech` | `phlite.clouds.delaunay_cech` | `'pivot'` | `False` | `True` | `'merged'` | `False` | — | — |
 | `clouds.cech` | `phlite.clouds.cech` | `'pivot'` | `False` | `True` | `'merged'` | `False` | — | — |
+| `clouds.cloud_zigzag` | `phlite.clouds.cloud_zigzag` | `'pivot'` | `False` | `True` | `'merged'` | `False` | — | — |
 | `clouds.witness` | `phlite.clouds.witness` | `'pivot'` | `False` | `True` | `'merged'` | `False` | — | — |
 | `networks.grpph` | `phlite.networks.grpph` | `'merged'` | `True` | `False` | `'merged'` | `True` | — | — |
 | `networks.pph` | `phlite.networks.pph` | `'merged'` | `True` | `False` | `'merged'` | `True` | — | — |
@@ -70,6 +71,7 @@ keeps the bars' values but not which simplices are paired), which Vietoris–Rip
 | `networks.dowker` | `phlite.networks.dowker` | `'merged'` | `True` | `False` | `'merged'` | `True` | `True` | — |
 | `networks.flag` | `phlite.networks.flag` | `'pivot'` | `False` | `True` | `'merged'` | `False` | — | — |
 | `networks.flag_implicit` | `phlite.networks.flag` | `'heap'` | `False` | `False` | `'heap'` | `False` | `True` | `True` |
+| `networks.network_zigzag` | `phlite.networks.network_zigzag` | `'pivot'` | `False` | `True` | `'merged'` | `False` | — | — |
 | `images.cubical` | `phlite.images.cubical` | `'merged'` | `False` | `True` | `'merged'` | `False` | `True` | — |
 <!-- defaults:end -->
 

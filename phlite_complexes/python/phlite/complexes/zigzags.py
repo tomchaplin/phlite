@@ -137,29 +137,41 @@ class Zigzag:
         else:
             self._current.discard(simplex)
 
-    def move_to(self, simplices: Iterable[Sequence[int]]) -> "Zigzag":
-        """Go to the complex `simplices` (closed under faces): through the union with the current one, inserting what
-        is new (faces first), then deleting what is gone (cofaces first)."""
+    def move_to(self, simplices: Iterable[Sequence[int]], *, join: str = "union") -> "Zigzag":
+        """Go to the complex `simplices` (closed under faces): through the union with the current one (`join='union'`:
+        inserting what is new, faces first, then deleting what is gone, cofaces first), or through the intersection
+        (`join='intersection'`: deleting first, then inserting)."""
+        if join not in ("union", "intersection"):
+            raise ValueError(f"join must be 'union' or 'intersection', got {join!r}")
         target = {_canonical(s) for s in simplices}
         missing = [s for s in target for f in _all_faces(s) if f not in target]
         if missing:
             raise ValueError(f"not a complex: {missing[0]} is missing a face")
-        self.insert(*sorted(target - self._current, key=lambda s: (len(s), s)))
-        union = self.position
-        self.delete(*sorted(self._current - target, key=lambda s: (-len(s), s)))
+        new = sorted(target - self._current, key=lambda s: (len(s), s))
+        gone = sorted(self._current - target, key=lambda s: (-len(s), s))
+        if join == "union":
+            self.insert(*new)
+            middle = self.position
+            self.delete(*gone)
+        else:
+            self.delete(*gone)
+            middle = self.position
+            self.insert(*new)
         if self._levels:
-            self._levels.append((self._levels[-1][0] + 1, union))
+            self._levels.append((self._levels[-1][0] + 1, middle))
         self._levels.append((len(self._levels), self.position))
         return self
 
     @classmethod
-    def from_complexes(cls, complexes: Iterable[Iterable[Sequence[int]]]) -> "Zigzag":
+    def from_complexes(cls, complexes: Iterable[Iterable[Sequence[int]]], *, join: str = "union") -> "Zigzag":
         """The zigzag `K_0 -> K_0 ∪ K_1 <- K_1 -> K_1 ∪ K_2 <- ...` of simplicial complexes (each a collection of
-        simplices, closed under faces), cell by cell. `barcode(levels=True)` gives intervals in levels: `K_i` at
-        `2 i`, `K_i ∪ K_{i+1}` at `2 i + 1`."""
+        simplices, closed under faces), cell by cell; with `join='intersection'`, `K_0 <- K_0 ∩ K_1 -> K_1 <- ...`.
+        `barcode(levels=True)` gives intervals in levels: `K_i` at `2 i`, the join of `K_i` and `K_{i+1}` at
+        `2 i + 1`. (For point clouds and networks, `phlite.clouds.cloud_zigzag` and `phlite.networks.network_zigzag`
+        build the complexes in Rust.)"""
         zz = cls()
         for complex_ in complexes:
-            zz.move_to(complex_)
+            zz.move_to(complex_, join=join)
         return zz
 
     @classmethod

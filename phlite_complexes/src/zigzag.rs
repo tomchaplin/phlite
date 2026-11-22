@@ -20,8 +20,33 @@
 //!
 //! Over Z/2. A birth at `b` is closed if `K_{b-1} -> K_b` is an insertion (open if a deletion); a death at `d` is closed
 //! if `K_d <- K_{d+1}` is a deletion (open if an insertion).
+//!
+//! # Zigzags of complexes
+//!
+//! Most zigzags are sequences of complexes `K_0, K_1, ..., K_s` (windows of a point cloud, frames of a video,
+//! snapshots of a network), joined either by unions `K_0 -> K_0 ∪ K_1 <- K_1 -> ...` or by intersections
+//! `K_0 <- K_0 ∩ K_1 -> K_1 <- ...`. Anything implementing [`ZigzagComplex`] (its cells, named by keys that are the
+//! same from one complex to the next, and their faces) can be pushed onto a [`ComplexZigzag`], which works out the
+//! operations and reads the barcode back in *levels* ([`LevelBar`]: `K_i` at level `2 i`, the join of `K_i` and
+//! `K_{i+1}` at `2 i + 1`). Implemented here for simplicial complexes ([`SimplicialComplex`], and sets of vertex
+//! lists, sorted or not, so directed flag complexes too); `phlite_clouds`, `phlite_networks` and `phlite_images` build
+//! their complexes (Rips, Čech, alpha, witness; clique and directed flag complexes; cubical complexes of images) as
+//! these or implement the trait.
+//!
+//! ```
+//! use phlite::barcode::Algorithm;
+//! use phlite::reduction::Clearing;
+//! use phlite_complexes::zigzag::{ComplexZigzag, Join, LevelBar, SimplicialComplex};
+//!
+//! // Two edges of a triangle, then the other two: the loop needs the union of both
+//! let a = SimplicialComplex::from_maximal([vec![0, 1], vec![1, 2]]);
+//! let b = SimplicialComplex::from_maximal([vec![1, 2], vec![0, 2]]);
+//! let bars = ComplexZigzag::new(Join::Union).push(&a).push(&b).barcode(Algorithm::Clearing(Clearing::new()))?;
+//! assert!(bars.contains(&LevelBar { dimension: 1, birth: 1, death: 1 }));
+//! # Ok::<(), phlite_complexes::zigzag::ZigzagError>(())
+//! ```
 
-use std::collections::HashMap;
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::hash::Hash;
 
 use phlite::barcode::{Algorithm, Method};
@@ -219,4 +244,367 @@ pub fn zigzag_barcode_with<K: Hash + Eq + Clone, R: ColumnRepresentation>(
         out.push(interval);
     }
     Ok(out)
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Zigzags of complexes
+
+/// A finite cell complex that can be a term of a zigzag: its cells, each named by a key that names the same cell in
+/// every complex of the zigzag (the vertices of a simplex, the position of a cube on the grid), with their dimensions
+/// and faces. Only which faces a cell has matters (FastZigzag is over Z/2).
+pub trait ZigzagComplex {
+    type Key: Hash + Ord + Clone;
+
+    /// Every cell, with its dimension, in any order.
+    fn cells(&self) -> Vec<(Self::Key, usize)>;
+
+    /// The faces of a cell of the complex (the cells of one dimension less in its boundary), each in the complex.
+    fn faces(&self, cell: &Self::Key) -> Vec<Self::Key>;
+}
+
+/// The facets of a simplex given by its vertices: the simplex without each vertex in turn (none for a vertex).
+/// The vertices needn't be sorted: an ordered simplex (of a directed flag complex) has ordered facets.
+pub fn simplex_facets<V: Clone>(simplex: &[V]) -> Vec<Vec<V>> {
+    if simplex.len() < 2 {
+        return vec![];
+    }
+    (0..simplex.len())
+        .map(|i| simplex.iter().enumerate().filter(|&(j, _)| j != i).map(|(_, v)| v.clone()).collect())
+        .collect()
+}
+
+/// A simplicial complex as the set of its simplices, each a list of vertices: sorted for an ordinary simplicial
+/// complex, or ordered (each a directed clique, `x_i -> x_j` for `i < j`) for a directed flag complex, whose facets
+/// keep the order. Every facet of a simplex must be in the set ([`SimplicialComplex::from_maximal`] adds them).
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct SimplicialComplex<V: Ord> {
+    pub simplices: BTreeSet<Vec<V>>,
+}
+
+impl<V: Ord + Clone> SimplicialComplex<V> {
+    /// The simplices given, which must include every face of each.
+    pub fn new(simplices: impl IntoIterator<Item = Vec<V>>) -> Self {
+        Self { simplices: simplices.into_iter().collect() }
+    }
+
+    /// The simplices given and all their faces (keeping the order of each simplex's vertices).
+    pub fn from_maximal(simplices: impl IntoIterator<Item = Vec<V>>) -> Self {
+        let mut all = BTreeSet::new();
+        let mut stack: Vec<Vec<V>> = simplices.into_iter().filter(|s| !s.is_empty()).collect();
+        while let Some(s) = stack.pop() {
+            if !all.contains(&s) {
+                stack.extend(simplex_facets(&s));
+                all.insert(s);
+            }
+        }
+        Self { simplices: all }
+    }
+
+    /// The simplices of a filtration (value, vertices) with value at most `threshold`: a sublevel set, as listed by
+    /// `phlite_clouds`' Rips, Čech, alpha and witness complexes.
+    pub fn sublevel<T: PartialOrd>(simplices: impl IntoIterator<Item = (T, Vec<V>)>, threshold: T) -> Self {
+        Self::new(simplices.into_iter().filter(|(value, _)| *value <= threshold).map(|(_, s)| s))
+    }
+
+    /// The complex with each vertex renamed by `name` (e.g. from indices into a window to indices into the whole
+    /// point cloud), the order of each simplex's vertices kept.
+    pub fn relabel<W: Ord + Clone>(&self, name: impl Fn(&V) -> W) -> SimplicialComplex<W> {
+        SimplicialComplex::new(self.simplices.iter().map(|s| s.iter().map(&name).collect()))
+    }
+
+    pub fn len(&self) -> usize {
+        self.simplices.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.simplices.is_empty()
+    }
+}
+
+impl<V: Ord + Hash + Clone> ZigzagComplex for SimplicialComplex<V> {
+    type Key = Vec<V>;
+    fn cells(&self) -> Vec<(Vec<V>, usize)> {
+        self.simplices.iter().map(|s| (s.clone(), s.len() - 1)).collect()
+    }
+    fn faces(&self, cell: &Vec<V>) -> Vec<Vec<V>> {
+        simplex_facets(cell)
+    }
+}
+
+impl<V: Ord + Hash + Clone> ZigzagComplex for BTreeSet<Vec<V>> {
+    type Key = Vec<V>;
+    fn cells(&self) -> Vec<(Vec<V>, usize)> {
+        self.iter().map(|s| (s.clone(), s.len() - 1)).collect()
+    }
+    fn faces(&self, cell: &Vec<V>) -> Vec<Vec<V>> {
+        simplex_facets(cell)
+    }
+}
+
+/// How consecutive complexes of a [`ComplexZigzag`] are joined.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+pub enum Join {
+    /// `K_i -> K_i ∪ K_{i+1} <- K_{i+1}`: a feature lasts while it overlaps itself from one complex to the next.
+    #[default]
+    Union,
+    /// `K_i <- K_i ∩ K_{i+1} -> K_{i+1}`: a feature lasts while its common part with the next complex carries it.
+    Intersection,
+}
+
+/// An interval of the zigzag barcode of a sequence of complexes, in *levels*: complex `i` is level `2 i`, the join of
+/// complexes `i` and `i + 1` level `2 i + 1`. The class is alive at every level from `birth` to `death` (inclusive);
+/// one alive in the last complex has `death == 2 (s - 1)` for `s` complexes.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct LevelBar {
+    pub dimension: usize,
+    pub birth: usize,
+    pub death: usize,
+}
+
+/// A zigzag of complexes, built a complex at a time: each [`push`](Self::push) moves from the last complex, through
+/// its join with the new one, to the new one, inserting cells faces first and deleting them cofaces first.
+#[derive(Debug, Clone)]
+pub struct ComplexZigzag<K: Ord> {
+    join: Join,
+    operations: Vec<Operation<K>>,
+    /// The number of operations done at each level
+    levels: Vec<usize>,
+    /// (dimension, key) of the cells now there
+    current: BTreeSet<(usize, K)>,
+}
+
+impl<K: Hash + Ord + Clone> ComplexZigzag<K> {
+    pub fn new(join: Join) -> Self {
+        Self { join, operations: vec![], levels: vec![], current: BTreeSet::new() }
+    }
+
+    /// The zigzag of `complexes`, joined by `join`.
+    pub fn of<'a, C: ZigzagComplex<Key = K> + ?Sized + 'a>(join: Join, complexes: impl IntoIterator<Item = &'a C>) -> Self {
+        let mut zigzag = Self::new(join);
+        for complex in complexes {
+            zigzag.push(complex);
+        }
+        zigzag
+    }
+
+    /// Append a complex (its join with the last first, unless it is the first).
+    pub fn push<C: ZigzagComplex<Key = K> + ?Sized>(&mut self, complex: &C) -> &mut Self {
+        let next: BTreeMap<K, usize> = complex.cells().into_iter().collect();
+        let next_set: BTreeSet<(usize, K)> = next.iter().map(|(k, &d)| (d, k.clone())).collect();
+        let first = self.levels.is_empty();
+        let insert = |ops: &mut Vec<Operation<K>>, current: &BTreeSet<(usize, K)>| {
+            for (dimension, cell) in next_set.difference(current) {
+                ops.push(Operation::Insert { cell: cell.clone(), dimension: *dimension, faces: complex.faces(cell) });
+            }
+        };
+        let delete = |ops: &mut Vec<Operation<K>>, current: &BTreeSet<(usize, K)>| {
+            for (_, cell) in current.difference(&next_set).collect::<Vec<_>>().into_iter().rev() {
+                ops.push(Operation::Delete(cell.clone()));
+            }
+        };
+        match self.join {
+            Join::Union => {
+                insert(&mut self.operations, &self.current);
+                if !first {
+                    self.levels.push(self.operations.len());
+                }
+                delete(&mut self.operations, &self.current);
+            }
+            Join::Intersection => {
+                delete(&mut self.operations, &self.current);
+                if !first {
+                    self.levels.push(self.operations.len());
+                }
+                insert(&mut self.operations, &self.current);
+            }
+        }
+        self.levels.push(self.operations.len());
+        self.current = next_set;
+        self
+    }
+
+    /// The number of complexes pushed.
+    pub fn n_complexes(&self) -> usize {
+        self.levels.len().div_ceil(2)
+    }
+
+    pub fn join(&self) -> Join {
+        self.join
+    }
+
+    /// The cell-wise zigzag: what [`zigzag_barcode`] takes.
+    pub fn operations(&self) -> &[Operation<K>] {
+        &self.operations
+    }
+
+    /// The number of operations done by each level (level `l` is the complex after `levels()[l]` operations).
+    pub fn levels(&self) -> &[usize] {
+        &self.levels
+    }
+
+    /// The barcode, in levels, by cohomology with union-find (see [`zigzag_barcode`]).
+    ///
+    /// # Errors
+    /// If a complex isn't closed under faces ([`ZigzagError::MissingFace`]).
+    pub fn barcode<R: ColumnRepresentation>(&self, algorithm: Algorithm<'_, R>) -> Result<Vec<LevelBar>, ZigzagError> {
+        self.barcode_with(Method::Cohomology, algorithm, true)
+    }
+
+    /// The barcode, in levels, reducing by `method` (see [`zigzag_barcode_with`]). Sorted.
+    ///
+    /// # Errors
+    /// If a complex isn't closed under faces ([`ZigzagError::MissingFace`]).
+    pub fn barcode_with<R: ColumnRepresentation>(
+        &self,
+        method: Method,
+        algorithm: Algorithm<'_, R>,
+        union_find: bool,
+    ) -> Result<Vec<LevelBar>, ZigzagError> {
+        let bars = zigzag_barcode_with(&self.operations, method, algorithm, union_find)?;
+        let mut out: Vec<LevelBar> = bars.into_iter().filter_map(|bar| to_levels(&self.levels, &bar)).collect();
+        out.sort_unstable();
+        Ok(out)
+    }
+}
+
+impl<K: Hash + Ord + Clone> Default for ComplexZigzag<K> {
+    fn default() -> Self {
+        Self::new(Join::default())
+    }
+}
+
+/// An interval over positions (`K_p` after `p` operations) as one over levels (`levels[l]` the position of level
+/// `l`, non-decreasing): the levels whose complexes it is alive in, if any.
+pub fn to_levels(levels: &[usize], bar: &ZigzagBar) -> Option<LevelBar> {
+    let first = levels.partition_point(|&p| p < bar.birth);
+    let last = levels.partition_point(|&p| p <= bar.death);
+    (first < last).then(|| LevelBar { dimension: bar.dimension, birth: first, death: last - 1 })
+}
+
+#[cfg(test)]
+mod complex_tests {
+    use super::*;
+    use phlite::reduction::Clearing;
+
+    fn bars(join: Join, complexes: &[SimplicialComplex<u32>]) -> Vec<LevelBar> {
+        ComplexZigzag::of(join, complexes).barcode(Algorithm::Clearing(Clearing::new())).unwrap()
+    }
+
+    /// Ranks of homology at each level, from bars, match those computed directly
+    fn betti(bars: &[LevelBar], level: usize, dim: usize) -> usize {
+        bars.iter().filter(|b| b.dimension == dim && b.birth <= level && level <= b.death).count()
+    }
+
+    #[test]
+    fn union_and_intersection() {
+        // A path 0-1-2 then 1-2-0: union is the triangle's boundary (a loop at level 1), intersection the edge 1-2
+        // and the vertex 0 (a second component at level 1)
+        let a = SimplicialComplex::from_maximal([vec![0, 1], vec![1, 2]]);
+        let b = SimplicialComplex::from_maximal([vec![1, 2], vec![0, 2]]);
+        let u = bars(Join::Union, &[a.clone(), b.clone()]);
+        assert_eq!(u, vec![LevelBar { dimension: 0, birth: 0, death: 2 }, LevelBar { dimension: 1, birth: 1, death: 1 }]);
+        let i = bars(Join::Intersection, &[a, b]);
+        assert_eq!(i, vec![LevelBar { dimension: 0, birth: 0, death: 2 }, LevelBar { dimension: 0, birth: 1, death: 1 }]);
+        // Two components joined only through the union
+        let c = SimplicialComplex::from_maximal([vec![0], vec![5]]);
+        let d = SimplicialComplex::from_maximal([vec![0, 5]]);
+        let u = bars(Join::Union, &[c.clone(), d.clone(), c.clone()]);
+        assert_eq!(betti(&u, 0, 0), 2);
+        assert_eq!(betti(&u, 2, 0), 1);
+        assert_eq!(betti(&u, 4, 0), 2);
+        // Intersection: c ∩ d = c
+        let i = bars(Join::Intersection, &[c.clone(), d, c]);
+        assert_eq!(betti(&i, 1, 0), 2);
+        assert_eq!(betti(&i, 2, 0), 1);
+    }
+
+    #[test]
+    fn directed_flag_simplices_keep_order() {
+        // Ordered simplices (0,1,2) and (2,1,0) are different cells
+        let a = SimplicialComplex::from_maximal([vec![0u32, 1, 2]]);
+        assert!(a.simplices.contains(&vec![0, 2]) && !a.simplices.contains(&vec![2, 0]));
+        let b = SimplicialComplex::from_maximal([vec![2u32, 1, 0]]);
+        let u = bars(Join::Union, &[a, b]);
+        // Union: two filled triangles on the same three vertices, sharing only vertices: H1 of rank 2 at level 1
+        assert_eq!(betti(&u, 1, 1), 2);
+        assert_eq!(betti(&u, 0, 1), 0);
+    }
+
+    /// Random sequences of complexes: Betti numbers of every level and ranks of every map against direct computation
+    #[test]
+    fn random_sequences_betti() {
+        let mut seed = 12345u64;
+        let mut rand = move || {
+            seed ^= seed << 13;
+            seed ^= seed >> 7;
+            seed ^= seed << 17;
+            seed
+        };
+        for _ in 0..200 {
+            let n_complexes = 2 + (rand() % 4) as usize;
+            let complexes: Vec<SimplicialComplex<u32>> = (0..n_complexes)
+                .map(|_| {
+                    let k = 1 + rand() % 6;
+                    SimplicialComplex::from_maximal((0..k).map(|_| {
+                        let size = 1 + rand() % 3;
+                        let mut s: Vec<u32> = (0..size).map(|_| (rand() % 6) as u32).collect();
+                        s.sort_unstable();
+                        s.dedup();
+                        s
+                    }))
+                })
+                .collect();
+            for join in [Join::Union, Join::Intersection] {
+                let b = bars(join, &complexes);
+                for (i, c) in complexes.iter().enumerate() {
+                    for dim in 0..3 {
+                        assert_eq!(betti(&b, 2 * i, dim), direct_betti(&c.simplices, dim), "{join:?} {complexes:?}");
+                    }
+                    if i + 1 < complexes.len() {
+                        let joined: BTreeSet<Vec<u32>> = match join {
+                            Join::Union => c.simplices.union(&complexes[i + 1].simplices).cloned().collect(),
+                            Join::Intersection => c.simplices.intersection(&complexes[i + 1].simplices).cloned().collect(),
+                        };
+                        for dim in 0..3 {
+                            assert_eq!(betti(&b, 2 * i + 1, dim), direct_betti(&joined, dim));
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /// Betti number over Z/2 by Gaussian elimination
+    fn direct_betti(simplices: &BTreeSet<Vec<u32>>, dim: usize) -> usize {
+        let rank = |d: usize| -> usize {
+            // rank of the boundary from dimension d to d - 1
+            if d == 0 {
+                return 0;
+            }
+            let rows: Vec<&Vec<u32>> = simplices.iter().filter(|s| s.len() == d).collect();
+            let index: HashMap<&Vec<u32>, usize> = rows.iter().enumerate().map(|(i, s)| (*s, i)).collect();
+            let mut cols: Vec<BTreeSet<usize>> = simplices
+                .iter()
+                .filter(|s| s.len() == d + 1)
+                .map(|s| simplex_facets(s).iter().map(|f| index[f]).collect())
+                .collect();
+            let mut pivots: HashMap<usize, usize> = HashMap::new();
+            let mut r = 0;
+            for j in 0..cols.len() {
+                while let Some(&low) = cols[j].iter().next_back() {
+                    if let Some(&k) = pivots.get(&low) {
+                        let other = cols[k].clone();
+                        cols[j] = cols[j].symmetric_difference(&other).copied().collect();
+                    } else {
+                        pivots.insert(low, j);
+                        r += 1;
+                        break;
+                    }
+                }
+            }
+            r
+        };
+        let n = simplices.iter().filter(|s| s.len() == dim + 1).count();
+        n - rank(dim) - rank(dim + 1)
+    }
 }

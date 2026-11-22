@@ -31,15 +31,45 @@ zz = Zigzag.from_complexes([window_0, window_1, window_2])
 zz.barcode(levels=True)      # intervals over levels: K_i at 2i, K_i ∪ K_{i+1} at 2i + 1
 ```
 
-For videos, `phlite.images.video_zigzag(frames, threshold)` is the zigzag of the frames' cubical complexes (see
-[images](images.md#videos-zigzag-persistence)). For a point cloud, `Zigzag.rips_windows(points, windows, threshold)` is the zigzag of the Rips complexes (at the scale
-`threshold`) of windows of its points: give the windows as lists of point indices, or an int `w` for windows of `w`
-consecutive points sliding by one, as along a time series:
+### Zigzags of point clouds, networks and images
+
+Most zigzags are a sequence of complexes `K_0, K_1, ..., K_s` (windows of a time series, frames of a video, snapshots
+of a network), each joined to the next by their **union** `K_0 -> K_0 ∪ K_1 <- K_1 -> ...` (the default: a feature
+lasts while it overlaps itself from one complex to the next) or their **intersection** `K_0 <- K_0 ∩ K_1 -> K_1 <- ...`
+(`join="intersection"`: while what it shares with the next complex carries it). Each package builds the complexes in
+Rust and returns a `ZigzagBarcode` over *levels*: `K_i` at level `2 i`, the join of `K_i` and `K_{i+1}` at `2 i + 1`.
 
 ```python
-barcode = Zigzag.rips_windows(points, 30, threshold=0.4).barcode(levels=True)   # window i at level 2i
-barcode.betti_curve(1)[::2]      # the first Betti number of each window's Rips complex
+from phlite.clouds import cloud_zigzag, sliding_windows
+from phlite.networks import network_zigzag
+from phlite.images import video_zigzag
+
+# Point clouds: Rips (any metric, or a distance matrix), Čech, alpha, Delaunay–Čech or witness complexes
+bars = cloud_zigzag(sliding_windows(points, 30), threshold=0.4)            # windows of a time series
+bars = cloud_zigzag([positions[t] for t in range(T)], 0.2, filtration="alpha", join="intersection")  # moving points
+bars = cloud_zigzag([[0, 1, 2], [1, 2, 3]], 0.5, distances=D)              # frames as labels into a distance matrix
+
+# Networks on shared nodes: clique complexes, or directed flag complexes (directed cliques, as flagser)
+bars = network_zigzag([G_monday, G_tuesday, G_wednesday])                  # networkx graphs, or edge lists
+bars = network_zigzag(digraphs, complex="directed_flag")
+
+# Videos: each frame cut at a threshold, as a cubical complex (T- or V-construction, periodic or not)
+bars = video_zigzag(frames, threshold=0.5, join="intersection")
+
+bars.betti_curve(1)[::2]      # the first Betti number of each frame's complex
 ```
+
+A frame of a point-cloud zigzag is an `(n, d)` array (its points labelled `0, ..., n - 1`, so the same points moving)
+or a `(labels, points)` pair, as `sliding_windows` gives: points are matched from frame to frame by label. See
+[images](images.md#videos-zigzag-persistence) for videos. For complexes you build yourself,
+`Zigzag.from_complexes(complexes, join=...)` does the same in Python, and `Zigzag.rips_windows(points, windows,
+threshold)` is the Rips case.
+
+**Path homology** has no zigzag: its chains, the ∂-invariant paths `Ω(G)`, have no basis of cells, and `Ω` doesn't
+respect unions (`Ω(G ∪ H)` can be bigger than `Ω(G) + Ω(H)`), so FastZigzag's reduction (which rests on
+Mayer–Vietoris diamonds of subcomplexes) doesn't apply. The directed flag complex is its nearest cellular relative.
+
+### Cell by cell
 
 `phlite.complexes.zigzag(operations)` takes the operations directly, as `(simplex, insert)` pairs; or, for cells of
 any kind (cubes, cells of a CW complex, ...), as `(cell, insert, faces)` triples, with any hashable cells and each
@@ -74,7 +104,31 @@ twice the zigzag's length. Zigzags that don't end empty are emptied (cofaces fir
 deletions are cut at the last position.
 
 In Rust, `phlite_complexes::zigzag::zigzag_barcode` takes `Operation`s on cells of any hashable type, with their faces,
-and an `Algorithm`.
+and an `Algorithm`. Above it, the trait `ZigzagComplex` is what can be a term of a zigzag: a complex that lists its
+cells (each with a key naming it in every complex, and its dimension) and each cell's faces. `ComplexZigzag` takes
+complexes one at a time (`push`), joined by `Join::Union` or `Join::Intersection`, works out the operations (inserting
+faces first, deleting cofaces first) and gives the barcode in levels (`LevelBar`). Implementations:
+
+| complex | crate | key |
+|---|---|---|
+| `SimplicialComplex<V>`, `BTreeSet<Vec<V>>` (sorted simplices, or ordered ones for directed flag complexes) | `phlite_complexes::zigzag` | the vertices |
+| `CubicalCut` (an image or volume cut at a threshold, T or V, periodic or not) | `phlite_images::zigzag` | position on the doubled grid |
+| point clouds: any `PointFiltration` (`Rips`, `RipsDistances`, `Cech`, `Alpha`, `DelaunayCech`, `WitnessFiltration`, or a closure) cut at a threshold, by `cloud_zigzag` | `phlite_clouds::zigzag` | the points' labels |
+| networks: `network_complex` (clique or directed flag) of each `Snapshot`, by `network_zigzag` | `phlite_networks::zigzag` | the nodes' labels |
+
+A new kind of complex needs only `cells` and `faces`:
+
+```rust
+use phlite_complexes::zigzag::{ComplexZigzag, Join, ZigzagComplex};
+
+impl ZigzagComplex for MyComplex {
+    type Key = MyCell;                                  // Hash + Ord + Clone, the same cell in every complex
+    fn cells(&self) -> Vec<(MyCell, usize)> { ... }     // every cell and its dimension
+    fn faces(&self, cell: &MyCell) -> Vec<MyCell> { ... }
+}
+
+let bars = ComplexZigzag::of(Join::Union, &complexes).barcode(Algorithm::default())?;
+```
 
 ## Checked against
 
@@ -83,9 +137,15 @@ and an `Algorithm`.
   (thousands of cases each).
 * **Linear algebra**: at every position the intervals containing it number the Betti numbers of `K_i`, and over every
   run of insertions (or deletions) the intervals spanning it number the rank of the map; with insertions only, the
-  barcode is ordinary persistence's. For `from_complexes`, the same at every level and over every arrow.
+  barcode is ordinary persistence's. For `from_complexes`, the same at every level and over every arrow, joined by
+  unions and by intersections (and in Rust, `ComplexZigzag` on random sequences of complexes).
+* **The Rust builders against the Python one**: `cloud_zigzag` (Rips, Čech, alpha, Delaunay–Čech; unions and
+  intersections) and `network_zigzag` (clique complexes) give the barcodes of `Zigzag.from_complexes` on the same
+  complexes listed by `rips_complex`, `cech_complex`, `alpha_complex`, ...; `video_zigzag`'s frames have their own
+  cubical complexes' Betti numbers.
 
-`python-tests/tests/test_complexes_zigzag.py`.
+`python-tests/tests/test_complexes_zigzag.py`, `python-tests/tests/test_clouds_networks_zigzag.py`,
+`python-tests/tests/test_images_video_zigzag.py`.
 
 ## Performance
 
