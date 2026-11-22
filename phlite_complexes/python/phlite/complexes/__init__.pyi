@@ -575,7 +575,7 @@ class FilteredMap:
         """
     def __repr__(self) -> builtins.str: ...
 
-def _zigzag(operations: typing.Iterable[tuple[typing.Sequence[builtins.int], builtins.bool]], *, algorithm: typing.Optional[core.Algorithm] = None) -> builtins.list[tuple[builtins.int, builtins.int, builtins.int, builtins.bool, builtins.bool]]:
+def _zigzag(operations: typing.Iterable[typing.Union[tuple[typing.Sequence[builtins.int], builtins.bool], tuple[typing.Any, builtins.bool, typing.Sequence[typing.Any]]]], *, algorithm: typing.Optional[core.Algorithm] = None) -> builtins.list[tuple[builtins.int, builtins.int, builtins.int, builtins.bool, builtins.bool]]:
     r"""
     The engine behind `phlite.complexes.zigzag` and `Zigzag` (which return a `ZigzagBarcode`): the intervals as tuples.
     
@@ -592,7 +592,9 @@ def _zigzag(operations: typing.Iterable[tuple[typing.Sequence[builtins.int], bui
     Args:
         operations: The operations, in order, as `(simplex, insert)` pairs: a simplex as a sequence of integer vertices
             and `True` to insert it (its faces must be there), `False` to delete it (its cofaces must be gone). A simplex
-            may be inserted again after being deleted.
+            may be inserted again after being deleted. Or, for cells of any kind (cubes, ...), `(cell, insert, faces)`
+            triples: any hashable cells, each inserted with its faces (cells inserted before; none for a vertex), the
+            dimension following from them, over Z/2.
         algorithm: The reduction algorithm, as for `FilteredComplex.persistence`.
     
     Returns:

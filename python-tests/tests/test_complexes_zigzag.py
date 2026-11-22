@@ -252,3 +252,17 @@ def test_rips_windows():
         index = {s: j for j, s in enumerate(everything)}
         for p in range(2):
             assert barcode.rank(2 * i, p) == map_rank(simplices, simplices, p, index), (i, p)
+
+
+def test_cells_of_any_kind():
+    """(cell, insert, faces) triples: a square made of four corners and four sides, as named cells, has the barcode of
+    the same zigzag on simplices."""
+    named = [("a", True, []), ("b", True, []), ("c", True, []), ("d", True, []),
+             ("ab", True, ["a", "b"]), ("bc", True, ["b", "c"]), ("cd", True, ["c", "d"]), ("da", True, ["d", "a"]),
+             ("bc", False), ("bc", True, ["b", "c"])]
+    simplicial = [((0,), True), ((1,), True), ((2,), True), ((3,), True), ((0, 1), True), ((1, 2), True),
+                  ((2, 3), True), ((0, 3), True), ((1, 2), False), ((1, 2), True)]
+    assert zigzag(named) == zigzag(simplicial)
+    assert [b for b in zigzag(named) if b.dimension == 1] == [ZigzagBar(1, 8, 8, True, True), ZigzagBar(1, 10, 10, True, True)]
+    with pytest.raises(ValueError, match="never inserted"):
+        zigzag([("e", True, ["x"])])

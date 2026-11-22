@@ -23,7 +23,9 @@ use crate::zigzag::{zigzag_barcode, Operation, ZigzagBar, ZigzagError};
 /// Args:
 ///     operations: The operations, in order, as `(simplex, insert)` pairs: a simplex as a sequence of integer vertices
 ///         and `True` to insert it (its faces must be there), `False` to delete it (its cofaces must be gone). A simplex
-///         may be inserted again after being deleted.
+///         may be inserted again after being deleted. Or, for cells of any kind (cubes, ...), `(cell, insert, faces)`
+///         triples: any hashable cells, each inserted with its faces (cells inserted before; none for a vertex), the
+///         dimension following from them, over Z/2.
 ///     algorithm: The reduction algorithm, as for `FilteredComplex.persistence`.
 ///
 /// Returns:
@@ -39,13 +41,67 @@ use crate::zigzag::{zigzag_barcode, Operation, ZigzagBar, ZigzagError};
 #[allow(clippy::type_complexity)]
 pub(crate) fn zigzag(
     py: Python<'_>,
-    #[gen_stub(override_type(type_repr = "typing.Iterable[tuple[typing.Sequence[builtins.int], builtins.bool]]", imports = ("builtins", "typing")))]
+    #[gen_stub(override_type(type_repr = "typing.Iterable[typing.Union[tuple[typing.Sequence[builtins.int], builtins.bool], tuple[typing.Any, builtins.bool, typing.Sequence[typing.Any]]]]", imports = ("builtins", "typing")))]
     operations: &Bound<'_, PyAny>,
     #[gen_stub(override_type(type_repr = "typing.Optional[core.Algorithm]", imports = ("typing", "phlite.core")))]
     algorithm: Option<Bound<'_, PyAny>>,
 ) -> PyResult<Vec<(usize, usize, usize, bool, bool)>> {
+    let items: Vec<Bound<'_, PyAny>> = operations.try_iter()?.collect::<PyResult<_>>()?;
+    // Cells of any kind, with their faces: (cell, insert, faces) triples
+    if items.iter().any(|item| item.len().is_ok_and(|n| n == 3)) {
+        let ids = pyo3::types::PyDict::new(py);
+        let mut dimension_of: Vec<usize> = vec![];
+        let mut ops: Vec<Operation<u32>> = vec![];
+        for item in &items {
+            let cell = item.get_item(0)?;
+            let insert: bool = item.get_item(1)?.extract()?;
+            let id = match ids.get_item(&cell)? {
+                Some(id) => id.extract::<u32>()?,
+                None => {
+                    let id = dimension_of.len() as u32;
+                    ids.set_item(&cell, id)?;
+                    dimension_of.push(0);
+                    id
+                }
+            };
+            if !insert {
+                ops.push(Operation::Delete(id));
+                continue;
+            }
+            let faces: Vec<u32> = if item.len()? == 3 {
+                item.get_item(2)?
+                    .try_iter()?
+                    .map(|face| {
+                        let face = face?;
+                        ids.get_item(&face)?.ok_or_else(|| {
+                            PyValueError::new_err(format!("a face of {cell} ({face}) was never inserted"))
+                        })?
+                        .extract::<u32>()
+                    })
+                    .collect::<PyResult<_>>()?
+            } else {
+                vec![]
+            };
+            let dims: std::collections::BTreeSet<usize> = faces.iter().map(|&f| dimension_of[f as usize]).collect();
+            if dims.len() > 1 {
+                return Err(PyValueError::new_err(format!("the faces of {cell} have different dimensions")));
+            }
+            let dimension = dims.first().map_or(0, |d| d + 1);
+            dimension_of[id as usize] = dimension;
+            ops.push(Operation::Insert { cell: id, dimension, faces });
+        }
+        let algorithm = algorithm_from_py(algorithm.as_ref(), &DEFAULTS)?;
+        let bars = py
+            .detach(|| algorithm.run(Run { operations: &ops }))?
+            .map_err(|e: ZigzagError| PyValueError::new_err(e.to_string()))?;
+        let mut out: Vec<_> =
+            bars.into_iter().map(|b: ZigzagBar| (b.dimension, b.birth, b.death, b.birth_closed, b.death_closed)).collect();
+        out.sort_unstable();
+        return Ok(out);
+    }
     let mut ops: Vec<Operation<Vec<i64>>> = vec![];
-    for item in operations.try_iter()? {
+    for item in items {
+        let item = Ok::<_, PyErr>(item);
         let (simplex, insert): (Vec<i64>, bool) = item?.extract()?;
         let mut simplex = simplex;
         simplex.sort_unstable();
@@ -75,11 +131,11 @@ pub(crate) fn zigzag(
     Ok(out)
 }
 
-struct Run<'a> {
-    operations: &'a [Operation<Vec<i64>>],
+struct Run<'a, K> {
+    operations: &'a [Operation<K>],
 }
 
-impl AlgorithmVisitor for Run<'_> {
+impl<K: std::hash::Hash + Eq + Clone + Send + Sync> AlgorithmVisitor for Run<'_, K> {
     type Output = Result<Vec<ZigzagBar>, ZigzagError>;
 
     fn visit<R: ColumnRepresentation>(self, algorithm: Algorithm<'_, R>) -> Self::Output {

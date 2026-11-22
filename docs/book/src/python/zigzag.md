@@ -40,7 +40,13 @@ barcode = Zigzag.rips_windows(points, 30, threshold=0.4).barcode(levels=True)   
 barcode.betti_curve(1)[::2]      # the first Betti number of each window's Rips complex
 ```
 
-`phlite.complexes.zigzag(operations)` takes the operations directly, as `(simplex, insert)` pairs.
+`phlite.complexes.zigzag(operations)` takes the operations directly, as `(simplex, insert)` pairs; or, for cells of
+any kind (cubes, cells of a CW complex, ...), as `(cell, insert, faces)` triples, with any hashable cells and each
+cell's faces listed when it is inserted (over Z/2 only the faces matter, not orientations):
+
+```python
+zigzag([("a", True, []), ("b", True, []), ("ab", True, ["a", "b"]), ("ab", False)])
+```
 
 **Positions.** A cell-wise zigzag `K_0 <-> K_1 <-> ... <-> K_m` starts from the empty complex `K_0`, and `K_{i+1}` is
 the result of operation `i`. An interval `ZigzagBar(dimension, birth, death, birth_closed, death_closed)` is homology
