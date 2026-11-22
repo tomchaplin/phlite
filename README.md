@@ -114,7 +114,8 @@ Almost every technique in phlite comes from other software, and we are grateful 
 * **Cohen-Steiner, Edelsbrunner, Harer and Morozov** [[14]](#14) and **[phimaker](https://github.com/tomchaplin/phimaker)**:
   the image, kernel and cokernel reductions behind phlite's six-packs.
 * **Dey and Hou's FastZigzag** [[15]](#15): zigzag persistence as ordinary persistence of a coned up-down filtration;
-  tested against [Dionysus](https://mrzv.org/software/dionysus2/) (Morozov).
+  tested and benchmarked against their [fzz](https://github.com/TDA-Jyamiti/fzz) and
+  [Dionysus](https://mrzv.org/software/dionysus2/) (Morozov).
 * **[Kenzo](https://github.com/miguelmarco/kenzo)** (Romero, Rubio and Sergeraert) [[16]](#16): spectral sequences over
   the integers, which phlite's are tested against (as against
   [spectral-sequence-engine](https://pypi.org/project/spectral-sequence-engine/) and

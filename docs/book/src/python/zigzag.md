@@ -78,8 +78,9 @@ and an `Algorithm`.
 
 ## Checked against
 
-* **Dionysus 2** (`zigzag_homology_persistence`), on random zigzags with simplices inserted again after deletion:
-  identical barcodes.
+* **Dey and Hou's FastZigzag** (`fzz`, the C++ reference implementation) and **Dionysus 2**
+  (`zigzag_homology_persistence`), on random zigzags with simplices inserted again after deletion: identical barcodes
+  (thousands of cases each).
 * **Linear algebra**: at every position the intervals containing it number the Betti numbers of `K_i`, and over every
   run of insertions (or deletions) the intervals spanning it number the rank of the map; with insertions only, the
   barcode is ordinary persistence's. For `from_complexes`, the same at every level and over every arrow.
@@ -89,14 +90,25 @@ and an `Algorithm`.
 ## Performance
 
 Sliding windows of Rips complexes (points on a noisy circle arriving one at a time, each new point bringing its
-simplices with the window's points and the oldest point leaving with its simplices), against Dionysus 2 (its
-`zigzag_homology_persistence`, phlite's `zigzag` from the operations, best of three):
+simplices with the window's points and the oldest point leaving with its simplices), against Dey and Hou's own
+FastZigzag (`fzz`, C++ on PHAT, timing its computation only, not reading the file) and Dionysus 2
+(`zigzag_homology_persistence`); phlite's `zigzag` from the operations, best of three:
 
-| zigzag | operations | intervals | phlite | Dionysus 2 | agree |
-|---|---:|---:|---:|---:|:-:|
-| sliding Rips, 300 points, window 20 | 6611 | 3350 | 3.5 ms | 60.1 ms | ✓ |
-| sliding Rips, 1000 points, window 30 | 126182 | 63316 | 144.9 ms | 12.18 s | ✓ |
-| sliding Rips, 5000 points, window 40 | 1674242 | 839034 | 4.94 s | 1900.53 s | ✓ |
+Each reduction is run both ways, by cohomology and by homology: phlite's `method=` option, and fzz as released
+(homology, PHAT's twist reduction) and patched to reduce the dual (`compute_persistence_pairs_dualized`, cohomology).
 
-phlite's time grows about linearly with the number of operations, Dionysus's faster than that: 17× faster on the
-smallest zigzag, 84× at 126 thousand operations and 385× at 1.7 million (4.9 s against 32 minutes).
+| zigzag | operations | intervals | phlite (cohomology) | fzz (cohomology) | phlite (homology) | fzz (homology) | Dionysus 2 |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| sliding Rips, 300 points, window 20 | 6,611 | 3,350 | 4.5 ms | 2.3 ms | 4.6 ms | 1.5 ms | 62 ms |
+| sliding Rips, 1000 points, window 30 | 126,182 | 63,316 | 158 ms | 99 ms | 631 ms | 458 ms | 13.3 s |
+| sliding Rips, 2000 points, window 35 | 461,837 | 231,291 | 0.88 s | 0.66 s | 321 s | 324 s | — |
+| sliding Rips, 5000 points, window 40 | 1,674,242 | 839,034 | 4.9 s | 3.9 s | > 10 min | > 10 min | 32 min |
+
+Every barcode is identical. What matters is the direction of the reduction, not the implementation: by cohomology
+(with clearing) both take about a second for half a million operations, by homology both take five minutes. Reducing
+the coned filtration by homology fills in long columns (each cone over a deleted simplex is born late and bounds
+everything in its link), which cohomology avoids. Like for like, fzz is 1.25 to 1.6 times faster than phlite: phlite
+takes the operations from Python and builds a general explicit complex (about 30 per cent of its time at 126k
+operations). Union-find in dimension 0 makes no measurable difference here (158 ms with, 156 ms without:
+`union_find=False`). phlite reduces by cohomology by default; fzz as released by homology.
+(`perf-results/maps-zigzag-2026-11-22.md`.)

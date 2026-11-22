@@ -21,3 +21,17 @@
 | sliding Rips, 300 points, window 20 | 6611 | 3350 | 3.5 ms | 60.1 ms | ✓ |
 | sliding Rips, 1000 points, window 30 | 126182 | 63316 | 144.9 ms | 12.18 s | ✓ |
 | sliding Rips, 5000 points, window 40 | 1674242 | 839034 | 4.94 s | 1900.53 s | ✓ |
+
+## Zigzag: phlite against FastZigzag (fzz), by cohomology and by homology
+
+fzz as released reduces by homology (PHAT twist); "fzz (cohomology)" is fzz patched to call
+`compute_persistence_pairs_dualized<twist_reduction>`. fzz timed on its computation only. 10-minute cap.
+
+| zigzag | operations | phlite coh. | fzz coh. | phlite hom. | fzz hom. | agree |
+|---|---:|---:|---:|---:|---:|:-:|
+| sliding Rips, 300 points, window 20 | 6611 | 4.5 ms | 2.3 ms | 4.6 ms | 1.5 ms | ✓ |
+| sliding Rips, 1000 points, window 30 | 126182 | 157.5 ms | 98.8 ms | 630.8 ms | 458.1 ms | ✓ |
+| sliding Rips, 2000 points, window 35 | 461837 | 876.5 ms | 656.2 ms | 320.85 s | 324.48 s | ✓ |
+| sliding Rips, 5000 points, window 40 | 1674242 | 4.91 s | 3.94 s | > 10 min | > 10 min | ✓ (coh.) |
+
+Union-find in dimension 0 (phlite, cohomology, 126k operations): 158 ms with, 156 ms without.
