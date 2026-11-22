@@ -23,6 +23,11 @@ helpers their bindings use. You don't usually install it yourself: `pip install 
   dimension, their representatives if asked for, and the algorithm that computed it.
 * **`ExtendedBarcode`**, what extended persistence returns: ordinary, relative and extended diagrams, as GUDHI gives
   them.
+* **`SixPack`**, what the maps of every package return (`FilteredComplex.six_pack`, `FilteredMap.six_pack`,
+  `clouds.rips_six_pack`, ...): the barcodes of the domain, codomain, image, kernel, cokernel and relative homology of
+  a map, each a `PackBarcode` of `PackBar`s with representatives, with `ranks(t, dim)` and `plot()`.
+* **`SpectralSequence`**, the spectral sequence of a filtration, driven a page at a time (`next()`, `page(r)`,
+  `infinity()`), with groups, generators and differentials, tables, HTML and `plot()`.
 
 ## For developers of the bindings
 
@@ -33,7 +38,7 @@ through Python with the helpers here:
 * a pipeline reads an `Algorithm` as plain data (`Algorithm._spec()`) with `algorithm_from_py`, filling in its own
   `AlgorithmDefaults`;
 * `SortedBars::into_python` builds a `Barcode` through its private constructor `Barcode._from_parts`, recording the
-  algorithm that ran (and `extended_into_python` an `ExtendedBarcode`);
+  algorithm that ran (and `extended_into_python` an `ExtendedBarcode`, `six_pack_into_python` a `SixPack`);
 * `init_package`, called when a package's module is initialised, checks that `phlite-core` has the package's own
   version (every phlite package is released in lockstep) and registers its pipelines' defaults.
 
