@@ -42,7 +42,23 @@ an error, never a wrong answer.
 `persistent_group(dim, start, end)` is the image of `H_dim(K_start)` in `H_dim(K_end)` as `(rank, torsion)`, and the
 [spectral sequence](spectral.md) of the filtration gives its pages as groups, with generators. Both are exact quotients
 of lattices, by integer elimination and Smith normal forms, on the cells of the window of steps an entry depends on:
-fine up to a few thousand cells per degree.
+fine up to a few thousand cells per degree. Persistent groups are computed on the complex shrunk first by eliminating
+pairs of cells (a face and a coface with incidence `±1`) that enter at the same step, as Perseus does: by Mischaikow
+and Nanda's Morse theory for filtrations this keeps every persistent group over Z, and usually leaves few cells. (The
+spectral sequence's generators are chains of the original cells, so its pages don't use this.)
+
+## Which shortcuts are sound over Z
+
+Over a field persistence pairs are unique, so any correct reduction gives them, with every optimisation. Over the
+integers some are not sound, or only under conditions:
+
+* The reduction over Z that finds the candidate primes uses **clearing** (twist): a prime dividing none of its pivots
+  and contents sees exactly a twist reduction over `F_p`, so the same pairs as over Q; and each candidate is checked by
+  phlite's reduction over `F_p`, where anything goes.
+* **Eliminating pairs** (apparent pairs, discrete Morse theory) is sound over Z only for incidences `±1` and, in a
+  filtration, for cells entering at the same step (Mischaikow and Nanda, DCG 2013). Simplicial and cubical boundaries
+  have only `±1`; complexes you build with other coefficients keep those incidences.
+* Cohomology, union-find and edge collapse aren't used over Z yet.
 
 ## In Rust
 

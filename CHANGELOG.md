@@ -37,6 +37,11 @@ each is tested against the reference implementations named below and benchmarked
 
 - **Every filtration over the integers** (`modulus=0`): the barcode over Q and the torsion of each bar, from
   `phlite::integral` (Smith forms); `rips_complex` and `cubical_complex` export filtrations with signed boundaries.
+- **One algebra for the integers**, in `phlite`: the torsion primes are checked with phlite's own clearing
+  reduction over a prime field chosen at run time (`phlite::fields::Fp`); and the elimination of unit pairs over Z
+  behind magnitude homology (as Perseus 6's) is `phlite::integral::elimination`, which persistent groups now use too,
+  pairing only cells that enter at the same step (Mischaikow and Nanda), so they are computed from far smaller
+  complexes.
 - **Spectral sequences** of filtered complexes, a page at a time and lazily, over a field or the integers, with groups,
   generators, classes of chains and the differentials (`FilteredComplex.spectral_sequence`,
   `phlite.core.SpectralSequence`). Tested against Kenzo, spectral-sequence-engine and PerMaViss.

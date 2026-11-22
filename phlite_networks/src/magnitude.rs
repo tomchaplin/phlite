@@ -25,6 +25,7 @@
 use std::collections::HashMap;
 
 use phlite::barcode::{Algorithm, Method};
+use phlite::integral::elimination::{eliminate, homology_groups, CompressedComplex, ELIMINATION_COST};
 use phlite::reduction::Clearing;
 use phlite_complexes::complex::{Chain, RawChain};
 use phlite_complexes::field::IntField;
@@ -218,12 +219,8 @@ fn enumerate(graph: &MagnitudeGraph, s: u32, l_max: usize, k_top: usize, targets
 
 /// One piece `MC_{*,l}(s, t)` in degrees `0..=k_top`, after collapsing: the cells left (each with its degree) and
 /// their boundaries (restricted to the cells left), with coefficients ±1.
-struct Collapsed {
-    degrees: Vec<u32>,
-    indptr: Vec<usize>,
-    faces: Vec<u32>,
-    coefficients: Vec<i64>,
-}
+/// A piece after collapsing: a complex over the integers in compressed columns.
+type Collapsed = CompressedComplex;
 
 /// Build the piece `(t, l)` from its tuples and collapse it.
 ///
@@ -367,226 +364,6 @@ fn collapse_piece(graph: &MagnitudeGraph, buckets: &Buckets, t: u32, l: usize, k
     out
 }
 
-/// Pairs costlier than this to eliminate (in entries changed) are left to the reduction.
-const ELIMINATION_COST: u64 = 1 << 12;
-
-/// The second phase of the algebraic Morse reduction (as in Perseus 6): eliminate unit pairs, least Markowitz cost
-/// first, over the integers.
-///
-/// A pair `(σ, τ)` with `[τ : σ] = ε = ±1` is eliminated by Gaussian elimination: every other coface `ρ` of `σ` gets
-/// `∂ρ - [ρ : σ] ε ∂τ` (which no longer has `σ`), `τ` is dropped from the boundary of its cofaces, and `σ` and `τ`
-/// go. The complex left is chain homotopy equivalent to the one before, over the integers. The cost of a pair is
-/// `(|∂τ| - 1)(|δσ| - 1)`, the most entries it can change, so the fill-in-free pairs of the first phase (a cell with
-/// one face, or one coface) cost nothing and still come first. A pair costing more than [`ELIMINATION_COST`], or
-/// whose coefficients would overflow, is left alone.
-fn eliminate(piece: Collapsed) -> Collapsed {
-    use std::cmp::Reverse;
-    use std::collections::BinaryHeap;
-    let n = piece.degrees.len();
-    if piece.faces.is_empty() {
-        return piece;
-    }
-    let mut faces: Vec<Vec<(u32, i64)>> = (0..n)
-        .map(|c| {
-            let range = piece.indptr[c]..piece.indptr[c + 1];
-            let mut row: Vec<(u32, i64)> =
-                piece.faces[range.clone()].iter().copied().zip(piece.coefficients[range].iter().copied()).collect();
-            row.sort_unstable();
-            row
-        })
-        .collect();
-    drop(piece.faces);
-    drop(piece.coefficients);
-    let mut cofaces: Vec<Vec<u32>> = vec![vec![]; n];
-    for (c, row) in faces.iter().enumerate() {
-        for &(f, _) in row {
-            cofaces[f as usize].push(c as u32);
-        }
-    }
-    let mut alive = vec![true; n];
-    let unit = |x: i64| x == 1 || x == -1;
-    // The cheapest pair with tau = c: a unit face with the fewest cofaces
-    let best = |c: usize, faces: &[Vec<(u32, i64)>], cofaces: &[Vec<u32>]| -> Option<(u64, u32, u32)> {
-        let row = &faces[c];
-        row.iter()
-            .filter(|&&(_, x)| unit(x))
-            .map(|&(f, _)| ((row.len() as u64 - 1) * (cofaces[f as usize].len() as u64 - 1), c as u32, f))
-            .min()
-    };
-    let remove_from = |list: &mut Vec<u32>, x: u32| {
-        if let Some(i) = list.iter().position(|&y| y == x) {
-            list.swap_remove(i);
-        }
-    };
-    // Cells to look at for a free pair: one face (a unit), or one coface (with a unit coefficient)
-    let mut work: std::collections::VecDeque<u32> = (0..n as u32).collect();
-    let mut heap: BinaryHeap<Reverse<(u64, u32, u32)>> = BinaryHeap::new();
-    let mut heap_built = false;
-    let mut new_row: Vec<(u32, i64)> = vec![];
-    let mut updated: Vec<(u32, Vec<(u32, i64)>)> = vec![];
-    loop {
-        // A free pair, if the work list has one: (sigma, tau)
-        let mut free = None;
-        while let Some(c) = work.pop_front() {
-            let c = c as usize;
-            if !alive[c] {
-                continue;
-            }
-            if let [(f, x)] = faces[c][..] {
-                if unit(x) {
-                    free = Some((f as usize, c));
-                    break;
-                }
-            }
-            if let [g] = cofaces[c][..] {
-                let x = faces[g as usize].iter().find(|&&(f, _)| f as usize == c).expect("a coface").1;
-                if unit(x) {
-                    free = Some((c, g as usize));
-                    break;
-                }
-            }
-        }
-        let (sg, t) = match free {
-            Some(pair) => pair,
-            None => {
-                // Otherwise the cheapest pair, by Markowitz cost
-                if !heap_built {
-                    heap = (0..n).filter(|&c| alive[c]).filter_map(|c| best(c, &faces, &cofaces)).map(Reverse).collect();
-                    heap_built = true;
-                }
-                let mut found = None;
-                while let Some(Reverse((cost, tau, sigma))) = heap.pop() {
-                    if !alive[tau as usize] || !alive[sigma as usize] {
-                        continue;
-                    }
-                    match best(tau as usize, &faces, &cofaces) {
-                        Some(now) if now == (cost, tau, sigma) => {
-                            if cost <= ELIMINATION_COST {
-                                found = Some((sigma as usize, tau as usize));
-                            }
-                            break;
-                        }
-                        Some(now) => heap.push(Reverse(now)),
-                        None => {}
-                    }
-                }
-                match found {
-                    Some(pair) => pair,
-                    None => break,
-                }
-            }
-        };
-        let (tau, sigma) = (t as u32, sg as u32);
-        let epsilon = faces[t].iter().find(|&&(f, _)| f == sigma).expect("a face").1;
-        // The new boundaries of sigma's other cofaces: row - [row : sigma] epsilon faces[tau], computed before any is
-        // changed (so an overflow leaves everything as it was). With tau's only face sigma, that just drops sigma.
-        updated.clear();
-        let mut overflow = false;
-        for &rho in &cofaces[sg] {
-            if rho == tau {
-                continue;
-            }
-            let row = &faces[rho as usize];
-            let c = row.iter().find(|&&(f, _)| f == sigma).expect("a coface").1;
-            let Some(factor) = c.checked_mul(epsilon).and_then(i64::checked_neg) else {
-                overflow = true;
-                break;
-            };
-            new_row.clear();
-            let (a, b) = (row, &faces[t]);
-            let (mut i, mut j) = (0, 0);
-            while i < a.len() || j < b.len() {
-                if j == b.len() || (i < a.len() && a[i].0 < b[j].0) {
-                    new_row.push(a[i]);
-                    i += 1;
-                } else if i == a.len() || b[j].0 < a[i].0 {
-                    let Some(x) = b[j].1.checked_mul(factor) else {
-                        overflow = true;
-                        break;
-                    };
-                    new_row.push((b[j].0, x));
-                    j += 1;
-                } else {
-                    let Some(x) = b[j].1.checked_mul(factor).and_then(|x| x.checked_add(a[i].1)) else {
-                        overflow = true;
-                        break;
-                    };
-                    if x != 0 {
-                        new_row.push((a[i].0, x));
-                    }
-                    i += 1;
-                    j += 1;
-                }
-            }
-            if overflow {
-                break;
-            }
-            updated.push((rho, new_row.clone()));
-        }
-        if overflow {
-            // Leave this pair: it won't come back from the heap, since its entry is gone
-            continue;
-        }
-        for (rho, row) in updated.drain(..) {
-            let old = std::mem::replace(&mut faces[rho as usize], row);
-            for &(f, _) in &old {
-                if faces[rho as usize].binary_search_by_key(&f, |&(g, _)| g).is_err() {
-                    remove_from(&mut cofaces[f as usize], rho);
-                    work.push_back(f);
-                }
-            }
-            for &(f, _) in &faces[rho as usize] {
-                if old.binary_search_by_key(&f, |&(g, _)| g).is_err() {
-                    cofaces[f as usize].push(rho);
-                }
-            }
-            work.push_back(rho);
-            if heap_built {
-                if let Some(pair) = best(rho as usize, &faces, &cofaces) {
-                    heap.push(Reverse(pair));
-                }
-            }
-        }
-        // Drop tau (from its cofaces' boundaries) and sigma
-        alive[t] = false;
-        alive[sg] = false;
-        for rho in std::mem::take(&mut cofaces[t]) {
-            let row = &mut faces[rho as usize];
-            if let Ok(i) = row.binary_search_by_key(&tau, |&(g, _)| g) {
-                row.remove(i);
-            }
-            work.push_back(rho);
-            if heap_built {
-                if let Some(pair) = best(rho as usize, &faces, &cofaces) {
-                    heap.push(Reverse(pair));
-                }
-            }
-        }
-        for cell in [t, sg] {
-            for (f, _) in std::mem::take(&mut faces[cell]) {
-                remove_from(&mut cofaces[f as usize], cell as u32);
-                work.push_back(f);
-            }
-        }
-        cofaces[sg].clear();
-    }
-    // The cells left, renumbered in order
-    let mut new_index = vec![u32::MAX; n];
-    let mut out = Collapsed { degrees: vec![], indptr: vec![0], faces: vec![], coefficients: vec![] };
-    for c in 0..n {
-        if alive[c] {
-            new_index[c] = out.degrees.len() as u32;
-            out.degrees.push(piece.degrees[c]);
-            for &(f, x) in &faces[c] {
-                out.faces.push(new_index[f as usize]);
-                out.coefficients.push(x);
-            }
-            out.indptr.push(out.faces.len());
-        }
-    }
-    out
-}
-
 /// The ranks over `CF` of the homology of a collapsed piece, in degrees `0..ranks.len()`.
 fn collapsed_ranks<CF: IntField>(piece: &Collapsed, n_degrees: usize) -> Vec<usize> {
     let mut ranks = vec![0; n_degrees];
@@ -676,7 +453,7 @@ fn for_each_piece<T: Send>(
             .flat_map(|t| (graph.distance(s, t) as usize..=l_max).map(move |l| (t, l)))
             .collect();
         let piece = |&(t, l): &(u32, usize)| {
-            let collapsed = eliminate(collapse_piece(graph, &buckets, t, l, (k_max + 1).min(l)));
+            let (collapsed, _) = eliminate(collapse_piece(graph, &buckets, t, l, (k_max + 1).min(l)), None, ELIMINATION_COST);
             (s, t, l, f(&collapsed, k_max.min(l) + 1))
         };
         if inner {
@@ -734,66 +511,17 @@ pub fn magnitude_ranks(graph: &MagnitudeGraph, query: &MagnitudeQuery, moduli: &
 /// dividing the next), or `None` if the Smith form overflowed or was too large (see [`magnitude_integral`]).
 pub type Group = Option<(usize, Vec<u128>)>;
 
+/// The integral homology of a collapsed piece in degrees `0..n_degrees` ([`homology_groups`]), as [`Group`]s.
+fn integral_groups(piece: &Collapsed, n_degrees: usize) -> Vec<Group> {
+    homology_groups(piece, n_degrees).into_iter().map(|g| g.map(|g| (g.rank, g.torsion))).collect()
+}
+
 /// The integral magnitude homology of one pair: `groups[l][k]` is `MH_{k,l}(s, t; Z)`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PairGroups {
     pub source: u32,
     pub target: u32,
     pub groups: Vec<Vec<Group>>,
-}
-
-/// Matrices of a piece left after elimination with more entries than this are not put in Smith form (their groups
-/// are `None`); after elimination they are nearly always tiny.
-const SMITH_ENTRIES: usize = 1 << 24;
-
-/// The nonzero diagonal of the Smith normal form of a dense integer matrix (the invariant factors, each dividing the
-/// next), or `None` on overflow. A least-modulus pivot at every step, as Perseus 6 does (pivoting on the first nonzero
-/// entry blows up even on small matrices).
-fn smith_diagonal(a: Vec<Vec<i128>>) -> Option<Vec<u128>> {
-    phlite::integral::smith_diagonal(a).ok()
-}
-
-/// The integral homology of a collapsed piece in degrees `0..n_degrees`, by Smith forms of its boundary matrices.
-fn integral_groups(piece: &Collapsed, n_degrees: usize) -> Vec<Group> {
-    let mut groups: Vec<Group> = vec![Some((0, vec![])); n_degrees];
-    let n = piece.degrees.len();
-    // The cells of each degree, and each cell's position among them
-    let top = piece.degrees.iter().copied().max().map_or(0, |d| d as usize);
-    let mut cells: Vec<Vec<usize>> = vec![vec![]; top + 2];
-    let mut position = vec![0usize; n];
-    for (c, &k) in piece.degrees.iter().enumerate() {
-        position[c] = cells[k as usize].len();
-        cells[k as usize].push(c);
-    }
-    // The diagonal of the Smith form of the boundary from degree k to k - 1, for k = 1..=n_degrees
-    let diagonal = |k: usize| -> Option<Vec<u128>> {
-        if k == 0 || k > top {
-            return Some(vec![]);
-        }
-        let (rows, cols) = (cells[k - 1].len(), cells[k].len());
-        if rows.saturating_mul(cols) > SMITH_ENTRIES {
-            return None;
-        }
-        let mut a = vec![vec![0i128; cols]; rows];
-        for (j, &c) in cells[k].iter().enumerate() {
-            for e in piece.indptr[c]..piece.indptr[c + 1] {
-                a[position[piece.faces[e] as usize]][j] = i128::from(piece.coefficients[e]);
-            }
-        }
-        smith_diagonal(a)
-    };
-    let diagonals: Vec<Option<Vec<u128>>> = (0..=n_degrees).map(diagonal).collect();
-    for k in 0..n_degrees {
-        let size = cells.get(k).map_or(0, Vec::len);
-        groups[k] = match (&diagonals[k], &diagonals[k + 1]) {
-            (Some(out), Some(into)) => {
-                let free = size - out.len() - into.len();
-                Some((free, into.iter().copied().filter(|&d| d > 1).collect()))
-            }
-            _ => None,
-        };
-    }
-    groups
 }
 
 /// The integral magnitude homology of `graph`, for each pair asked for (or every pair), with lengths up to
@@ -985,10 +713,10 @@ mod tests {
 
     #[test]
     fn smith_forms() {
-        assert_eq!(smith_diagonal(vec![vec![2, 4], vec![6, 8]]), Some(vec![2, 4]));
-        assert_eq!(smith_diagonal(vec![vec![2, 0], vec![0, 3]]), Some(vec![1, 6]));
-        assert_eq!(smith_diagonal(vec![vec![0, 0], vec![0, 0]]), Some(vec![]));
-        assert_eq!(smith_diagonal(vec![vec![4, 6, 0]]), Some(vec![2]));
+        assert_eq!(phlite::integral::smith_diagonal(vec![vec![2, 4], vec![6, 8]]), Ok(vec![2, 4]));
+        assert_eq!(phlite::integral::smith_diagonal(vec![vec![2, 0], vec![0, 3]]), Ok(vec![1, 6]));
+        assert_eq!(phlite::integral::smith_diagonal(vec![vec![0, 0], vec![0, 0]]), Ok(vec![]));
+        assert_eq!(phlite::integral::smith_diagonal(vec![vec![4, 6, 0]]), Ok(vec![2]));
     }
 
     /// Restricting to pairs, and to degrees, gives the same ranks as computing everything.

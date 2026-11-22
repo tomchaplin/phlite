@@ -15,6 +15,26 @@
 //! multiplication by `p`, so over `F_p` the first bar dies where over Q it doesn't.
 //!
 //! The arithmetic is exact in checked `i128` ([`Overflow`] rather than a wrong answer).
+//!
+//! # Which shortcuts are sound
+//!
+//! Over a field the persistence pairs are unique, so the check of each candidate prime ([`barcode_mod`]) may use any of
+//! phlite's reductions: it is phlite's clearing reduction over [`Fp`](crate::fields::Fp). Over Z care is needed, since
+//! a shortcut that is sound over every field can still skip an operation whose pivot or content would have named a
+//! bad prime. The reduction over Z here uses:
+//! * **clearing** (the twist of Chen and Kerber), dimensions from the top: a prime dividing no pivot and no content
+//!   makes every step of this reduction an invertible one mod p, so it *is* a twist reduction over `F_p` (sound over
+//!   any field), with Q's pairs; and a column cleared by `R_k`, whose pivot `a` is at its index, has `a` times its
+//!   boundary in the span of earlier columns, so reduces to zero mod every prime not dividing `a`, and `a`'s primes
+//!   are candidates anyway.
+//!
+//! It doesn't use, yet: cohomology, apparent pairs, union-find or edge collapse. Apparent pairs and Morse-style
+//! eliminations are sound over a PID only for incidences that are units (`±1`) and pairs entering at the same step
+//! (Mischaikow and Nanda, *Morse theory for filtrations*, DCG 2013, Definitions 2.2 and 4.1); see
+//! [`crate::integral::elimination`], which does this for the exact groups. Obayashi and Yoshiwaki (*Field choice
+//! problem in persistent homology*, DCG 2023) decide whether any prime matters by the standard reduction over Z
+//! (stopping at the first pivot that isn't a unit); Boissonnat and Maria (*Computing persistent homology with various
+//! coefficient fields in a single pass*, JACT 2019) reduce over several given primes at once, by cohomology.
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -176,47 +196,37 @@ fn barcode_from_lows(low: &[Option<usize>]) -> CellBarcode {
 }
 
 /// The barcode over `F_p` of the filtered complex with these columns (`boundary[j]`: the faces of cell `j`, cells in
-/// filtration order, faces earlier), by the standard reduction with clearing (by dimension, highest first).
+/// filtration order, faces earlier), by phlite's clearing reduction over [`Fp`](crate::fields::Fp). Over a field every
+/// correct reduction gives the same pairs, so any of phlite's optimisations may be used here; it is the reduction over
+/// Z (in [`integral_persistence`]) whose shortcuts need care.
 pub fn barcode_mod(boundary: &[Vec<(usize, i64)>], degree: &[usize], p: u64) -> CellBarcode {
-    let p = u128::from(p);
+    use crate::barcode::{homology, Algorithm};
+    use crate::fields::Fp;
+    use crate::matrices::{implementors::VecVecMatrix, MatrixOracle, SplitBasis};
+    use crate::reduction::Clearing;
     let n = boundary.len();
-    let reduce = |x: i64| -> u128 { (i128::from(x).rem_euclid(p as i128)) as u128 };
-    let inverse = |a: u128| pow_mod(a, p - 2, p);
-    let mut low: Vec<Option<usize>> = vec![None; n];
-    let mut pivot_of: Vec<Option<usize>> = vec![None; n];
-    let mut reduced: Vec<BTreeMap<usize, u128>> = vec![BTreeMap::new(); n];
-    let mut cleared = vec![false; n];
-    let top = degree.iter().copied().max().unwrap_or(0);
-    for d in (0..=top).rev() {
-        for j in (0..n).filter(|&j| degree[j] == d) {
-            if cleared[j] {
-                continue;
-            }
-            let mut col: BTreeMap<usize, u128> = BTreeMap::new();
-            for &(f, x) in &boundary[j] {
-                let e = col.entry(f).or_insert(0);
-                *e = (*e + reduce(x)) % p;
-            }
-            col.retain(|_, x| *x != 0);
-            while let Some((&i, &b)) = col.iter().next_back() {
-                let Some(k) = pivot_of[i] else { break };
-                // col -= (b / a) R_k
-                let factor = mul_mod(b, inverse(reduced[k][&i]), p);
-                for (&r, &x) in &reduced[k] {
-                    let e = col.entry(r).or_insert(0);
-                    *e = (*e + p - mul_mod(factor, x, p)) % p;
+    Fp::with_prime(p, || {
+        let columns: Vec<Vec<(Fp, usize)>> = boundary
+            .iter()
+            .map(|col| {
+                let mut sums: BTreeMap<usize, i128> = BTreeMap::new();
+                for &(f, x) in col {
+                    *sums.entry(f).or_insert(0) += i128::from(x);
                 }
-                col.retain(|_, x| *x != 0);
-            }
-            if let Some((&i, _)) = col.iter().next_back() {
-                low[j] = Some(i);
-                pivot_of[i] = Some(j);
-                cleared[i] = true;
-            }
-            reduced[j] = col;
-        }
-    }
-    barcode_from_lows(&low)
+                sums.into_iter().filter_map(|(f, x)| Fp::new(x).map(|x| (x, f))).collect()
+            })
+            .collect();
+        let top = degree.iter().copied().max().unwrap_or(0);
+        // Each dimension's cells in filtration order (their positions)
+        let basis = SplitBasis::from_dimensions((0..=top).map(|d| (0..n).filter(move |&j| degree[j] == d)));
+        let matrix = VecVecMatrix::from(columns).with_filtration(|c: usize| c).with_basis(basis);
+        let mut out: CellBarcode = homology(&matrix, Algorithm::Clearing(Clearing::new()), false)
+            .into_iter()
+            .map(|bar| (bar.birth, bar.death.map(|(c, _)| c)))
+            .collect();
+        out.sort_unstable();
+        out
+    })
 }
 
 /// The persistence over Z of a filtered complex given by any boundary oracle with integer coefficients (lazy or
@@ -324,6 +334,103 @@ pub fn integral_persistence(boundary: &[Vec<(usize, i64)>], degree: &[usize]) ->
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The barcode over `F_p` by a plain standard reduction with clearing, on its own arithmetic: the reference for
+        /// [`barcode_mod`]. The columns (`boundary[j]`: the faces of cell `j`, cells in
+    /// filtration order, faces earlier), by the standard reduction with clearing (by dimension, highest first).
+    fn barcode_mod_reference(boundary: &[Vec<(usize, i64)>], degree: &[usize], p: u64) -> CellBarcode {
+        let p = u128::from(p);
+        let n = boundary.len();
+        let reduce = |x: i64| -> u128 { (i128::from(x).rem_euclid(p as i128)) as u128 };
+        let inverse = |a: u128| pow_mod(a, p - 2, p);
+        let mut low: Vec<Option<usize>> = vec![None; n];
+        let mut pivot_of: Vec<Option<usize>> = vec![None; n];
+        let mut reduced: Vec<BTreeMap<usize, u128>> = vec![BTreeMap::new(); n];
+        let mut cleared = vec![false; n];
+        let top = degree.iter().copied().max().unwrap_or(0);
+        for d in (0..=top).rev() {
+            for j in (0..n).filter(|&j| degree[j] == d) {
+                if cleared[j] {
+                    continue;
+                }
+                let mut col: BTreeMap<usize, u128> = BTreeMap::new();
+                for &(f, x) in &boundary[j] {
+                    let e = col.entry(f).or_insert(0);
+                    *e = (*e + reduce(x)) % p;
+                }
+                col.retain(|_, x| *x != 0);
+                while let Some((&i, &b)) = col.iter().next_back() {
+                    let Some(k) = pivot_of[i] else { break };
+                    // col -= (b / a) R_k
+                    let factor = mul_mod(b, inverse(reduced[k][&i]), p);
+                    for (&r, &x) in &reduced[k] {
+                        let e = col.entry(r).or_insert(0);
+                        *e = (*e + p - mul_mod(factor, x, p)) % p;
+                    }
+                    col.retain(|_, x| *x != 0);
+                }
+                if let Some((&i, _)) = col.iter().next_back() {
+                    low[j] = Some(i);
+                    pivot_of[i] = Some(j);
+                    cleared[i] = true;
+                }
+                reduced[j] = col;
+            }
+        }
+        barcode_from_lows(&low)
+    }
+
+    /// phlite's reduction over `Fp` against the plain one, on random complexes with integer coefficients (random
+    /// multiples of simplicial boundaries of top cells, so with torsion), for small and large primes
+    #[test]
+    fn barcode_mod_against_reference() {
+        let mut seed = 777u64;
+        let mut rand = move || {
+            seed ^= seed << 13;
+            seed ^= seed >> 7;
+            seed ^= seed << 17;
+            seed
+        };
+        for trial in 0..200 {
+            // Random simplices on 6 vertices with their faces, in filtration order by dimension then a random order
+            let mut all: std::collections::BTreeSet<Vec<usize>> = Default::default();
+            for _ in 0..1 + rand() % 7 {
+                let mut t: Vec<usize> = (0..1 + rand() % 4).map(|_| (rand() % 6) as usize).collect();
+                t.sort_unstable();
+                t.dedup();
+                for mask in 1u32..(1 << t.len()) {
+                    all.insert((0..t.len()).filter(|&i| mask >> i & 1 == 1).map(|i| t[i]).collect());
+                }
+            }
+            let mut keyed: Vec<(usize, u64, Vec<usize>)> = all.into_iter().map(|c| (c.len(), rand() % 4, c)).collect();
+            keyed.sort();
+            let cells: Vec<Vec<usize>> = keyed.into_iter().map(|(_, _, c)| c).collect();
+            let index: std::collections::HashMap<&Vec<usize>, usize> = cells.iter().enumerate().map(|(i, c)| (c, i)).collect();
+            let is_face: std::collections::HashSet<Vec<usize>> = cells
+                .iter()
+                .flat_map(|c| (0..c.len()).map(move |i| [&c[..i], &c[i + 1..]].concat()))
+                .collect();
+            let boundary: Vec<Vec<(usize, i64)>> = cells
+                .iter()
+                .map(|c| {
+                    let scale = if is_face.contains(c) { 1 } else { 1 + (rand() % 6) as i64 };
+                    if c.len() < 2 {
+                        return vec![];
+                    }
+                    (0..c.len())
+                        .map(|i| {
+                            let face: Vec<usize> = [&c[..i], &c[i + 1..]].concat();
+                            (index[&face], scale * if i % 2 == 0 { 1 } else { -1 })
+                        })
+                        .collect()
+                })
+                .collect();
+            let degree: Vec<usize> = cells.iter().map(|c| c.len() - 1).collect();
+            for p in [2u64, 3, 5, 7, 1_000_000_007] {
+                assert_eq!(barcode_mod(&boundary, &degree, p), barcode_mod_reference(&boundary, &degree, p), "trial {trial}, p = {p}");
+            }
+        }
+    }
 
     /// A lazy oracle on simplices as vertex lists, with signs: `integral_persistence_of` agrees with the explicit
     /// columns.

@@ -292,6 +292,166 @@ pub type Z11 = ZP<11>;
 /// The finite field with 13 elements.
 pub type Z13 = ZP<13>;
 
+/// The prime field `F_p` for a prime `p` chosen at run time (any prime below `2^63`), where [`ZP`] needs it at compile
+/// time and below 256: for computations whose prime is only known while running (the torsion primes of
+/// [`integral_persistence`](crate::integral_persistence), say), with every algorithm in phlite.
+///
+/// The prime is process-wide: set it for the duration of a closure with [`Fp::with_prime`], which holds a lock, so that
+/// two computations with different primes can't overlap (they run one after the other). It is not re-entrant: don't
+/// call [`Fp::with_prime`] inside another. Using an `Fp` outside one panics.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct Fp(std::num::NonZeroU64);
+
+static FP_MODULUS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+static FP_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+impl Fp {
+    /// Run `f` with `p` the prime of every [`Fp`], then restore none. Calls from different threads take turns.
+    ///
+    /// # Panics
+    /// If `p` isn't a prime below `2^63`.
+    pub fn with_prime<T>(p: u64, f: impl FnOnce() -> T) -> T {
+        assert!(p < 1 << 63 && is_prime_u64(p), "Fp needs a prime below 2^63, not {p}");
+        let _guard = FP_LOCK.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        FP_MODULUS.store(p, std::sync::atomic::Ordering::SeqCst);
+        // Restore none even if `f` panics
+        struct Reset;
+        impl Drop for Reset {
+            fn drop(&mut self) {
+                FP_MODULUS.store(0, std::sync::atomic::Ordering::SeqCst);
+            }
+        }
+        let _reset = Reset;
+        f()
+    }
+
+    /// The current prime.
+    ///
+    /// # Panics
+    /// Outside [`Fp::with_prime`].
+    #[inline]
+    pub fn modulus() -> u64 {
+        let p = FP_MODULUS.load(std::sync::atomic::Ordering::Relaxed);
+        assert!(p != 0, "an Fp was used outside Fp::with_prime");
+        p
+    }
+
+    /// The residue of `value` modulo the current prime, or `None` if it is zero.
+    #[inline]
+    pub fn new(value: i128) -> Option<Self> {
+        let p = Self::modulus() as i128;
+        std::num::NonZeroU64::new(value.rem_euclid(p) as u64).map(Self)
+    }
+
+    /// The representative in `1..p`.
+    #[inline]
+    pub fn value(self) -> u64 {
+        self.0.get()
+    }
+
+    #[inline]
+    fn from_residue(r: u128) -> Self {
+        Self(std::num::NonZeroU64::new(r as u64).expect("a non-zero residue modulo a prime"))
+    }
+}
+
+/// Deterministic Miller–Rabin for `u64` (these witnesses suffice below `3.3 · 10^24`).
+fn is_prime_u64(n: u64) -> bool {
+    if n < 2 {
+        return false;
+    }
+    let n128 = n as u128;
+    let pow = |mut a: u128, mut e: u128| {
+        let mut out = 1u128;
+        a %= n128;
+        while e > 0 {
+            if e & 1 == 1 {
+                out = out * a % n128;
+            }
+            a = a * a % n128;
+            e >>= 1;
+        }
+        out
+    };
+    let witnesses = [2u128, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37];
+    for &w in &witnesses {
+        if n128.is_multiple_of(w) {
+            return n128 == w;
+        }
+    }
+    let (mut d, mut s) = (n128 - 1, 0);
+    while d % 2 == 0 {
+        d /= 2;
+        s += 1;
+    }
+    'witness: for &a in &witnesses {
+        let mut x = pow(a, d);
+        if x == 1 || x == n128 - 1 {
+            continue;
+        }
+        for _ in 1..s {
+            x = x * x % n128;
+            if x == n128 - 1 {
+                continue 'witness;
+            }
+        }
+        return false;
+    }
+    true
+}
+
+impl Add<Fp> for Fp {
+    type Output = Option<Fp>;
+
+    #[inline]
+    fn add(self, rhs: Fp) -> Self::Output {
+        let p = Fp::modulus() as u128;
+        let sum = (self.0.get() as u128 + rhs.0.get() as u128) % p;
+        (sum != 0).then(|| Fp::from_residue(sum))
+    }
+}
+
+impl_add_options!(Fp);
+
+impl Mul<Fp> for Fp {
+    type Output = Fp;
+
+    #[inline]
+    fn mul(self, rhs: Fp) -> Self::Output {
+        // Below 2^126: no overflow
+        Fp::from_residue(self.0.get() as u128 * rhs.0.get() as u128 % Fp::modulus() as u128)
+    }
+}
+
+impl NonZeroCoefficient for Fp {
+    #[inline]
+    fn one() -> Self {
+        Fp::modulus();
+        Fp::from_residue(1)
+    }
+
+    #[inline]
+    fn additive_inverse(self) -> Self {
+        Fp::from_residue((Fp::modulus() - self.0.get()) as u128)
+    }
+}
+
+impl Invertible for Fp {
+    /// By Fermat: `a^(p - 2)`.
+    fn mult_inverse(self) -> Self {
+        let p = Fp::modulus() as u128;
+        let (mut a, mut e, mut out) = (self.0.get() as u128, p - 2, 1u128);
+        while e > 0 {
+            if e & 1 == 1 {
+                out = out * a % p;
+            }
+            a = a * a % p;
+            e >>= 1;
+        }
+        Fp::from_residue(out)
+    }
+}
+
 /// The field of rational numbers, as a fraction in lowest terms with a positive denominator.
 ///
 /// # Panics
@@ -399,6 +559,28 @@ mod tests {
     }
 
     /// Every field axiom we rely on, exhaustively, for a small and the largest prime.
+    #[test]
+    fn fp_is_a_field() {
+        use super::Fp;
+        for p in [2u64, 3, 13, 251, 257, 65_537, 1_000_000_007, (1 << 61) - 1] {
+            Fp::with_prime(p, || {
+                for a in [1i128, 2, 3, p as i128 - 1, 12_345_678_901] {
+                    let Some(x) = Fp::new(a) else { continue };
+                    assert_eq!(x * x.mult_inverse(), Fp::one(), "p={p} a={a}");
+                    assert_eq!(x + x.additive_inverse(), None, "p={p} a={a}");
+                    assert_eq!((x * Fp::one()).value(), x.value());
+                }
+            });
+        }
+    }
+
+    #[test]
+    #[should_panic(expected = "a prime")]
+    fn fp_rejects_composites() {
+        use super::Fp;
+        Fp::with_prime(91, || ());
+    }
+
     fn check_field<const P: u8>() {
         let elems: Vec<ZP<P>> = (1..P).map(|v| ZP::new(v).unwrap()).collect();
         assert_eq!(ZP::<P>::new(0), None);

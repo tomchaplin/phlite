@@ -31,6 +31,8 @@ impl fmt::Display for Overflow {
 impl std::error::Error for Overflow {}
 
 /// A finitely generated abelian group `Z^rank ⊕ Z/t_1 ⊕ ... ⊕ Z/t_m`, with `1 < t_1 | t_2 | ... | t_m`.
+pub mod elimination;
+
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct Group {
     pub rank: usize,
@@ -468,6 +470,51 @@ pub struct IntegralFiltered {
     pub boundary: Vec<Vec<(usize, i64)>>,
 }
 
+impl IntegralFiltered {
+    /// The same filtration shrunk by eliminating unit pairs of cells entering at the same step
+    /// ([`elimination::eliminate`]): the same persistent homology groups over Z (Mischaikow and Nanda, Theorem 4.3),
+    /// usually from far fewer cells. Only groups carry over, not generators, nor the `E^0` page of the spectral
+    /// sequence (whose cells change).
+    pub fn eliminated(&self) -> IntegralFiltered {
+        let n = self.degree.len();
+        let mut compressed = elimination::CompressedComplex {
+            degrees: Vec::with_capacity(n),
+            indptr: vec![0],
+            faces: vec![],
+            coefficients: vec![],
+        };
+        for c in 0..n {
+            // Faces sorted, repeats summed
+            let mut row: Vec<(usize, i64)> = self.boundary[c].clone();
+            row.sort_unstable_by_key(|&(f, _)| f);
+            let mut merged: Vec<(usize, i64)> = Vec::with_capacity(row.len());
+            for (f, x) in row {
+                match merged.last_mut() {
+                    Some((g, y)) if *g == f => *y += x,
+                    _ => merged.push((f, x)),
+                }
+            }
+            for (f, x) in merged.into_iter().filter(|&(_, x)| x != 0) {
+                compressed.faces.push(f as u32);
+                compressed.coefficients.push(x);
+            }
+            compressed.indptr.push(compressed.faces.len());
+            compressed.degrees.push(self.degree[c] as u32);
+        }
+        let (left, kept) = elimination::eliminate(compressed, Some(&self.step), elimination::ELIMINATION_COST);
+        IntegralFiltered {
+            degree: left.degrees.iter().map(|&d| d as usize).collect(),
+            step: kept.iter().map(|&c| self.step[c]).collect(),
+            boundary: (0..kept.len())
+                .map(|c| {
+                    let range = left.indptr[c]..left.indptr[c + 1];
+                    left.faces[range.clone()].iter().map(|&f| f as usize).zip(left.coefficients[range].iter().copied()).collect()
+                })
+                .collect(),
+        }
+    }
+}
+
 /// The cells of one degree, in order of step, and where each cell is among them.
 struct Degree {
     /// Cell indices in order of step (then index)
@@ -740,6 +787,13 @@ pub fn integral_pages(
 /// of `H_k(F_i)` in `H_k(F_j)`), for steps `i <= j`.
 pub fn persistent_group(complex: &IntegralFiltered, k: usize, i: usize, j: usize) -> Result<Group, Overflow> {
     assert!(i <= j, "a persistent group needs i <= j");
+    // Shrunk first: the same persistent groups (see `IntegralFiltered::eliminated`)
+    persistent_group_unreduced(&complex.eliminated(), k, i, j)
+}
+
+/// [`persistent_group`] on the complex as it is, without eliminating pairs first.
+pub fn persistent_group_unreduced(complex: &IntegralFiltered, k: usize, i: usize, j: usize) -> Result<Group, Overflow> {
+    assert!(i <= j, "a persistent group needs i <= j");
     let arranged = Arranged::new(complex);
     if k >= arranged.degrees.len() {
         return Ok(Group::default());
@@ -790,6 +844,83 @@ mod tests {
             faces.insert(s, index);
         }
         complex
+    }
+
+    /// Eliminating same-step unit pairs keeps every persistent group (Mischaikow and Nanda, Theorem 4.3), on random
+    /// filtrations of random complexes: simplicial ones (units only) and with random integer coefficients (where only
+    /// the ±1 incidences may be paired)
+    #[test]
+    fn elimination_keeps_persistent_groups() {
+        let mut seed = 2024u64;
+        let mut rand = move || {
+            seed ^= seed << 13;
+            seed ^= seed >> 7;
+            seed ^= seed << 17;
+            seed
+        };
+        for trial in 0..300 {
+            // A random simplicial complex on 6 vertices, each simplex at a step at least its faces'
+            let tops: Vec<Vec<usize>> = (0..1 + rand() % 6)
+                .map(|_| {
+                    let mut t: Vec<usize> = (0..1 + rand() % 4).map(|_| (rand() % 6) as usize).collect();
+                    t.sort_unstable();
+                    t.dedup();
+                    t
+                })
+                .collect();
+            let tops: Vec<&[usize]> = tops.iter().map(Vec::as_slice).collect();
+            let salt = rand();
+            let mut complex = simplicial(&tops, |s| {
+                let h = s.iter().fold(salt, |h, &v| h.wrapping_mul(31).wrapping_add(v as u64));
+                (s.len() - 1) + (h % 3) as usize
+            });
+            // Steps must not decrease from face to coface
+            for c in 0..complex.degree.len() {
+                let m = complex.boundary[c].iter().map(|&(f, _)| complex.step[f]).max().unwrap_or(0);
+                complex.step[c] = complex.step[c].max(m);
+            }
+            if trial % 2 == 1 {
+                // Scale the boundaries of some cells with no cofaces by small integers (still a complex: nothing's
+                // boundary has them as faces), so that some incidences aren't units
+                let is_face: std::collections::HashSet<usize> =
+                    complex.boundary.iter().flat_map(|row| row.iter().map(|&(f, _)| f)).collect();
+                for c in 0..complex.degree.len() {
+                    if !is_face.contains(&c) && rand() % 2 == 0 {
+                        let k = 2 + (rand() % 3) as i64;
+                        for e in &mut complex.boundary[c] {
+                            e.1 *= k;
+                        }
+                    }
+                }
+            }
+            let small = complex.eliminated();
+            assert!(small.degree.len() <= complex.degree.len());
+            let dd = |c: &IntegralFiltered| -> bool {
+                (0..c.degree.len()).all(|t| {
+                    let mut sum: std::collections::BTreeMap<usize, i64> = Default::default();
+                    for &(f, x) in &c.boundary[t] {
+                        for &(g, y) in &c.boundary[f] {
+                            *sum.entry(g).or_default() += x * y;
+                        }
+                    }
+                    sum.values().all(|&v| v == 0)
+                })
+            };
+            assert!(dd(&complex), "input not a complex, trial {trial}");
+            assert!(dd(&small), "eliminated not a complex, trial {trial}: {complex:?} -> {small:?}");
+            let steps = complex.step.iter().copied().max().unwrap_or(0);
+            for k in 0..3 {
+                for i in 0..=steps {
+                    for j in i..=steps {
+                        assert_eq!(
+                            persistent_group_unreduced(&small, k, i, j).unwrap(),
+                            persistent_group_unreduced(&complex, k, i, j).unwrap(),
+                            "trial {trial}, H_{k} from {i} to {j}"
+                        );
+                    }
+                }
+            }
+        }
     }
 
     /// The minimal (6-vertex) triangulation of the real projective plane.
