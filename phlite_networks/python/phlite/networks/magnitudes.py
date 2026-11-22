@@ -55,6 +55,11 @@ class MagnitudeHomology(Sequence):
     def __eq__(self, other) -> bool:
         if isinstance(other, MagnitudeHomology):
             return (self._ranks, self.modulus, self._torsion) == (other._ranks, other.modulus, other._torsion)
+        if isinstance(other, Mapping):
+            # (The dict this used to be over the integers)
+            return self.integral and set(other) == {"free", "torsion"} and self._ranks == other["free"] and (
+                self._torsion == {tuple(k): dict(v) for k, v in other["torsion"].items()}
+            )
         return self._ranks == other
 
     __hash__ = None
