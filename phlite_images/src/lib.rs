@@ -7,6 +7,7 @@
 //! `phlite-images`, `phlite.images` (its bindings are in `src/python`).
 
 pub mod cubical;
+pub mod filtrations;
 
 #[cfg(feature = "python")]
 mod python;

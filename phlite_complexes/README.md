@@ -70,7 +70,7 @@ Morozov and Nigmetov, as does [LoPHAT](https://github.com/tomchaplin/lophat).
 * **[phimaker](https://github.com/tomchaplin/phimaker)** (images, kernels and cokernels): phlite is faster on every
   input we tried, with identical barcodes, and its six-pack with representatives costs about 1.5× that; see the
   [book](https://phlite.tomchaplin.xyz/book/python/maps.html#performance).
-* **[Dionysus 2](https://mrzv.org/software/dionysus2/)** (zigzag persistence): identical barcodes, phlite 20–90×
+* **[Dionysus 2](https://mrzv.org/software/dionysus2/)** (zigzag persistence): identical barcodes, phlite 17–385×
   faster on sliding-window zigzags.
 * **[Kenzo](https://github.com/miguelmarco/kenzo)** (spectral sequences over Z): identical pages, phlite 1–1000×
   faster.

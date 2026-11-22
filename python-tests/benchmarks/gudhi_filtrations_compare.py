@@ -48,11 +48,15 @@ def agree(a, b):
 def witness_rows():
     rows = []
     serial = Algorithm.serial()
-    for n_witnesses, n_landmarks, dim, bound in [(2000, 50, 3, math.inf), (10000, 100, 3, 0.02), (20000, 200, 3, 0.01)]:
+    # (GUDHI's strong witness complex is far slower than its relaxed one: over five minutes on 500 witnesses and 30
+    # landmarks, against 0.5 s; so the strong cases are small)
+    cases = [(2000, 50, 3, math.inf, False), (10000, 100, 3, 0.02, False), (20000, 200, 3, 0.01, False),
+             (200, 15, 3, math.inf, True), (300, 20, 3, math.inf, True)]
+    for n_witnesses, n_landmarks, dim, bound, strong in cases:
         rng = np.random.default_rng(0)
         points = rng.random((n_witnesses, dim))
         landmarks = points[rng.choice(n_witnesses, n_landmarks, replace=False)]
-        for strong in (False, True):
+        if True:
             cls = gudhi.EuclideanStrongWitnessComplex if strong else gudhi.EuclideanWitnessComplex
 
             def theirs():

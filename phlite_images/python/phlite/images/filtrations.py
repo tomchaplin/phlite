@@ -9,6 +9,9 @@ barcode = cubical(filtrations.signed_distance(binary))
 Coordinates are in the image's own axis order (numpy's). By default pixels a filtration doesn't reach are given
 `inf`, so that they never enter (`cubical` leaves them out); `unreached="last"` gives them one more than the largest
 value instead, so that they enter last, as giotto-tda does (with its `max_value_`).
+
+The filtrations are computed in Rust (`phlite_images::filtrations`, which the playground uses too), for any number of
+axes.
 """
 
 from __future__ import annotations
@@ -16,6 +19,8 @@ from __future__ import annotations
 from typing import Literal, Optional, Sequence, Union
 
 import numpy as np
+
+from ._images import _binary_filtration
 
 __all__ = ["height", "radial", "dilation", "erosion", "signed_distance", "density"]
 
@@ -39,11 +44,6 @@ def _finish(values: np.ndarray, unreached: Unreached) -> np.ndarray:
     return np.where(np.isfinite(values), values, last)
 
 
-def _coordinates(shape) -> np.ndarray:
-    """Each pixel's coordinates, an array of shape `shape + (len(shape),)`."""
-    return np.stack(np.meshgrid(*[np.arange(n) for n in shape], indexing="ij"), axis=-1).astype(float)
-
-
 def height(image, direction: Optional[Sequence[float]] = None, *, unreached: Unreached = "inf") -> np.ndarray:
     """The height filtration: each active pixel at its height along `direction` (its coordinates' dot product with the
     unit vector, measured from the corner the direction points away from, so heights start at 0), as giotto-tda's
@@ -58,14 +58,7 @@ def height(image, direction: Optional[Sequence[float]] = None, *, unreached: Unr
     d = np.ones(image.ndim) if direction is None else np.asarray(direction, dtype=float)
     if d.shape != (image.ndim,) or not np.any(d):
         raise ValueError("direction needs one component per axis, not all zero")
-    d = d / np.linalg.norm(d)
-    coords = _coordinates(image.shape)
-    # Measure from the corner the direction points away from
-    for a, n in enumerate(image.shape):
-        if d[a] < 0:
-            coords[..., a] = (n - 1) - coords[..., a]
-    values = coords @ np.abs(d)
-    return _finish(np.where(image, values, np.inf), unreached)
+    return _finish(_binary_filtration("height", image, direction=d.tolist()), unreached)
 
 
 def radial(
@@ -90,31 +83,8 @@ def radial(
     c = np.zeros(image.ndim) if center is None else np.asarray(center, dtype=float)
     if c.shape != (image.ndim,):
         raise ValueError("center needs one coordinate per axis")
-    delta = np.abs(_coordinates(image.shape) - c)
-    if metric == "euclidean":
-        values = np.sqrt((delta**2).sum(-1))
-    elif metric in ("manhattan", "cityblock"):
-        values = delta.sum(-1)
-    elif metric == "chebyshev":
-        values = delta.max(-1)
-    else:
-        raise ValueError(f"unknown metric {metric!r}")
-    values = np.where(image & (values <= radius), values, np.inf)
+    values = _binary_filtration("radial", image, center=c.tolist(), radius=float(radius), metric=metric)
     return _finish(values, unreached)
-
-
-def _manhattan_distance(sources: np.ndarray) -> np.ndarray:
-    """The Manhattan (L1) distance from every pixel to the nearest source pixel (`inf` if there is none): exactly, as the
-    L1 distance transform separates into one-dimensional ones, each a forward and a backward pass along an axis."""
-    out = np.where(sources, 0.0, np.inf)
-    for axis in range(out.ndim):
-        out = np.moveaxis(out, axis, 0)
-        for i in range(1, out.shape[0]):
-            out[i] = np.minimum(out[i], out[i - 1] + 1)
-        for i in range(out.shape[0] - 2, -1, -1):
-            out[i] = np.minimum(out[i], out[i + 1] + 1)
-        out = np.moveaxis(out, 0, axis)
-    return out
 
 
 def dilation(image, n_iterations: Optional[int] = None, *, unreached: Unreached = "inf") -> np.ndarray:
@@ -123,10 +93,7 @@ def dilation(image, n_iterations: Optional[int] = None, *, unreached: Unreached 
     `DilationFiltration`.
     """
     image = _binary(image)
-    values = _manhattan_distance(image)
-    if n_iterations is not None:
-        values = np.where(values <= n_iterations, values, np.inf)
-    return _finish(values, unreached)
+    return _finish(_binary_filtration("dilation", image, n_iterations=n_iterations), unreached)
 
 
 def erosion(image, n_iterations: Optional[int] = None, *, unreached: Unreached = "inf") -> np.ndarray:
@@ -135,10 +102,7 @@ def erosion(image, n_iterations: Optional[int] = None, *, unreached: Unreached =
     `ErosionFiltration`. An image with no inactive pixel is never eroded (all `unreached`).
     """
     image = _binary(image)
-    values = _manhattan_distance(~image)
-    if n_iterations is not None:
-        values = np.where(values <= n_iterations, values, np.inf)
-    return _finish(values, unreached)
+    return _finish(_binary_filtration("erosion", image, n_iterations=n_iterations), unreached)
 
 
 def signed_distance(image, n_iterations: Optional[int] = None, *, unreached: Unreached = "inf") -> np.ndarray:
@@ -147,12 +111,7 @@ def signed_distance(image, n_iterations: Optional[int] = None, *, unreached: Unr
     distance to the active ones; distances beyond `n_iterations` (default: all) aren't reached.
     """
     image = _binary(image)
-    inside = _manhattan_distance(~image) - 1
-    outside = -_manhattan_distance(image)
-    values = np.where(image, inside, outside)
-    if n_iterations is not None:
-        values = np.where(np.abs(np.where(image, inside + 1, outside)) <= n_iterations, values, np.inf)
-    return _finish(np.where(np.isnan(values), np.inf, values), unreached)
+    return _finish(_binary_filtration("signed_distance", image, n_iterations=n_iterations), unreached)
 
 
 def density(
@@ -165,21 +124,6 @@ def density(
     as giotto-tda's `DensityFiltration`. Use `cubical(..., filtration='superlevel')` for dense regions first.
     """
     image = _binary(image)
-    reach = int(np.floor(radius))
-    offsets = np.stack(np.meshgrid(*[np.arange(-reach, reach + 1)] * image.ndim, indexing="ij"), axis=-1).reshape(
-        -1, image.ndim
-    )
-    if metric == "euclidean":
-        lengths = np.sqrt((offsets**2).sum(-1))
-    elif metric in ("manhattan", "cityblock"):
-        lengths = np.abs(offsets).sum(-1)
-    elif metric == "chebyshev":
-        lengths = np.abs(offsets).max(-1)
-    else:
+    if metric not in ("euclidean", "manhattan", "cityblock", "chebyshev"):
         raise ValueError(f"unknown metric {metric!r}")
-    padded = np.pad(image.astype(float), reach)
-    out = np.zeros(image.shape)
-    for offset in offsets[lengths <= radius]:
-        index = tuple(slice(reach + o, reach + o + n) for o, n in zip(offset, image.shape))
-        out += padded[index]
-    return out
+    return _binary_filtration("density", image, radius=float(radius), metric=metric)

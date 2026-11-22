@@ -89,6 +89,7 @@ simplices with the window's points and the oldest point leaving with its simplic
 |---|---:|---:|---:|---:|:-:|
 | sliding Rips, 300 points, window 20 | 6611 | 3350 | 3.5 ms | 60.1 ms | ✓ |
 | sliding Rips, 1000 points, window 30 | 126182 | 63316 | 144.9 ms | 12.18 s | ✓ |
+| sliding Rips, 5000 points, window 40 | 1674242 | 839034 | 4.94 s | 1900.53 s | ✓ |
 
 phlite's time grows about linearly with the number of operations, Dionysus's faster than that: 17× faster on the
-smaller zigzag, 84× on the larger.
+smallest zigzag, 84× at 126 thousand operations and 385× at 1.7 million (4.9 s against 32 minutes).

@@ -138,7 +138,7 @@ agree). On one thread, phlite is faster on most of their own inputs:
 * flag complexes of graphs, extended persistence and weighted Rips: 3–18×, 2.5–5.5× and over 50× faster than GUDHI;
 * explicit Rips complexes: 11–26× faster than PHAT, and cell complexes 1.1–2× faster;
 * images, kernels and cokernels: 1.2–1.8× faster than phimaker (and the whole six-pack, with representatives, in about
-  phimaker's time); zigzag persistence 17–84× faster than Dionysus; spectral sequences over Z 1–1000× faster than
+  phimaker's time); zigzag persistence 17–385× faster than Dionysus; spectral sequences over Z 1–1000× faster than
   Kenzo; magnitude homology 8–100× faster than gramag, and level with Perseus.
 
 It is slower in places too, and often uses more memory:

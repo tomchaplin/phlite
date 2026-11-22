@@ -5,6 +5,7 @@ Persistent homology of images (cubical complexes): `cubical`, in the V- and T-co
 """
 
 import builtins
+import numpy
 import numpy.typing
 from phlite import core
 import typing
@@ -15,6 +16,12 @@ __all__ = [
     "cubical",
     "cubical_complex",
 ]
+
+def _binary_filtration(kind: builtins.str, image: numpy.typing.NDArray[numpy.bool_], *, direction: typing.Optional[typing.Sequence[builtins.float]] = None, center: typing.Optional[typing.Sequence[builtins.float]] = None, radius: builtins.float = float('inf'), metric: builtins.str = 'euclidean', n_iterations: typing.Optional[builtins.int] = None) -> numpy.typing.NDArray[numpy.float64]:
+    r"""
+    The filtration `kind` (`'height'`, `'radial'`, `'dilation'`, `'erosion'`, `'signed_distance'` or `'density'`) of a
+    boolean image, as an array of its shape (unreached pixels `inf`). See `phlite.images.filtrations`.
+    """
 
 def cubical(image: numpy.typing.ArrayLike, max_dim: typing.Optional[builtins.int] = None, *, construction: typing.Literal['T', 'V'] = "T", filtration: typing.Literal['sublevel', 'superlevel'] = "sublevel", method: typing.Literal['cohomology', 'homology'] = "cohomology", algorithm: typing.Optional[core.Algorithm] = None, representatives: builtins.bool = False, periodic: typing.Union[builtins.bool, typing.Sequence[builtins.bool], None] = None) -> core.Barcode:
     r"""
