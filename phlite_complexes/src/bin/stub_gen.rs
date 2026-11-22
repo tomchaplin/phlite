@@ -9,8 +9,9 @@ fn main() -> pyo3_stub_gen::Result<()> {
         "__all__ = [\n",
         concat!(
             "from . import zigzags as zigzags\n",
-            "from .zigzags import Zigzag as Zigzag, ZigzagBar as ZigzagBar, ZigzagBarcode as ZigzagBarcode, zigzag as zigzag\n\n",
-            "__all__ = [\n    \"zigzag\",\n    \"Zigzag\",\n    \"ZigzagBar\",\n    \"ZigzagBarcode\",\n"
+            "from .zigzags import Zigzag as Zigzag, ZigzagBar as ZigzagBar, ZigzagBarcode as ZigzagBarcode, zigzag as zigzag\n",
+            "from .zigzags import TimedZigzagBar as TimedZigzagBar, TimedZigzagBarcode as TimedZigzagBarcode, timed_zigzag as timed_zigzag\n\n",
+            "__all__ = [\n    \"zigzag\",\n    \"Zigzag\",\n    \"ZigzagBar\",\n    \"ZigzagBarcode\",\n    \"timed_zigzag\",\n    \"TimedZigzagBar\",\n    \"TimedZigzagBarcode\",\n"
         ),
         1,
     );

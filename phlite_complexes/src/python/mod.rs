@@ -911,5 +911,6 @@ fn _complexes(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<Bar>()?;
     m.add_class::<maps::FilteredMap>()?;
     m.add_function(wrap_pyfunction!(zigzag::zigzag, m)?)?;
+    m.add_function(wrap_pyfunction!(zigzag::timed, m)?)?;
     Ok(())
 }

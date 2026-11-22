@@ -33,9 +33,9 @@ import numpy as np
 
 from phlite.core import ZigzagBar, ZigzagBarcode
 
-from ._complexes import _zigzag
+from ._complexes import _timed_zigzag, _zigzag
 
-__all__ = ["Zigzag", "ZigzagBar", "ZigzagBarcode", "zigzag"]
+__all__ = ["TimedZigzagBar", "TimedZigzagBarcode", "Zigzag", "ZigzagBar", "ZigzagBarcode", "timed_zigzag", "zigzag"]
 
 
 def _canonical(simplex) -> tuple:
@@ -243,3 +243,124 @@ def _faces_of_size(simplex: tuple, k: int):
 def _all_faces(simplex: tuple):
     for k in range(1, len(simplex)):
         yield from _faces_of_size(simplex, k)
+
+
+# ---- Cells with lifetimes
+
+
+class TimedZigzagBar(NamedTuple):
+    """An interval of a timed zigzag: homology of `dimension` alive from `birth` to `death` (`inf` if it lasts),
+    each end included if closed. `levels` is the interval in levels (`K(τ_i)` at `2 i`, the join at `τ_{i+1}` at
+    `2 i + 1`)."""
+
+    dimension: int
+    birth: float
+    death: float
+    birth_closed: bool
+    death_closed: bool
+
+    def contains(self, t: float) -> bool:
+        """Whether the class is alive at time `t`."""
+        after = self.birth < t or (self.birth_closed and self.birth == t)
+        before = t < self.death or (self.death_closed and self.death == t)
+        return after and before
+
+    @property
+    def length(self) -> float:
+        return self.death - self.birth
+
+
+class TimedZigzagBarcode(Sequence):
+    """The barcode of a timed zigzag (`timed_zigzag`): `TimedZigzagBar`s sorted by dimension, birth and death, with
+    the event times `times` and the same barcode over levels as `levels` (a `ZigzagBarcode`)."""
+
+    def __init__(self, bars: Iterable[TimedZigzagBar], times: Sequence[float], levels: ZigzagBarcode):
+        self._bars = tuple(sorted(bars))
+        self.times = np.asarray(times, dtype=float)
+        self.levels = levels
+
+    def __len__(self) -> int:
+        return len(self._bars)
+
+    def __getitem__(self, index):
+        return self._bars[index]
+
+    def __eq__(self, other) -> bool:
+        if isinstance(other, TimedZigzagBarcode):
+            return self._bars == other._bars and np.array_equal(self.times, other.times)
+        return list(self._bars) == list(other)
+
+    __hash__ = None
+
+    def in_dimension(self, dim: int) -> list[TimedZigzagBar]:
+        return [b for b in self._bars if b.dimension == dim]
+
+    def betti(self, t: float, dim: int) -> int:
+        """The rank of homology in dimension `dim` at time `t`: of `K(t)`, the cells alive at `t` (after any change
+        at `t`, so not counting classes that live only for the instant of a join)."""
+        return sum(1 for b in self._bars if b.dimension == dim and b.birth <= t < b.death)
+
+    def diagram(self, dim: int) -> np.ndarray:
+        """`(birth, death)` of each interval in dimension `dim`, as an `(n, 2)` array."""
+        return np.array([(b.birth, b.death) for b in self.in_dimension(dim)], dtype=float).reshape(-1, 2)
+
+    def __repr__(self) -> str:
+        dims = sorted({b.dimension for b in self._bars})
+        counts = ", ".join(f"H{d}: {len(self.in_dimension(d))}" for d in dims)
+        return f"TimedZigzagBarcode({len(self)} intervals over {len(self.times)} event times; {counts})"
+
+
+def _lifetimes(value) -> list[tuple[float, float]]:
+    """`(start, end)`, or a list of them, as a list of float pairs (`None` for `end` is `inf`)."""
+    if len(value) == 2 and not isinstance(value[0], (tuple, list)):
+        value = [value]
+    return [(float(a), float("inf") if b is None else float(b)) for a, b in value]
+
+
+def timed_zigzag(
+    cells,
+    *,
+    join: str = "union",
+    algorithm=None,
+    method: str = "cohomology",
+    union_find: bool = True,
+) -> TimedZigzagBarcode:
+    """The zigzag barcode of cells that each live over some intervals of time.
+
+    A cell is there at time `t` when `start <= t < end` for one of its lifetimes, and its faces must be there whenever
+    it is. Between the *event times* `τ_0 < τ_1 < ...` (where some cell starts or ends) the complex `K(t)` is
+    constant; at each event the zigzag passes through the union (`join='union'`) or the intersection
+    (`join='intersection'`) of the complexes before and after, so a class may live for an instant `[τ, τ]`. Computed
+    by FastZigzag (Dey and Hou).
+
+    Args:
+        cells: A dict `{cell: lifetimes}` or an iterable of `(cell, lifetimes)` pairs, each cell a simplex (a tuple of
+            integer vertices: every face must be a cell too); or `(cell, lifetimes, faces)` triples for cells of any
+            hashable kind (cubes, cells of a CW complex) with their faces. Lifetimes are `(start, end)` or a list of
+            them (`end` may be `None` or `inf`).
+        join: `'union'` or `'intersection'`.
+        algorithm, method, union_find: As for `zigzag`.
+
+    Returns:
+        A `TimedZigzagBarcode`.
+
+    ```python
+    timed_zigzag({(0,): (0, None), (1,): (0, None), (2,): (0, None),
+                  (0, 1): (0, None), (1, 2): (1, None), (0, 2): [(2, 3), (4, 6)]})
+    # H1: [2, 3) and [4, 6), the loop while (0, 2) is there
+    ```
+    """
+    items = list(cells.items()) if isinstance(cells, dict) else list(cells)
+    converted = []
+    for item in items:
+        if len(item) == 3:
+            cell, lifetimes, faces = item
+            converted.append((cell, _lifetimes(lifetimes), list(faces)))
+        else:
+            cell, lifetimes = item
+            converted.append((tuple(cell) if not isinstance(cell, tuple) else cell, _lifetimes(lifetimes)))
+    if any(len(c) == 3 for c in converted):
+        converted = [c if len(c) == 3 else (c[0], c[1], []) for c in converted]
+    bars, times = _timed_zigzag(converted, join=join, algorithm=algorithm, method=method, union_find=union_find)
+    levels = ZigzagBarcode((ZigzagBar(d, lb, ld, True, True) for d, *_, lb, ld in bars), max(1, 2 * len(times) - 1))
+    return TimedZigzagBarcode((TimedZigzagBar(d, b, e, bc, dc) for d, b, e, bc, dc, _, _ in bars), times, levels)

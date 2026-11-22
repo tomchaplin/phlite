@@ -141,6 +141,18 @@ export type Job =
       intersection: boolean;
     }
   | {
+      /** Zigzag persistence of moving points: frames of the same points, concatenated. */
+      pipeline: 'moving-zigzag';
+      coords: Float64Array;
+      pointDim: number;
+      nFrames: number;
+      threshold: number;
+      maxDim: number;
+      metric: Metric;
+      complex: Exclude<ZigzagCloudComplex, 'witness'>;
+      intersection: boolean;
+    }
+  | {
       /** Zigzag persistence of a temporal network: snapshots of the edges active in sliding windows of time. */
       pipeline: 'network-zigzag';
       n: number;
@@ -218,6 +230,18 @@ export type Job =
       /** Extended persistence instead (bars with a `kind`). */
       extended: boolean;
       options: AlgoOptions;
+    }
+  /** Zigzag persistence of cells with lifetimes (faces over Z/2). */
+  | {
+      pipeline: 'timed-zigzag';
+      dimensions: Uint32Array;
+      indptr: Uint32Array;
+      indices: Uint32Array;
+      lifeIndptr: Uint32Array;
+      starts: Float64Array;
+      ends: Float64Array;
+      maxDim: number | null;
+      intersection: boolean;
     }
   /** Crash on purpose, to test the recovery (`window.__phlite.run({pipeline: 'crash', how: 'pool'})`). */
   | { pipeline: 'crash'; how: 'panic' | 'pool' | 'oom' };

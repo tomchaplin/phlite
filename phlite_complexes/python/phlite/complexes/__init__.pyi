@@ -11,12 +11,16 @@ from phlite import core
 import typing
 from . import zigzags as zigzags
 from .zigzags import Zigzag as Zigzag, ZigzagBar as ZigzagBar, ZigzagBarcode as ZigzagBarcode, zigzag as zigzag
+from .zigzags import TimedZigzagBar as TimedZigzagBar, TimedZigzagBarcode as TimedZigzagBarcode, timed_zigzag as timed_zigzag
 
 __all__ = [
     "zigzag",
     "Zigzag",
     "ZigzagBar",
     "ZigzagBarcode",
+    "timed_zigzag",
+    "TimedZigzagBar",
+    "TimedZigzagBarcode",
     "Bar",
     "ChainComplex",
     "ComplexBarcode",
@@ -574,6 +578,22 @@ class FilteredMap:
             mapping cone, with `phlite.core.Cone(cell)` the cone on a cell of `L`.
         """
     def __repr__(self) -> builtins.str: ...
+
+def _timed_zigzag(cells: typing.Iterable[typing.Any], *, join: builtins.str = 'union', algorithm: typing.Optional[core.Algorithm] = None, method: typing.Literal['cohomology', 'homology'] = "cohomology", union_find: builtins.bool = True) -> tuple[builtins.list[tuple[builtins.int, builtins.float, builtins.float, builtins.bool, builtins.bool, builtins.int, builtins.int]], builtins.list[builtins.float]]:
+    r"""
+    The engine behind `phlite.complexes.timed_zigzag` (which returns a `TimedZigzagBarcode`).
+    
+    Args:
+        cells: `(cell, lifetimes)` pairs, a cell a simplex (a sequence of integer vertices, its faces its facets), or
+            `(cell, lifetimes, faces)` triples for cells of any hashable kind; lifetimes a list of `(start, end)` pairs
+            (the cell is there when `start <= t < end`; `end` may be `inf`).
+        join: `'union'` or `'intersection'`: what the zigzag passes through at each event time.
+        algorithm, method, union_find: As for `zigzag`.
+    
+    Returns:
+        `(bars, times)`: each bar `(dimension, birth, death, birth_closed, death_closed, birth_level, death_level)`,
+        and the event times.
+    """
 
 def _zigzag(operations: typing.Iterable[typing.Union[tuple[typing.Sequence[builtins.int], builtins.bool], tuple[typing.Any, builtins.bool, typing.Sequence[typing.Any]]]], *, algorithm: typing.Optional[core.Algorithm] = None, method: typing.Literal['cohomology', 'homology'] = "cohomology", union_find: builtins.bool = True) -> builtins.list[tuple[builtins.int, builtins.int, builtins.int, builtins.bool, builtins.bool]]:
     r"""

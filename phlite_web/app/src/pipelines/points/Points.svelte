@@ -15,7 +15,7 @@
   import { barDomain } from '../../lib/scale';
   import { randomSeed } from '../../lib/random';
   import type { Job, Metric, ZigzagCloudComplex } from '../../lib/types';
-  import { EXAMPLES, RANDOM_KINDS, randomCloud, parseCloud, flatten, type Cloud, type RandomKind } from './data';
+  import { EXAMPLES, RANDOM_KINDS, MOTIONS, randomCloud, parseCloud, parseFrames, moveCloud, flatten, type Cloud, type Motion, type RandomKind } from './data';
 
   let source = $state<Source>('examples');
   let exampleId = $state(EXAMPLES[0].id);
@@ -30,7 +30,7 @@
     selection = [];
     fitKey++;
   }
-  type Filtration = 'rips' | 'dtm' | 'alpha' | 'cech' | 'sixpack' | 'zigzag';
+  type Filtration = 'rips' | 'dtm' | 'alpha' | 'cech' | 'sixpack' | 'zigzag' | 'moving';
   /** For the sliding-window zigzag: the number of consecutive points in a window. */
   let windowSize = $state(20);
   /** For the zigzag: join consecutive windows by intersections rather than unions. */
@@ -66,6 +66,34 @@
   /** Balls show the complex for Rips in the Euclidean metric, alpha and Čech. */
   const ballsShow = $derived(isDelaunay || (filtration === 'rips' && metric === 'euclidean'));
   const runner = new Runner();
+  /** Either zigzag: windows of the cloud, or the cloud's points moving. */
+  const isZigzag = $derived(filtration === 'zigzag' || filtration === 'moving');
+  // ---- Moving points: frames of the cloud moving (or uploaded) ----
+  let motion = $state<Motion>('breathe');
+  let nMovFrames = $state(20);
+  let amount = $state(0.6);
+  let movSeed = $state(1);
+  let uploadedFrames = $state.raw<{ dim: 2 | 3; frames: number[][][] } | null>(null);
+  let framesError = $state<string | null>(null);
+  async function uploadFrames(file: File) {
+    try {
+      const parsed = parseFrames(await file.text());
+      replace({ dim: parsed.dim, points: parsed.frames[0] });
+      uploadedFrames = parsed; // used while the cloud is still their first frame
+      framesError = null;
+    } catch (e) {
+      framesError = (e as Error).message;
+    }
+  }
+  /** The frames: uploaded ones while the cloud is still their first frame, or the cloud moved by the motion. */
+  const frames = $derived.by((): number[][][] => {
+    if (filtration !== 'moving') return [];
+    if (uploadedFrames && uploadedFrames.frames[0] === cloud.points) return uploadedFrames.frames;
+    return moveCloud(cloud, motion, nMovFrames, amount, movSeed);
+  });
+  const frameIndex = $derived(Math.min(frames.length - 1, Math.max(0, Math.floor(runner.t ?? 0))));
+  /** The points to draw: the slider's frame, when moving. */
+  const shown = $derived(filtration === 'moving' && frames.length && runner.t !== null ? frames[frameIndex] : cloud.points);
 
   // ---- Data sources ----
   function useExample(id: string) {
@@ -141,7 +169,8 @@
   function setFiltration(f: Filtration) {
     filtration = f;
     options = defaultsFor(f === 'rips' || f === 'dtm' || f === 'sixpack' ? RIPS : COMPLEX);
-    if (f === 'zigzag') runner.t = 0;
+    if (f === 'zigzag' || f === 'moving') runner.t = 0;
+    if (f === 'moving' && zzComplex === 'witness') zzComplex = 'rips';
     if (f === 'sixpack') {
       options.representatives = true;
       tool = cloud.dim === 2 ? 'select' : null;
@@ -157,8 +186,9 @@
     if (thresholdValue !== null && !(thresholdValue > 0)) return 'The threshold must be a positive number.';
     if (filtration === 'sixpack' && cloud.dim !== 2) return 'Subset maps are for clouds in the plane, where you can select the subset.';
     if (filtration === 'sixpack' && selection.length === 0) return 'Select some points (with the Select tool, or a box) to be the subset.';
-    if (filtration === 'zigzag' && thresholdValue === null) return 'Give a threshold: the scale of the complexes of the windows.';
-    if (filtration === 'zigzag' && (zzComplex === 'alpha' || zzComplex === 'delaunay-cech') && cloud.dim !== 2 && cloud.dim !== 3)
+    if (isZigzag && thresholdValue === null) return 'Give a threshold: the scale of the complexes.';
+    if (filtration === 'moving' && zzComplex === 'witness') return 'Witness complexes are for sliding windows (each window\'s points the landmarks).';
+    if (isZigzag && (zzComplex === 'alpha' || zzComplex === 'delaunay-cech') && cloud.dim !== 2 && cloud.dim !== 3)
       return 'Alpha and Delaunay–Čech complexes are for points in the plane or in space.';
     if (filtration === 'zigzag' && zzComplex === 'cech' && Math.min(windowSize, cloud.points.length) > 60 && maxDim >= 1)
       return 'Čech complexes list every simplex of up to four points within the radius: slow for windows of more than about 60 points. Compute anyway?';
@@ -172,6 +202,20 @@
     if (cloud.points.length === 0) return null;
     const opts = $state.snapshot(options);
     if (isDelaunay) return { pipeline: 'delaunay', coords: flatten(cloud), pointDim: cloud.dim, cech: filtration === 'cech', options: opts };
+    if (filtration === 'moving') {
+      if (thresholdValue === null || frames.length === 0 || zzComplex === 'witness') return null;
+      return {
+        pipeline: 'moving-zigzag',
+        coords: Float64Array.from(frames.flat(2)),
+        pointDim: cloud.dim,
+        nFrames: frames.length,
+        threshold: thresholdValue,
+        maxDim: Math.min(maxDim, 2),
+        metric,
+        complex: zzComplex,
+        intersection,
+      };
+    }
     if (filtration === 'zigzag') {
       if (thresholdValue === null) return null;
       return {
@@ -230,7 +274,9 @@
     if (job.coords.length !== cloud.points.length * cloud.dim) return null;
     return edges;
   });
-  const domain = $derived(barDomain(runner.result?.barcode.bars ?? [], [0]));
+  const domain = $derived<[number, number]>(
+    filtration === 'moving' ? [0, Math.max(1, frames.length)] : barDomain(runner.result?.barcode.bars ?? [], [0]),
+  );
   const bar = $derived(runner.selected === null ? null : (runner.result?.barcode.bars[runner.selected] ?? null));
   const describe = (cell: number[]) => (cell.length === 1 ? `point ${cell[0]}` : `[${cell.join(' ')}]`);
 </script>
@@ -240,13 +286,13 @@
     <div class="panel">
       {#if cloud.dim === 2}
         <View2D
-          points={cloud.points}
+          points={shown}
           t={runner.t}
           filtration={isDelaunay ? 'alpha' : 'rips'}
           {bar}
           balls={showBalls && ballsShow}
           {edges}
-          {tool}
+          tool={filtration === 'moving' ? null : tool}
           {brush}
           bind:selection
           active={zzActive}
@@ -255,10 +301,10 @@
           onedit={edited}
         />
       {:else}
-        <View3D points={cloud.points} t={runner.t} {bar} {edges} />
+        <View3D points={shown} t={runner.t} {bar} {edges} />
       {/if}
       <div style="margin-top: 0.6rem">
-        <FiltrationSlider bind:t={runner.t} {domain} label={filtration === 'zigzag' ? 'Window' : isDelaunay ? 'Radius' : 'Diameter'} />
+        <FiltrationSlider bind:t={runner.t} {domain} label={filtration === 'zigzag' ? 'Window' : filtration === 'moving' ? 'Frame' : isDelaunay ? 'Radius' : 'Diameter'} />
       </div>
       <div class="legend" style="margin-top: 0.4rem">
         <span>{cloud.points.length} points{cloud.dim === 3 ? ' in space' : ''}</span>
@@ -353,6 +399,7 @@
           <button class:on={filtration === 'alpha'} onclick={() => setFiltration('alpha')}>Alpha</button>
           <button class:on={filtration === 'cech'} onclick={() => setFiltration('cech')}>Delaunay–Čech</button>
           <button class:on={filtration === 'zigzag'} onclick={() => setFiltration('zigzag')} title="Zigzag persistence of the complexes of windows of consecutive points">Sliding windows</button>
+          <button class:on={filtration === 'moving'} onclick={() => setFiltration('moving')} title="Zigzag persistence of the cloud's points moving, frame by frame">Moving points</button>
           <button class:on={filtration === 'sixpack'} onclick={() => setFiltration('sixpack')} title="The image, kernel and cokernel of the map on homology from the Rips filtration of the selected points to that of all of them">Subset maps</button>
         </div>
       </div>
@@ -362,14 +409,14 @@
             <option value={0}>H₀</option><option value={1}>H₁</option><option value={2}>H₂</option><option value={3}>H₃</option>
           </select>
         </label>
-        {#if filtration === 'zigzag'}
+        {#if isZigzag}
           <label class="field"><span>Complex</span>
             <select bind:value={zzComplex}>
-              {#each ZZ_COMPLEXES as c}<option value={c.id}>{c.name}</option>{/each}
+              {#each ZZ_COMPLEXES.filter((c) => filtration === 'zigzag' || c.id !== 'witness') as c}<option value={c.id}>{c.name}</option>{/each}
             </select>
           </label>
         {/if}
-        {#if filtration !== 'zigzag' || zzComplex === 'rips'}<label class="field"><span>Metric</span>
+        {#if !isZigzag || zzComplex === 'rips'}<label class="field"><span>Metric</span>
           <select bind:value={metric}>
             <option value="euclidean">Euclidean</option>
             <option value="manhattan">Manhattan (L¹)</option>
@@ -395,6 +442,37 @@
             <code>phlite.clouds.cloud_zigzag</code>. Try the noisy circle: the loop lives while a window spans it.
           </p>
         {/if}
+        {#if filtration === 'moving'}
+          {#if uploadedFrames && uploadedFrames.frames[0] === cloud.points}
+            <p class="note">{uploadedFrames.frames.length} uploaded frames of {cloud.points.length} points. <button onclick={() => (uploadedFrames = null)}>Move the cloud instead</button></p>
+          {:else}
+            <label class="field"><span>Motion</span>
+              <select bind:value={motion}>{#each MOTIONS as m}<option value={m.id}>{m.name}</option>{/each}</select>
+            </label>
+            <label class="field"><span>Frames</span><input type="range" min="2" max="80" bind:value={nMovFrames} /><span>{nMovFrames}</span></label>
+            <label class="field"><span>How far</span><input type="range" min="0" max="1" step="0.05" bind:value={amount} /><span>{amount}</span></label>
+            {#if motion === 'drift'}<div class="field"><span>Seed {movSeed}</span><button onclick={() => (movSeed = randomSeed())}>New walk</button></div>{/if}
+            <p class="note">{MOTIONS.find((m) => m.id === motion)?.about}</p>
+          {/if}
+          <FileDrop accept=".csv,.txt,.tsv" onfile={uploadFrames}>
+            Or upload frames: one point per line, <code>frame, x, y</code> (or <code>frame, x, y, z</code>), the same number
+            of points in every frame, the j-th point of each frame the same point.
+          </FileDrop>
+          {#if framesError}<p class="error">{framesError}</p>{/if}
+          <div class="field"><span>Join</span>
+            <div class="tools">
+              <button class:on={!intersection} onclick={() => (intersection = false)}>Unions</button>
+              <button class:on={intersection} onclick={() => (intersection = true)}>Intersections</button>
+            </div>
+          </div>
+          <p class="note">
+            <strong>Zigzag persistence of moving points</strong>: each frame's {ZZ_COMPLEXES.find((c) => c.id === zzComplex)?.name}
+            complex at the threshold's scale ({ZZ_COMPLEXES.find((c) => c.id === zzComplex)?.scale}), on the same points
+            throughout, joined to the next frame's by their {intersection ? 'intersection' : 'union'}. A bar is a feature
+            followed from frame to frame; the slider moves through the frames. As
+            <code>phlite.clouds.cloud_zigzag</code> with a frame per time.
+          </p>
+        {/if}
         {#if filtration === 'sixpack'}
           <p class="note">
             The <em>six-pack</em> of the inclusion of the Rips filtration of the selected points (the subset) into that of
@@ -417,7 +495,7 @@
       {:else}
         <p class="note">The exact Delaunay triangulation (in the plane or in space), each cell entering at the radius of its minimal enclosing ball, when the balls about its vertices first meet.</p>
       {/if}
-      {#if filtration !== 'zigzag'}<Options bind:options defaults={isDelaunay ? COMPLEX : RIPS} />{/if}
+      {#if !isZigzag}<Options bind:options defaults={isDelaunay ? COMPLEX : RIPS} />{/if}
       <ComputeRow {runner} {job} disabled={blocked} />
       {#if problem}<p class="note" class:error={blocked}>{problem}</p>{/if}
     </div>

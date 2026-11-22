@@ -45,11 +45,13 @@ from phlite.networks import network_zigzag
 from phlite.images import video_zigzag
 
 # Point clouds: Rips (any metric, or a distance matrix), Čech, alpha, Delaunay–Čech or witness complexes
+# (the playground has sliding windows and moving points, on its Point clouds page)
 bars = cloud_zigzag(sliding_windows(points, 30), threshold=0.4)            # windows of a time series
 bars = cloud_zigzag([positions[t] for t in range(T)], 0.2, filtration="alpha", join="intersection")  # moving points
 bars = cloud_zigzag([[0, 1, 2], [1, 2, 3]], 0.5, distances=D)              # frames as labels into a distance matrix
 
-# Networks on shared nodes: clique complexes, or directed flag complexes (directed cliques, as flagser)
+# Networks on shared nodes: clique complexes, or directed flag complexes (directed cliques, as flagser); the
+# playground's Networks page takes edge weights as times, snapshots in sliding windows of time
 bars = network_zigzag([G_monday, G_tuesday, G_wednesday])                  # networkx graphs, or edge lists
 bars = network_zigzag(digraphs, complex="directed_flag")
 
@@ -64,6 +66,35 @@ or a `(labels, points)` pair, as `sliding_windows` gives: points are matched fro
 [images](images.md#videos-zigzag-persistence) for videos. For complexes you build yourself,
 `Zigzag.from_complexes(complexes, join=...)` does the same in Python, and `Zigzag.rips_windows(points, windows,
 threshold)` is the Rips case.
+
+### Cells with lifetimes
+
+The most general input: each cell lives over some intervals of time, `start <= t < end` (an end may be infinite), and
+its faces must live whenever it does. `timed_zigzag` follows the complex `K(t)` through time: between the *event
+times* (where some cell starts or ends) it is constant, and at each event the zigzag passes through the union (or, with
+`join="intersection"`, the intersection) of the complexes before and after, so a class can live for an instant
+`[τ, τ]`. Bars are in time:
+
+```python
+from phlite.complexes import timed_zigzag
+
+zz = timed_zigzag({
+    (0,): (0, None), (1,): (0, None), (2,): (0, None),
+    (0, 1): (0, None), (1, 2): (1, None),
+    (0, 2): [(2, 3), (4, 6)],            # comes and goes
+})
+zz.in_dimension(1)   # [TimedZigzagBar(dimension=1, birth=2.0, death=3.0, ...), TimedZigzagBar(..., birth=4.0, death=6.0, ...)]
+zz.betti(2.5, 1)     # 1: the rank of H_1(K(2.5))
+zz.times             # the event times; zz.levels is the same barcode over levels
+
+# Cells of any kind, with their faces: (cell, lifetimes, faces)
+timed_zigzag([("a", (0, None), []), ("b", (0, None), []), ("ab", (1, 2), ["a", "b"])])
+```
+
+A cell living from its filtration value on gives ordinary persistence; a cell living over one interval gives a
+"birth and death" filtration; temporal networks (an edge for each contact), windows and frames are all lifetimes.
+In Rust, `phlite_complexes::zigzag::timed_zigzag` takes `TimedCell`s. The playground's Chain complexes page has a zigzag
+mode with a lifetime for each cell (`~ 0-3 5-inf` in its text format).
 
 **Path homology** has no zigzag: its chains, the ∂-invariant paths `Ω(G)`, have no basis of cells, and `Ω` doesn't
 respect unions (`Ω(G ∪ H)` can be bigger than `Ω(G) + Ω(H)`), so FastZigzag's reduction (which rests on

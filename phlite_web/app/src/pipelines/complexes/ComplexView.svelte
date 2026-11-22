@@ -10,6 +10,7 @@
     t,
     bar,
     tool = null,
+    alive = null,
     onedit,
   }: {
     c: Complex;
@@ -17,6 +18,8 @@
     t: number | null;
     bar: Bar | null;
     tool?: Tool | null;
+    /** For a zigzag: whether cell `i` is there at t (instead of its value being at most t). */
+    alive?: ((i: number) => boolean) | null;
     onedit?: (c: Complex) => void;
   } = $props();
 
@@ -52,7 +55,7 @@
   const P = (v: number) => [sx(c[v].pos![0]), sy(c[v].pos![1])];
   const pts = (i: number) => verts[i].map(P).map((p) => p.join(',')).join(' ');
 
-  const present = (i: number) => t === null || values[i] <= t;
+  const present = (i: number) => t === null || (alive ? alive(i) : values[i] <= t);
   const repCells = $derived(new Map((bar?.rep ?? []).map(([coeff, cell]) => [cell[0], coeff])));
   const colour = $derived(bar ? dimColour(bar.dim) : 'currentColor');
   const order = $derived(c.map((_, i) => i).sort((a, b) => c[b].dim - c[a].dim));

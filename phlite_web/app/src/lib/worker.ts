@@ -6,7 +6,7 @@ import type { Job } from './types';
 // What both builds export (their glue differs)
 type Module = Pick<
   typeof import('phlite-web-single'),
-  'rips' | 'rips_six_pack' | 'cloud_zigzag' | 'network_zigzag' | 'video_zigzag' | 'magnitude' | 'mpss' | 'binary_filtration' | 'delaunay' | 'grpph' | 'network' | 'graph' | 'image' | 'complex' | 'n_threads' | 'set_crash_hooks' | 'crash_for_testing'
+  'rips' | 'rips_six_pack' | 'cloud_zigzag' | 'moving_zigzag' | 'network_zigzag' | 'timed_zigzag' | 'video_zigzag' | 'magnitude' | 'mpss' | 'binary_filtration' | 'delaunay' | 'grpph' | 'network' | 'graph' | 'image' | 'complex' | 'n_threads' | 'set_crash_hooks' | 'crash_for_testing'
 >;
 type Message = { type: 'init'; threads: number; single: boolean; channel: string } | { type: 'run'; id: number; job: Job };
 
@@ -54,6 +54,16 @@ self.onmessage = async (event: MessageEvent<Message>) => {
       case 'cloud-zigzag':
         barcode = phlite.cloud_zigzag(
           job.coords, job.pointDim, job.window, job.step, job.threshold, job.maxDim, job.metric, job.complex, job.intersection,
+        );
+        break;
+      case 'moving-zigzag':
+        barcode = phlite.moving_zigzag(
+          job.coords, job.pointDim, job.nFrames, job.threshold, job.maxDim, job.metric, job.complex, job.intersection,
+        );
+        break;
+      case 'timed-zigzag':
+        barcode = phlite.timed_zigzag(
+          job.dimensions, job.indptr, job.indices, job.lifeIndptr, job.starts, job.ends, job.maxDim ?? undefined, job.intersection,
         );
         break;
       case 'network-zigzag':

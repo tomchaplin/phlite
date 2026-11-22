@@ -290,3 +290,56 @@ def test_against_fzz(seed):
         with open(os.path.join(tmp, "filt_pers")) as f:
             theirs = sorted(tuple(map(int, line.split())) for line in f if line.strip())
     assert sorted((k, b, e) for k, b, e, _, _ in zigzag(ops)) == theirs
+
+
+@given(st.integers(0, 10**9), st.sampled_from(["union", "intersection"]))
+@settings(deadline=None, max_examples=100)
+def test_timed_zigzag(seed, join):
+    """timed_zigzag: cells living over runs of integer times give the barcode of from_complexes on the complexes at
+    each time (when every time is an event), and betti(t) is the Betti number of K(t)."""
+    from phlite.complexes import timed_zigzag
+
+    rng = random.Random(seed)
+    ks = [closure([tuple(rng.sample(range(5), rng.randint(1, 3))) for _ in range(rng.randint(1, 5))])
+          for _ in range(rng.randint(2, 5))]
+    note(ks)
+    cells = {}
+    for s in set().union(*ks):
+        cells[s] = [(i, i + 1) for i, k in enumerate(ks) if s in k]
+    timed = timed_zigzag(cells, join=join)
+    everything = sorted(set().union(*ks), key=lambda s: (len(s), s))
+    index = {s: i for i, s in enumerate(everything)}
+    for i, k in enumerate(ks):
+        for p in range(3):
+            assert timed.betti(i + 0.5, p) == map_rank(k, k, p, index), (i, p)
+    if len(timed.times) == len(ks) + 1:
+        expected = Zigzag.from_complexes(ks + [[]], join=join).barcode(levels=True)
+        assert sorted(tuple(b)[:3] for b in timed.levels) == sorted(tuple(b)[:3] for b in expected)
+
+
+def test_timed_zigzag_forms():
+    from phlite.complexes import timed_zigzag
+
+    inf = float("inf")
+    tri = {(0,): (0, None), (1,): (0, None), (2,): (0, None), (0, 1): (0, None), (1, 2): (1, None),
+           (0, 2): [(2, 3), (4, 5), (5, 6)]}
+    zz = timed_zigzag(tri)
+    assert [(b.birth, b.death) for b in zz.in_dimension(1)] == [(2.0, 3.0), (4.0, 6.0)]
+    assert [(b.birth, b.death) for b in zz.in_dimension(0)] == [(0.0, 1.0), (0.0, inf)]
+    assert list(zz.times) == [0, 1, 2, 3, 4, 6]
+    assert zz.betti(2.5, 1) == 1 and zz.betti(3.5, 1) == 0
+    # Cells of any kind, with faces: a square's boundary as four vertices and four edges, one edge coming and going
+    cells = [("a", (0, None), []), ("b", (0, None), []), ("c", (0, None), []), ("d", (0, None), []),
+             ("ab", (0, None), ["a", "b"]), ("bc", (0, None), ["b", "c"]), ("cd", (0, None), ["c", "d"]),
+             ("da", (1, 2), ["d", "a"])]
+    zz = timed_zigzag(cells)
+    assert [(b.birth, b.death) for b in zz.in_dimension(1)] == [(1.0, 2.0)]
+    # An instant: two arcs swapping one edge for another make a loop only in the union at t = 1
+    arcs = {(0,): (0, None), (1,): (0, None), (2,): (0, None), (0, 1): (0, None), (1, 2): (0, 1), (0, 2): (1, None)}
+    union = timed_zigzag(arcs)
+    assert [(b.birth, b.death, b.death_closed) for b in union.in_dimension(1)] == [(1.0, 1.0, True)]
+    assert timed_zigzag(arcs, join="intersection").in_dimension(1) == []
+    with pytest.raises(ValueError):
+        timed_zigzag({(0,): (0, 1), (0, 1): (0, 2), (1,): (0, 2)})  # (0, 1) outlives its face (0,)
+    with pytest.raises(ValueError):
+        timed_zigzag({(0,): (1, 1)})

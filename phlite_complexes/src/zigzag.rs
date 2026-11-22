@@ -481,6 +481,188 @@ pub fn to_levels(levels: &[usize], bar: &ZigzagBar) -> Option<LevelBar> {
     (first < last).then(|| LevelBar { dimension: bar.dimension, birth: first, death: last - 1 })
 }
 
+// ---------------------------------------------------------------------------------------------------------------------
+// Cells with lifetimes
+
+/// A cell that lives over some intervals of time: present at `t` when `start <= t < end` for one of its `lifetimes`
+/// (`end` may be infinite). Its faces must live whenever it does.
+#[derive(Debug, Clone, PartialEq)]
+pub struct TimedCell<K> {
+    pub cell: K,
+    pub dimension: usize,
+    pub faces: Vec<K>,
+    pub lifetimes: Vec<(f64, f64)>,
+}
+
+impl<V: Clone> TimedCell<Vec<V>> {
+    /// A simplex (its vertices, sorted, or ordered for a directed flag complex), its faces its facets.
+    pub fn simplex(vertices: Vec<V>, lifetimes: Vec<(f64, f64)>) -> Self {
+        Self { dimension: vertices.len().saturating_sub(1), faces: simplex_facets(&vertices), cell: vertices, lifetimes }
+    }
+}
+
+/// An interval of a timed zigzag: homology of `dimension` alive from `birth` to `death`, each end closed (included)
+/// or open. Changes happen at the event times `τ_0 < τ_1 < ...` (where some cell starts or ends): between them the
+/// complex is constant, `K(τ_i)` on `[τ_i, τ_{i+1})`, and at each `τ_{i+1}` the zigzag passes through the join of
+/// `K(τ_i)` and `K(τ_{i+1})` (their union or intersection), so a class can live for an instant `[τ, τ]`.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct TimedBar {
+    pub dimension: usize,
+    pub birth: f64,
+    pub death: f64,
+    pub birth_closed: bool,
+    pub death_closed: bool,
+    /// The same interval in levels: `K(τ_i)` at `2 i`, the join at `τ_{i+1}` at `2 i + 1`.
+    pub levels: LevelBar,
+}
+
+/// What can be wrong with timed cells.
+#[derive(Debug, Clone, PartialEq)]
+pub enum TimedZigzagError {
+    /// Cell `cell` has a lifetime that is empty or not a number (`start < end` is needed)
+    BadLifetime { cell: usize },
+    /// Cell `cell` has a face that isn't a cell
+    UnknownFace { cell: usize },
+    /// Two cells have the same key
+    Repeated { cell: usize },
+    /// Cell `cell` lives at `time` without one of its faces (or a face of it ends while it lives)
+    FaceMissing { cell: usize, time: f64 },
+}
+
+impl std::fmt::Display for TimedZigzagError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::BadLifetime { cell } => write!(f, "cell {cell} has a lifetime that isn't an interval start < end"),
+            Self::UnknownFace { cell } => write!(f, "cell {cell} has a face that isn't one of the cells"),
+            Self::Repeated { cell } => write!(f, "cell {cell} repeats an earlier cell"),
+            Self::FaceMissing { cell, time } => write!(f, "cell {cell} is there at time {time} without all its faces"),
+        }
+    }
+}
+
+impl std::error::Error for TimedZigzagError {}
+
+/// The zigzag barcode of cells with lifetimes, in time (see [`TimedBar`]), joining the complexes before and after each
+/// event time by `join`, with the event times `τ_0 < τ_1 < ...`; reduced by `method` (cohomology with `union_find` is
+/// [`zigzag_barcode`]'s default). Overlapping or touching lifetimes of a cell are merged. Sorted by dimension, birth,
+/// death.
+///
+/// # Errors
+/// See [`TimedZigzagError`].
+pub fn timed_zigzag<K: Hash + Eq + Clone, R: ColumnRepresentation>(
+    cells: &[TimedCell<K>],
+    join: Join,
+    method: Method,
+    algorithm: Algorithm<'_, R>,
+    union_find: bool,
+) -> Result<(Vec<TimedBar>, Vec<f64>), TimedZigzagError> {
+    // Cells by index, faces as indices, lifetimes merged
+    let mut index: HashMap<&K, usize> = HashMap::with_capacity(cells.len());
+    for (c, cell) in cells.iter().enumerate() {
+        if index.insert(&cell.cell, c).is_some() {
+            return Err(TimedZigzagError::Repeated { cell: c });
+        }
+    }
+    let mut faces: Vec<Vec<usize>> = Vec::with_capacity(cells.len());
+    let mut lifetimes: Vec<Vec<(f64, f64)>> = Vec::with_capacity(cells.len());
+    for (c, cell) in cells.iter().enumerate() {
+        faces.push(
+            cell.faces.iter().map(|f| index.get(f).copied().ok_or(TimedZigzagError::UnknownFace { cell: c })).collect::<Result<_, _>>()?,
+        );
+        let mut l = cell.lifetimes.clone();
+        if l.iter().any(|&(a, b)| a.is_nan() || b.is_nan() || a >= b || a.is_infinite()) {
+            return Err(TimedZigzagError::BadLifetime { cell: c });
+        }
+        l.sort_by(|x, y| x.0.total_cmp(&y.0));
+        let mut merged: Vec<(f64, f64)> = vec![];
+        for (a, b) in l {
+            match merged.last_mut() {
+                Some(last) if a <= last.1 => last.1 = last.1.max(b),
+                _ => merged.push((a, b)),
+            }
+        }
+        lifetimes.push(merged);
+    }
+    // Events: (time, cell, start?)
+    let mut times: Vec<f64> = lifetimes.iter().flatten().flat_map(|&(a, b)| [a, b]).filter(|t| t.is_finite()).collect();
+    times.sort_by(f64::total_cmp);
+    times.dedup();
+    let mut starts: Vec<Vec<usize>> = vec![vec![]; times.len()];
+    let mut ends: Vec<Vec<usize>> = vec![vec![]; times.len()];
+    let at = |t: f64| times.binary_search_by(|x| x.total_cmp(&t)).expect("an event time");
+    for (c, l) in lifetimes.iter().enumerate() {
+        for &(a, b) in l {
+            starts[at(a)].push(c);
+            if b.is_finite() {
+                ends[at(b)].push(c);
+            }
+        }
+    }
+    let dims: Vec<usize> = cells.iter().map(|c| c.dimension).collect();
+    for list in &mut starts {
+        list.sort_by_key(|&c| (dims[c], c));
+    }
+    for list in &mut ends {
+        list.sort_by_key(|&c| std::cmp::Reverse((dims[c], c)));
+    }
+    let mut ops: Vec<Operation<usize>> = vec![];
+    let mut op_time: Vec<f64> = vec![];
+    let mut levels: Vec<usize> = vec![];
+    for (i, &t) in times.iter().enumerate() {
+        let insert = |ops: &mut Vec<Operation<usize>>, op_time: &mut Vec<f64>| {
+            for &c in &starts[i] {
+                ops.push(Operation::Insert { cell: c, dimension: dims[c], faces: faces[c].clone() });
+                op_time.push(t);
+            }
+        };
+        let delete = |ops: &mut Vec<Operation<usize>>, op_time: &mut Vec<f64>| {
+            for &c in &ends[i] {
+                ops.push(Operation::Delete(c));
+                op_time.push(t);
+            }
+        };
+        let first = join == Join::Union;
+        if first {
+            insert(&mut ops, &mut op_time);
+        } else {
+            delete(&mut ops, &mut op_time);
+        }
+        if i > 0 {
+            levels.push(ops.len());
+        }
+        if first {
+            delete(&mut ops, &mut op_time);
+        } else {
+            insert(&mut ops, &mut op_time);
+        }
+        levels.push(ops.len());
+    }
+    let cell_of = |op: usize| match &ops[op] {
+        Operation::Insert { cell, .. } | Operation::Delete(cell) => *cell,
+    };
+    let bars = zigzag_barcode_with(&ops, method, algorithm, union_find).map_err(|e| {
+        let op = match e {
+            ZigzagError::AlreadyThere(i) | ZigzagError::NotThere(i) | ZigzagError::MissingFace(i) | ZigzagError::CofaceThere(i) => i,
+        };
+        TimedZigzagError::FaceMissing { cell: cell_of(op), time: op_time[op] }
+    })?;
+    let mut out: Vec<TimedBar> = bars
+        .iter()
+        .filter_map(|bar| to_levels(&levels, bar))
+        .map(|lb| {
+            let (birth, death, death_closed) = (
+                if lb.birth % 2 == 0 { times[lb.birth / 2] } else { times[lb.birth / 2 + 1] },
+                // Dying after the join at τ_{i+1} (closed), or when K(τ_i) ends there (open; never, for the last)
+                times.get(lb.death / 2 + 1).copied().unwrap_or(f64::INFINITY),
+                lb.death % 2 == 1,
+            );
+            TimedBar { dimension: lb.dimension, birth, death, birth_closed: true, death_closed, levels: lb }
+        })
+        .collect();
+    out.sort_by_key(|b| b.levels);
+    Ok((out, times))
+}
+
 #[cfg(test)]
 mod complex_tests {
     use super::*;
@@ -569,6 +751,84 @@ mod complex_tests {
                             assert_eq!(betti(&b, 2 * i + 1, dim), direct_betti(&joined, dim));
                         }
                     }
+                }
+            }
+        }
+    }
+
+    /// Timed cells: a triangle's boundary whose last edge comes and goes; Betti numbers at sampled times match
+    #[test]
+    fn timed_cells() {
+        let inf = f64::INFINITY;
+        let v = |x: u32| TimedCell::simplex(vec![x], vec![(0.0, inf)]);
+        let cells = vec![
+            v(0),
+            v(1),
+            v(2),
+            TimedCell::simplex(vec![0, 1], vec![(0.0, inf)]),
+            TimedCell::simplex(vec![1, 2], vec![(1.0, inf)]),
+            TimedCell::simplex(vec![0, 2], vec![(2.0, 3.0), (4.0, 5.0), (5.0, 6.0)]),
+        ];
+        let (bars, times) = timed_zigzag(&cells, Join::Union, Method::Cohomology, Algorithm::Clearing(Clearing::new()), true).unwrap();
+        assert_eq!(times, vec![0.0, 1.0, 2.0, 3.0, 4.0, 6.0]);
+        let loops: Vec<(f64, f64)> = bars.iter().filter(|b| b.dimension == 1).map(|b| (b.birth, b.death)).collect();
+        assert_eq!(loops, vec![(2.0, 3.0), (4.0, 6.0)]);
+        let h0: Vec<(f64, f64)> = bars.iter().filter(|b| b.dimension == 0).map(|b| (b.birth, b.death)).collect();
+        assert_eq!(h0, vec![(0.0, 1.0), (0.0, inf)]);
+        // A face that doesn't cover its coface
+        let bad = vec![v(0), TimedCell::simplex(vec![1], vec![(0.0, 1.0)]), TimedCell::simplex(vec![0, 1], vec![(0.0, 2.0)])];
+        let e = timed_zigzag(&bad, Join::Union, Method::Cohomology, Algorithm::Clearing(Clearing::new()), true).unwrap_err();
+        assert!(matches!(e, TimedZigzagError::FaceMissing { time, .. } if time == 1.0), "{e:?}");
+    }
+
+    /// Timed cells against a ComplexZigzag of the complexes at the event times
+    #[test]
+    fn timed_against_sequences() {
+        let mut seed = 999u64;
+        let mut rand = move || {
+            seed ^= seed << 13;
+            seed ^= seed >> 7;
+            seed ^= seed << 17;
+            seed
+        };
+        for _ in 0..200 {
+            // Random complexes at times 0..s, each cell's lifetimes the runs of times it is in
+            let s = 2 + (rand() % 4) as usize;
+            let complexes: Vec<SimplicialComplex<u32>> = (0..s)
+                .map(|_| {
+                    SimplicialComplex::from_maximal((0..1 + rand() % 5).map(|_| {
+                        let mut x: Vec<u32> = (0..1 + rand() % 3).map(|_| (rand() % 5) as u32).collect();
+                        x.sort_unstable();
+                        x.dedup();
+                        x
+                    }))
+                })
+                .collect();
+            let all: BTreeSet<Vec<u32>> = complexes.iter().flat_map(|c| c.simplices.iter().cloned()).collect();
+            let cells: Vec<TimedCell<Vec<u32>>> = all
+                .iter()
+                .map(|x| {
+                    let mut lifetimes = vec![];
+                    for (i, c) in complexes.iter().enumerate() {
+                        if c.simplices.contains(x) {
+                            lifetimes.push((i as f64, (i + 1) as f64));
+                        }
+                    }
+                    TimedCell::simplex(x.clone(), lifetimes)
+                })
+                .collect();
+            for join in [Join::Union, Join::Intersection] {
+                let (timed, times) =
+                    timed_zigzag(&cells, join, Method::Cohomology, Algorithm::Clearing(Clearing::new()), true).unwrap();
+                // Times 0..=s, a last empty complex at s: compare with the sequence plus an empty complex
+                let mut seq = complexes.clone();
+                seq.push(SimplicialComplex::default());
+                let expected = bars(join, &seq);
+                // Every time is an event (empty complexes in the middle still mark a change, unless two in a row are
+                // the same: then compare only when every time is an event)
+                if times.len() == s + 1 {
+                    let got: Vec<LevelBar> = timed.iter().map(|b| b.levels).collect();
+                    assert_eq!(got, expected, "{join:?} {complexes:?}");
                 }
             }
         }

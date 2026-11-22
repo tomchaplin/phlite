@@ -736,6 +736,67 @@ pub fn rips_six_pack(
     })
 }
 
+/// Zigzag persistence of cells with lifetimes (`phlite_complexes::zigzag::timed_zigzag`): cell `i` has dimension
+/// `dimensions[i]`, faces `indices[indptr[i]..indptr[i + 1]]` (over Z/2, so coefficients don't matter) and lives over
+/// `[starts[k], ends[k])` for `k` in `life_indptr[i]..life_indptr[i + 1]` (an end may be infinite). At each event time
+/// the zigzag passes through the union (or with `intersection` the intersection) of the complexes before and after.
+/// Bars are in time (`null` deaths never die); dimensions up to `max_dim` (all if `None`).
+#[wasm_bindgen]
+#[allow(clippy::too_many_arguments)]
+pub fn timed_zigzag(
+    dimensions: &[u32],
+    indptr: &[u32],
+    indices: &[u32],
+    life_indptr: &[u32],
+    starts: &[f64],
+    ends: &[f64],
+    max_dim: Option<usize>,
+    intersection: bool,
+) -> Result<JsValue, JsError> {
+    use phlite::barcode::Method;
+    use phlite_complexes::zigzag::{timed_zigzag as zigzag, Join, TimedCell};
+    let n = dimensions.len();
+    if indptr.len() != n + 1 || life_indptr.len() != n + 1 || starts.len() != ends.len() {
+        return Err(err("The cells' faces and lifetimes don't match their number"));
+    }
+    if indices.iter().any(|&f| f as usize >= n) {
+        return Err(err("A face is out of range"));
+    }
+    let cells: Vec<TimedCell<usize>> = (0..n)
+        .map(|i| TimedCell {
+            cell: i,
+            dimension: dimensions[i] as usize,
+            faces: indices[indptr[i] as usize..indptr[i + 1] as usize].iter().map(|&f| f as usize).collect(),
+            lifetimes: (life_indptr[i] as usize..life_indptr[i + 1] as usize).map(|k| (starts[k], ends[k])).collect(),
+        })
+        .collect();
+    let join = if intersection { Join::Intersection } else { Join::Union };
+    let (bars, times) = zigzag(&cells, join, Method::Cohomology, Algorithm::Clearing(phlite::reduction::Clearing::new()), true)
+        .map_err(|e| err(e.to_string()))?;
+    let out: Vec<OutBar> = bars
+        .into_iter()
+        .filter(|b| max_dim.is_none_or(|d| b.dimension <= d))
+        .map(|b| OutBar {
+            dim: b.dimension,
+            birth: b.birth,
+            death: b.death.is_finite().then_some(b.death),
+            birth_cell: vec![],
+            death_cell: None,
+            rep: None,
+            kind: None,
+        })
+        .collect();
+    to_js(Barcode {
+        summary: format!(
+            "{n} cells with lifetimes, {} event times, joined at each by {}",
+            times.len(),
+            if intersection { "intersections" } else { "unions" }
+        ),
+        bars: out,
+        edges: None,
+    })
+}
+
 /// A zigzag barcode in levels (frame `i` at `2 i`, see `phlite_complexes::zigzag::LevelBar`) as bars over frames:
 /// alive in frames `b` to `d` is `[b, d + 1)`, the join of frames `i` and `i + 1` counting as `i + 0.5`, and `null`
 /// deaths reaching the last frame.
@@ -819,6 +880,65 @@ pub fn cloud_zigzag(
         summary: format!(
             "{} windows of {window} of {n} points (every {step}), {name} complexes at scale {threshold}, joined by {}",
             frames.len(),
+            if intersection { "intersections" } else { "unions" }
+        ),
+        edges: None,
+    })
+}
+
+/// Zigzag persistence of moving points (`phlite_clouds::zigzag::cloud_zigzag` on `moving_points`): `n_frames` frames
+/// of the same points (point `j` of every frame the same point), concatenated in `coords`, each frame's complex at
+/// scale `threshold`: `rips` (in `metric`), `cech`, `alpha` or `delaunay-cech`, joined to the next by their union or
+/// with `intersection` their intersection. Bars are over frames (see [`frame_bars`]).
+#[wasm_bindgen]
+#[allow(clippy::too_many_arguments)]
+pub fn moving_zigzag(
+    coords: &[f64],
+    point_dim: usize,
+    n_frames: usize,
+    threshold: f64,
+    max_dim: usize,
+    metric: &str,
+    complex: &str,
+    intersection: bool,
+) -> Result<JsValue, JsError> {
+    use phlite_clouds::rips::Metric;
+    use phlite_clouds::zigzag::{self as zz, moving_points, PointFiltration};
+    use phlite_complexes::zigzag::Join;
+    if point_dim == 0 || n_frames == 0 || !coords.len().is_multiple_of(point_dim * n_frames) {
+        return Err(err("The frames' coordinates don't divide into points"));
+    }
+    if threshold.is_nan() || threshold < 0.0 {
+        return Err(err("Give a threshold (a scale) for the complexes"));
+    }
+    let per_frame = coords.len() / n_frames;
+    let times: Vec<Vec<Vec<f64>>> =
+        coords.chunks(per_frame).map(|f| f.chunks(point_dim).map(<[f64]>::to_vec).collect()).collect();
+    let frames = moving_points(&times);
+    let join = if intersection { Join::Intersection } else { Join::Union };
+    type Filtration<'a> = &'a dyn Fn(&zz::Frame, usize, f64) -> Result<Vec<(f64, Vec<u32>)>, phlite_clouds::CloudError>;
+    let run = |f: Filtration<'_>| {
+        zz::cloud_zigzag(&frames, &f, threshold, max_dim, join, Algorithm::Clearing(phlite::reduction::Clearing::new()))
+            .map_err(|e| err(e.to_string()))
+    };
+    let metric = match metric {
+        "euclidean" => Metric::Euclidean,
+        "manhattan" => Metric::Manhattan,
+        "chebyshev" => Metric::Chebyshev,
+        other => return Err(err(format!("Unknown metric {other:?}"))),
+    };
+    let (bars, name) = match complex {
+        "rips" => (run(&|f, top, t| zz::Rips { metric }.simplices(f, top, t))?, "Rips"),
+        "cech" => (run(&|f, top, t| zz::Cech.simplices(f, top, t))?, "Čech"),
+        "alpha" => (run(&|f, top, t| zz::Alpha.simplices(f, top, t))?, "alpha"),
+        "delaunay-cech" => (run(&|f, top, t| zz::DelaunayCech.simplices(f, top, t))?, "Delaunay–Čech"),
+        other => return Err(err(format!("Unknown complex {other:?}"))),
+    };
+    to_js(Barcode {
+        bars: frame_bars(bars, n_frames),
+        summary: format!(
+            "{n_frames} frames of {} moving points, {name} complexes at scale {threshold}, joined by {}",
+            per_frame / point_dim,
             if intersection { "intersections" } else { "unions" }
         ),
         edges: None,

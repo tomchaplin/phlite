@@ -169,6 +169,81 @@ export function randomCloud(kind: RandomKind, n: number, noise: number, seed: nu
 }
 
 /** Points from CSV or whitespace-separated text: the first two (or three) numeric columns of each line. */
+// ---- Moving points ----
+
+export type Motion = 'breathe' | 'split' | 'drift' | 'shear';
+export const MOTIONS: { id: Motion; name: string; about: string }[] = [
+  { id: 'breathe', name: 'Breathe', about: 'The cloud shrinks towards its centre and grows back: a loop closes up as the points crowd together and opens again.' },
+  { id: 'split', name: 'Pull apart', about: 'The left and right halves move apart: components split, and a loop across the middle breaks.' },
+  { id: 'drift', name: 'Drift', about: 'Every point wanders at random (a random walk), so small features flicker in and out while big ones last.' },
+  { id: 'shear', name: 'Shear', about: 'The cloud is sheared sideways, more and more: distances along the shear stretch, and loops flatten out.' },
+];
+
+/** `nFrames` frames of `cloud`'s points moving by `motion`, by `amount` (0 to 1, in units of the cloud's size). */
+export function moveCloud(cloud: Cloud, motion: Motion, nFrames: number, amount: number, seed: number): number[][][] {
+  const pts = cloud.points;
+  if (pts.length === 0) return [];
+  const d = cloud.dim;
+  const centre = Array.from({ length: d }, (_, k) => pts.reduce((s, p) => s + p[k], 0) / pts.length);
+  const size = Math.max(...Array.from({ length: d }, (_, k) => Math.max(...pts.map((p) => p[k])) - Math.min(...pts.map((p) => p[k])))) || 1;
+  const frames: number[][][] = [];
+  if (motion === 'drift') {
+    const r = rng(seed);
+    const step = (amount * size) / (4 * Math.sqrt(nFrames));
+    let current = pts.map((p) => [...p]);
+    for (let f = 0; f < nFrames; f++) {
+      frames.push(current);
+      current = current.map((p) => p.map((x) => x + step * r.normal()));
+    }
+    return frames;
+  }
+  for (let f = 0; f < nFrames; f++) {
+    const s = nFrames === 1 ? 0 : f / (nFrames - 1);
+    frames.push(
+      pts.map((p) => {
+        if (motion === 'breathe') {
+          const k = 1 - amount * 0.8 * Math.sin(Math.PI * s);
+          return p.map((x, i) => centre[i] + k * (x - centre[i]));
+        }
+        if (motion === 'split') {
+          const side = p[0] < centre[0] ? -1 : 1;
+          return p.map((x, i) => (i === 0 ? x + side * amount * size * 0.6 * s : x));
+        }
+        // shear
+        return p.map((x, i) => (i === 0 ? x + amount * 1.5 * s * (p[1] - centre[1]) : x));
+      }),
+    );
+  }
+  return frames;
+}
+
+/**
+ * Frames of moving points from text: one point per line, `frame, x, y[, z]` (frames numbered from anything, in any
+ * order); every frame must have the same number of points, the j-th point of each the same point.
+ */
+export function parseFrames(text: string, maxPoints = 20000): { dim: 2 | 3; frames: number[][][] } {
+  const byFrame = new Map<number, number[][]>();
+  let total = 0;
+  for (const line of text.split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith('#')) continue;
+    const cols = trimmed.split(/[\s,;]+/).map(Number);
+    if (cols.length < 3 || cols.some((c) => !Number.isFinite(c))) {
+      if (total === 0) continue; // a header
+      throw new Error(`Line "${trimmed.slice(0, 40)}" isn't a row of numbers: frame, x, y (and z)`);
+    }
+    const [frame, ...xyz] = cols;
+    if (!byFrame.has(frame)) byFrame.set(frame, []);
+    byFrame.get(frame)!.push(xyz);
+    if (++total > maxPoints) throw new Error(`More than ${maxPoints} points in all is too many for the playground`);
+  }
+  if (total === 0) throw new Error('No points found: expected frame, x, y (and z) per line');
+  const frames = [...byFrame.entries()].sort((a, b) => a[0] - b[0]).map(([, f]) => f);
+  if (frames.some((f) => f.length !== frames[0].length)) throw new Error('Every frame needs the same number of points');
+  const dim = frames.every((f) => f.every((p) => p.length >= 3)) ? 3 : 2;
+  return { dim, frames: frames.map((f) => f.map((p) => p.slice(0, dim))) };
+}
+
 export function parseCloud(text: string, maxPoints = 5000): Cloud {
   const rows: number[][] = [];
   for (const line of text.split(/\r?\n/)) {
