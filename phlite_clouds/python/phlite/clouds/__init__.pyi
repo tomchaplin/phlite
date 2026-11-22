@@ -20,6 +20,8 @@ __all__ = [
     "rips",
     "rips_complex",
     "rips_image_kernel",
+    "rips_map_six_pack",
+    "rips_six_pack",
     "witness",
     "witness_complex",
 ]
@@ -278,6 +280,57 @@ def rips_image_kernel(distance_matrix: typing.Optional[typing.Union[numpy.typing
         A dict of barcodes: `'image'`, `'kernel'`, `'cokernel'` and `'relative'` (of the pair), each bar in the dimension
         of its homology (a kernel class of `H_k` is born at the `(k + 1)`-simplex that makes a cycle of the subset a
         boundary among all the points).
+    """
+
+def rips_map_six_pack(domain: typing.Any, codomain: typing.Any, vertex_map: typing.Sequence[builtins.int], max_dim: builtins.int = 1, *, metric: typing.Literal['euclidean', 'manhattan', 'cityblock', 'chebyshev'] = "euclidean", threshold: typing.Optional[builtins.float] = None, precomputed: builtins.bool = False, representatives: builtins.bool = True) -> phlite.core.SixPack:
+    r"""
+    The six-pack of persistence barcodes of a map of point clouds, through their Rips filtrations: a map of points
+    `f` (point `i` of `domain` to point `vertex_map[i]` of `codomain`) that never increases distances,
+    `d(f x, f y) <= d(x, y)`, induces a simplicial map of Rips complexes at every scale. Over Z/2, in dimensions
+    `0, ..., max_dim`: the barcodes of both filtrations, of the image, kernel and cokernel of
+    `H(Rips(domain)) -> H(Rips(codomain))`, and of the map's mapping cone, each bar with a representative (see
+    `phlite.core.SixPack`). Through the map's mapping cylinder, lazily on both Rips boundaries.
+    
+    For example: a subsample (or a clustering, sending each point to its cluster's centre, if that doesn't stretch
+    distances), a projection onto a subspace, or a map to a coarser sample.
+    
+    Args:
+        domain: The domain's points (an array of shape `(n, d)`), or with `precomputed`, its distance matrix.
+        codomain: The codomain's points, or with `precomputed`, its distance matrix.
+        vertex_map: The image of each point of `domain`, a point index of `codomain`.
+        max_dim: The maximum homology dimension.
+        metric: The metric for points, as for `rips`.
+        threshold: The largest diameter (default: all); bars still alive there are essential.
+        precomputed: Whether `domain` and `codomain` are distance matrices (dense, or scipy sparse).
+        representatives: Whether to compute a representative for every bar.
+    
+    Returns:
+        A `phlite.core.SixPack`, with representatives lists of `(simplex, 1)` (and in the relative barcode,
+        `(phlite.core.Cone(simplex), 1)` for the cone on a simplex of the domain).
+    
+    Raises:
+        ValueError: If the map increases a distance (up to `threshold`).
+    """
+
+def rips_six_pack(distance_matrix: typing.Optional[typing.Union[numpy.typing.NDArray[numpy.floating], typing.Sequence[typing.Sequence[builtins.float]], typing.Any]] = None, subset: typing.Optional[typing.Sequence[typing.Any]] = None, max_dim: builtins.int = 1, *, points: typing.Optional[typing.Union[numpy.typing.NDArray[numpy.floating], typing.Sequence[typing.Sequence[builtins.float]]]] = None, metric: typing.Literal['euclidean', 'manhattan', 'cityblock', 'chebyshev'] = "euclidean", threshold: typing.Optional[builtins.float] = None, representatives: builtins.bool = True) -> phlite.core.SixPack:
+    r"""
+    The six-pack of persistence barcodes of the inclusion of the Rips complex of a subset of the points into that of all
+    of them (the same distances), over Z/2, in dimensions `0, ..., max_dim`: the barcodes of the subset's and the whole's
+    Rips filtrations, of the image, kernel and cokernel of `H(Rips(subset)) -> H(Rips(points))`, and of the pair, each
+    bar with a representative (see `phlite.core.SixPack`). On the lazy Rips boundary; every simplex up to dimension
+    `max_dim + 1` and `threshold` is listed, so give a threshold for more than a few hundred points.
+    
+    Args:
+        distance_matrix: The distances, as for `rips` (dense, or a scipy sparse matrix).
+        subset: The points of the subset: their indices, or a boolean mask (one per point).
+        max_dim: The maximum homology dimension.
+        points: Or the points, as for `rips`.
+        metric: The metric for `points`, as for `rips`.
+        threshold: The largest diameter (default: all); bars still alive there are essential.
+        representatives: Whether to compute a representative for every bar.
+    
+    Returns:
+        A `phlite.core.SixPack`, with representatives lists of `(simplex, 1)`, simplices as tuples of point indices.
     """
 
 def witness(landmarks: typing.Union[numpy.typing.NDArray[numpy.floating], typing.Sequence[typing.Sequence[builtins.float]]], witnesses: typing.Union[numpy.typing.NDArray[numpy.floating], typing.Sequence[typing.Sequence[builtins.float]]], max_dim: builtins.int = 1, *, strong: builtins.bool = False, max_alpha_square: typing.Optional[builtins.float] = None, algorithm: typing.Optional[core.Algorithm] = None) -> core.Barcode:

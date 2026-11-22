@@ -80,8 +80,10 @@ pub fn extended_into_python<'py>(
             )
         })
         .collect::<PyResult<Vec<_>>>()?;
-    core_attribute(py, CoreAttribute::ExtendedFromParts)?
-        .call1((pyo3::types::PyList::new(py, items)?, spec::spec_to_dict(py, &algorithm.to_spec())?))
+    core_attribute(py, CoreAttribute::ExtendedFromParts)?.call1((
+        pyo3::types::PyList::new(py, items)?,
+        spec::spec_to_dict(py, &algorithm.to_spec())?,
+    ))
 }
 use spec::{spec_from_dict, spec_to_dict};
 
@@ -103,15 +105,26 @@ pub(crate) enum CoreAttribute {
     AlgorithmFromSpec,
     RegisterPipeline,
     ExtendedFromParts,
+    SixPackFromParts,
 }
 
-pub(crate) fn core_attribute(py: Python<'_>, attribute: CoreAttribute) -> PyResult<&Bound<'_, PyAny>> {
-    static CELLS: [PyOnceLock<Py<PyAny>>; 4] = [PyOnceLock::new(), PyOnceLock::new(), PyOnceLock::new(), PyOnceLock::new()];
+pub(crate) fn core_attribute(
+    py: Python<'_>,
+    attribute: CoreAttribute,
+) -> PyResult<&Bound<'_, PyAny>> {
+    static CELLS: [PyOnceLock<Py<PyAny>>; 5] = [
+        PyOnceLock::new(),
+        PyOnceLock::new(),
+        PyOnceLock::new(),
+        PyOnceLock::new(),
+        PyOnceLock::new(),
+    ];
     let path: &[&str] = match attribute {
         CoreAttribute::BarcodeFromParts => &["Barcode", "_from_parts"],
         CoreAttribute::AlgorithmFromSpec => &["Algorithm", "_from_spec"],
         CoreAttribute::RegisterPipeline => &["_register_pipeline"],
         CoreAttribute::ExtendedFromParts => &["ExtendedBarcode", "_from_parts"],
+        CoreAttribute::SixPackFromParts => &["SixPack", "_from_parts"],
     };
     CELLS[attribute as usize]
         .get_or_try_init(py, || {
@@ -124,6 +137,28 @@ pub(crate) fn core_attribute(py: Python<'_>, attribute: CoreAttribute) -> PyResu
         .map(|object| object.bind(py))
 }
 
+/// A bar of one barcode of a six-pack, for [`six_pack_into_python`]: dimension, birth, death (`inf` if essential) and
+/// representative (a list of `(cell, coefficient)`, or `(cell, coefficient, True)` for a cone cell), if any.
+pub type PackBarParts<'py> = (usize, f64, f64, Option<Bound<'py, pyo3::types::PyList>>);
+
+/// A `phlite.core.SixPack`, from its six barcodes in the order domain, codomain, image, kernel, cokernel, relative.
+pub fn six_pack_into_python<'py>(
+    py: Python<'py>,
+    barcodes: [Vec<PackBarParts<'py>>; 6],
+    representatives: bool,
+) -> PyResult<Bound<'py, PyAny>> {
+    let parts = pyo3::types::PyDict::new(py);
+    for (name, bars) in [
+        "domain", "codomain", "image", "kernel", "cokernel", "relative",
+    ]
+    .into_iter()
+    .zip(barcodes)
+    {
+        parts.set_item(name, bars)?;
+    }
+    core_attribute(py, CoreAttribute::SixPackFromParts)?.call1((parts, representatives))
+}
+
 /// Set up the package `package` (its pip name, e.g. `"phlite-clouds"`) at `version` (its `CARGO_PKG_VERSION`): check
 /// that the installed `phlite-core` has the same version, raising an `ImportError` that says how to fix it otherwise,
 /// then register `pipelines` with it. Call this first thing in the package's `#[pymodule]`.
@@ -133,9 +168,13 @@ pub fn init_package(
     version: &str,
     pipelines: &[AlgorithmDefaults],
 ) -> PyResult<()> {
-    let fix = format!("install matching versions, e.g. `pip install phlite-core=={version} {package}=={version}`");
+    let fix = format!(
+        "install matching versions, e.g. `pip install phlite-core=={version} {package}=={version}`"
+    );
     let core = py.import("phlite.core").map_err(|e| {
-        let err = PyImportError::new_err(format!("{package} {version} needs phlite-core {version}: {fix}"));
+        let err = PyImportError::new_err(format!(
+            "{package} {version} needs phlite-core {version}: {fix}"
+        ));
         err.set_cause(py, Some(e));
         err
     })?;
@@ -208,7 +247,10 @@ pub fn algorithm_from_py(
                     "algorithm must be a phlite.core.Algorithm (e.g. Algorithm.parallel()) or None, not {type_name}"
                 ))
             };
-            let spec = obj.getattr("_spec").map_err(|_| not_an_algorithm())?.call0()?;
+            let spec = obj
+                .getattr("_spec")
+                .map_err(|_| not_an_algorithm())?
+                .call0()?;
             spec_from_dict(spec.cast::<PyDict>().map_err(|_| not_an_algorithm())?)?
         }
     };
@@ -231,10 +273,19 @@ pub fn algorithm_to_py<'py>(
 /// itself is private (`phlite.clouds._clouds`); the module's `__init__.py` re-exports it, so the stubs describe that.
 ///
 /// Call it from a function in the package's own crate, which is where its classes and functions are gathered.
-pub fn stub_info_for(module: &str, manifest_dir: &str) -> pyo3_stub_gen::Result<pyo3_stub_gen::StubInfo> {
+pub fn stub_info_for(
+    module: &str,
+    manifest_dir: &str,
+) -> pyo3_stub_gen::Result<pyo3_stub_gen::StubInfo> {
     let manifest_dir = std::path::Path::new(manifest_dir);
-    let config = pyo3_stub_gen::StubInfo::from_pyproject_toml(manifest_dir.join("pyproject.toml"))?.config;
-    pyo3_stub_gen::StubInfo::from_project_root(module.to_string(), manifest_dir.join("python"), true, config)
+    let config =
+        pyo3_stub_gen::StubInfo::from_pyproject_toml(manifest_dir.join("pyproject.toml"))?.config;
+    pyo3_stub_gen::StubInfo::from_project_root(
+        module.to_string(),
+        manifest_dir.join("python"),
+        true,
+        config,
+    )
 }
 
 #[cfg(feature = "extension")]
@@ -251,15 +302,28 @@ mod tests {
     fn packages_are_pinned_to_the_workspace_version() {
         let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
         let pin = format!("\"phlite-core=={}\"", super::VERSION);
-        for package in ["phlite_complexes", "phlite_clouds", "phlite_networks", "phlite_images"] {
-            let pyproject = std::fs::read_to_string(root.join(package).join("pyproject.toml")).unwrap();
-            assert!(pyproject.contains(&pin), "{package}/pyproject.toml should depend on {pin}");
+        for package in [
+            "phlite_complexes",
+            "phlite_clouds",
+            "phlite_networks",
+            "phlite_images",
+        ] {
+            let pyproject =
+                std::fs::read_to_string(root.join(package).join("pyproject.toml")).unwrap();
+            assert!(
+                pyproject.contains(&pin),
+                "{package}/pyproject.toml should depend on {pin}"
+            );
         }
-        let meta = std::fs::read_to_string(root.join("phlite_meta").join("pyproject.toml")).unwrap();
+        let meta =
+            std::fs::read_to_string(root.join("phlite_meta").join("pyproject.toml")).unwrap();
         assert!(meta.contains(&format!("version = \"{}\"", super::VERSION)));
         for package in ["core", "complexes", "clouds", "networks", "images"] {
             let pin = format!("\"phlite-{package}=={}\"", super::VERSION);
-            assert!(meta.contains(&pin), "phlite_meta/pyproject.toml should depend on {pin}");
+            assert!(
+                meta.contains(&pin),
+                "phlite_meta/pyproject.toml should depend on {pin}"
+            );
         }
     }
 
@@ -269,9 +333,20 @@ mod tests {
     fn crates_are_pinned_to_the_workspace_version() {
         let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
         let manifest = std::fs::read_to_string(root.join("Cargo.toml")).unwrap();
-        for krate in ["phlite", "phlite_bindings", "phlite_complexes", "phlite_clouds"] {
-            let pin = format!("{krate} = {{ version = \"={}\", path = \"{krate}\" }}", super::VERSION);
-            assert!(manifest.contains(&pin), "Cargo.toml's [workspace.dependencies] should have {pin}");
+        for krate in [
+            "phlite",
+            "phlite_bindings",
+            "phlite_complexes",
+            "phlite_clouds",
+        ] {
+            let pin = format!(
+                "{krate} = {{ version = \"={}\", path = \"{krate}\" }}",
+                super::VERSION
+            );
+            assert!(
+                manifest.contains(&pin),
+                "Cargo.toml's [workspace.dependencies] should have {pin}"
+            );
         }
     }
 }

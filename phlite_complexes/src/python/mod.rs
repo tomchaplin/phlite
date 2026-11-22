@@ -72,6 +72,7 @@ fn no_integral_barcode() -> PyErr {
 mod chain;
 mod extended;
 mod filtered;
+mod maps;
 mod zigzag;
 pub use chain::ChainComplex;
 pub use filtered::{ComplexBarcode, FilteredComplex};
@@ -263,13 +264,20 @@ impl AnyComplex {
             mask: &[bool],
         ) -> Result<[Vec<(usize, Option<usize>)>; 4], (u32, u32)> {
             let result = c.image_kernel_cokernel(mask).map_err(|(a, b)| (a.0, b.0))?;
-            Ok([pairs(result.image), pairs(result.kernel), pairs(result.cokernel), pairs(result.relative)])
+            Ok([
+                pairs(result.image),
+                pairs(result.kernel),
+                pairs(result.cokernel),
+                pairs(result.relative),
+            ])
         }
-        Ok(dispatch_field!(Self, self, c => run(c, in_subcomplex), integers => {
-            return Err(PyValueError::new_err(
-                "image_kernel_cokernel needs a field (build the complex with a modulus other than 0)",
-            ));
-        }))
+        Ok(
+            dispatch_field!(Self, self, c => run(c, in_subcomplex), integers => {
+                return Err(PyValueError::new_err(
+                    "image_kernel_cokernel needs a field (build the complex with a modulus other than 0)",
+                ));
+            }),
+        )
     }
 
     /// [`BarData`] from rank pairs.
@@ -623,7 +631,12 @@ impl BarData {
             })
             .collect();
         bars.sort_unstable_by_key(|bar| bar.birth);
-        Self { bars, representative_chains: vec![], n_dims, representatives: false }
+        Self {
+            bars,
+            representative_chains: vec![],
+            n_dims,
+            representatives: false,
+        }
     }
 
     /// From the bars of [`Complex::barcode_by_rank`], dropping those of length zero.
@@ -674,7 +687,10 @@ impl BarData {
             .map(|(i, record)| (record.birth, i as u32))
             .collect();
         radix_sort(&mut order);
-        let bars: Vec<Record> = order.into_iter().map(|(_, i)| records[i as usize]).collect();
+        let bars: Vec<Record> = order
+            .into_iter()
+            .map(|(_, i)| records[i as usize])
+            .collect();
         Self {
             bars,
             representative_chains,
@@ -881,13 +897,19 @@ pyo3_stub_gen::module_doc!("phlite.complexes", "{}", DOC);
 
 #[pymodule(gil_used = false)]
 fn _complexes(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    phlite_bindings::init_package(m.py(), "phlite-complexes", env!("CARGO_PKG_VERSION"), &[DEFAULTS])?;
+    phlite_bindings::init_package(
+        m.py(),
+        "phlite-complexes",
+        env!("CARGO_PKG_VERSION"),
+        &[DEFAULTS],
+    )?;
     pyo3_log::init();
     m.setattr("__doc__", DOC)?;
     m.add_class::<ChainComplex>()?;
     m.add_class::<FilteredComplex>()?;
     m.add_class::<ComplexBarcode>()?;
     m.add_class::<Bar>()?;
+    m.add_class::<maps::FilteredMap>()?;
     m.add_function(wrap_pyfunction!(zigzag::zigzag, m)?)?;
     Ok(())
 }

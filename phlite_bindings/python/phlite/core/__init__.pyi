@@ -8,9 +8,15 @@ import builtins
 import typing
 from . import spectral as spectral
 from .spectral import SpectralSequence as SpectralSequence
+from . import six_pack as six_pack
+from .six_pack import Cone as Cone, PackBar as PackBar, PackBarcode as PackBarcode, SixPack as SixPack
 
 __all__ = [
     "SpectralSequence",
+    "SixPack",
+    "PackBarcode",
+    "PackBar",
+    "Cone",
     "Algorithm",
     "Barcode",
     "ExtendedBarcode",

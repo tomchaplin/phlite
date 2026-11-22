@@ -32,6 +32,18 @@ pub struct RipsBoundary<
     phantom: PhantomData<(CF, I)>,
 }
 
+impl<CF: NonZeroCoefficient + Invertible, I: RipsInt, D: Distances + Clone> Clone
+    for RipsBoundary<CF, I, D>
+{
+    fn clone(&self) -> Self {
+        Self {
+            distances: self.distances.clone(),
+            threshold: self.threshold,
+            phantom: PhantomData,
+        }
+    }
+}
+
 impl<CF: NonZeroCoefficient + Invertible, I: RipsInt, D: Distances> RipsBoundary<CF, I, D> {
     /// The boundary oracle on its own, without a column basis attached (see [`build_rips_boundary_matrix`]).
     pub fn new(distances: D) -> Self {

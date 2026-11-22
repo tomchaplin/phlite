@@ -23,9 +23,79 @@ pub struct FilteredComplex {
     pub(crate) chain: Py<ChainComplex>,
 }
 
+impl FilteredComplex {
+    /// Which cells are in `subcomplex`: a sequence of cells, or of booleans (one per cell, in the cells' order).
+    pub(crate) fn subcomplex_mask(&self, subcomplex: &Bound<'_, PyAny>) -> PyResult<Vec<bool>> {
+        let n = self.complex.n_cells();
+        let chain = self.chain.get();
+        let items: Vec<Bound<'_, PyAny>> = subcomplex.try_iter()?.collect::<PyResult<_>>()?;
+        let mut mask = vec![false; n];
+        // (Python's bools, or numpy's)
+        let is_bool = |x: &Bound<'_, PyAny>| {
+            x.is_instance_of::<pyo3::types::PyBool>()
+                || x.get_type().name().is_ok_and(|name| {
+                    name.to_cow()
+                        .is_ok_and(|name| name == "bool" || name == "bool_")
+                })
+        };
+        if items.len() == n && items.iter().all(is_bool) {
+            for (m, x) in mask.iter_mut().zip(&items) {
+                *m = x.extract()?;
+            }
+        } else {
+            for x in &items {
+                mask[chain.index_or_err(x)? as usize] = true;
+            }
+        }
+        Ok(mask)
+    }
+}
+
 #[gen_stub_pymethods]
 #[pymethods]
 impl FilteredComplex {
+    /// The six-pack of persistence barcodes of the inclusion of a subcomplex `L` into this filtered complex `K`: the
+    /// barcodes of `L` and `K`, of the image, kernel and cokernel of `H(L) -> H(K)`, and of the pair `(K, L)`, with a
+    /// representative for every bar (see `phlite.core.SixPack`).
+    ///
+    /// Args:
+    ///     subcomplex: The cells of `L`: a sequence of cells, or of booleans (one per cell, in the cells' order). Every
+    ///         face of a cell of `L` must be in `L`.
+    ///     max_dim: The maximum dimension of the bars (default: all).
+    ///     representatives: Whether to compute a representative for every bar.
+    ///
+    /// Returns:
+    ///     A `phlite.core.SixPack`. Representatives are lists of `(cell, coefficient)`: cycles of `L` for the domain,
+    ///     image and kernel, of `K` for the codomain and cokernel, and relative cycles (cells of `K` outside `L`) for the
+    ///     relative barcode. Bars of length zero are left out.
+    ///
+    /// Raises:
+    ///     ValueError: If the cells aren't a subcomplex, or the complex is over the integers.
+    #[pyo3(signature = (subcomplex, *, max_dim = None, representatives = true))]
+    #[gen_stub(override_return_type(type_repr = "phlite.core.SixPack", imports = ("phlite.core")))]
+    fn six_pack<'py>(
+        slf: &Bound<'py, Self>,
+        subcomplex: &Bound<'py, PyAny>,
+        max_dim: Option<usize>,
+        representatives: bool,
+    ) -> PyResult<Bound<'py, PyAny>> {
+        let py = slf.py();
+        let this = slf.get();
+        let chain = this.chain.get();
+        let mask = this.subcomplex_mask(subcomplex)?;
+        let not_subcomplex = |(cell, face): (crate::complex::Cell, crate::complex::Cell)| {
+            PyValueError::new_err(format!(
+                "not a subcomplex: {} is in it but its face {} isn't",
+                chain.name(py, cell.0),
+                chain.name(py, face.0)
+            ))
+        };
+        dispatch_field!(AnyComplex, &this.complex, c => {
+            let pack = py.detach(|| c.six_pack(&mask, representatives, max_dim)).map_err(not_subcomplex)?;
+            super::maps::pack_to_python(py, pack, max_dim, chain, chain, representatives)
+        }, integers => Err(PyValueError::new_err("six_pack needs a field (build the complex with a modulus other than 0)")))
+    }
+
     /// Compute persistent homology in dimensions `0, ..., max_dim`.
     ///
     /// Args:
@@ -247,26 +317,8 @@ impl FilteredComplex {
     ) -> PyResult<Bound<'py, PyDict>> {
         let py = slf.py();
         let this = slf.get();
-        let n = this.complex.n_cells();
         let chain = this.chain.get();
-        // A mask, or cells
-        let items: Vec<Bound<'py, PyAny>> = subcomplex.try_iter()?.collect::<PyResult<_>>()?;
-        let mut mask = vec![false; n];
-        // (Python's bools, or numpy's)
-        let is_bool = |x: &Bound<'py, PyAny>| {
-            x.is_instance_of::<pyo3::types::PyBool>()
-                || x.get_type().name().is_ok_and(|name| name.to_cow().is_ok_and(|name| name == "bool" || name == "bool_"))
-        };
-        let is_mask = items.len() == n && items.iter().all(is_bool);
-        if is_mask {
-            for (m, x) in mask.iter_mut().zip(&items) {
-                *m = x.extract()?;
-            }
-        } else {
-            for x in &items {
-                mask[chain.index_or_err(x)? as usize] = true;
-            }
-        }
+        let mask = this.subcomplex_mask(subcomplex)?;
         let pairs = py
             .detach(|| this.complex.image_kernel_cokernel(&mask))?
             .map_err(|(cell, face)| {

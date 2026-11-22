@@ -14,6 +14,7 @@ __all__ = [
     "ChainComplex",
     "ComplexBarcode",
     "FilteredComplex",
+    "FilteredMap",
     "zigzag",
 ]
 
@@ -306,6 +307,26 @@ class FilteredComplex:
         r"""
         The filtration value of every cell, in cell order.
         """
+    def six_pack(self, subcomplex: typing.Any, *, max_dim: typing.Optional[builtins.int] = None, representatives: builtins.bool = True) -> phlite.core.SixPack:
+        r"""
+        The six-pack of persistence barcodes of the inclusion of a subcomplex `L` into this filtered complex `K`: the
+        barcodes of `L` and `K`, of the image, kernel and cokernel of `H(L) -> H(K)`, and of the pair `(K, L)`, with a
+        representative for every bar (see `phlite.core.SixPack`).
+        
+        Args:
+            subcomplex: The cells of `L`: a sequence of cells, or of booleans (one per cell, in the cells' order). Every
+                face of a cell of `L` must be in `L`.
+            max_dim: The maximum dimension of the bars (default: all).
+            representatives: Whether to compute a representative for every bar.
+        
+        Returns:
+            A `phlite.core.SixPack`. Representatives are lists of `(cell, coefficient)`: cycles of `L` for the domain,
+            image and kernel, of `K` for the codomain and cokernel, and relative cycles (cells of `K` outside `L`) for the
+            relative barcode. Bars of length zero are left out.
+        
+        Raises:
+            ValueError: If the cells aren't a subcomplex, or the complex is over the integers.
+        """
     def persistence(self, max_dim: typing.Optional[builtins.int] = None, *, method: typing.Literal['cohomology', 'homology'] = "cohomology", algorithm: typing.Optional[core.Algorithm] = None, representatives: builtins.bool = False) -> ComplexBarcode:
         r"""
         Compute persistent homology in dimensions `0, ..., max_dim`.
@@ -456,6 +477,75 @@ class FilteredComplex:
         The filtration value of `cell`.
         """
     def __len__(self) -> builtins.int: ...
+    def __repr__(self) -> builtins.str: ...
+
+@typing.final
+class FilteredMap:
+    r"""
+    A filtration-preserving chain map `f: L -> K` between two filtered complexes over the same field, whose
+    `six_pack` gives the barcodes of `L` and `K`, of the image, kernel and cokernel of `H(L) -> H(K)`, and of the map's
+    mapping cone, each bar with a representative (computed through the map's mapping cylinder, lazily).
+    
+    For the inclusion of a subcomplex, `FilteredComplex.six_pack` is faster (no cylinder).
+    
+    ```python
+    L = ChainComplex.from_simplices(...).filtration(...)
+    K = ChainComplex.from_simplices(...).filtration(...)
+    f = FilteredMap.simplicial(L, K, {0: 0, 1: 0, 2: 1})   # from a map of vertices
+    pack = f.six_pack()
+    ```
+    """
+    @property
+    def domain(self) -> FilteredComplex:
+        r"""
+        The domain `L`.
+        """
+    @property
+    def codomain(self) -> FilteredComplex:
+        r"""
+        The codomain `K`.
+        """
+    def __new__(cls, domain: FilteredComplex, codomain: FilteredComplex, images: typing.Any) -> FilteredMap:
+        r"""
+        The chain map from `domain` to `codomain` sending each cell to `images[cell]`.
+        
+        Args:
+            domain: The filtered complex `L`.
+            codomain: The filtered complex `K`, over the same field.
+            images: The image of each cell of `L`: a dict from cells of `L` (those left out map to zero), or a sequence
+                with an entry per cell (in the cells' order). An image is a chain of `K`: a dict `{cell: coefficient}`, or
+                an iterable of cells (coefficient 1 each).
+        
+        Raises:
+            ValueError: If a cell maps to cells of another dimension or that enter later than it, if the map doesn't
+                commute with the boundaries, or if the complexes aren't over the same field.
+        """
+    @staticmethod
+    def simplicial(domain: FilteredComplex, codomain: FilteredComplex, vertex_map: typing.Any) -> FilteredMap:
+        r"""
+        The simplicial map from `domain` to `codomain` (both built by `ChainComplex.from_simplices`) induced by a map of
+        vertices: a simplex goes to the simplex on its vertices' images (with the sign of the permutation sorting them),
+        or to zero if two of its vertices go to the same one.
+        
+        Args:
+            domain: The filtered complex `L`.
+            codomain: The filtered complex `K`, with the image of every simplex of `L` no later than it.
+            vertex_map: The image of each vertex of `L`: a dict, or a sequence indexed by vertex.
+        """
+    def six_pack(self, *, max_dim: typing.Optional[builtins.int] = None, representatives: builtins.bool = True) -> phlite.core.SixPack:
+        r"""
+        The six-pack of the map: the barcodes of `L` and `K`, of the image, kernel and cokernel of `H(L) -> H(K)`, and
+        of the mapping cone (see `phlite.core.SixPack`).
+        
+        Args:
+            max_dim: The maximum dimension of the bars (default: all).
+            representatives: Whether to compute a representative for every bar.
+        
+        Returns:
+            A `phlite.core.SixPack`. Representatives are lists of `(cell, coefficient)`: cycles of `L` for the domain,
+            image and kernel, of `K` for the codomain and cokernel; those of the relative barcode are chains of the
+            mapping cone, with `phlite.core.Cone(cell)` the cone on a cell of `L`.
+        """
     def __repr__(self) -> builtins.str: ...
 
 def zigzag(operations: typing.Iterable[tuple[typing.Sequence[builtins.int], builtins.bool]], *, algorithm: typing.Optional[core.Algorithm] = None) -> builtins.list[tuple[builtins.int, builtins.int, builtins.int, builtins.bool, builtins.bool]]:
