@@ -241,7 +241,7 @@ def test_modules_and_names():
 
     assert rips.__module__ == "phlite.clouds" and grpph.__module__ == "phlite.networks"
     assert Algorithm.__module__ == "phlite.core" and Barcode.__module__ == "phlite.core"
-    assert {"Algorithm", "Barcode", "ExtendedBarcode", "SpectralSequence", "SixPack", "PackBarcode", "PackBar", "Cone", "defaults"} == set(
+    assert {"Algorithm", "Barcode", "ExtendedBarcode", "SpectralSequence", "SixPack", "PackBarcode", "PackBar", "Cone", "ZigzagBar", "ZigzagBarcode", "defaults"} == set(
         phlite.core.__all__
     )
     assert isinstance(phlite.core.__version__, str)

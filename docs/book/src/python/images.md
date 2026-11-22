@@ -36,3 +36,23 @@ on 256×256 noise, 2.0 s against 2.6 s on 1024×1024, 1.3 s against 1.5 s on 64�
 filtrations: `height`, `radial`, `dilation`, `erosion`, `signed_distance` (Manhattan distances, exactly) and
 `density`. For example `cubical(filtrations.signed_distance(binary))`. Pixels a filtration doesn't reach are `inf` (they
 never enter), or with `unreached="last"` enter after everything else, as giotto-tda's do.
+
+## Videos: zigzag persistence
+
+`video_zigzag(video, threshold)` follows the features of a video (components, loops, voids) from frame to frame: each
+frame cut at `threshold` (its sublevel set, or with `filtration='superlevel'` its superlevel set) is a cubical complex,
+and the frames make the zigzag `K_0 -> K_0 ∪ K_1 <- K_1 -> ...`, computed by FastZigzag (see
+[zigzag persistence](zigzag.md)). A blob that drifts keeps its bar so long as it overlaps itself from one frame to the
+next; two that merge end one; a ring that closes starts an H1 bar.
+
+```python
+from phlite.images import video_zigzag
+
+barcode = video_zigzag(frames, threshold=0.5)    # frames: (n_frames, height, width), or volumes over time
+barcode.betti_curve(0)[::2]                      # the number of components in each frame (frame i is level 2i)
+barcode.plot()
+```
+
+It takes the T- or V-construction and periodic frames as `cubical` does, and frames of 1 to 3 axes; the result is a
+`phlite.core.ZigzagBarcode` over levels. In Rust, `phlite_images::zigzag::video_zigzag`. Checked against `cubical` of
+each frame (the Betti numbers at each frame's level) and on still stretches (every class lives on).

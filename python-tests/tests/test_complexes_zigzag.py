@@ -266,3 +266,27 @@ def test_cells_of_any_kind():
     assert [b for b in zigzag(named) if b.dimension == 1] == [ZigzagBar(1, 8, 8, True, True), ZigzagBar(1, 10, 10, True, True)]
     with pytest.raises(ValueError, match="never inserted"):
         zigzag([("e", True, ["x"])])
+
+
+FZZ = os.environ.get("FZZ_BIN")
+
+
+@pytest.mark.skipif(not FZZ, reason="FZZ_BIN not set")
+@given(st.integers(0, 10**9))
+@settings(deadline=None, max_examples=150)
+def test_against_fzz(seed):
+    """The same barcode as Dey and Hou's own FastZigzag (`fzz`, C++ on PHAT; same conventions: closed intervals over
+    positions, alive at the end ending at m), on random zigzags with re-insertions."""
+    import tempfile
+
+    ops = random_zigzag(seed, steps=60)
+    note(ops)
+    with tempfile.TemporaryDirectory() as tmp:
+        path = os.path.join(tmp, "filt")
+        with open(path, "w") as f:
+            for s, insert in ops:
+                f.write(("i " if insert else "d ") + " ".join(map(str, sorted(s))) + "\n")
+        subprocess.run([FZZ, path], capture_output=True, check=True, cwd=tmp)
+        with open(os.path.join(tmp, "filt_pers")) as f:
+            theirs = sorted(tuple(map(int, line.split())) for line in f if line.strip())
+    assert sorted((k, b, e) for k, b, e, _, _ in zigzag(ops)) == theirs

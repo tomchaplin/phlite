@@ -29,6 +29,9 @@ homology of its cubical complex:
 * **periodic** along any axes (`periodic=`), as GUDHI's `PeriodicCubicalComplex`;
 * exported with signed boundaries (`cubical_complex`), for `phlite.complexes` (over the integers, spectral sequences).
 
+`video_zigzag` computes the zigzag persistence of a video (each frame cut at a threshold, consecutive frames joined),
+following features from frame to frame.
+
 `phlite.images.filtrations` turns binary images into greyscale ones as giotto-tda's `gtda.images` filtrations do:
 height, radial, dilation, erosion, signed distance and density.
 

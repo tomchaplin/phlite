@@ -152,7 +152,7 @@ fn cubical<'py>(
 }
 
 /// The image's pixels in C order, as `f64`, and its shape.
-fn read_image(py: Python<'_>, image: &Bound<'_, PyAny>) -> PyResult<(Vec<f64>, Vec<usize>)> {
+pub(crate) fn read_image(py: Python<'_>, image: &Bound<'_, PyAny>) -> PyResult<(Vec<f64>, Vec<usize>)> {
     let numpy = py.import("numpy")?;
     let array = numpy.call_method1("ascontiguousarray", (image, numpy.getattr("float64")?))?;
     let array = array.cast::<PyArrayDyn<f64>>()?.readonly();

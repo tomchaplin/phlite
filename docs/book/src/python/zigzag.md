@@ -31,7 +31,8 @@ zz = Zigzag.from_complexes([window_0, window_1, window_2])
 zz.barcode(levels=True)      # intervals over levels: K_i at 2i, K_i ∪ K_{i+1} at 2i + 1
 ```
 
-For a point cloud, `Zigzag.rips_windows(points, windows, threshold)` is the zigzag of the Rips complexes (at the scale
+For videos, `phlite.images.video_zigzag(frames, threshold)` is the zigzag of the frames' cubical complexes (see
+[images](images.md#videos-zigzag-persistence)). For a point cloud, `Zigzag.rips_windows(points, windows, threshold)` is the zigzag of the Rips complexes (at the scale
 `threshold`) of windows of its points: give the windows as lists of point indices, or an int `w` for windows of `w`
 consecutive points sliding by one, as along a time series:
 

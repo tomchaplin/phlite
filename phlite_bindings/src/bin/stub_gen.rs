@@ -12,8 +12,10 @@ fn main() -> pyo3_stub_gen::Result<()> {
     let stubs = stubs.replacen("__all__ = [\n", concat!(
             "from . import spectral as spectral\nfrom .spectral import SpectralSequence as SpectralSequence\n",
             "from . import six_pack as six_pack\n",
-            "from .six_pack import Cone as Cone, PackBar as PackBar, PackBarcode as PackBarcode, SixPack as SixPack\n\n",
-            "__all__ = [\n    \"SpectralSequence\",\n    \"SixPack\",\n    \"PackBarcode\",\n    \"PackBar\",\n    \"Cone\",\n"
+            "from .six_pack import Cone as Cone, PackBar as PackBar, PackBarcode as PackBarcode, SixPack as SixPack\n",
+            "from . import zigzag as zigzag\n",
+            "from .zigzag import ZigzagBar as ZigzagBar, ZigzagBarcode as ZigzagBarcode\n\n",
+            "__all__ = [\n    \"SpectralSequence\",\n    \"SixPack\",\n    \"PackBarcode\",\n    \"PackBar\",\n    \"Cone\",\n    \"ZigzagBar\",\n    \"ZigzagBarcode\",\n"
         ), 1);
     std::fs::write(path, stubs)?;
     Ok(())

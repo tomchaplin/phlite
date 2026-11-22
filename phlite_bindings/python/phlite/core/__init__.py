@@ -8,6 +8,8 @@ from . import spectral  # noqa: E402
 from .spectral import SpectralSequence  # noqa: E402
 from . import six_pack  # noqa: E402
 from .six_pack import Cone, PackBar, PackBarcode, SixPack  # noqa: E402
+from . import zigzag  # noqa: E402
+from .zigzag import ZigzagBar, ZigzagBarcode  # noqa: E402
 
 __doc__ = _core.__doc__
-__all__ = [name for name in _core.__all__ if not name.startswith("_")] + ["SpectralSequence", "SixPack", "PackBarcode", "PackBar", "Cone"]
+__all__ = [name for name in _core.__all__ if not name.startswith("_")] + ["SpectralSequence", "SixPack", "PackBarcode", "PackBar", "Cone", "ZigzagBar", "ZigzagBarcode"]

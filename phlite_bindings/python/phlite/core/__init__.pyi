@@ -10,6 +10,8 @@ from . import spectral as spectral
 from .spectral import SpectralSequence as SpectralSequence
 from . import six_pack as six_pack
 from .six_pack import Cone as Cone, PackBar as PackBar, PackBarcode as PackBarcode, SixPack as SixPack
+from . import zigzag as zigzag
+from .zigzag import ZigzagBar as ZigzagBar, ZigzagBarcode as ZigzagBarcode
 
 __all__ = [
     "SpectralSequence",
@@ -17,6 +19,8 @@ __all__ = [
     "PackBarcode",
     "PackBar",
     "Cone",
+    "ZigzagBar",
+    "ZigzagBarcode",
     "Algorithm",
     "Barcode",
     "ExtendedBarcode",

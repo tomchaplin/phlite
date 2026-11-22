@@ -8,6 +8,7 @@
 
 pub mod cubical;
 pub mod filtrations;
+pub mod zigzag;
 
 #[cfg(feature = "python")]
 mod python;

@@ -5,6 +5,7 @@
 
 mod cubical;
 mod filtrations;
+mod videos;
 
 use phlite_bindings::AlgorithmDefaults;
 use pyo3::prelude::*;
@@ -22,5 +23,6 @@ fn _images(m: &Bound<'_, PyModule>) -> PyResult<()> {
     pyo3_log::init();
     m.setattr("__doc__", DOC)?;
     cubical::register(m)?;
-    filtrations::register(m)
+    filtrations::register(m)?;
+    videos::register(m)
 }

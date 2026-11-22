@@ -1,9 +1,10 @@
 """Compare phlite's image/kernel/cokernel persistence with phimaker, and its zigzag persistence with Dionysus 2:
 correctness (identical barcodes) and time.
 
-phimaker and Dionysus run in their own environments; give their Pythons:
+phimaker and Dionysus run in their own environments; give their Pythons, and `fzz` (Dey and Hou's FastZigzag, built
+with a driver that prints the time of its `compute` to stderr):
 
-    PHIMAKER_PYTHON=... DIONYSUS_PYTHON=... uv run --no-sync python ../benchmarks/ikc_zigzag_compare.py [--out FILE]
+    PHIMAKER_PYTHON=... DIONYSUS_PYTHON=... FZZ_BIN=... uv run --no-sync python ../benchmarks/ikc_zigzag_compare.py [--out FILE]
 
 Run from python-tests/latest (phlite.complexes and phlite.clouds). Times exclude building inputs and passing them
 between processes: phimaker's is `compute_ensemble` (all its threads), Dionysus's `zigzag_homology_persistence`,
@@ -200,17 +201,43 @@ def sliding_rips(n_points, window, threshold, seed):
     return ops
 
 
+def fzz_run(ops, binary):
+    """Dey and Hou's FastZigzag (the C++ `fzz` on PHAT, through a driver timing its `compute` only): its bars as
+    `(dimension, birth, death)` closed intervals, as phlite's, and its time."""
+    import tempfile
+
+    with tempfile.TemporaryDirectory() as tmp:
+        path = os.path.join(tmp, "filt")
+        with open(path, "w") as f:
+            for s, insert in ops:
+                f.write(("i " if insert else "d ") + " ".join(map(str, sorted(s))) + "\n")
+        out = subprocess.run([binary, path], capture_output=True, text=True, check=True, cwd=tmp)
+        elapsed = float(out.stderr.strip().splitlines()[-1])
+        with open(os.path.join(tmp, "filt_pers")) as f:
+            bars = sorted(tuple(map(int, line.split())) for line in f if line.strip())
+    return bars, elapsed
+
+
 def zigzag_rows(python, quick):
     rows = []
     cases = [("sliding Rips, 300 points, window 20", 300, 20, 0.35), ("sliding Rips, 1000 points, window 30", 1000, 30, 0.3)]
     if not quick:
         cases += [("sliding Rips, 5000 points, window 40", 5000, 40, 0.25), ("sliding Rips, 20000 points, window 40", 20000, 40, 0.25)]
+    if os.environ.get("ZIGZAG_ONLY"):
+        pass
     for name, n, window, threshold in cases:
         ops = sliding_rips(n, window, threshold, 0)
         m = len(ops)
         ours, t_ours = best_of(lambda: zigzag(ops))
         ours_bars = sorted((k, b, -1 if e == m else e + 1) for k, b, e, _, _ in ours)
-        if python:
+        fzz = os.environ.get("FZZ_BIN")
+        if fzz:
+            runs = [fzz_run(ops, fzz) for _ in range(3)]
+            fzz_bars, t_fzz = runs[0][0], min(t for _, t in runs)
+            fzz_agree = "✓" if fzz_bars == sorted((k, b, e) for k, b, e, _, _ in ours) else "✗"
+        else:
+            t_fzz, fzz_agree = None, "—"
+        if python and m <= 1_000_000:
             out = subprocess.run(
                 [python, "-I", "-c", DIONYSUS_RUNNER], input=json.dumps([[list(s), i] for s, i in ops]),
                 capture_output=True, text=True, check=True,
@@ -221,7 +248,10 @@ def zigzag_rows(python, quick):
             t_theirs = theirs["time"]
         else:
             agree, t_theirs = "—", None
-        rows.append(f"| {name} | {m} | {len(ours)} | {fmt(t_ours)} | {fmt(t_theirs) if t_theirs else '—'} | {agree} |")
+        rows.append(
+            f"| {name} | {m} | {len(ours)} | {fmt(t_ours)} | {fmt(t_fzz) if t_fzz else '—'} | {fzz_agree} | "
+            f"{fmt(t_theirs) if t_theirs else '—'} | {agree} |"
+        )
         print(rows[-1], flush=True)
     return rows
 
@@ -231,7 +261,7 @@ def main():
     parser.add_argument("--quick", action="store_true")
     parser.add_argument("--out")
     args = parser.parse_args()
-    ikc = ikc_rows(os.environ.get("PHIMAKER_PYTHON"), args.quick)
+    ikc = [] if os.environ.get("ZIGZAG_ONLY") else ikc_rows(os.environ.get("PHIMAKER_PYTHON"), args.quick)
     zz = zigzag_rows(os.environ.get("DIONYSUS_PYTHON"), args.quick)
     table = "\n".join(
         [
@@ -244,10 +274,10 @@ def main():
             "|---|---:|---:|---:|---:|---:|:-:|",
             *ikc,
             "",
-            "## Zigzag: phlite (FastZigzag) against Dionysus 2 (✓: identical barcodes)",
+            "## Zigzag: phlite (FastZigzag) against Dey and Hou's fzz (C++, on PHAT) and Dionysus 2 (✓: identical barcodes)",
             "",
-            "| zigzag | operations | intervals | phlite | Dionysus | agree |",
-            "|---|---:|---:|---:|---:|:-:|",
+            "| zigzag | operations | intervals | phlite | fzz | agree | Dionysus | agree |",
+            "|---|---:|---:|---:|---:|:-:|---:|:-:|",
             *zz,
         ]
     )

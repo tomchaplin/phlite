@@ -10,9 +10,12 @@ import numpy.typing
 from phlite import core
 import typing
 from . import filtrations as filtrations
+from . import videos as videos
+from .videos import video_zigzag as video_zigzag
 
 __all__ = [
     "filtrations",
+    "video_zigzag",
     "cubical",
     "cubical_complex",
 ]
@@ -21,6 +24,12 @@ def _binary_filtration(kind: builtins.str, image: numpy.typing.NDArray[numpy.boo
     r"""
     The filtration `kind` (`'height'`, `'radial'`, `'dilation'`, `'erosion'`, `'signed_distance'` or `'density'`) of a
     boolean image, as an array of its shape (unreached pixels `inf`). See `phlite.images.filtrations`.
+    """
+
+def _video_zigzag(video: numpy.typing.ArrayLike, threshold: builtins.float, max_dim: builtins.int, construction: builtins.str, superlevel: builtins.bool, periodic: typing.Sequence[builtins.bool], algorithm: typing.Optional[typing.Any] = None) -> builtins.list[tuple[builtins.int, builtins.int, builtins.int]]:
+    r"""
+    The zigzag barcode of a video (frames along the first axis) cut at `threshold`, as `(dimension, birth, death)` in
+    levels (frame `i` at `2 i`). See `phlite.images.video_zigzag`, which calls this.
     """
 
 def cubical(image: numpy.typing.ArrayLike, max_dim: typing.Optional[builtins.int] = None, *, construction: typing.Literal['T', 'V'] = "T", filtration: typing.Literal['sublevel', 'superlevel'] = "sublevel", method: typing.Literal['cohomology', 'homology'] = "cohomology", algorithm: typing.Optional[core.Algorithm] = None, representatives: builtins.bool = False, periodic: typing.Union[builtins.bool, typing.Sequence[builtins.bool], None] = None) -> core.Barcode:
