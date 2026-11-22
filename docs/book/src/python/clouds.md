@@ -26,7 +26,9 @@ more than a few hundred points.
 `witness(landmarks, witnesses, max_dim)` is the persistence of a witness complex, as GUDHI's `EuclideanWitnessComplex`
 (relaxed, the default) or with `strong=True` its `EuclideanStrongWitnessComplex`: simplices on a few landmarks,
 entering (at `α²`) as the other points vouch for them, a small complex approximating the topology of all the points.
-`witness_complex` lists it.
+`witness_complex` lists it. Witnesses are processed in parallel, each enumerating its candidate simplices without allocating; the
+simplices, values and barcodes are identical to GUDHI's, 3.5–20× faster than its relaxed complex and hundreds of times
+faster than its strong one (`perf-results/gudhi-filtrations-2026-11-22.md`).
 
 ## The complexes themselves
 

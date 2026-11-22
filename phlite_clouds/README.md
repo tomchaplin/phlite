@@ -58,6 +58,9 @@ random points in the cube and on noisy samples of shapes with long bars:
 * **[GUDHI](https://gudhi.inria.fr)**: alpha and Delaunay–Čech complexes are level with GUDHI's or up to 2.4× faster,
   up to 100,000 points in the plane and 300,000 in space, but **7–8× slower on a million points in the plane** (167 s against 23 s), which we
   have yet to look into. DTM-Rips is 50–400× faster than GUDHI's `WeightedRipsComplex`.
+  Witness complexes (identical simplices, values and barcodes) are 3.5–20× faster than GUDHI's relaxed
+  `EuclideanWitnessComplex` (witnesses in parallel), and hundreds of times faster than its strong one, which took
+  over two minutes on 300 witnesses where phlite takes milliseconds.
 
 What phlite adds is the rest of the package: sparse and non-metric inputs, weights, representatives by cohomology,
 a choice of algorithm, and the same API as phlite's other filtrations. If you only need Vietoris–Rips barcodes of

@@ -26,7 +26,9 @@ primes of the torsion, see [explicit complexes](complexes.md#over-the-integers))
 and Cubical Ripser's periodic option: along a periodic axis the first and last pixels are neighbours, so a constant
 image is a torus (and by default the top dimension is computed too). The periodic complex is built explicitly and
 reduced as `phlite.complexes` does, with union-find at both ends: exact, in any number of axes, but slower than the
-non-periodic complex on large volumes, and without representatives.
+non-periodic complex on large volumes, and without representatives. It has the same barcodes as GUDHI's
+`PeriodicCubicalComplex` and is 1.1–1.3× faster (`perf-results/gudhi-filtrations-2026-11-22.md`: 84 ms against 90 ms
+on 256×256 noise, 2.0 s against 2.6 s on 1024×1024, 1.3 s against 1.5 s on 64³).
 
 ## Filtrations of binary images
 

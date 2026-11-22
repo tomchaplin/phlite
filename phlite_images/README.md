@@ -45,6 +45,7 @@ and Ahara), and the conventions from [GUDHI](https://gudhi.inria.fr); phlite is 
 * **[Cubical Ripser](https://github.com/shizuo-kaji/CubicalRipser_3dim)** (`cripser`), the fastest we know: in 2D
   phlite is level with it on large images (between 1.16× slower and 1.14× faster) and 2–2.3× faster on small ones,
   with 25–45% less memory; **in 3D Cubical Ripser is 1.5–1.7× faster**.
-* **[GUDHI](https://gudhi.inria.fr)** (`CubicalComplex`): phlite is 8–15× faster in 2D and 3.5–7× faster in 3D.
+* **[GUDHI](https://gudhi.inria.fr)** (`CubicalComplex`): phlite is 8–15× faster in 2D and 3.5–7× faster in 3D; on
+  periodic images (`PeriodicCubicalComplex`), 1.1–1.3× faster, with identical barcodes.
 
 All of the numbers are in [the benchmarks](https://github.com/tomchaplin/phlite/blob/main/python-tests/BENCHMARKS.md).
