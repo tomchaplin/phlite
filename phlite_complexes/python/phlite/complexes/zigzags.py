@@ -262,6 +262,43 @@ class Zigzag:
             zz.move_to(complex_)
         return zz
 
+    @classmethod
+    def rips_windows(
+        cls,
+        points,
+        windows,
+        threshold: float,
+        dimension: int = 2,
+        *,
+        metric: str = "euclidean",
+    ) -> "Zigzag":
+        """The zigzag of the Rips complexes, at scale `threshold`, of windows of a point cloud (for instance sliding
+        along a time series): `K_0 -> K_0 ∪ K_1 <- K_1 -> ...` with `K_i` the Rips complex of the points
+        `windows[i]` (simplices of dimension up to `dimension`, on the points' indices in `points`).
+
+        Args:
+            points: The points, an array of shape `(n, d)`.
+            windows: Each window, a sequence of point indices; or an int `w`, for the windows `[0, w)`, `[1, w + 1)`,
+                ... sliding by one point.
+            threshold: The scale: the largest distance within a simplex.
+            dimension: The largest dimension of a simplex.
+            metric: As for `phlite.clouds.rips`.
+
+        `barcode(levels=True)` gives the intervals over the windows (window `i` at `2 i`).
+        """
+        import numpy as np
+        from phlite.clouds import rips_complex
+
+        points = np.asarray(points, dtype=float)
+        if isinstance(windows, int):
+            windows = [range(i, i + windows) for i in range(len(points) - windows + 1)]
+        complexes = []
+        for window in windows:
+            index = np.asarray(sorted(window), dtype=int)
+            simplices = rips_complex(points=points[index], dimension=dimension, threshold=threshold, metric=metric)
+            complexes.append([tuple(int(index[v]) for v in s) for s, _ in simplices])
+        return cls.from_complexes(complexes)
+
     def barcode(self, *, levels: bool = False, algorithm=None) -> ZigzagBarcode:
         """The zigzag barcode. With `levels` (for a zigzag from `from_complexes`), intervals are in levels: `K_i` at
         `2 i`, `K_i ∪ K_{i+1}` at `2 i + 1`, each interval the levels it contains (both ends inclusive, so reported as

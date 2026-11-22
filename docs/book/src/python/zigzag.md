@@ -31,6 +31,15 @@ zz = Zigzag.from_complexes([window_0, window_1, window_2])
 zz.barcode(levels=True)      # intervals over levels: K_i at 2i, K_i ∪ K_{i+1} at 2i + 1
 ```
 
+For a point cloud, `Zigzag.rips_windows(points, windows, threshold)` is the zigzag of the Rips complexes (at the scale
+`threshold`) of windows of its points: give the windows as lists of point indices, or an int `w` for windows of `w`
+consecutive points sliding by one, as along a time series:
+
+```python
+barcode = Zigzag.rips_windows(points, 30, threshold=0.4).barcode(levels=True)   # window i at level 2i
+barcode.betti_curve(1)[::2]      # the first Betti number of each window's Rips complex
+```
+
 `phlite.complexes.zigzag(operations)` takes the operations directly, as `(simplex, insert)` pairs.
 
 **Positions.** A cell-wise zigzag `K_0 <-> K_1 <-> ... <-> K_m` starts from the empty complex `K_0`, and `K_{i+1}` is

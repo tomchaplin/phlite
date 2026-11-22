@@ -136,10 +136,16 @@ agree). On one thread, phlite is faster on most of their own inputs:
 * directed flag complexes: 1.4–1.9× faster than flagser;
 * GrPPH and path homology: 24–100× faster than grpphati;
 * flag complexes of graphs, extended persistence and weighted Rips: 3–18×, 2.5–5.5× and over 50× faster than GUDHI;
-* explicit Rips complexes: 11–26× faster than PHAT, and cell complexes 1.1–2× faster.
+* explicit Rips complexes: 11–26× faster than PHAT, and cell complexes 1.1–2× faster;
+* images, kernels and cokernels: 1.2–1.8× faster than phimaker (and the whole six-pack, with representatives, in about
+  phimaker's time); zigzag persistence 17–84× faster than Dionysus; spectral sequences over Z 1–1000× faster than
+  Kenzo; magnitude homology 8–100× faster than gramag, and level with Perseus.
 
 It is slower in places too, and often uses more memory:
 
+* [Perseus](https://people.maths.ox.ac.uk/nanda/perseus/) is 6–13× faster on 2D images (its planar union-find
+  engine) and 1.2–1.6× faster on 3D volumes, and up to 1.6× faster on small random Rips complexes; phlite is up to 3×
+  faster on Rips complexes with long bars and 5–7× faster on random simplicial complexes;
 * Cubical Ripser is 1.5–1.7× faster on 3D volumes (in 2D the two are level, or phlite up to 2× faster);
 * PHAT is up to 1.4× faster on cubical and dense complexes (level on meshes);
 * GUDHI's alpha and Delaunay–Čech complexes are 7–8× faster on a million points in the plane (phlite is level or

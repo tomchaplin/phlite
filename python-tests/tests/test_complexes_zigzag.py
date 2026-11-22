@@ -229,3 +229,26 @@ def test_from_complexes_levels(seed):
             small, big = (levels[i], levels[i + 1]) if i % 2 == 0 else (levels[i + 1], levels[i])
             spanning = sum(1 for b in barcode.in_dimension(p) if b.birth <= i and i + 1 <= b.death)
             assert spanning == map_rank(small, big, p, index), (p, i)
+
+
+def test_rips_windows():
+    """Zigzag.rips_windows: the zigzag of Rips complexes of sliding windows has, at each window's level, the Betti
+    numbers of that window's Rips complex."""
+    pytest.importorskip("phlite.clouds")
+    import numpy as np
+
+    rng = np.random.default_rng(0)
+    t = np.linspace(0, 4 * np.pi, 40)
+    points = np.c_[np.cos(t), np.sin(t)] + 0.05 * rng.standard_normal((40, 2))
+    zz = Zigzag.rips_windows(points, 12, threshold=0.6, dimension=2)
+    barcode = zz.barcode(levels=True)
+    assert barcode.n_positions == 2 * (40 - 12) + 1
+    for i in range(0, 40 - 12 + 1, 7):
+        window = points[i : i + 12]
+        close = [[np.linalg.norm(a - b) <= 0.6 for b in window] for a in window]
+        simplices = {(v,) for v in range(12)} | {(a, b) for a in range(12) for b in range(a + 1, 12) if close[a][b]}
+        simplices |= {(a, b, c) for a, b in [s for s in simplices if len(s) == 2] for c in range(b + 1, 12) if close[a][c] and close[b][c]}
+        everything = sorted(simplices, key=lambda s: (len(s), s))
+        index = {s: j for j, s in enumerate(everything)}
+        for p in range(2):
+            assert barcode.rank(2 * i, p) == map_rank(simplices, simplices, p, index), (i, p)

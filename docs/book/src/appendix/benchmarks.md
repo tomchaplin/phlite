@@ -34,6 +34,17 @@ Headline results, one thread:
 - **Explicit complexes**, against PHAT's twist reduction with a prebuilt matrix: 11–26× faster on Rips complexes,
   1.1–2× faster on sparse cell complexes, level on meshes, PHAT up to 1.4× faster on cubical complexes and dense
   boundaries.
+- **Perseus 6** (over Z/2, one thread), in the Rips, flag and cubical suites: up to 1.6× faster than phlite on small
+  random Rips complexes, level at 1000 points or more, and phlite 2–3× faster with long bars; on images Perseus is
+  6–13× faster in 2D and 1.2–1.6× in 3D (after phlite's filtered discrete gradient for volumes); on random
+  (Linial–Meshulam) complexes phlite is 5–7× faster. (`perf-results/benchmarks-2026-11-21.md`,
+  `perf-results/perseus-plan-log.md`.)
+- **Images, kernels and cokernels**: 1.2–1.8× faster than phimaker ([Maps](../python/maps.md#performance)).
+- **Zigzag persistence**: 17–84× faster than Dionysus 2 on sliding-window Rips zigzags
+  ([Zigzag](../python/zigzag.md#performance)).
+- **Spectral sequences**: over Z, 1–1000× faster than Kenzo; over F_3, milliseconds against seconds for
+  spectral-sequence-engine ([Spectral sequences](../python/spectral.md#performance)).
+- **Magnitude homology**: 8–100× faster than gramag, level with Perseus ([Magnitude](../python/networks/magnitude.md#performance)).
 
 ```sh
 just bench           # every benchmark
