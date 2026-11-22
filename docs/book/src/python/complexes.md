@@ -126,56 +126,19 @@ the integers it is not canonical, so `classify` (or `contains`) is the way to co
 `persistent_group(dim, start, end)` is the image of `H_dim` at `start` in `H_dim` at `end`, as `(rank, torsion)`. It
 works over a field too, where it is the persistent Betti number with no torsion.
 
-## Images, kernels and cokernels
+## Maps, zigzags, torsion and spectral sequences
 
-`filtered.image_kernel_cokernel(subcomplex)` gives the persistence of the image, kernel and cokernel of
-`H(L) -> H(K)` for a subcomplex `L` (with the restricted filtration), and of the pair `(K, L)` (Cohen-Steiner,
-Edelsbrunner, Harer and Morozov), as phimaker does: a dict of barcodes `'image'`, `'kernel'`, `'cokernel'` and
-`'relative'`. The image is what of `L`'s homology survives in `K`, the kernel what of it dies there, and the cokernel
-what of `K`'s homology doesn't come from `L`. It is generic over any boundary oracle (`phlite::image_kernel`): for
-point clouds, `phlite.clouds.rips_image_kernel(points=..., subset=...)` does the same for the Rips complex of a subset
-on the lazy Rips boundary.
+Filtered complexes are where phlite's other constructions start; each has its own chapter:
 
-### Six-packs of maps
+* [Maps](maps.md): `six_pack(subcomplex)`, and `FilteredMap` between two complexes, give the barcodes of the image,
+  kernel and cokernel of the induced maps on homology (and the relative barcode), with representatives.
+* [Zigzag persistence](zigzag.md): `Zigzag` and `zigzag`, for sequences of complexes going both ways.
+* [Over the integers](integers.md): with `modulus=0`, the barcode over Q and the primes of the torsion.
+* [Spectral sequences](spectral.md): `spectral_sequence()`, a page at a time, with groups and generators.
 
-The full picture for a filtration-preserving map `f: L -> K` is its *six-pack*: the barcodes of `L` and `K`, of the
-image, kernel and cokernel of `f_*`, and of the map's relative homology (its mapping cone; the pair `(K, L)` for an
-inclusion), every bar with a representative. They come back as a `phlite.core.SixPack`, a mapping from those six names
-to barcodes, each a sequence of bars with `dimension`, `birth`, `death` and `representative` (a list of
-`(cell, coefficient)`):
-
-```python
-from phlite.complexes import ChainComplex, FilteredMap
-
-pack = K.six_pack(subcomplex)                 # the inclusion of a subcomplex
-pack = FilteredMap.simplicial(L, K, {0: 0, 1: 0, 2: 1}).six_pack()  # a simplicial map, from a map of vertices
-pack = FilteredMap(L, K, {cell: {image: 1}, ...}).six_pack()       # any chain map
-
-print(pack)                                   # bars by barcode and dimension
-pack.kernel.diagram(0)                        # (birth, death) array
-for bar in pack.image.in_dimension(1):
-    bar.birth, bar.death, bar.representative  # a cycle of L whose image is the class
-pack.ranks(0.5, dim=1)                        # how many bars of each are alive at 0.5
-```
-
-Representatives are cycles of `L` for the domain, image and kernel (a kernel cycle maps to a boundary), cycles of `K`
-for the codomain and cokernel, and relative cycles for the relative barcode, with `phlite.core.Cone(cell)` the cone
-on a cell of `L`. For point clouds, `phlite.clouds.rips_six_pack(points=..., subset=...)` is the six-pack of a subset,
-and `phlite.clouds.rips_map_six_pack(domain, codomain, vertex_map)` that of a map of points that never increases a
-distance (a projection, a contraction, a map to a coarser sample), both on the lazy Rips boundaries.
-
-In Rust a map is anything implementing `phlite::six_pack::FilteredChainMap`: two boundary oracles, their cells, and
-the image of each cell of `L`. Its six-pack reduces `L` inside the map's mapping cylinder, itself a lazy oracle
-(`MappingCylinder`), with the image/kernel/cokernel reductions above, then carries the codomain and cokernel
-representatives back to `K` along the cylinder's retraction. Inclusions skip the cylinder (`Inclusion`).
-
-## Zigzag persistence
-
-`phlite.complexes.zigzag(operations)` is the zigzag persistence of a sequence of simplicial complexes, each obtained
-from the last by inserting or deleting one simplex (`(simplex, True)` or `(simplex, False)`), starting empty: intervals
-`(dimension, birth, death, birth_closed, death_closed)` over positions `0..m`. It uses FastZigzag (Dey and Hou): the
-zigzag becomes an ordinary filtration of a complex twice its length (the insertions, then cones on the deletions),
-reduced as any other, whose bars map back one by one; so it gets every speed-up of ordinary persistence.
+`FilteredComplex.from_simplices(pairs)` builds a filtered simplicial complex in one step from the `(simplex, value)`
+pairs that `phlite.clouds.rips_complex`, `alpha_complex`, `cech_complex` and the others return, so all of these apply
+to those filtrations too.
 
 ## Choosing cell identifiers yourself
 

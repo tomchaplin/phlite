@@ -647,8 +647,8 @@ fn rips_six_pack<'py>(
         )));
     }
     let pack = py.detach(|| match &input {
-        Input::Dense(d) => rips_six_pack(d, &in_subset, max_dim, threshold, representatives),
-        Input::Sparse(d) => rips_six_pack(d, &in_subset, max_dim, threshold, representatives),
+        Input::Dense(d) => rips_six_pack::<usize, _>(d, &in_subset, max_dim, threshold, representatives),
+        Input::Sparse(d) => rips_six_pack::<usize, _>(d, &in_subset, max_dim, threshold, representatives),
     });
     rips_pack_to_python(py, pack, n, n, max_dim, representatives)
 }

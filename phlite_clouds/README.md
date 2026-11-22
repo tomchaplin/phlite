@@ -26,6 +26,17 @@ barcode.pairings[1]                                    # (birth, death) of the f
   `DistanceToMeasure`. [Book chapter.](https://phlite.tomchaplin.xyz/book/python/clouds/weighted.html)
 * **Alpha and Delaunay–Čech complexes** (`alpha`, `delaunay_cech`) of points in the plane or in space, from an exact
   Delaunay triangulation, filtered as GUDHI filters them. [Book chapter.](https://phlite.tomchaplin.xyz/book/python/clouds/alpha.html)
+* **Čech complexes** (`cech`) in any dimension, by minimal enclosing balls (as GUDHI's C++ `CechComplex`; checked
+  against Delaunay–Čech barcodes in the plane and space, by Bauer and Edelsbrunner's theorem, and against enclosing
+  balls computed as convex programs beyond), and **witness complexes** (`witness`, relaxed or strong, after de Silva
+  and Carlsson), with the same simplices and values as GUDHI's `EuclideanWitnessComplex` and
+  `EuclideanStrongWitnessComplex`. [Book chapter.](https://phlite.tomchaplin.xyz/book/python/clouds.html)
+* **Maps of point clouds**: `rips_six_pack` (a subset) and `rips_map_six_pack` (a map that never increases distances)
+  give the barcodes of the image, kernel and cokernel of the induced maps of Rips filtrations, with the other three of
+  the six-pack and representatives, lazily. [Book chapter.](https://phlite.tomchaplin.xyz/book/python/maps.html)
+* **Every filtration exported** (`rips_complex`, `alpha_complex`, `delaunay_cech_complex`, `cech_complex`,
+  `witness_complex`) as `(simplex, value)` pairs, for `phlite.complexes.FilteredComplex.from_simplices`: persistence
+  over the integers, spectral sequences, six-packs of subcomplexes.
 
 Every function takes `algorithm=` (a `phlite.core.Algorithm`: serial or parallel, and how columns are represented),
 `method=` (cohomology or homology) and `representatives=`, and returns a `phlite.core.Barcode`. In Rust,

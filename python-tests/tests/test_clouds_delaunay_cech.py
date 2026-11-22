@@ -122,3 +122,47 @@ def test_cech_in_more_dimensions():
         for i in range(len(s)):
             if len(s) > 1:
                 assert simplices[s[:i] + s[i + 1:]] <= v
+
+
+def _enclosing_radius2(points):
+    """The squared radius of the minimal enclosing ball, independently: the dual of min r^2 s.t. |c - p_i|^2 <= r^2,
+    max_λ sum λ_i |p_i|^2 - |sum λ_i p_i|^2 over the simplex (a concave quadratic), by scipy."""
+    from scipy.optimize import minimize
+
+    p = np.asarray(points, dtype=float)
+    k = len(p)
+    if k == 1:
+        return 0.0
+    sq = (p * p).sum(1)
+
+    def negative(lam):
+        c = lam @ p
+        return -(lam @ sq - c @ c)
+
+    best = None
+    for start in [np.full(k, 1.0 / k)] + [np.eye(k)[i] * 0.5 + 0.5 / k for i in range(k)]:
+        res = minimize(negative, start / start.sum(), method="SLSQP", bounds=[(0, 1)] * k,
+                       constraints=[{"type": "eq", "fun": lambda lam: lam.sum() - 1}], options={"ftol": 1e-14, "maxiter": 500})
+        if best is None or res.fun < best:
+            best = res.fun
+    return -best
+
+
+@pytest.mark.parametrize("dim", [4, 5, 6])
+def test_cech_radii_against_convex_programming(dim):
+    """Every simplex of cech_complex in 4 to 6 dimensions (where there is no Delaunay–Čech to compare with) has the
+    radius of its minimal enclosing ball, computed independently as a convex program; and cech's barcode is that of
+    the complex it exports."""
+    from phlite.clouds import cech, cech_complex
+    from phlite.complexes import FilteredComplex
+
+    rng = np.random.default_rng(dim)
+    for _ in range(3):
+        points = rng.random((8, dim))
+        simplices = cech_complex(points, 3)
+        for s, r in simplices:
+            assert r * r == pytest.approx(_enclosing_radius2(points[list(s)]), rel=1e-6, abs=1e-9), s
+        ours = _bars(cech(points, 2), 2)
+        explicit = FilteredComplex.from_simplices(simplices).persistence(2).diagrams()
+        expected = [sorted(tuple(round(x, 9) for x in row) for row in explicit[k].tolist()) for k in range(3)]
+        assert ours == expected

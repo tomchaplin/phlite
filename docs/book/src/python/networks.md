@@ -11,6 +11,7 @@ Persistent homology of networks, directed and undirected: the `phlite-networks` 
 | `phlite.networks.dowker` | Dowker sink and source complexes | [Dowker complexes](networks/dowker.md) |
 | `phlite.networks.ordered_tuples` | ordered-tuple complexes (Turner's directed Rips) | [Directed Rips](networks/ordered_tuples.md) |
 | `phlite.networks.flag` | flag complexes of **undirected** graphs, by edge weights, node values (lower-star) or shortest paths | [Flag complexes of graphs](networks/flag.md) |
+| `phlite.networks.magnitude`, `magnitude_path_spectral_sequence` | magnitude homology (Hepworth and Willerton) and the magnitude-path spectral sequence | [Magnitude homology](networks/magnitude.md) |
 
 Every function returns a `phlite.core.Barcode`, and takes a [`phlite.core.Algorithm`](algorithms.md) whose unset
 options it fills in with its own defaults (the pipeline names are `networks.<function>`, e.g. `networks.grpph`).

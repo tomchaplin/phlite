@@ -8,7 +8,7 @@ use phlite::image_kernel::{image_kernel_cokernel, ImageKernelCokernel};
 use phlite::matrices::SplitByDimension;
 use phlite::six_pack::{FilteredChainMap, Inclusion, SixPack};
 
-use super::{build_rips_bases_with_threshold, Distances, RipsBoundary, RipsIndex};
+use super::{build_rips_bases_with_threshold, Distances, RipsBoundary, RipsIndex, RipsInt};
 
 /// The barcodes of the image, kernel and cokernel of `H(Rips(subset)) -> H(Rips(all))`, and of the pair, over Z/2, in
 /// dimensions up to `max_dim` (simplices up to `max_dim + 1`), with diameters at most `threshold`. `in_subset[v]` says
@@ -36,21 +36,21 @@ pub fn rips_image_kernel_cokernel<D: Distances>(
 /// `max_dim` are right) and diameter at most `threshold`, with representatives if `representatives`.
 ///
 /// # Panics
-/// If simplices of dimension `max_dim + 1` don't fit a [`RipsIndex`] (see [`super::rips_index_fits`]).
-pub fn rips_six_pack<D: Distances>(
+/// If simplices of dimension `max_dim + 1` don't fit a [`RipsIndex<I>`] (see [`RipsIndex::fits`]).
+pub fn rips_six_pack<I: RipsInt, D: Distances>(
     distances: &D,
     in_subset: &[bool],
     max_dim: usize,
     threshold: NotNan<f64>,
     representatives: bool,
-) -> SixPack<RipsIndex, RipsIndex, NotNan<f64>, Z2> {
+) -> SixPack<RipsIndex<I>, RipsIndex<I>, NotNan<f64>, Z2> {
     let n = distances.n_points();
-    let basis = build_rips_bases_with_threshold::<usize, _>(distances, max_dim + 1, threshold);
-    let cells: Vec<Vec<RipsIndex>> = (0..basis.n_dimensions())
+    let basis = build_rips_bases_with_threshold::<I, _>(distances, max_dim + 1, threshold);
+    let cells: Vec<Vec<RipsIndex<I>>> = (0..basis.n_dimensions())
         .map(|d| (&basis).in_dimension(d).0.to_vec())
         .collect();
-    let boundary = RipsBoundary::<Z2, usize, &D>::new(distances).with_threshold(threshold);
-    let in_subcomplex = |s: &RipsIndex| s.vertices(n).iter().all(|&v| in_subset[v]);
+    let boundary = RipsBoundary::<Z2, I, &D>::new(distances).with_threshold(threshold);
+    let in_subcomplex = |s: &RipsIndex<I>| s.vertices(n).iter().all(|&v| in_subset[v]);
     Inclusion {
         boundary: &boundary,
         cells,

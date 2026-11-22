@@ -109,16 +109,32 @@ def phimaker_run(ordered, values, chosen, python):
     return bars, theirs["time"]
 
 
+def best_of(fn, repeats=3):
+    times = []
+    for _ in range(repeats):
+        start = time.perf_counter()
+        out = fn()
+        times.append(time.perf_counter() - start)
+    return out, min(times)
+
+
+def phimaker_best(ordered, values, chosen, python, repeats=3):
+    if not python:
+        return None, None
+    runs = [phimaker_run(ordered, values, chosen, python) for _ in range(repeats)]
+    return runs[0][0], min(t for _, t in runs)
+
+
 def ours_explicit(ordered, values, chosen):
     filtered = ChainComplex.from_simplices(ordered).filtration(values)
-    start = time.perf_counter()
-    result = filtered.image_kernel_cokernel([s in chosen for s in ordered], max_dim=1)
-    elapsed = time.perf_counter() - start
+    mask = [s in chosen for s in ordered]
+    result, elapsed = best_of(lambda: filtered.image_kernel_cokernel(mask, max_dim=1))
     bars = {
         name: sorted((k, b, e) for k, d in enumerate(result[name].diagrams()) for b, e in d.tolist())
         for name in ("image", "kernel", "cokernel")
     }
-    return bars, elapsed
+    _, six = best_of(lambda: filtered.six_pack(mask, max_dim=1))
+    return bars, (elapsed, six)
 
 
 def same(a, b):
@@ -129,26 +145,24 @@ def ikc_rows(python, quick):
     rows = []
     cases = [("Rips, 100 points", 100, 0.25), ("Rips, 200 points", 200, 0.18)]
     if not quick:
-        cases += [("Rips, 400 points", 400, 0.13)]
+        cases += [("Rips, 400 points", 400, 0.13), ("Rips, 800 points", 800, 0.09), ("Rips, 1600 points", 1600, 0.065)]
     for name, n, threshold in cases:
         points, ordered, values, subset = rips_case(n, 0, threshold)
         chosen = {s for s in ordered if set(s) <= subset}
-        ours, t_explicit = ours_explicit(ordered, values, chosen)
-        start = time.perf_counter()
-        rips_image_kernel(points=points, subset=sorted(subset), max_dim=1, threshold=threshold)
-        t_lazy = time.perf_counter() - start
-        theirs, t_phimaker = phimaker_run(ordered, values, chosen, python) if python else (None, None)
+        ours, (t_explicit, t_six) = ours_explicit(ordered, values, chosen)
+        _, t_lazy = best_of(lambda: rips_image_kernel(points=points, subset=sorted(subset), max_dim=1, threshold=threshold))
+        theirs, t_phimaker = phimaker_best(ordered, values, chosen, python)
         agree = "—" if theirs is None else ("✓" if same(ours, theirs) else "✗")
-        rows.append(f"| {name}, r ≤ {threshold} | {len(ordered)} | {fmt(t_explicit)} | {fmt(t_lazy)} | {fmt(t_phimaker) if t_phimaker else '—'} | {agree} |")
+        rows.append(f"| {name}, r ≤ {threshold} | {len(ordered)} | {fmt(t_explicit)} | {fmt(t_six)} | {fmt(t_lazy)} | {fmt(t_phimaker) if t_phimaker else '—'} | {agree} |")
         print(rows[-1], flush=True)
     meshes = [("torus mesh 30×30, lower star", 30)] + ([] if quick else [("torus mesh 60×60, lower star", 60)])
     for name, n in meshes:
         ordered, values, subset = torus_mesh(n, 0)
         chosen = {s for s in ordered if set(s) <= subset}
-        ours, t_explicit = ours_explicit(ordered, values, chosen)
-        theirs, t_phimaker = phimaker_run(ordered, values, chosen, python) if python else (None, None)
+        ours, (t_explicit, t_six) = ours_explicit(ordered, values, chosen)
+        theirs, t_phimaker = phimaker_best(ordered, values, chosen, python)
         agree = "—" if theirs is None else ("✓" if same(ours, theirs) else "✗")
-        rows.append(f"| {name} | {len(ordered)} | {fmt(t_explicit)} | — | {fmt(t_phimaker) if t_phimaker else '—'} | {agree} |")
+        rows.append(f"| {name} | {len(ordered)} | {fmt(t_explicit)} | {fmt(t_six)} | — | {fmt(t_phimaker) if t_phimaker else '—'} | {agree} |")
         print(rows[-1], flush=True)
     return rows
 
@@ -194,9 +208,7 @@ def zigzag_rows(python, quick):
     for name, n, window, threshold in cases:
         ops = sliding_rips(n, window, threshold, 0)
         m = len(ops)
-        start = time.perf_counter()
-        ours = zigzag(ops)
-        t_ours = time.perf_counter() - start
+        ours, t_ours = best_of(lambda: zigzag(ops))
         ours_bars = sorted((k, b, -1 if e == m else e + 1) for k, b, e, _, _ in ours)
         if python:
             out = subprocess.run(
@@ -225,8 +237,11 @@ def main():
         [
             "## Images, kernels, cokernels: phlite against phimaker (dimensions 0 and 1; ✓: identical barcodes)",
             "",
-            "| complex | simplices | phlite (explicit) | phlite (lazy Rips) | phimaker | agree |",
-            "|---|---:|---:|---:|---:|:-:|",
+            "phlite: `image_kernel_cokernel` on the explicit complex; the six-pack (`six_pack`, all six barcodes with",
+            "representatives); `rips_image_kernel` from the points, lazily. Best of three.",
+            "",
+            "| complex | simplices | phlite | phlite six-pack + reps | phlite (lazy Rips) | phimaker | agree |",
+            "|---|---:|---:|---:|---:|---:|:-:|",
             *ikc,
             "",
             "## Zigzag: phlite (FastZigzag) against Dionysus 2 (✓: identical barcodes)",

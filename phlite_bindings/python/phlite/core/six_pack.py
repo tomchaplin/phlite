@@ -151,6 +151,11 @@ class PackBarcode(Sequence):
         """The bars as GUDHI's `persistence()` gives them: `(dimension, (birth, death))`."""
         return [(b.dimension, (b.birth, b.death)) for b in self._bars]
 
+    def plot(self, ax: Any = None, *, title: Optional[str] = None, xmax: Optional[float] = None) -> Any:
+        """Draw the barcode with matplotlib: a horizontal line per bar, grouped and coloured by dimension, essential
+        bars running to `xmax` (default: a little past the last finite value) with an arrow. Returns the axes."""
+        return _plot_bars(self._bars, ax, title=self.name if title is None else title, xmax=xmax)
+
     def __repr__(self) -> str:
         counts = ", ".join(f"H{d}: {len(self.in_dimension(d))}" for d in range(self.max_dim + 1))
         return f"PackBarcode({self.name}, {len(self)} bars{'; ' + counts if counts else ''})"
@@ -225,6 +230,22 @@ class SixPack(Mapping):
         and `codomain = image + cokernel`.)"""
         return {name: barcode.rank(t, dim) for name, barcode in self._barcodes.items()}
 
+    def plot(self, axes: Any = None) -> Any:
+        """Draw the six barcodes with matplotlib, in a 2 × 3 grid (domain, image, kernel; codomain, cokernel, relative)
+        with a common value axis. Returns the array of axes."""
+        import matplotlib.pyplot as plt
+
+        if axes is None:
+            _, axes = plt.subplots(2, 3, figsize=(12, 6), sharex=True, constrained_layout=True)
+        layout = [["domain", "image", "kernel"], ["codomain", "cokernel", "relative"]]
+        finite = [v for bc in self._barcodes.values() for b in bc for v in (b.birth, b.death) if math.isfinite(v)]
+        lo, hi = min(finite, default=0.0), max(finite, default=1.0)
+        xmax = hi + 0.1 * (hi - lo or 1.0)
+        for row, names in zip(axes, layout):
+            for ax, name in zip(row, names):
+                self._barcodes[name].plot(ax, xmax=xmax)
+        return axes
+
     def __repr__(self) -> str:
         top = max(b.max_dim for b in self._barcodes.values())
         header = "SixPack" + ("" if self.has_representatives else " (no representatives)")
@@ -236,3 +257,33 @@ class SixPack(Mapping):
         for name, barcode in self._barcodes.items():
             lines.append(f"  {name:<{width}}" + " ".join(f"{len(barcode.in_dimension(d)):>6}" for d in range(top + 1)))
         return "\n".join(lines)
+
+
+def _plot_bars(bars, ax=None, *, title=None, xmax=None):
+    """Draw bars (with `dimension`, `birth`, `death`) as horizontal lines grouped by dimension. Returns the axes."""
+    import matplotlib.pyplot as plt
+
+    if ax is None:
+        _, ax = plt.subplots(figsize=(6, 3))
+    finite = [v for b in bars for v in (b.birth, b.death) if math.isfinite(v)]
+    top = max(finite, default=1.0)
+    bottom = min(finite, default=0.0)
+    right = top + 0.1 * (top - bottom or 1.0) if xmax is None else xmax
+    colours = plt.rcParams["axes.prop_cycle"].by_key()["color"]
+    y = 0
+    for dim in sorted({b.dimension for b in bars}):
+        group = [b for b in bars if b.dimension == dim]
+        colour = colours[dim % len(colours)]
+        for i, b in enumerate(group):
+            end = right if math.isinf(b.death) else b.death
+            ax.plot([b.birth, end], [y, y], color=colour, lw=2, solid_capstyle="butt", label=f"H{dim}" if i == 0 else None)
+            if math.isinf(b.death):
+                ax.annotate("", xy=(end, y), xytext=(end - 1e-9, y), arrowprops=dict(arrowstyle="->", color=colour))
+            y += 1
+        y += 1
+    ax.set_yticks([])
+    if title:
+        ax.set_title(title)
+    if bars:
+        ax.legend(loc="lower right", fontsize="small", frameon=False)
+    return ax

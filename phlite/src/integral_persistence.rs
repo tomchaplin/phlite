@@ -219,6 +219,43 @@ pub fn barcode_mod(boundary: &[Vec<(usize, i64)>], degree: &[usize], p: u64) -> 
     barcode_from_lows(&low)
 }
 
+/// The persistence over Z of a filtered complex given by any boundary oracle with integer coefficients (lazy or
+/// explicit): `cells` in filtration order (faces before cofaces), with `degree` giving each one's dimension. Its
+/// columns are listed once and passed to [`integral_persistence`]; the barcodes are on positions in `cells`.
+///
+/// # Errors
+/// If an entry outgrows `i128`.
+///
+/// # Panics
+/// If a column has a row that isn't among `cells` (at an earlier position).
+pub fn integral_persistence_of<M>(
+    boundary: &M,
+    cells: &[M::ColT],
+    degree: impl Fn(&M::ColT) -> usize,
+) -> Result<IntegralPersistence, Overflow>
+where
+    M: crate::matrices::MatrixOracle<CoefficientField = crate::fields::Integer, RowT = <M as crate::matrices::MatrixOracle>::ColT>,
+    M::ColT: std::hash::Hash,
+{
+    let position: std::collections::HashMap<&M::ColT, usize> = cells.iter().enumerate().map(|(i, c)| (c, i)).collect();
+    let columns: Vec<Vec<(usize, i64)>> = cells
+        .iter()
+        .enumerate()
+        .map(|(j, c)| {
+            boundary
+                .column(c.clone())
+                .map(|(x, row)| {
+                    let i = *position.get(&row).expect("every face is one of the cells");
+                    assert!(i < j, "faces come before their cofaces");
+                    (i, x.get())
+                })
+                .collect()
+        })
+        .collect();
+    let degrees: Vec<usize> = cells.iter().map(degree).collect();
+    integral_persistence(&columns, &degrees)
+}
+
 /// The persistence over Z of the filtered complex with these columns (`boundary[j]`: the faces of cell `j` with
 /// integer coefficients, cells in filtration order, faces earlier; `degree[j]` its dimension): see the
 /// [module docs](self).
@@ -287,6 +324,39 @@ pub fn integral_persistence(boundary: &[Vec<(usize, i64)>], degree: &[usize]) ->
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// A lazy oracle on simplices as vertex lists, with signs: `integral_persistence_of` agrees with the explicit
+    /// columns.
+    #[test]
+    fn oracle_entry_point() {
+        use crate::fields::Integer;
+        use crate::matrices::MatrixOracle;
+        #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+        struct S(Vec<usize>);
+        impl crate::matrices::BasisElement for S {}
+        struct Simplicial;
+        impl MatrixOracle for Simplicial {
+            type CoefficientField = Integer;
+            type ColT = S;
+            type RowT = S;
+            fn column(&self, col: S) -> impl Iterator<Item = (Integer, S)> {
+                let n = if col.0.len() > 1 { col.0.len() } else { 0 };
+                (0..n).map(move |i| {
+                    let mut face = col.0.clone();
+                    face.remove(i);
+                    (Integer::new(if i % 2 == 0 { 1 } else { -1 }).expect("non-zero"), S(face))
+                })
+            }
+        }
+        // A filled-in triangle
+        let simplices: Vec<Vec<usize>> =
+            vec![vec![0], vec![1], vec![2], vec![0, 1], vec![1, 2], vec![0, 2], vec![0, 1, 2]];
+        let (boundary, degree) = simplicial(&simplices);
+        let explicit = integral_persistence(&boundary, &degree).unwrap();
+        let cells: Vec<S> = simplices.iter().cloned().map(S).collect();
+        let lazy = integral_persistence_of(&Simplicial, &cells, |s| s.0.len() - 1).unwrap();
+        assert_eq!(explicit, lazy);
+    }
 
     /// The columns of a simplicial complex given by its simplices in filtration order (faces earlier), with signs.
     fn simplicial(simplices: &[Vec<usize>]) -> (Vec<Vec<(usize, i64)>>, Vec<usize>) {

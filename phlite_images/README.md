@@ -25,7 +25,12 @@ homology of its cubical complex:
 * in the **T-construction** (GUDHI's `top_dimensional_cells`, Cubical Ripser's `computePH_T`) or the
   **V-construction** (GUDHI's `vertices`, Cubical Ripser's `computePH`);
 * through sublevel or superlevel sets; NaN pixels are left out;
-* with representatives, on the doubled-grid coordinates GUDHI uses.
+* with representatives, on the doubled-grid coordinates GUDHI uses;
+* **periodic** along any axes (`periodic=`), as GUDHI's `PeriodicCubicalComplex`;
+* exported with signed boundaries (`cubical_complex`), for `phlite.complexes` (over the integers, spectral sequences).
+
+`phlite.images.filtrations` turns binary images into greyscale ones as giotto-tda's `gtda.images` filtrations do:
+height, radial, dilation, erosion, signed distance and density.
 
 Nothing is stored but the image: cells are numbered densely and computed on demand, emergent pairs end most columns
 at once (as in Cubical Ripser), cells in zero-persistence pairs are left out, and the two ends (dimension 0 and the

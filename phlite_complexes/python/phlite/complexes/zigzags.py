@@ -119,6 +119,30 @@ class ZigzagBarcode(Sequence):
             out[b.dimension].append((b.birth, float("inf") if b.death == last else b.death + 1))
         return out
 
+    def plot(self, ax: Any = None) -> Any:
+        """Draw the intervals with matplotlib over the positions, grouped and coloured by dimension, with closed ends
+        as filled dots and open ends as hollow ones. Returns the axes."""
+        import matplotlib.pyplot as plt
+
+        if ax is None:
+            _, ax = plt.subplots(figsize=(7, 3))
+        colours = plt.rcParams["axes.prop_cycle"].by_key()["color"]
+        y = 0
+        for dim in range(self.max_dim + 1):
+            colour = colours[dim % len(colours)]
+            for i, b in enumerate(self.in_dimension(dim)):
+                ax.plot([b.birth, b.death], [y, y], color=colour, lw=2, label=f"H{dim}" if i == 0 else None)
+                for x, closed in ((b.birth, b.birth_closed), (b.death, b.death_closed)):
+                    ax.plot([x], [y], "o", ms=4, color=colour, mfc=colour if closed else "white")
+                y += 1
+            y += 1
+        ax.set_yticks([])
+        ax.set_xlim(-0.5, self.n_positions - 0.5)
+        ax.set_xlabel("position")
+        if self._bars:
+            ax.legend(loc="lower right", fontsize="small", frameon=False)
+        return ax
+
     def __repr__(self) -> str:
         counts = ", ".join(f"H{d}: {len(self.in_dimension(d))}" for d in range(self.max_dim + 1))
         return f"ZigzagBarcode({len(self)} intervals over {self.n_positions} positions{'; ' + counts if counts else ''})"
