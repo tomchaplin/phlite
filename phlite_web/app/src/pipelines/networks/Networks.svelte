@@ -22,7 +22,7 @@
   let exampleId = $state(EXAMPLES[0].id);
   let g = $state.raw<Digraph>(EXAMPLES[0].make());
   /** The digraph's complexes, and (`u-`) those of the graph with its edges undirected. */
-  type Complex = 'grpph' | NetworkKind | 'u-flag' | 'magnitude' | 'mpss';
+  type Complex = 'grpph' | NetworkKind | 'u-flag' | 'magnitude' | 'mpss' | 'zz-clique' | 'zz-flag';
   const COMPLEXES: { id: Complex; name: string; about: string }[] = [
     {
       id: 'grpph',
@@ -83,14 +83,34 @@
       about:
         "The flag (clique) complex of the graph with its edges undirected (an edge given both ways keeps its smaller weight): a simplex for every clique, entering with its heaviest edge, or, by shortest paths, Rips of the graph's metric. phlite.networks.flag.",
     },
+    {
+      id: 'zz-clique',
+      name: 'Zigzag: clique complexes over time',
+      about:
+        "A temporal network: each edge's weight is when it is active. Each snapshot is the edges active in a window of time (and the nodes they touch), as its clique complex, joined to the next snapshot by their union or intersection: a bar is a component or loop followed from window to window. Computed by FastZigzag (Dey and Hou), as phlite.networks.network_zigzag.",
+    },
+    {
+      id: 'zz-flag',
+      name: 'Zigzag: directed flag complexes over time',
+      about:
+        "As the clique zigzag, each snapshot as its directed flag complex (a simplex for each directed clique), so a cyclic triangle a→b→c→a is a loop rather than filled in. phlite.networks.network_zigzag(complex='directed_flag').",
+    },
   ];
   let complex = $state<Complex>('grpph');
+  /** A zigzag over time: snapshots of the edges active in windows of `zzWidth`, starting every `zzStep`. */
+  const zigzag = $derived(complex === 'zz-clique' || complex === 'zz-flag');
+  let zzWidth = $state(4);
+  let zzStep = $state(1);
+  let zzIntersection = $state(false);
+  const zzStart = $derived(g.edges.length ? Math.min(...g.edges.map((e) => e.w)) : 0);
+  const zzEnd = $derived(g.edges.length ? Math.max(...g.edges.map((e) => e.w)) : 0);
+  const zzCount = $derived(zzStep > 0 ? Math.floor((zzEnd - zzStart) / zzStep) + 1 : 1);
   let maxDim = $state(1);
   /** Each pair at the length of the shortest path between them, rather than each edge at its weight. */
   let pathFiltration = $state(false);
   /** Whether the complex has a choice of filtration (GrPPH and the grounded flag complex are by shortest paths). */
   const undirected = $derived(complex.startsWith('u-'));
-  const choosesFiltration = $derived(complex !== 'grpph' && complex !== 'grounded-flag' && complex !== 'magnitude' && complex !== 'mpss');
+  const choosesFiltration = $derived(complex !== 'grpph' && complex !== 'grounded-flag' && complex !== 'magnitude' && complex !== 'mpss' && complex !== 'zz-clique' && complex !== 'zz-flag');
   let mpssModulus = $state(0);
   let mpssTuple = $state<number[] | null>(null);
   /** A tuple of the MPSS to show on the graph, as a representative: its nodes and the steps between them. */
@@ -135,6 +155,7 @@
   const runner = new Runner();
   function setComplex(c: Complex) {
     complex = c;
+    if (c === 'zz-clique' || c === 'zz-flag') runner.t = 0;
     options = defaultsFor(defaultsOf(c, pathFiltration));
   }
   $effect(() => {
@@ -225,6 +246,11 @@
       options: $state.snapshot(options),
     };
     if (complex === 'magnitude') return { pipeline: 'magnitude', n: graph.n, sources: graph.sources, targets: graph.targets, lMax, integral };
+    if (zigzag)
+      return {
+        pipeline: 'network-zigzag', n: graph.n, sources: graph.sources, targets: graph.targets, weights: graph.weights,
+        directed: complex === 'zz-flag', width: zzWidth, step: zzStep, maxDim: Math.min(maxDim, 2), intersection: zzIntersection,
+      };
     if (complex === 'mpss') return { pipeline: 'mpss', n: graph.n, sources: graph.sources, targets: graph.targets, lMax, modulus: mpssModulus, rMax: 8 };
     if (viaGrpph) return { pipeline: 'grpph', grounded: complex === 'grpph', ...graph };
     if (undirected) {
@@ -240,7 +266,7 @@
     };
   });
   // Moving a node changes nothing to compute
-  const jobKey = $derived(job ? JSON.stringify([g.nodes.length, g.edges, options, complex, maxDim, pathFiltration, lMax, integral, mpssModulus]) : '');
+  const jobKey = $derived(job ? JSON.stringify([g.nodes.length, g.edges, options, complex, maxDim, pathFiltration, lMax, integral, mpssModulus, zzWidth, zzStep, zzIntersection]) : '');
   $effect(() => {
     jobKey;
     const j = untrack(() => job);
@@ -257,7 +283,14 @@
     for (let k = 0; k < edges.values.length; k++) d[edges.pairs[2 * k] * n + edges.pairs[2 * k + 1]] = edges.values[k];
     return d;
   });
-  const domain = $derived(barDomain(runner.result?.barcode.bars ?? [], [0]));
+  const domain = $derived<[number, number]>(zigzag ? [0, Math.max(1, zzCount)] : barDomain(runner.result?.barcode.bars ?? [], [0]));
+  /** In a zigzag, the edges outside the snapshot at the slider. */
+  const inactive = $derived.by(() => {
+    if (!zigzag || runner.t === null) return null;
+    const k = Math.min(zzCount - 1, Math.max(0, Math.floor(runner.t)));
+    const lo = zzStart + k * zzStep;
+    return new Set(g.edges.flatMap((e, i) => (lo <= e.w && e.w < lo + zzWidth ? [] : [i])));
+  });
   const bar = $derived(mpssBar ?? (runner.selected === null ? null : (runner.result?.barcode.bars[runner.selected] ?? null)));
   const label = (v: number) => g.nodes[v]?.label ?? String(v);
   const describe = (c: number[]) => {
@@ -282,7 +315,8 @@
         {dist}
         {tool}
         {newWeight}
-        {undirected}
+        undirected={undirected || complex === 'zz-clique'}
+        {inactive}
         bind:selectedEdge
         onstart={() => history.begin(g)}
         onedit={(next) => {
@@ -291,10 +325,11 @@
         }}
       />
       <div style="margin-top: 0.6rem">
-        <FiltrationSlider bind:t={runner.t} {domain} label={shortestPath ? 'Path length' : 'Weight'} />
+        <FiltrationSlider bind:t={runner.t} {domain} label={zigzag ? 'Snapshot' : shortestPath ? 'Path length' : 'Weight'} />
       </div>
       <div class="legend" style="margin-top: 0.4rem">
         <span>{g.nodes.length} nodes, {g.edges.length} edges</span>
+        {#if zigzag && inactive}{@const k = Math.min(zzCount - 1, Math.max(0, Math.floor(runner.t ?? 0)))}<span>snapshot {k + 1} of {zzCount}: edges active in [{+(zzStart + k * zzStep).toFixed(3)}, {+(zzStart + k * zzStep + zzWidth).toFixed(3)}) drawn solid</span>{/if}
         {#if dist && shortestPath}<span><i style="background: var(--green)"></i>new edges: pairs joined by a path no longer than the slider</span>{/if}
         {#if bar}<span>coloured: the representative (dashed if not an edge of the graph) · red: what kills it</span>{/if}
       </div>
@@ -405,6 +440,20 @@ c,a,2</pre>
       {:else if complex === 'magnitude'}
         <label class="field"><span>Up to length</span><input type="range" min="1" max="10" bind:value={lMax} /><span>{lMax}</span></label>
         <label class="field"><span>Over the integers</span><input type="checkbox" bind:checked={integral} /></label>
+      {:else if zigzag}
+        <label class="field"><span>Window of time</span><input type="number" min="0" step="0.5" bind:value={zzWidth} /></label>
+        <label class="field"><span>Step</span><input type="number" min="0.01" step="0.5" bind:value={zzStep} /><span>{zzCount} snapshots</span></label>
+        <div class="field"><span>Join</span>
+          <div class="tools">
+            <button class:on={!zzIntersection} onclick={() => (zzIntersection = false)}>Unions</button>
+            <button class:on={zzIntersection} onclick={() => (zzIntersection = true)}>Intersections</button>
+          </div>
+        </div>
+        <label class="field"><span>Up to dimension</span>
+          <select bind:value={maxDim}>
+            <option value={0}>H₀</option><option value={1}>H₁</option><option value={2}>H₂</option>
+          </select>
+        </label>
       {:else if complex !== 'grpph' && complex !== 'grounded-flag'}
         <label class="field"><span>Up to dimension</span>
           <select bind:value={maxDim}>
@@ -413,7 +462,7 @@ c,a,2</pre>
         </label>
       {/if}
       <p class="note">{COMPLEXES.find((c) => c.id === complex)?.about}</p>
-      {#if complex !== 'magnitude' && complex !== 'mpss'}<Options bind:options {defaults} />{/if}
+      {#if complex !== 'magnitude' && complex !== 'mpss' && !zigzag}<Options bind:options {defaults} />{/if}
       <ComputeRow {runner} {job} />
     </div>
   </div>

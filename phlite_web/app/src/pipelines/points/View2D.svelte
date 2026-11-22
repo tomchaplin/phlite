@@ -20,6 +20,7 @@
     tool = null,
     brush = 0.08,
     selection = $bindable([]),
+    active = null,
     fitKey = 0,
     onstart,
     onedit,
@@ -36,6 +37,8 @@
     brush?: number;
     /** The selected points' indices. */
     selection?: number[];
+    /** Only the points with indices in [lo, hi) are in play (a zigzag's window): the others are drawn hollow. */
+    active?: [number, number] | null;
     /** Changed when the cloud is replaced (not edited), to fit the view to it again. */
     fitKey?: unknown;
     /** A gesture that may edit the points has begun. */
@@ -283,20 +286,21 @@
     // The points, the selected ones ringed; with births (DTM-Rips), those not yet born at t hollow
     const pr = points.length > 1000 ? 1.6 : points.length > 300 ? 2.2 : 3;
     const births = edges?.births && t !== null ? edges.births : null;
+    const out = (i: number) => (births !== null && births[i] > t!) || (active !== null && (i < active[0] || i >= active[1]));
     ctx.fillStyle = fg;
     ctx.beginPath();
     points.forEach(([x, y], i) => {
-      if (births && births[i] > t!) return;
+      if (out(i)) return;
       ctx.moveTo(sx(x) + pr, sy(y));
       ctx.arc(sx(x), sy(y), pr, 0, 2 * Math.PI);
     });
     ctx.fill();
-    if (births) {
+    if (births || active) {
       ctx.strokeStyle = muted;
       ctx.lineWidth = 1;
       ctx.beginPath();
       points.forEach(([x, y], i) => {
-        if (births[i] <= t!) return;
+        if (!out(i)) return;
         ctx.moveTo(sx(x) + pr, sy(y));
         ctx.arc(sx(x), sy(y), pr, 0, 2 * Math.PI);
       });

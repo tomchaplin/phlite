@@ -736,45 +736,12 @@ pub fn rips_six_pack(
     })
 }
 
-/// Zigzag persistence of sliding windows (`phlite_clouds::zigzag::cloud_zigzag`, by FastZigzag): the Rips complexes at
-/// scale `threshold` (simplices up to dimension `max_dim + 1`) of the windows of `window` consecutive points, each
-/// joined to the next by their union (`K_0 -> K_0 ∪ K_1 <- K_1 -> ...`) or with `intersection` their intersection.
-/// Bars are over windows: a bar alive in windows `b` to `d` is `[b, d + 1)` (the join of windows `i` and `i + 1`
-/// counts as `i + 0.5`). Over Z/2, no representatives.
-#[wasm_bindgen]
-pub fn rips_zigzag(
-    coords: &[f64],
-    point_dim: usize,
-    window: usize,
-    threshold: f64,
-    max_dim: usize,
-    metric: &str,
-    intersection: bool,
-) -> Result<JsValue, JsError> {
-    use phlite_clouds::zigzag::{cloud_zigzag, Frame, RipsDistances};
-    use phlite_complexes::zigzag::Join;
-    let distances = read_distances(coords, point_dim, metric)?;
-    let n = distances.len();
-    if window == 0 || window > n {
-        return Err(err(format!("The window must have between 1 and {n} points")));
-    }
-    if !(threshold >= 0.0) {
-        return Err(err("Give a threshold (a scale) for the Rips complexes"));
-    }
-    let frames: Vec<Frame> =
-        (0..=n - window).map(|i| Frame { labels: (i as u32..(i + window) as u32).collect(), points: vec![] }).collect();
-    let bars = cloud_zigzag(
-        &frames,
-        &RipsDistances { distances },
-        threshold,
-        max_dim,
-        if intersection { Join::Intersection } else { Join::Union },
-        Algorithm::Clearing(phlite::reduction::Clearing::new()),
-    )
-    .map_err(|e| err(e.to_string()))?;
-    let last = 2 * (n - window);
-    let out: Vec<OutBar> = bars
-        .into_iter()
+/// A zigzag barcode in levels (frame `i` at `2 i`, see `phlite_complexes::zigzag::LevelBar`) as bars over frames:
+/// alive in frames `b` to `d` is `[b, d + 1)`, the join of frames `i` and `i + 1` counting as `i + 0.5`, and `null`
+/// deaths reaching the last frame.
+fn frame_bars(bars: Vec<phlite_complexes::zigzag::LevelBar>, n_frames: usize) -> Vec<OutBar> {
+    let last = 2 * n_frames.saturating_sub(1);
+    bars.into_iter()
         .map(|b| OutBar {
             dim: b.dimension,
             birth: b.birth as f64 / 2.0,
@@ -784,13 +751,128 @@ pub fn rips_zigzag(
             rep: None,
             kind: None,
         })
+        .collect()
+}
+
+/// Zigzag persistence of sliding windows (`phlite_clouds::zigzag::cloud_zigzag`, by FastZigzag): the complexes, at
+/// scale `threshold` (simplices up to dimension `max_dim + 1`), of the windows of `window` consecutive points starting
+/// every `step` points, each joined to the next by their union (`K_0 -> K_0 ∪ K_1 <- K_1 -> ...`) or with
+/// `intersection` their intersection. `complex` is `rips` (a diameter, in `metric`, or of a distance matrix when
+/// `point_dim` is 0), `cech`, `alpha` or `delaunay-cech` (a radius; alpha and Delaunay–Čech in the plane or space), or
+/// `witness` (each window's points as landmarks, every point a witness; alpha squared). Bars are over windows (see
+/// [`frame_bars`]). Over Z/2, no representatives.
+#[wasm_bindgen]
+#[allow(clippy::too_many_arguments)]
+pub fn cloud_zigzag(
+    coords: &[f64],
+    point_dim: usize,
+    window: usize,
+    step: usize,
+    threshold: f64,
+    max_dim: usize,
+    metric: &str,
+    complex: &str,
+    intersection: bool,
+) -> Result<JsValue, JsError> {
+    use phlite_clouds::witness::Witness;
+    use phlite_clouds::zigzag::{self as zz, Frame, PointFiltration, RipsDistances, WitnessFiltration};
+    use phlite_complexes::zigzag::Join;
+    let n = if point_dim == 0 { (coords.len() as f64).sqrt() as usize } else { coords.len() / point_dim.max(1) };
+    if window == 0 || window > n {
+        return Err(err(format!("The window must have between 1 and {n} points")));
+    }
+    if step == 0 {
+        return Err(err("The step must be at least one point"));
+    }
+    if threshold.is_nan() || threshold < 0.0 {
+        return Err(err("Give a threshold (a scale) for the complexes"));
+    }
+    if point_dim == 0 && complex != "rips" {
+        return Err(err("A distance matrix has only Rips complexes"));
+    }
+    let points: Vec<Vec<f64>> = if point_dim == 0 { vec![] } else { coords.chunks(point_dim).map(<[f64]>::to_vec).collect() };
+    let frames: Vec<Frame> = (0..=n - window)
+        .step_by(step)
+        .map(|i| {
+            let labels: Vec<u32> = (i as u32..(i + window) as u32).collect();
+            let points = if points.is_empty() { vec![] } else { points[i..i + window].to_vec() };
+            Frame { labels, points }
+        })
         .collect();
+    let join = if intersection { Join::Intersection } else { Join::Union };
+    fn run<F: PointFiltration>(frames: &[Frame], f: &F, t: f64, d: usize, join: Join) -> Result<Vec<phlite_complexes::zigzag::LevelBar>, JsError> {
+        zz::cloud_zigzag(frames, f, t, d, join, Algorithm::Clearing(phlite::reduction::Clearing::new())).map_err(|e| err(e.to_string()))
+    }
+    let (bars, name) = match complex {
+        "rips" => (run(&frames, &RipsDistances { distances: read_distances(coords, point_dim, metric)? }, threshold, max_dim, join)?, "Rips"),
+        "cech" => (run(&frames, &zz::Cech, threshold, max_dim, join)?, "Čech"),
+        "alpha" => (run(&frames, &zz::Alpha, threshold, max_dim, join)?, "alpha"),
+        "delaunay-cech" => (run(&frames, &zz::DelaunayCech, threshold, max_dim, join)?, "Delaunay–Čech"),
+        "witness" => {
+            let f = WitnessFiltration { witnesses: points.clone(), kind: Witness::Relaxed };
+            (run(&frames, &f, threshold, max_dim, join)?, "witness")
+        }
+        other => return Err(err(format!("Unknown complex {other:?}"))),
+    };
     to_js(Barcode {
-        bars: out,
+        bars: frame_bars(bars, frames.len()),
         summary: format!(
-            "{} windows of {window} of {n} points, Rips complexes at scale {threshold} up to dimension {}, joined by {}",
-            n - window + 1,
-            max_dim + 1,
+            "{} windows of {window} of {n} points (every {step}), {name} complexes at scale {threshold}, joined by {}",
+            frames.len(),
+            if intersection { "intersections" } else { "unions" }
+        ),
+        edges: None,
+    })
+}
+
+/// Zigzag persistence of a temporal network (`phlite_networks::zigzag::network_zigzag`, by FastZigzag): each edge
+/// `sources[i] → targets[i]` is active at time `weights[i]`; snapshot `k` holds the edges active in
+/// `[start + k step, start + k step + width)` (from the earliest time, while windows start by the latest), and the
+/// nodes they touch, as its clique complex (or with `directed`, its directed flag complex), up to dimension
+/// `max_dim + 1`, joined to the next by their union or with `intersection` their intersection. Bars are over
+/// snapshots (see [`frame_bars`]).
+#[wasm_bindgen]
+#[allow(clippy::too_many_arguments)]
+pub fn network_zigzag(
+    n_vertices: u32,
+    sources: &[u32],
+    targets: &[u32],
+    weights: &[f64],
+    directed: bool,
+    width: f64,
+    step: f64,
+    max_dim: usize,
+    intersection: bool,
+) -> Result<JsValue, JsError> {
+    use phlite_complexes::zigzag::Join;
+    use phlite_networks::zigzag::{network_zigzag as zigzag, NetworkComplex, Snapshot};
+    let edges = read_edges(n_vertices, sources, targets, weights)?;
+    if !(width > 0.0 && step > 0.0) {
+        return Err(err("The window's width and step must be positive"));
+    }
+    if edges.is_empty() {
+        return Err(err("The network has no edges"));
+    }
+    let start = edges.iter().map(|e| e.2).fold(f64::INFINITY, f64::min);
+    let end = edges.iter().map(|e| e.2).fold(f64::NEG_INFINITY, f64::max);
+    let n_snapshots = ((end - start) / step).floor() as usize + 1;
+    if n_snapshots > 2000 {
+        return Err(err(format!("{n_snapshots} snapshots is too many: take a longer step")));
+    }
+    let snapshots: Vec<Snapshot> = (0..n_snapshots)
+        .map(|k| {
+            let t = start + k as f64 * step;
+            Snapshot::new([], edges.iter().filter(|e| t <= e.2 && e.2 < t + width).map(|e| (e.0, e.1)))
+        })
+        .collect();
+    let complex = if directed { NetworkComplex::DirectedFlag } else { NetworkComplex::Clique };
+    let join = if intersection { Join::Intersection } else { Join::Union };
+    let bars = zigzag(&snapshots, complex, max_dim, join, Algorithm::Clearing(phlite::reduction::Clearing::new()));
+    to_js(Barcode {
+        bars: frame_bars(bars, n_snapshots),
+        summary: format!(
+            "{n_snapshots} snapshots of the edges active in windows of {width} every {step} from {start}, {} complexes, joined by {}",
+            if directed { "directed flag" } else { "clique" },
             if intersection { "intersections" } else { "unions" }
         ),
         edges: None,
@@ -839,19 +921,7 @@ pub fn video_zigzag(
         Algorithm::Clearing(phlite::reduction::Clearing::new()),
     )
     .map_err(|e| err(e.to_string()))?;
-    let last = 2 * n_frames.saturating_sub(1);
-    let bars = bars
-        .into_iter()
-        .map(|b| OutBar {
-            dim: b.dimension,
-            birth: b.birth as f64 / 2.0,
-            death: (b.death < last).then(|| (b.death + 1) as f64 / 2.0),
-            birth_cell: vec![],
-            death_cell: None,
-            rep: None,
-            kind: None,
-        })
-        .collect();
+    let bars = frame_bars(bars, n_frames);
     to_js(Barcode {
         bars,
         summary: format!(

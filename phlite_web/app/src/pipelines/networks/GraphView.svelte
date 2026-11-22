@@ -13,6 +13,7 @@
     newWeight = 1,
     selectedEdge = $bindable(null),
     undirected = false,
+    inactive = null,
     onstart,
     onedit,
   }: {
@@ -26,6 +27,8 @@
     selectedEdge?: number | null;
     /** Whether the complex treats the edges as undirected (new edges are then drawn once per pair, without arrows). */
     undirected?: boolean;
+    /** Edges (by index) not in play (outside a zigzag's snapshot): drawn faint. */
+    inactive?: Set<number> | null;
     /** A gesture that may edit the digraph has begun. */
     onstart?: () => void;
     onedit?: (g: Digraph) => void;
@@ -173,7 +176,7 @@
 
     {#each g.edges as e, i}
       {@const p = path(e.s, e.t, has.has(`${e.t},${e.s}`))}
-      <g role="presentation" onpointerdown={(ev) => tool && tool !== 'node' && tool !== 'edge' && ev.stopPropagation()} onclick={(ev) => clickEdge(i, ev)}>
+      <g role="presentation" class:off={inactive?.has(i)} onpointerdown={(ev) => tool && tool !== 'node' && tool !== 'edge' && ev.stopPropagation()} onclick={(ev) => clickEdge(i, ev)}>
         <path d={p.d} class="hit" />
         <path d={p.d} class="edge" class:sel={selectedEdge === i} marker-end="url(#arrow-{selectedEdge === i ? 'sel' : 'grey'})" />
         {#if g.edges.length <= 80}
@@ -208,6 +211,7 @@
 </div>
 
 <style>
+  .off { opacity: 0.18; }
   .edge { fill: none; stroke: var(--muted); stroke-width: 1.4; }
   .edge.sel { stroke: var(--accent); stroke-width: 2.5; }
   .hit { fill: none; stroke: transparent; stroke-width: 12; cursor: pointer; }

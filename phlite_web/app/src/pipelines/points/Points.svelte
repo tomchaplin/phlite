@@ -14,7 +14,7 @@
   import { RIPS, COMPLEX, defaultsFor } from '../../lib/options';
   import { barDomain } from '../../lib/scale';
   import { randomSeed } from '../../lib/random';
-  import type { Job, Metric } from '../../lib/types';
+  import type { Job, Metric, ZigzagCloudComplex } from '../../lib/types';
   import { EXAMPLES, RANDOM_KINDS, randomCloud, parseCloud, flatten, type Cloud, type RandomKind } from './data';
 
   let source = $state<Source>('examples');
@@ -35,6 +35,26 @@
   let windowSize = $state(20);
   /** For the zigzag: join consecutive windows by intersections rather than unions. */
   let intersection = $state(false);
+  /** For the zigzag: windows start every `windowStep` points. */
+  let windowStep = $state(1);
+  /** For the zigzag: each window's complex. */
+  let zzComplex = $state<ZigzagCloudComplex>('rips');
+  const ZZ_COMPLEXES: { id: ZigzagCloudComplex; name: string; scale: string }[] = [
+    { id: 'rips', name: 'Vietoris–Rips', scale: 'the largest distance within a simplex' },
+    { id: 'cech', name: 'Čech', scale: 'the radius of the balls (a simplex enters when they all meet)' },
+    { id: 'alpha', name: 'Alpha', scale: 'the alpha radius (points in the plane or in space)' },
+    { id: 'delaunay-cech', name: 'Delaunay–Čech', scale: 'the radius of the minimal enclosing ball (points in the plane or in space)' },
+    { id: 'witness', name: 'Witness', scale: 'α²: each window’s points are landmarks, every point of the cloud a witness' },
+  ];
+  /** The points of the window at the slider (its index, rounded down). */
+  const zzActive = $derived.by((): [number, number] | null => {
+    if (filtration !== 'zigzag' || runner.t === null) return null;
+    const n = cloud.points.length;
+    const w = Math.min(windowSize, n);
+    const last = Math.floor((n - w) / Math.max(1, windowStep));
+    const k = Math.min(last, Math.max(0, Math.floor(runner.t)));
+    return [k * windowStep, k * windowStep + w];
+  });
   let filtration = $state<Filtration>('rips');
   let dtmK = $state(10);
   const isDelaunay = $derived(filtration === 'alpha' || filtration === 'cech');
@@ -121,6 +141,7 @@
   function setFiltration(f: Filtration) {
     filtration = f;
     options = defaultsFor(f === 'rips' || f === 'dtm' || f === 'sixpack' ? RIPS : COMPLEX);
+    if (f === 'zigzag') runner.t = 0;
     if (f === 'sixpack') {
       options.representatives = true;
       tool = cloud.dim === 2 ? 'select' : null;
@@ -136,7 +157,11 @@
     if (thresholdValue !== null && !(thresholdValue > 0)) return 'The threshold must be a positive number.';
     if (filtration === 'sixpack' && cloud.dim !== 2) return 'Subset maps are for clouds in the plane, where you can select the subset.';
     if (filtration === 'sixpack' && selection.length === 0) return 'Select some points (with the Select tool, or a box) to be the subset.';
-    if (filtration === 'zigzag' && thresholdValue === null) return 'Give a threshold: the scale of the Rips complexes of the windows.';
+    if (filtration === 'zigzag' && thresholdValue === null) return 'Give a threshold: the scale of the complexes of the windows.';
+    if (filtration === 'zigzag' && (zzComplex === 'alpha' || zzComplex === 'delaunay-cech') && cloud.dim !== 2 && cloud.dim !== 3)
+      return 'Alpha and Delaunay–Čech complexes are for points in the plane or in space.';
+    if (filtration === 'zigzag' && zzComplex === 'cech' && Math.min(windowSize, cloud.points.length) > 60 && maxDim >= 1)
+      return 'Čech complexes list every simplex of up to four points within the radius: slow for windows of more than about 60 points. Compute anyway?';
     if (filtration === 'zigzag' && !(windowSize >= 1 && windowSize <= cloud.points.length)) return `The window must have between 1 and ${cloud.points.length} points.`;
     if (filtration === 'dtm' && !(dtmK >= 1 && dtmK <= cloud.points.length)) return `k must be between 1 and the number of points (${cloud.points.length}).`;
     if (options.algorithm === 'standard' && !isDelaunay && cloud.points.length > 120)
@@ -150,13 +175,15 @@
     if (filtration === 'zigzag') {
       if (thresholdValue === null) return null;
       return {
-        pipeline: 'rips-zigzag',
+        pipeline: 'cloud-zigzag',
         coords: flatten(cloud),
         pointDim: cloud.dim,
         window: Math.min(windowSize, cloud.points.length),
+        step: Math.max(1, windowStep),
         threshold: thresholdValue,
         maxDim: Math.min(maxDim, 2),
         metric,
+        complex: zzComplex,
         intersection,
       };
     }
@@ -222,6 +249,7 @@
           {tool}
           {brush}
           bind:selection
+          active={zzActive}
           {fitKey}
           onstart={() => history.begin(cloud)}
           onedit={edited}
@@ -324,7 +352,7 @@
           <button class:on={filtration === 'dtm'} onclick={() => setFiltration('dtm')}>DTM-Rips</button>
           <button class:on={filtration === 'alpha'} onclick={() => setFiltration('alpha')}>Alpha</button>
           <button class:on={filtration === 'cech'} onclick={() => setFiltration('cech')}>Delaunay–Čech</button>
-          <button class:on={filtration === 'zigzag'} onclick={() => setFiltration('zigzag')} title="Zigzag persistence of the Rips complexes of windows of consecutive points">Sliding windows</button>
+          <button class:on={filtration === 'zigzag'} onclick={() => setFiltration('zigzag')} title="Zigzag persistence of the complexes of windows of consecutive points">Sliding windows</button>
           <button class:on={filtration === 'sixpack'} onclick={() => setFiltration('sixpack')} title="The image, kernel and cokernel of the map on homology from the Rips filtration of the selected points to that of all of them">Subset maps</button>
         </div>
       </div>
@@ -334,16 +362,24 @@
             <option value={0}>H₀</option><option value={1}>H₁</option><option value={2}>H₂</option><option value={3}>H₃</option>
           </select>
         </label>
-        <label class="field"><span>Metric</span>
+        {#if filtration === 'zigzag'}
+          <label class="field"><span>Complex</span>
+            <select bind:value={zzComplex}>
+              {#each ZZ_COMPLEXES as c}<option value={c.id}>{c.name}</option>{/each}
+            </select>
+          </label>
+        {/if}
+        {#if filtration !== 'zigzag' || zzComplex === 'rips'}<label class="field"><span>Metric</span>
           <select bind:value={metric}>
             <option value="euclidean">Euclidean</option>
             <option value="manhattan">Manhattan (L¹)</option>
             <option value="chebyshev">Chebyshev (L∞)</option>
           </select>
-        </label>
+        </label>{/if}
         <label class="field"><span>Threshold</span><input type="text" placeholder="none (the enclosing radius)" bind:value={threshold} /></label>
         {#if filtration === 'zigzag'}
           <label class="field"><span>Window (points)</span><input type="range" min="2" max={Math.max(2, cloud.points.length)} bind:value={windowSize} /><span>{windowSize}</span></label>
+          <label class="field"><span>Step (points)</span><input type="range" min="1" max={Math.max(1, Math.min(windowSize, cloud.points.length))} bind:value={windowStep} /><span>{windowStep}</span></label>
           <div class="field"><span>Join</span>
             <div class="tools">
               <button class:on={!intersection} onclick={() => (intersection = false)}>Unions</button>
@@ -351,10 +387,11 @@
             </div>
           </div>
           <p class="note">
-            <strong>Zigzag persistence</strong>: the Rips complexes, at the threshold's scale, of every window of
-            {windowSize} consecutive points (in the cloud's order), each joined to the next by their
+            <strong>Zigzag persistence</strong>: the {ZZ_COMPLEXES.find((c) => c.id === zzComplex)?.name} complexes, at the
+            threshold's scale ({ZZ_COMPLEXES.find((c) => c.id === zzComplex)?.scale}), of windows of {windowSize}
+            consecutive points (in the cloud's order) starting every {windowStep}, each joined to the next by their
             {intersection ? 'intersection (K₀ ← K₀ ∩ K₁ → K₁ …)' : 'union (K₀ → K₀ ∪ K₁ ← K₁ …)'}. A bar is a
-            feature that persists from window to window; the axis counts windows. Computed by FastZigzag (Dey and Hou), as
+            feature that persists from window to window; the axis counts windows, and the slider's window is drawn solid. Computed by FastZigzag (Dey and Hou), as
             <code>phlite.clouds.cloud_zigzag</code>. Try the noisy circle: the loop lives while a window spans it.
           </p>
         {/if}
@@ -380,7 +417,7 @@
       {:else}
         <p class="note">The exact Delaunay triangulation (in the plane or in space), each cell entering at the radius of its minimal enclosing ball, when the balls about its vertices first meet.</p>
       {/if}
-      <Options bind:options defaults={isDelaunay ? COMPLEX : RIPS} />
+      {#if filtration !== 'zigzag'}<Options bind:options defaults={isDelaunay ? COMPLEX : RIPS} />{/if}
       <ComputeRow {runner} {job} disabled={blocked} />
       {#if problem}<p class="note" class:error={blocked}>{problem}</p>{/if}
     </div>

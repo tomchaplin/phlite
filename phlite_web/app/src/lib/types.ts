@@ -98,6 +98,9 @@ export type GraphKind = 'flag' | 'flag-sp';
 
 export type NetworkKind = 'pph' | 'flag' | 'grounded-flag' | 'tuples' | 'dowker-sink' | 'dowker-source';
 
+/** The complexes a point-cloud zigzag can be built from. */
+export type ZigzagCloudComplex = 'rips' | 'cech' | 'alpha' | 'delaunay-cech' | 'witness';
+
 export type Job =
   | {
       pipeline: 'rips';
@@ -123,15 +126,32 @@ export type Job =
     }
   | { pipeline: 'delaunay'; coords: Float64Array; pointDim: number; cech: boolean; options: AlgoOptions }
   | {
-      /** Zigzag persistence of the Rips complexes of sliding windows of consecutive points. */
-      pipeline: 'rips-zigzag';
+      /** Zigzag persistence of the complexes of sliding windows of consecutive points. */
+      pipeline: 'cloud-zigzag';
       coords: Float64Array;
       pointDim: number;
       window: number;
+      /** Windows start every `step` points. */
+      step: number;
       threshold: number;
       maxDim: number;
       metric: Metric;
+      complex: ZigzagCloudComplex;
       /** Join consecutive windows by intersections rather than unions. */
+      intersection: boolean;
+    }
+  | {
+      /** Zigzag persistence of a temporal network: snapshots of the edges active in sliding windows of time. */
+      pipeline: 'network-zigzag';
+      n: number;
+      sources: Uint32Array;
+      targets: Uint32Array;
+      /** Each edge's time. */
+      weights: Float64Array;
+      directed: boolean;
+      width: number;
+      step: number;
+      maxDim: number;
       intersection: boolean;
     }
   | {

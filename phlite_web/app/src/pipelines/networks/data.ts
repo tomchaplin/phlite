@@ -28,10 +28,33 @@ export interface NetworkExample {
   about: string;
   make: () => Digraph;
   /** What to compute, if the example is about a particular complex: chosen with it. */
-  show?: { complex: 'pph' | 'dowker-sink' | 'mpss'; shortestPath: boolean; maxDim: number; lMax?: number };
+  show?: { complex: 'pph' | 'dowker-sink' | 'mpss' | 'zz-clique' | 'zz-flag'; shortestPath: boolean; maxDim: number; lMax?: number };
 }
 
 export const EXAMPLES: NetworkExample[] = [
+  {
+    id: 'contacts',
+    name: 'Contacts over time',
+    about:
+      "A temporal network: each edge's weight is the time of a contact. A square a→b→c→d→a (times 0–3) gains its diagonals (4, 5), then a triangle e→f→g→e (6–8) and a transitive one e→g, g→h, e→h (9–11). Shown as a zigzag of windows of time: the square's loop lives while a window holds it, until the diagonals fill it; the cyclic triangle is a loop of the directed flag complex but filled in the clique complex.",
+    make: () => {
+      const labels = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
+      const at: [number, number][] = [
+        [0.15, 0.2], [0.4, 0.2], [0.4, 0.5], [0.15, 0.5], [0.6, 0.6], [0.85, 0.5], [0.8, 0.85], [0.55, 0.9],
+      ];
+      const e = (a: string, b: string, w: number) => ({ s: labels.indexOf(a), t: labels.indexOf(b), w });
+      return {
+        nodes: labels.map((label, i) => ({ x: at[i][0], y: at[i][1], label })),
+        edges: [
+          e('a', 'b', 0), e('b', 'c', 1), e('c', 'd', 2), e('d', 'a', 3),
+          e('a', 'c', 4), e('b', 'd', 5),
+          e('e', 'f', 6), e('f', 'g', 7), e('g', 'e', 8),
+          e('e', 'g', 9), e('g', 'h', 10), e('e', 'h', 11),
+        ],
+      };
+    },
+    show: { complex: 'zz-flag', shortestPath: false, maxDim: 1 },
+  },
   {
     id: 'book',
     name: 'The notebook example',
