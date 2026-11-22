@@ -6,7 +6,7 @@ import type { Job } from './types';
 // What both builds export (their glue differs)
 type Module = Pick<
   typeof import('phlite-web-single'),
-  'rips' | 'rips_six_pack' | 'rips_zigzag' | 'magnitude' | 'binary_filtration' | 'delaunay' | 'grpph' | 'network' | 'graph' | 'image' | 'complex' | 'n_threads' | 'set_crash_hooks' | 'crash_for_testing'
+  'rips' | 'rips_six_pack' | 'rips_zigzag' | 'video_zigzag' | 'magnitude' | 'mpss' | 'binary_filtration' | 'delaunay' | 'grpph' | 'network' | 'graph' | 'image' | 'complex' | 'n_threads' | 'set_crash_hooks' | 'crash_for_testing'
 >;
 type Message = { type: 'init'; threads: number; single: boolean; channel: string } | { type: 'run'; id: number; job: Job };
 
@@ -53,6 +53,14 @@ self.onmessage = async (event: MessageEvent<Message>) => {
         break;
       case 'rips-zigzag':
         barcode = phlite.rips_zigzag(job.coords, job.pointDim, job.window, job.threshold, job.maxDim, job.metric);
+        break;
+      case 'video-zigzag':
+        barcode = phlite.video_zigzag(
+          job.pixels, job.width, job.height, job.nFrames, job.threshold, job.superlevel, job.construction, job.periodic,
+        );
+        break;
+      case 'mpss':
+        barcode = phlite.mpss(job.n, job.sources, job.targets, job.lMax, job.modulus, job.rMax, 4000);
         break;
       case 'magnitude':
         barcode = phlite.magnitude(job.n, job.sources, job.targets, job.lMax, job.integral);

@@ -4,6 +4,7 @@
   import FileDrop from '../../components/FileDrop.svelte';
   import Options from '../../components/Options.svelte';
   import MagnitudeTable from './MagnitudeTable.svelte';
+  import MpssView from './MpssView.svelte';
   import ComputeRow from '../../components/ComputeRow.svelte';
   import Results from '../../components/Results.svelte';
   import FiltrationSlider from '../../components/FiltrationSlider.svelte';
@@ -14,14 +15,14 @@
   import { GRPPH, NETWORK, COMPLEX, RIPS, defaultsFor } from '../../lib/options';
   import { barDomain } from '../../lib/scale';
   import { randomSeed } from '../../lib/random';
-  import type { GraphKind, Job, NetworkKind } from '../../lib/types';
+  import type { Bar, GraphKind, Job, NetworkKind } from '../../lib/types';
   import { EXAMPLES, randomDigraph, parseEdges, layout, type Digraph } from './data';
 
   let source = $state<Source>('examples');
   let exampleId = $state(EXAMPLES[0].id);
   let g = $state.raw<Digraph>(EXAMPLES[0].make());
   /** The digraph's complexes, and (`u-`) those of the graph with its edges undirected. */
-  type Complex = 'grpph' | NetworkKind | 'u-flag' | 'magnitude';
+  type Complex = 'grpph' | NetworkKind | 'u-flag' | 'magnitude' | 'mpss';
   const COMPLEXES: { id: Complex; name: string; about: string }[] = [
     {
       id: 'grpph',
@@ -71,6 +72,12 @@
         'Magnitude homology (Hepworth and Willerton): tuples of nodes, consecutive ones distinct, graded by the total length of shortest paths through them, every edge of length 1. A table of ranks, not a barcode; over the integers it finds torsion (rare: the smallest known graphs with any have 15 nodes).',
     },
     {
+      id: 'mpss',
+      name: 'Magnitude-path spectral sequence',
+      about:
+        'The spectral sequence of the reachability complex filtered by length (Asao; Hepworth and Roff): E¹ is magnitude homology, E² bigraded path homology, converging to reachability homology. Every entry as a group, over a field or the integers, with generators: chains of tuples of nodes. Every edge has length 1; best on small digraphs.',
+    },
+    {
       id: 'u-flag',
       name: 'Flag (undirected)',
       about:
@@ -83,7 +90,37 @@
   let pathFiltration = $state(false);
   /** Whether the complex has a choice of filtration (GrPPH and the grounded flag complex are by shortest paths). */
   const undirected = $derived(complex.startsWith('u-'));
-  const choosesFiltration = $derived(complex !== 'grpph' && complex !== 'grounded-flag' && complex !== 'magnitude');
+  const choosesFiltration = $derived(complex !== 'grpph' && complex !== 'grounded-flag' && complex !== 'magnitude' && complex !== 'mpss');
+  let mpssModulus = $state(0);
+  let mpssTuple = $state<number[] | null>(null);
+  /** A tuple of the MPSS to show on the graph, as a representative: its nodes and the steps between them. */
+  const mpssBar = $derived.by((): Bar | null => {
+    const t = mpssTuple;
+    if (complex !== 'mpss' || !t) return null;
+    // Each step along a shortest directed path (every edge of length 1), or straight if there is none
+    const out = new Map<number, number[]>();
+    for (const e of g.edges) out.set(e.s, [...(out.get(e.s) ?? []), e.t]);
+    const geodesic = (a: number, b: number): number[] => {
+      const previous = new Map<number, number>([[a, a]]);
+      const queue = [a];
+      while (queue.length && !previous.has(b)) {
+        const u = queue.shift()!;
+        for (const v of out.get(u) ?? []) if (!previous.has(v)) (previous.set(v, u), queue.push(v));
+      }
+      if (!previous.has(b)) return [a, b];
+      const path = [b];
+      while (path[0] !== a) path.unshift(previous.get(path[0])!);
+      return path;
+    };
+    const rep: [number, number[]][] =
+      t.length === 1
+        ? [[1, [t[0]]]]
+        : t.slice(1).flatMap((v, i) => {
+            const path = geodesic(t[i], v);
+            return path.slice(1).map((w, j): [number, number[]] => [1, [path[j], w]]);
+          });
+    return { dim: t.length - 1, birth: 0, death: null, birth_cell: [], death_cell: null, rep };
+  });
   let lMax = $state(4);
   let integral = $state(false);
   const pathHomology = $derived(complex === 'grpph' || complex === 'pph');
@@ -124,6 +161,7 @@
       setComplex(ex.show.complex);
       pathFiltration = ex.show.shortestPath;
       maxDim = ex.show.maxDim;
+      if (ex.show.lMax !== undefined) lMax = ex.show.lMax;
     }
   }
 
@@ -187,6 +225,7 @@
       options: $state.snapshot(options),
     };
     if (complex === 'magnitude') return { pipeline: 'magnitude', n: graph.n, sources: graph.sources, targets: graph.targets, lMax, integral };
+    if (complex === 'mpss') return { pipeline: 'mpss', n: graph.n, sources: graph.sources, targets: graph.targets, lMax, modulus: mpssModulus, rMax: 8 };
     if (viaGrpph) return { pipeline: 'grpph', grounded: complex === 'grpph', ...graph };
     if (undirected) {
       const kind: GraphKind = pathFiltration ? 'flag-sp' : 'flag';
@@ -201,7 +240,7 @@
     };
   });
   // Moving a node changes nothing to compute
-  const jobKey = $derived(job ? JSON.stringify([g.nodes.length, g.edges, options, complex, maxDim, pathFiltration, lMax, integral]) : '');
+  const jobKey = $derived(job ? JSON.stringify([g.nodes.length, g.edges, options, complex, maxDim, pathFiltration, lMax, integral, mpssModulus]) : '');
   $effect(() => {
     jobKey;
     const j = untrack(() => job);
@@ -219,7 +258,7 @@
     return d;
   });
   const domain = $derived(barDomain(runner.result?.barcode.bars ?? [], [0]));
-  const bar = $derived(runner.selected === null ? null : (runner.result?.barcode.bars[runner.selected] ?? null));
+  const bar = $derived(mpssBar ?? (runner.selected === null ? null : (runner.result?.barcode.bars[runner.selected] ?? null)));
   const label = (v: number) => g.nodes[v]?.label ?? String(v);
   const describe = (c: number[]) => {
     if (c.length === 1) return `node ${label(c[0])}`;
@@ -331,7 +370,9 @@ c,a,2</pre>
 
   <div>
     <div class="panel">
-      {#if complex === 'magnitude'}
+      {#if complex === 'mpss'}
+        <MpssView result={runner.result} error={runner.error} running={runner.running} onhighlight={(t) => (mpssTuple = t)} />
+      {:else if complex === 'magnitude'}
         <MagnitudeTable result={runner.result} error={runner.error} running={runner.running} />
       {:else}
         <Results result={runner.result} error={runner.error} running={runner.running} {domain} bind:selected={runner.selected} bind:t={runner.t} {describe} name={complex} />
@@ -353,7 +394,15 @@ c,a,2</pre>
           </select>
         </label>
       {/if}
-      {#if complex === 'magnitude'}
+      {#if complex === 'mpss'}
+        <label class="field"><span>Tuples up to length</span><input type="range" min="1" max="8" bind:value={lMax} /><span>{lMax}</span></label>
+        <label class="field"><span>Coefficients</span>
+          <select bind:value={mpssModulus}>
+            <option value={0}>ℤ (the integers: torsion)</option>
+            {#each [2, 3, 5, 7] as p}<option value={p}>𝔽{p}</option>{/each}
+          </select>
+        </label>
+      {:else if complex === 'magnitude'}
         <label class="field"><span>Up to length</span><input type="range" min="1" max="10" bind:value={lMax} /><span>{lMax}</span></label>
         <label class="field"><span>Over the integers</span><input type="checkbox" bind:checked={integral} /></label>
       {:else if complex !== 'grpph' && complex !== 'grounded-flag'}
@@ -364,7 +413,7 @@ c,a,2</pre>
         </label>
       {/if}
       <p class="note">{COMPLEXES.find((c) => c.id === complex)?.about}</p>
-      {#if complex !== 'magnitude'}<Options bind:options {defaults} />{/if}
+      {#if complex !== 'magnitude' && complex !== 'mpss'}<Options bind:options {defaults} />{/if}
       <ComputeRow {runner} {job} />
     </div>
   </div>

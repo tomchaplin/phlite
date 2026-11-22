@@ -30,6 +30,22 @@ export interface Barcode {
   summary: string;
   /** The filtration's edges, if the pipeline draws its complex (see `FiltrationEdges`). */
   edges?: FiltrationEdges | null;
+  /** The magnitude-path spectral sequence (no bars). */
+  mpss?: {
+    pages: {
+      r: number;
+      /** `table[l][k]`, `null` where not determined */
+      table: (MpssGroup | null)[][];
+      nonzero: { l: number; k: number; group: MpssGroup; generators: { order: string | null; chain: [string, number[]][] }[] | null }[];
+      differentials: { from: [number, number]; to: [number, number]; image: MpssGroup }[];
+    }[];
+    degenerates_at: number | null;
+    /** 0: the integers */
+    modulus: number;
+    l_max: number;
+    n_tuples: number;
+    generators: boolean;
+  };
   /** Magnitude homology (no bars): `ranks[l][k]` (`null`: unknown), and over the integers `[k, l, orders]` of torsion. */
   magnitude?: { ranks: (number | null)[][]; torsion: [number, number, string[]][]; integral: boolean };
 }
@@ -64,6 +80,12 @@ export interface AlgoOptions {
   unionFind?: boolean;
   /** Build the matrices in parallel (by default, exactly when the algorithm is parallel clearing). */
   parallelSetup?: boolean;
+}
+
+/** A finitely generated abelian group: free rank and invariant factors (as strings: they can be large). */
+export interface MpssGroup {
+  rank: number;
+  torsion: string[];
 }
 
 export type BinaryFiltration = 'height' | 'radial' | 'dilation' | 'erosion' | 'signed_distance' | 'density';
@@ -110,6 +132,19 @@ export type Job =
       maxDim: number;
       metric: Metric;
     }
+  | {
+      /** Zigzag persistence of a video's frames cut at a threshold. */
+      pipeline: 'video-zigzag';
+      pixels: Float64Array;
+      width: number;
+      height: number;
+      nFrames: number;
+      threshold: number;
+      superlevel: boolean;
+      construction: 'T' | 'V';
+      periodic: boolean;
+    }
+  | { pipeline: 'mpss'; n: number; sources: Uint32Array; targets: Uint32Array; lMax: number; modulus: number; rMax: number }
   | { pipeline: 'magnitude'; n: number; sources: Uint32Array; targets: Uint32Array; lMax: number; integral: boolean }
   | { pipeline: 'grpph'; n: number; sources: Uint32Array; targets: Uint32Array; weights: Float64Array; grounded: boolean; options: AlgoOptions }
   | {

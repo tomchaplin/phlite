@@ -835,6 +835,231 @@ pub fn rips_zigzag(
     })
 }
 
+/// Zigzag persistence of a video (`phlite_images::zigzag::video_zigzag`): `n_frames` frames of `width` × `height`
+/// pixels (row by row, frame after frame), each cut at `threshold` (pixels at most it, or with `superlevel` at least),
+/// as cubical complexes, joined frame to frame (`K_0 -> K_0 ∪ K_1 <- K_1 -> ...`). Bars are over frames: alive in
+/// frames `b` to `d` is `[b, d + 1)`, a union between frames `i` and `i + 1` counting as `i + 0.5`; `null` deaths reach
+/// the last frame. Over Z/2, no representatives.
+#[wasm_bindgen]
+#[allow(clippy::too_many_arguments)]
+pub fn video_zigzag(
+    pixels: &[f64],
+    width: usize,
+    height: usize,
+    n_frames: usize,
+    threshold: f64,
+    superlevel: bool,
+    construction: &str,
+    periodic: bool,
+) -> Result<JsValue, JsError> {
+    use phlite_images::cubical::{Construction, Filtration};
+    if width == 0 || height == 0 || pixels.len() != width * height * n_frames {
+        return Err(err("The frames' size doesn't match their pixels"));
+    }
+    let construction = match construction {
+        "T" => Construction::T,
+        "V" => Construction::V,
+        other => return Err(err(format!("Unknown construction {other:?}"))),
+    };
+    let filtration = if superlevel { Filtration::Superlevel } else { Filtration::Sublevel };
+    let max_dim = if periodic { 2 } else { 1 };
+    let bars = phlite_images::zigzag::video_zigzag(
+        pixels,
+        &[height, width],
+        &[periodic, periodic],
+        threshold,
+        construction,
+        filtration,
+        max_dim,
+        Algorithm::Clearing(phlite::reduction::Clearing::new()),
+    )
+    .map_err(|e| err(e.to_string()))?;
+    let last = 2 * n_frames.saturating_sub(1);
+    let bars = bars
+        .into_iter()
+        .map(|b| OutBar {
+            dim: b.dimension,
+            birth: b.birth as f64 / 2.0,
+            death: (b.death < last).then(|| (b.death + 1) as f64 / 2.0),
+            birth_cell: vec![],
+            death_cell: None,
+            rep: None,
+            kind: None,
+        })
+        .collect();
+    to_js(Barcode {
+        bars,
+        summary: format!(
+            "{n_frames} frames of {width}×{height}, cut at {threshold} ({}, {}-construction{}), joined frame to frame",
+            if superlevel { "bright pixels" } else { "dark pixels" },
+            if construction == Construction::T { "T" } else { "V" },
+            if periodic { ", wrapped round" } else { "" }
+        ),
+        edges: None,
+    })
+}
+
+/// An entry of a page of a spectral sequence: `null` if not determined, else its rank and torsion (invariant factors,
+/// as strings: they may not fit a JavaScript number).
+#[derive(Serialize)]
+struct GroupOut {
+    rank: usize,
+    torsion: Vec<String>,
+}
+
+fn group_out(g: &phlite::integral::Group) -> GroupOut {
+    GroupOut { rank: g.rank, torsion: g.torsion.iter().map(u128::to_string).collect() }
+}
+
+#[derive(Serialize)]
+struct GeneratorOut {
+    /// `null` for a free generator
+    order: Option<String>,
+    /// `[coefficient, tuple]`, the tuple as node indices
+    chain: Vec<(String, Vec<u32>)>,
+}
+
+#[derive(Serialize)]
+struct EntryOut {
+    l: usize,
+    k: usize,
+    group: GroupOut,
+    /// `null` if there were too many tuples to compute them
+    generators: Option<Vec<GeneratorOut>>,
+}
+
+#[derive(Serialize)]
+struct DifferentialOut {
+    /// From `(l, k)` to `(l - r, k - 1)`
+    from: (usize, usize),
+    to: (usize, usize),
+    image: GroupOut,
+}
+
+#[derive(Serialize)]
+struct PageOut {
+    r: usize,
+    /// `entries[l][k]`: `null` where not determined by tuples up to `l_max`
+    table: Vec<Vec<Option<GroupOut>>>,
+    nonzero: Vec<EntryOut>,
+    differentials: Vec<DifferentialOut>,
+}
+
+/// The magnitude-path spectral sequence of a digraph (`phlite_networks::mpss`; Asao, Hepworth and Roff): pages
+/// `E^1` (magnitude homology), `E^2` (bigraded path homology), ... up to `r_max` or until it degenerates, each entry
+/// `E^r_{k,l}` (degree `k`, length `l`) as a group, over `Z/modulus` or (`modulus` 0) the integers, with a generator
+/// for each cyclic summand (chains of tuples of nodes) while the complex has at most `generator_tuples` tuples, and the
+/// non-zero differentials `d^r: E^r_{k,l} -> E^r_{k-1,l-r}` with their images. Edge lengths are 1.
+#[wasm_bindgen]
+pub fn mpss(
+    n: u32,
+    sources: &[u32],
+    targets: &[u32],
+    l_max: usize,
+    modulus: u32,
+    r_max: usize,
+    generator_tuples: usize,
+) -> Result<JsValue, JsError> {
+    use phlite_networks::magnitude::MagnitudeGraph;
+    use phlite_networks::mpss::mpss_backend;
+    if sources.len() != targets.len() {
+        return Err(err("sources and targets must have the same length"));
+    }
+    let mut edges = vec![];
+    for (&s, &t) in sources.iter().zip(targets) {
+        if s >= n || t >= n {
+            return Err(err(format!("Edge {s} → {t} has a node out of range")));
+        }
+        if s != t {
+            edges.push((s, t));
+        }
+    }
+    let modulus = match modulus {
+        0 => None,
+        p if phlite_networks::magnitude::MODULI.contains(&(p as u64)) => Some(p as u64),
+        p => return Err(err(format!("Unsupported modulus {p}: 0 (the integers), 2, 3, 5, 7, 11, 13 or 251"))),
+    };
+    let graph = MagnitudeGraph::new(n as usize, &edges);
+    let (backend, tuples) = mpss_backend(&graph, l_max, None, modulus);
+    let with_generators = tuples.len() <= generator_tuples;
+    let overflow = |e: phlite::integral::Overflow| err(e.to_string());
+    let (n_steps, n_degrees) = (backend.n_steps(), backend.n_degrees());
+    let mut pages = vec![];
+    let last = backend.degenerates_at().map_or(r_max, |d| d.min(r_max)).max(1);
+    for r in 1..=last {
+        let mut table = vec![];
+        let mut nonzero = vec![];
+        let mut differentials = vec![];
+        for l in 0..n_steps {
+            let mut row = vec![];
+            for k in 0..n_degrees.min(l + 1) {
+                let entry = backend.entry(r, l, k).map_err(overflow)?;
+                if let Some(group) = &entry {
+                    if !group.is_zero() {
+                        let generators = if with_generators {
+                            backend.generators(r, l, k).map_err(overflow)?.map(|(_, gens)| {
+                                gens.into_iter()
+                                    .map(|g| GeneratorOut {
+                                        order: g.order.map(|o| o.to_string()),
+                                        chain: g.chain.into_iter().map(|(c, x)| (x.to_string(), tuples[c].clone())).collect(),
+                                    })
+                                    .collect()
+                            })
+                        } else {
+                            None
+                        };
+                        nonzero.push(EntryOut { l, k, group: group_out(group), generators });
+                    }
+                    if k > 0 && l >= r {
+                        if let Some(image) = backend.differential(r, l, k).map_err(overflow)? {
+                            if !image.is_zero() {
+                                differentials.push(DifferentialOut { from: (l, k), to: (l - r, k - 1), image: group_out(&image) });
+                            }
+                        }
+                    }
+                }
+                row.push(entry.as_ref().map(group_out));
+            }
+            table.push(row);
+        }
+        pages.push(PageOut { r, table, nonzero, differentials });
+    }
+    #[derive(Serialize)]
+    struct Out {
+        bars: Vec<OutBar>,
+        summary: String,
+        mpss: Mpss,
+    }
+    #[derive(Serialize)]
+    struct Mpss {
+        pages: Vec<PageOut>,
+        degenerates_at: Option<usize>,
+        modulus: u32,
+        l_max: usize,
+        n_tuples: usize,
+        generators: bool,
+    }
+    Out {
+        bars: vec![],
+        summary: format!(
+            "The magnitude-path spectral sequence of {n} nodes and {} edges, tuples up to length {l_max} ({} of them), over {}",
+            edges.len(),
+            tuples.len(),
+            modulus.map_or("Z".to_string(), |p| format!("Z/{p}"))
+        ),
+        mpss: Mpss {
+            degenerates_at: backend.degenerates_at(),
+            pages,
+            modulus: modulus.unwrap_or(0) as u32,
+            l_max,
+            n_tuples: tuples.len(),
+            generators: with_generators,
+        },
+    }
+    .serialize(&serde_wasm_bindgen::Serializer::json_compatible())
+    .map_err(|e| err(e.to_string()))
+}
+
 /// Magnitude homology, for [`magnitude`]: `ranks[l][k]` (`null` where an integral Smith form was too large) and, over
 /// the integers, `torsion` as `[k, l, orders]`.
 #[derive(Serialize)]

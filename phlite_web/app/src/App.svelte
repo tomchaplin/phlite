@@ -7,12 +7,14 @@
   import Images from './pipelines/images/Images.svelte';
   import Networks from './pipelines/networks/Networks.svelte';
   import Complexes from './pipelines/complexes/Complexes.svelte';
+  import Videos from './pipelines/videos/Videos.svelte';
 
-  type Tab = 'points' | 'images' | 'networks' | 'complexes';
+  type Tab = 'points' | 'images' | 'videos' | 'networks' | 'complexes';
   const tabs: [Tab, string, string][] = [
     ['points', 'Point clouds', 'Rips, DTM, alpha, Čech'],
     ['images', 'Images', 'cubical, T or V'],
-    ['networks', 'Networks', 'path homology, flag, Dowker'],
+    ['videos', 'Videos', 'zigzags of frames'],
+    ['networks', 'Networks', 'path homology, flag, magnitude, MPSS'],
     ['complexes', 'Chain complexes', 'explicit boundary matrices'],
   ];
   const fromHash = () => (tabs.find(([id]) => `#${id}` === location.hash)?.[0] ?? 'points') as Tab;
@@ -85,6 +87,7 @@
       <section hidden={tab !== id}>
         {#if id === 'points'}<Points />
         {:else if id === 'images'}<Images />
+        {:else if id === 'videos'}<Videos />
         {:else if id === 'networks'}<Networks />
         {:else}<Complexes />{/if}
       </section>

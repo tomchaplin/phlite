@@ -17,6 +17,10 @@ the page sends the data to a Web Worker, which runs phlite's reductions on a poo
     `phlite_networks`, each by edge weights or shortest paths);
   * `image` (cubical complexes, T- or V-construction, periodic or not, by `phlite_images`), and
     `binary_filtration` (giotto-tda's filtrations of binary images, by `phlite_images::filtrations`);
+  * `mpss` (the magnitude-path spectral sequence of a digraph, every page with each entry as a group, the non-zero
+    differentials, and generators as chains of tuples of nodes, over Z/p or the integers, by
+    `phlite_networks::mpss`);
+  * `video_zigzag` (zigzag persistence of a video's frames cut at a threshold, by `phlite_images::zigzag`);
   * `magnitude` (the magnitude homology of a digraph over Z/2 or the integers, as a table, by
     `phlite_networks::magnitude`);
   * `complex` (explicit complexes over Z/2, 3, 5 or 7, by `phlite_complexes`'s explicit complexes; or over the
