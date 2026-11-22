@@ -312,11 +312,17 @@ def test_invariants(graph, max_dim, seed):
         ("ordered_tuples", lambda e: ordered_tuples(n, e, max_dim)),
         ("dowker", lambda e: dowker(n, e, max_dim)),
     ]
+    # Shortest paths sum weights along a path in an order that reversing or relabelling can change, so values may
+    # differ in the last bit (2.0000000000000018 against 2.000000000000002): compare them rounded
+    def rounded(ds):
+        return [sorted((round(b, 9), round(d, 9)) for b, d in dim) for dim in ds]
+
     for name, compute in cases:
-        expected = diagrams(compute(edges))
-        assert diagrams(compute(reversed_edges(edges))) == expected, f"{name}: reversed"
-        assert diagrams(compute(relabelled)) == expected, f"{name}: relabelled"
-        assert diagrams(compute(doubled)) == [[(2 * b, 2 * d) for b, d in dim] for dim in expected], f"{name}: doubled"
+        base = diagrams(compute(edges))
+        expected = rounded(base)
+        assert rounded(diagrams(compute(reversed_edges(edges)))) == expected, f"{name}: reversed"
+        assert rounded(diagrams(compute(relabelled))) == expected, f"{name}: relabelled"
+        assert rounded(diagrams(compute(doubled))) == rounded([[(2 * b, 2 * d) for b, d in dim] for dim in base]), f"{name}: doubled"
     sink = diagrams(dowker(n, edges, max_dim))
     assert diagrams(dowker(n, edges, max_dim, side="source")) == sink, "Dowker duality"
     assert diagrams(dowker(n, reversed_edges(edges), max_dim, side="source")) == sink

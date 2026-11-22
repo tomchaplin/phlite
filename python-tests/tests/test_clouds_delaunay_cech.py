@@ -109,7 +109,13 @@ def test_cech_random_has_the_delaunay_cech_barcode(points):
 
     points = np.asarray(points, dtype=float)
     top = points.shape[1] - 1
-    assert _bars(cech(points, top), top) == _bars(delaunay_cech(points, top), top)
+
+    # Bars that round to nothing are left out: Delaunay–Čech treats coordinates negligible next to the largest as zero
+    # (merging points 1e-31 apart, say), where Čech gives them a bar that short
+    def bars(b):
+        return [[p for p in dim if p[0] != p[1]] for dim in _bars(b, top)]
+
+    assert bars(cech(points, top)) == bars(delaunay_cech(points, top))
 
 
 def test_cech_in_more_dimensions():
