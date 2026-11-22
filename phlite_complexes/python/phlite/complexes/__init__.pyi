@@ -575,7 +575,7 @@ class FilteredMap:
         """
     def __repr__(self) -> builtins.str: ...
 
-def _zigzag(operations: typing.Iterable[typing.Union[tuple[typing.Sequence[builtins.int], builtins.bool], tuple[typing.Any, builtins.bool, typing.Sequence[typing.Any]]]], *, algorithm: typing.Optional[core.Algorithm] = None) -> builtins.list[tuple[builtins.int, builtins.int, builtins.int, builtins.bool, builtins.bool]]:
+def _zigzag(operations: typing.Iterable[typing.Union[tuple[typing.Sequence[builtins.int], builtins.bool], tuple[typing.Any, builtins.bool, typing.Sequence[typing.Any]]]], *, algorithm: typing.Optional[core.Algorithm] = None, method: typing.Literal['cohomology', 'homology'] = "cohomology", union_find: builtins.bool = True) -> builtins.list[tuple[builtins.int, builtins.int, builtins.int, builtins.bool, builtins.bool]]:
     r"""
     The engine behind `phlite.complexes.zigzag` and `Zigzag` (which return a `ZigzagBarcode`): the intervals as tuples.
     

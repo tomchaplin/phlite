@@ -45,15 +45,25 @@ def _canonical(simplex) -> tuple:
     return simplex
 
 
-def zigzag(operations: Iterable[tuple[Sequence[int], bool]], *, algorithm=None) -> ZigzagBarcode:
+def zigzag(
+    operations: Iterable[tuple[Sequence[int], bool]],
+    *,
+    algorithm=None,
+    method: str = "cohomology",
+    union_find: bool = True,
+) -> ZigzagBarcode:
     """The zigzag barcode of a sequence of operations `(simplex, insert)` from the empty complex (see `Zigzag`, which
     builds them): `True` inserts the simplex (its faces must be there), `False` deletes it (its cofaces must be gone).
+
+    The zigzag is turned into an ordinary filtration (FastZigzag), reduced by `method` (`'cohomology'`, the default,
+    or `'homology'`) with `algorithm`, and with `union_find` (by cohomology) dimension 0 and the top dimension by
+    union-find; the barcode is the same either way.
 
     Raises:
         ValueError: If an operation is impossible.
     """
     operations = list(operations)
-    bars = _zigzag(operations, algorithm=algorithm)
+    bars = _zigzag(operations, algorithm=algorithm, method=method, union_find=union_find)
     return ZigzagBarcode((ZigzagBar(*bar) for bar in bars), len(operations) + 1)
 
 
@@ -189,11 +199,11 @@ class Zigzag:
             complexes.append([tuple(int(index[v]) for v in s) for s, _ in simplices])
         return cls.from_complexes(complexes)
 
-    def barcode(self, *, levels: bool = False, algorithm=None) -> ZigzagBarcode:
+    def barcode(self, *, levels: bool = False, algorithm=None, method: str = "cohomology", union_find: bool = True) -> ZigzagBarcode:
         """The zigzag barcode. With `levels` (for a zigzag from `from_complexes`), intervals are in levels: `K_i` at
         `2 i`, `K_i ∪ K_{i+1}` at `2 i + 1`, each interval the levels it contains (both ends inclusive, so reported as
         closed), and intervals living only between levels (in partly built complexes) left out."""
-        cellwise = zigzag(self._operations, algorithm=algorithm)
+        cellwise = zigzag(self._operations, algorithm=algorithm, method=method, union_find=union_find)
         if not levels:
             return cellwise
         if not self._levels:

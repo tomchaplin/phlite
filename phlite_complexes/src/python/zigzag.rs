@@ -6,7 +6,7 @@ use pyo3::{exceptions::PyValueError, prelude::*};
 use pyo3_stub_gen::derive::*;
 
 use super::DEFAULTS;
-use crate::zigzag::{zigzag_barcode, Operation, ZigzagBar, ZigzagError};
+use crate::zigzag::{zigzag_barcode_with, Operation, ZigzagBar, ZigzagError};
 
 /// The engine behind `phlite.complexes.zigzag` and `Zigzag` (which return a `ZigzagBarcode`): the intervals as tuples.
 ///
@@ -37,7 +37,7 @@ use crate::zigzag::{zigzag_barcode, Operation, ZigzagBar, ZigzagError};
 ///         that isn't there or with a coface).
 #[gen_stub_pyfunction(module = "phlite.complexes")]
 #[pyfunction]
-#[pyo3(name = "_zigzag", signature = (operations, *, algorithm = None))]
+#[pyo3(name = "_zigzag", signature = (operations, *, algorithm = None, method = "cohomology", union_find = true))]
 #[allow(clippy::type_complexity)]
 pub(crate) fn zigzag(
     py: Python<'_>,
@@ -45,7 +45,10 @@ pub(crate) fn zigzag(
     operations: &Bound<'_, PyAny>,
     #[gen_stub(override_type(type_repr = "typing.Optional[core.Algorithm]", imports = ("typing", "phlite.core")))]
     algorithm: Option<Bound<'_, PyAny>>,
+    #[gen_stub(override_type(type_repr = "typing.Literal['cohomology', 'homology']", imports = ("typing")))] method: &str,
+    union_find: bool,
 ) -> PyResult<Vec<(usize, usize, usize, bool, bool)>> {
+    let method = phlite_bindings::parse_method(method)?;
     let items: Vec<Bound<'_, PyAny>> = operations.try_iter()?.collect::<PyResult<_>>()?;
     // Cells of any kind, with their faces: (cell, insert, faces) triples
     if items.iter().any(|item| item.len().is_ok_and(|n| n == 3)) {
@@ -92,7 +95,7 @@ pub(crate) fn zigzag(
         }
         let algorithm = algorithm_from_py(algorithm.as_ref(), &DEFAULTS)?;
         let bars = py
-            .detach(|| algorithm.run(Run { operations: &ops }))?
+            .detach(|| algorithm.run(Run { operations: &ops, method, union_find }))?
             .map_err(|e: ZigzagError| PyValueError::new_err(e.to_string()))?;
         let mut out: Vec<_> =
             bars.into_iter().map(|b: ZigzagBar| (b.dimension, b.birth, b.death, b.birth_closed, b.death_closed)).collect();
@@ -123,7 +126,7 @@ pub(crate) fn zigzag(
     }
     let algorithm = algorithm_from_py(algorithm.as_ref(), &DEFAULTS)?;
     let bars = py
-        .detach(|| algorithm.run(Run { operations: &ops }))?
+        .detach(|| algorithm.run(Run { operations: &ops, method, union_find }))?
         .map_err(|e: ZigzagError| PyValueError::new_err(e.to_string()))?;
     let mut out: Vec<_> =
         bars.into_iter().map(|b: ZigzagBar| (b.dimension, b.birth, b.death, b.birth_closed, b.death_closed)).collect();
@@ -133,12 +136,14 @@ pub(crate) fn zigzag(
 
 struct Run<'a, K> {
     operations: &'a [Operation<K>],
+    method: phlite::barcode::Method,
+    union_find: bool,
 }
 
 impl<K: std::hash::Hash + Eq + Clone + Send + Sync> AlgorithmVisitor for Run<'_, K> {
     type Output = Result<Vec<ZigzagBar>, ZigzagError>;
 
     fn visit<R: ColumnRepresentation>(self, algorithm: Algorithm<'_, R>) -> Self::Output {
-        zigzag_barcode(self.operations, algorithm)
+        zigzag_barcode_with(self.operations, self.method, algorithm, self.union_find)
     }
 }

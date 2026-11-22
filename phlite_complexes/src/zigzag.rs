@@ -86,6 +86,20 @@ pub fn zigzag_barcode<K: Hash + Eq + Clone, R: ColumnRepresentation>(
     operations: &[Operation<K>],
     algorithm: Algorithm<'_, R>,
 ) -> Result<Vec<ZigzagBar>, ZigzagError> {
+    zigzag_barcode_with(operations, Method::Cohomology, algorithm, true)
+}
+
+/// As [`zigzag_barcode`] (which reduces by cohomology with union-find), reducing the coned filtration by `method`, and
+/// (by cohomology) finding dimension 0 and the top dimension by union-find where they allow it if `union_find`.
+///
+/// # Errors
+/// If an operation is impossible (see [`ZigzagError`]).
+pub fn zigzag_barcode_with<K: Hash + Eq + Clone, R: ColumnRepresentation>(
+    operations: &[Operation<K>],
+    method: Method,
+    algorithm: Algorithm<'_, R>,
+    union_find: bool,
+) -> Result<Vec<ZigzagBar>, ZigzagError> {
     let m = operations.len();
     // 1. Cells: one per insertion (its position in the input), with faces as cells
     let mut current: HashMap<K, usize> = HashMap::new();
@@ -163,7 +177,7 @@ pub fn zigzag_barcode<K: Hash + Eq + Clone, R: ColumnRepresentation>(
     let complex = Chain::<Z2>::from_raw(raw)
         .and_then(|chain| chain.filter(Some(values)))
         .expect("the coned up-down filtration is a filtered complex");
-    let bars = complex.barcode(None, Method::Cohomology, algorithm, false);
+    let bars = complex.barcode_with(None, method, algorithm, false, union_find);
     // 4-5. Back to the input
     let up = |k: usize| inserted_at[k]; // ↓τ_k, k < n
     let down = |k: usize| deleted[k - n].1; // ↑τ_k, k >= n

@@ -835,7 +835,20 @@ impl<CF: IntField> Complex<CF> {
         algorithm: Algorithm<'_, R>,
         representatives: bool,
     ) -> Vec<Bar<Cell, NotNan<f64>, CF>> {
-        let bars = self.barcode_by_rank(max_dim, method, algorithm, representatives);
+        self.barcode_with(max_dim, method, algorithm, representatives, true)
+    }
+
+    /// As [`barcode`](Self::barcode), choosing whether to use union-find where it applies (see
+    /// [`barcode_by_rank_with`](Self::barcode_by_rank_with)).
+    pub fn barcode_with<R: ColumnRepresentation>(
+        &self,
+        max_dim: Option<usize>,
+        method: Method,
+        algorithm: Algorithm<'_, R>,
+        representatives: bool,
+        union_find: bool,
+    ) -> Vec<Bar<Cell, NotNan<f64>, CF>> {
+        let bars = self.barcode_by_rank_with(max_dim, method, algorithm, representatives, union_find);
         // Back to the input's cells and values, dropping bars of length zero
         bars.into_iter()
             .filter_map(|bar| {
