@@ -5,6 +5,7 @@ essential bars of phlite.networks.pph with every edge at weight 1, and pages onl
 import pytest
 from hypothesis import given, note, settings
 from hypothesis import strategies as st
+from examples import examples
 
 from phlite.networks import magnitude, magnitude_path_spectral_sequence, pph
 
@@ -74,7 +75,7 @@ def small_digraphs(draw):
 
 
 @given(small_digraphs(), st.integers(0, 3))
-@settings(deadline=None, max_examples=60)
+@settings(deadline=None, max_examples=examples(60))
 def test_integral_pages(graph, l_max):
     """Over the integers: free ranks are the dimensions over Z/251 (where torsion of order 251 is out of reach), and
     the first page is integral magnitude homology."""
@@ -87,7 +88,7 @@ def test_integral_pages(graph, l_max):
 
 
 @given(small_digraphs(), st.integers(1, 4), st.booleans())
-@settings(deadline=None, max_examples=60)
+@settings(deadline=None, max_examples=examples(60))
 def test_differentials_give_the_next_page(graph, l_max, integral):
     """rank E^{r+1} = rank E^r - rank(d^r out) - rank(d^r in), wherever all three are known."""
     n, edges = graph

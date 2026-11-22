@@ -160,6 +160,46 @@ mod tests {
         assert!(bars.contains(&LevelBar { dimension: 1, birth: 0, death: 0 }));
     }
 
+    /// Random digraphs: the directed flag complex has exactly the ordered tuples of distinct nodes with an edge from
+    /// each to every later one, and the clique complex the sets of pairwise adjacent nodes (brute force)
+    #[test]
+    fn complexes_by_brute_force() {
+        let mut seed = 77u64;
+        let mut rand = move || {
+            seed ^= seed << 13;
+            seed ^= seed >> 7;
+            seed ^= seed << 17;
+            seed
+        };
+        for _ in 0..100 {
+            let n = 2 + (rand() % 5) as u32;
+            let edges: Vec<(u32, u32)> =
+                (0..n).flat_map(|a| (0..n).map(move |b| (a, b))).filter(|&(a, b)| a != b).filter(|_| rand() % 3 == 0).collect();
+            let snapshot = Snapshot::new(0..n, edges.iter().copied());
+            let has = |a: u32, b: u32| edges.contains(&(a, b));
+            // Every tuple of distinct nodes of length up to 4
+            let mut tuples: Vec<Vec<u32>> = (0..n).map(|v| vec![v]).collect();
+            let mut all = tuples.clone();
+            for _ in 1..4 {
+                tuples = tuples
+                    .iter()
+                    .flat_map(|t| (0..n).filter(|v| !t.contains(v)).map(move |v| [t.clone(), vec![v]].concat()))
+                    .collect();
+                all.extend(tuples.iter().cloned());
+            }
+            let directed: BTreeSet<Vec<u32>> =
+                all.iter().filter(|t| (0..t.len()).all(|i| (i + 1..t.len()).all(|j| has(t[i], t[j])))).cloned().collect();
+            assert_eq!(network_complex(&snapshot, NetworkComplex::DirectedFlag, 3).simplices, directed, "{edges:?}");
+            let cliques: BTreeSet<Vec<u32>> = all
+                .iter()
+                .filter(|t| t.windows(2).all(|w| w[0] < w[1]))
+                .filter(|t| (0..t.len()).all(|i| (i + 1..t.len()).all(|j| has(t[i], t[j]) || has(t[j], t[i]))))
+                .cloned()
+                .collect();
+            assert_eq!(network_complex(&snapshot, NetworkComplex::Clique, 3).simplices, cliques, "{edges:?}");
+        }
+    }
+
     #[test]
     fn thresholds() {
         let edges = [(0, 1, 1.0), (1, 2, 2.0), (2, 0, 3.0)];

@@ -17,6 +17,7 @@ import pytest
 
 from hypothesis import given, note, settings
 from hypothesis import strategies as st
+from examples import examples
 
 from phlite.complexes import ChainComplex, Zigzag, ZigzagBar, ZigzagBarcode, zigzag
 
@@ -98,7 +99,7 @@ def map_rank(small, big, p, index):
 
 
 @given(st.integers(0, 10**9))
-@settings(deadline=None, max_examples=150)
+@settings(deadline=None, max_examples=examples(150))
 def test_zigzag(seed):
     ops = random_zigzag(seed)
     note(ops)
@@ -128,7 +129,7 @@ def test_zigzag(seed):
 
 
 @given(st.integers(0, 10**9))
-@settings(deadline=None, max_examples=100)
+@settings(deadline=None, max_examples=examples(100))
 def test_insertions_only_is_ordinary_persistence(seed):
     ops = [op for op in random_zigzag(seed) if op[1]]
     # (deletions dropped: keep only simplices whose faces were inserted earlier and that aren't repeated)
@@ -167,7 +168,7 @@ print(json.dumps([[[p.birth, -1 if p.death == float("inf") else p.death] for p i
 
 @pytest.mark.skipif(not DIONYSUS, reason="DIONYSUS_PYTHON not set")
 @given(st.integers(0, 10**9))
-@settings(deadline=None, max_examples=150)
+@settings(deadline=None, max_examples=examples(150))
 def test_against_dionysus(seed):
     """The same barcode as Dionysus 2's zigzag_homology_persistence (operation i at time i + 1; its (b, d) is our
     [b, d - 1], its inf our alive at the end), random zigzags with simplices inserted again after deletion."""
@@ -207,7 +208,7 @@ def closure(simplices):
 
 
 @given(st.integers(0, 10**9), st.sampled_from(["union", "intersection"]))
-@settings(deadline=None, max_examples=100)
+@settings(deadline=None, max_examples=examples(100))
 def test_from_complexes_levels(seed, join):
     """Zigzag.from_complexes: at each level, the Betti numbers are those of K_i (even levels) or K_i ∪ K_{i+1}
     (K_i ∩ K_{i+1}) (odd), and over each arrow the intervals spanning it number the rank of the map."""
@@ -273,7 +274,7 @@ FZZ = os.environ.get("FZZ_BIN")
 
 @pytest.mark.skipif(not FZZ, reason="FZZ_BIN not set")
 @given(st.integers(0, 10**9))
-@settings(deadline=None, max_examples=150)
+@settings(deadline=None, max_examples=examples(150))
 def test_against_fzz(seed):
     """The same barcode as Dey and Hou's own FastZigzag (`fzz`, C++ on PHAT; same conventions: closed intervals over
     positions, alive at the end ending at m), on random zigzags with re-insertions."""
@@ -293,7 +294,7 @@ def test_against_fzz(seed):
 
 
 @given(st.integers(0, 10**9), st.sampled_from(["union", "intersection"]))
-@settings(deadline=None, max_examples=100)
+@settings(deadline=None, max_examples=examples(100))
 def test_timed_zigzag(seed, join):
     """timed_zigzag: cells living over runs of integer times give the barcode of from_complexes on the complexes at
     each time (when every time is an event), and betti(t) is the Betti number of K(t)."""
@@ -343,3 +344,42 @@ def test_timed_zigzag_forms():
         timed_zigzag({(0,): (0, 1), (0, 1): (0, 2), (1,): (0, 2)})  # (0, 1) outlives its face (0,)
     with pytest.raises(ValueError):
         timed_zigzag({(0,): (1, 1)})
+
+
+DIONYSUS_TIMED_RUNNER = r"""
+import json, sys
+import dionysus as d
+cells = json.load(sys.stdin)
+f = d.Filtration([d.Simplex(list(s), 0) for s, _ in cells])
+times = {tuple(s): t for s, t in cells}
+t = [times[tuple(s)] for s in f]
+zz, dgms, _ = d.zigzag_homology_persistence(f, t)
+print(json.dumps([[[p.birth, -1 if p.death == float("inf") else p.death] for p in dg] for dg in dgms]))
+"""
+
+
+@pytest.mark.skipif(not DIONYSUS, reason="DIONYSUS_PYTHON not set")
+@given(st.integers(0, 10**9))
+@settings(deadline=None, max_examples=examples(150))
+def test_timed_against_dionysus(seed):
+    """timed_zigzag against Dionysus 2 given the same per-simplex times (Dionysus's own input: the times a simplex
+    enters and leaves, alternately): a random zigzag with its operations at distinct random real times, so that the
+    bars are in time on both sides."""
+    from phlite.complexes import timed_zigzag
+
+    ops = random_zigzag(seed, steps=60)
+    rng = random.Random(seed)
+    # Distinct integer times: Dionysus keeps times as 32-bit floats, exact for these
+    when = sorted(rng.sample(range(1, 100_000), len(ops)))
+    note(ops)
+    events: dict = {}
+    for (s, _), t in zip(ops, when):
+        events.setdefault(tuple(s), []).append(t)
+    # Lifetimes: (enter, leave) pairs, the last open if the simplex is still there
+    cells = {s: [(ts[i], ts[i + 1] if i + 1 < len(ts) else None) for i in range(0, len(ts), 2)] for s, ts in events.items()}
+    ours = sorted((b.dimension, b.birth, b.death) for b in timed_zigzag(cells) if b.birth < b.death)
+    out = subprocess.run([DIONYSUS, "-I", "-c", DIONYSUS_TIMED_RUNNER], input=json.dumps([[list(s), ts] for s, ts in events.items()]),
+                         capture_output=True, text=True, check=True)
+    theirs = sorted((k, b, float("inf") if e < 0 else e) for k, dg in enumerate(json.loads(out.stdout)) for b, e in dg
+                    if e < 0 or e > b)
+    assert ours == theirs

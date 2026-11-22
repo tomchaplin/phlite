@@ -68,6 +68,10 @@ build: wasm
 check: _npm-install
     cd app && npm run check
 
+# Smoke tests of the built WebAssembly in Node (after `just wasm` or `just wasm-dev`): each pipeline on a known barcode
+smoke:
+    node tests/smoke.mjs
+
 # Rust unit tests (on the host, not in WebAssembly)
 test:
     cargo +nightly-2026-11-01 test --target x86_64-unknown-linux-gnu -Z build-std=std,panic_abort

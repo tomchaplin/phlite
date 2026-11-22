@@ -5,6 +5,8 @@ import math
 
 import numpy as np
 import pytest
+from hypothesis import given
+from hypothesis import strategies as st
 
 from phlite.clouds import witness, witness_complex
 
@@ -44,6 +46,21 @@ def test_against_gudhi(strong, dim):
                 assert len(mine) == len(gudhi_bars)
                 for (b1, d1), (b2, d2) in zip(mine, gudhi_bars):
                     assert b1 == pytest.approx(b2, abs=1e-12) and (d1 == d2 or d1 == pytest.approx(d2, abs=1e-12))
+
+
+@given(st.integers(0, 2**32 - 1), st.booleans(), st.sampled_from([2, 3]), st.sampled_from([0.01, 0.05, math.inf]))
+def test_random_clouds_against_gudhi(seed, strong, dim, bound):
+    """Random landmarks and witnesses: GUDHI's simplices and values, and its barcodes."""
+    rng = np.random.default_rng(seed)
+    n = int(rng.integers(5, 60))
+    points = rng.random((n, dim))
+    landmarks = points[rng.choice(n, min(n, int(rng.integers(2, 12))), replace=False)]
+    tree = reference(landmarks, points, strong, bound, 2)
+    theirs = {tuple(s): v for s, v in tree.get_filtration()}
+    ours = dict(witness_complex(landmarks, points, 2, strong=strong, max_alpha_square=None if bound == math.inf else bound))
+    assert ours.keys() == theirs.keys()
+    for s, v in ours.items():
+        assert v == pytest.approx(theirs[s], abs=1e-12)
 
 
 def test_circle_landmarks():

@@ -5,15 +5,19 @@ import math
 
 import numpy as np
 import pytest
+from hypothesis import given
+from hypothesis import strategies as st
 
 from phlite.images import cubical, filtrations
 
 
-def images():
-    rng = np.random.default_rng(0)
-    for shape in [(7,), (5, 6), (4, 3, 5)]:
-        for p in (0.2, 0.5, 0.8):
-            yield rng.random(shape) < p
+@st.composite
+def binary_images(draw):
+    """A random binary image of 1 to 3 axes, sparse to dense."""
+    shape = draw(st.sampled_from([(7,), (5, 6), (4, 3, 5), (1, 8), (6, 6)]))
+    p = draw(st.sampled_from([0.1, 0.3, 0.5, 0.8, 1.0]))
+    rng = np.random.default_rng(draw(st.integers(0, 2**32 - 1)))
+    return rng.random(shape) < p
 
 
 def brute_distance(sources, metric="manhattan"):
@@ -27,8 +31,9 @@ def brute_distance(sources, metric="manhattan"):
     return out
 
 
-def test_dilation_erosion_signed_distance():
-    for image in images():
+@given(image=binary_images())
+def test_dilation_erosion_signed_distance(image):
+    if True:
         to_active, to_inactive = brute_distance(image), brute_distance(~image)
         assert np.array_equal(filtrations.dilation(image), to_active)
         assert np.array_equal(filtrations.erosion(image), to_inactive)
@@ -39,8 +44,9 @@ def test_dilation_erosion_signed_distance():
         assert np.isfinite(last).all()
 
 
-def test_height_radial_density():
-    for image in images():
+@given(image=binary_images())
+def test_height_radial_density(image):
+    if True:
         coords = np.stack(np.meshgrid(*[np.arange(n) for n in image.shape], indexing="ij"), -1).astype(float)
         direction = np.arange(1, image.ndim + 1, dtype=float) * (-1) ** np.arange(image.ndim)
         unit = direction / np.linalg.norm(direction)

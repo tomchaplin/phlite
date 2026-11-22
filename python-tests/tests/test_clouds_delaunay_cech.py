@@ -102,6 +102,16 @@ def test_cech_has_the_delaunay_cech_barcode(dim):
         assert _bars(cech(points, top, squared=True), top) == _bars(delaunay_cech(points, top, squared=True), top)
 
 
+@given(points=point_clouds(max_points=12))
+def test_cech_random_has_the_delaunay_cech_barcode(points):
+    """The same, on random clouds in the plane and in space (Čech complexes listed in full, so small ones)."""
+    from phlite.clouds import cech, delaunay_cech
+
+    points = np.asarray(points, dtype=float)
+    top = points.shape[1] - 1
+    assert _bars(cech(points, top), top) == _bars(delaunay_cech(points, top), top)
+
+
 def test_cech_in_more_dimensions():
     from phlite.clouds import cech, cech_complex
     from phlite.core import Barcode

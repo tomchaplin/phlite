@@ -15,6 +15,7 @@ import random
 import pytest
 from hypothesis import given, note, settings
 from hypothesis import strategies as st
+from examples import examples
 
 from phlite.core import Cone, SixPack
 from phlite.complexes import ChainComplex, FilteredMap
@@ -200,7 +201,7 @@ def check(pack: SixPack, L: Space, K: Space, f, inclusion: bool, max_dim=None):
 
 
 @given(st.integers(0, 10**9))
-@settings(deadline=None, max_examples=150)
+@settings(deadline=None, max_examples=examples(150))
 def test_inclusion(seed):
     rng = random.Random(seed)
     simplices = random_complex(rng, rng.randint(2, 7), rng.randint(1, 10))
@@ -231,7 +232,7 @@ def random_map(seed):
 
 
 @given(st.integers(0, 10**9))
-@settings(deadline=None, max_examples=150)
+@settings(deadline=None, max_examples=examples(150))
 def test_simplicial_map(seed):
     l_ordered, l_values, k_ordered, k_values, g = random_map(seed)
     note(f"L={l_ordered} {l_values}\nK={k_ordered} {k_values}\ng={g}")
@@ -254,7 +255,7 @@ def test_simplicial_map(seed):
 
 
 @given(st.integers(0, 10**9))
-@settings(deadline=None, max_examples=60)
+@settings(deadline=None, max_examples=examples(60))
 def test_cylinder_matches_inclusion(seed):
     """An inclusion given as a FilteredMap (by the mapping cylinder) has the same six barcodes as
     FilteredComplex.six_pack (no cylinder)."""

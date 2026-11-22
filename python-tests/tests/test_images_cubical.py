@@ -279,6 +279,24 @@ def _periodic_reference(image, periodic, construction):
     return out
 
 
+@given(st.integers(0, 2**32 - 1), st.sampled_from(["T", "V"]), st.sampled_from([(5,), (4, 6), (3, 4, 5), (2, 7), (6, 2, 3)]),
+       st.integers(1, 6))
+def test_periodic_random_against_gudhi(seed, construction, shape, levels):
+    """Random images (ties as likely as `levels` makes them), periodic along a random set of axes, against GUDHI."""
+    pytest.importorskip("gudhi")
+    rng = np.random.default_rng(seed)
+    image = rng.integers(0, levels, size=shape).astype(float)
+    periodic = [bool(b) for b in rng.integers(0, 2, size=len(shape))]
+    barcode = cubical(image, construction=construction, periodic=periodic)
+    ours = {
+        d: sorted([tuple(map(float, p)) for p in barcode.pairings[d]] + [(float(b), math.inf) for b in barcode.essential[d]])
+        for d in range(len(shape))
+    }
+    reference = _periodic_reference(image, periodic, construction)
+    for d in range(len(shape)):
+        assert ours[d] == reference[d], (periodic, d)
+
+
 @pytest.mark.parametrize("construction", ["T", "V"])
 @pytest.mark.parametrize("shape", [(5,), (4, 6), (3, 4, 5)])
 def test_periodic_against_gudhi(construction, shape):

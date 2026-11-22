@@ -12,6 +12,7 @@ import random
 import pytest
 from hypothesis import given, note, settings
 from hypothesis import strategies as st
+from examples import examples
 
 from phlite.complexes import ChainComplex
 
@@ -348,7 +349,7 @@ def rank_of(e):
 
 
 @given(cases, rings)
-@settings(deadline=None, max_examples=150)
+@settings(deadline=None, max_examples=examples(150))
 def test_each_page_is_the_homology_of_the_last(case, modulus):
     """rank E^{r+1} = rank E^r - rank(d^r out) - rank(d^r in), and pages only shrink."""
     cells, values = random_case(*case)
@@ -364,7 +365,7 @@ def test_each_page_is_the_homology_of_the_last(case, modulus):
 
 
 @given(cases)
-@settings(deadline=None, max_examples=150)
+@settings(deadline=None, max_examples=examples(150))
 def test_convergence_to_the_homology(case):
     """E^infinity in degree k sums (in rank) to H_k of the whole complex, and when it is finite its order is |H_k|
     (whatever the extensions); E^1 is the homology of the associated graded F_p / F_{p-1}."""
@@ -387,7 +388,7 @@ def test_convergence_to_the_homology(case):
 
 
 @given(cases, st.sampled_from([2, 3]))
-@settings(deadline=None, max_examples=150)
+@settings(deadline=None, max_examples=examples(150))
 def test_universal_coefficients_on_the_first_page(case, prime):
     """E^1 is the homology of free complexes, so over Z/p its dimension is the free rank over Z plus the torsion
     summands of order divisible by p in the same and the previous degree."""
@@ -402,7 +403,7 @@ def test_universal_coefficients_on_the_first_page(case, prime):
 
 
 @given(cases, rings)
-@settings(deadline=None, max_examples=100)
+@settings(deadline=None, max_examples=examples(100))
 def test_generators_and_classes(case, modulus):
     """Each entry's generators: as many as its invariants (which checks the barcode's ranks against the local
     computation, over a field), each classifies to its unit vector, order × generator to zero, and a combination
@@ -439,7 +440,7 @@ def test_generators_and_classes(case, modulus):
 
 
 @given(cases, rings)
-@settings(deadline=None, max_examples=100)
+@settings(deadline=None, max_examples=examples(100))
 def test_d_squared_is_zero_on_elements(case, modulus):
     """d^r ∘ d^r = 0, on generators: d^r [x] = [dx] in E^r_{p-r}, and d^r of (a representative of) that is zero. And
     the images of the generators span the image of d^r (in rank)."""
@@ -499,7 +500,7 @@ def matrix_rank(vectors, modulus, target):
 
 
 @given(cases, rings)
-@settings(deadline=None, max_examples=80)
+@settings(deadline=None, max_examples=examples(80))
 def test_reparametrising_the_filtration(case, modulus):
     """The spectral sequence depends on the filtration only through the order of its levels: any increasing change of
     values (here v -> 3v + 1/2, and v -> 2^v) gives the same pages over the distinct steps."""
@@ -512,7 +513,7 @@ def test_reparametrising_the_filtration(case, modulus):
 
 
 @given(cases, rings)
-@settings(deadline=None, max_examples=80)
+@settings(deadline=None, max_examples=examples(80))
 def test_cell_order_does_not_matter(case, modulus):
     """Listing the cells in another order (faces still first) gives isomorphic groups."""
     cells, values = random_case(*case)
@@ -538,7 +539,7 @@ def diagram_lists(barcode, top):
 
 
 @given(cases)
-@settings(deadline=None, max_examples=200)
+@settings(deadline=None, max_examples=examples(200))
 def test_integral_persistence_bad_primes(case):
     """Over Z, persistence() is the barcode over Q and torsion() the primes whose barcode differs: so for each p up to
     13 the barcode over F_p is torsion()[p] if p is reported, and the rational one otherwise."""

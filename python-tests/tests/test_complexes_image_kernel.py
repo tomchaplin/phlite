@@ -15,6 +15,7 @@ import subprocess
 import pytest
 from hypothesis import given, note, settings
 from hypothesis import strategies as st
+from examples import examples
 
 from phlite.complexes import ChainComplex
 
@@ -122,7 +123,7 @@ def alive(barcode, k, t):
 
 
 @given(st.integers(0, 10**9))
-@settings(deadline=None, max_examples=200)
+@settings(deadline=None, max_examples=examples(200))
 def test_pointwise_dimensions(seed):
     ordered, values, chosen = random_case(seed)
     note(f"{ordered} {values} {sorted(chosen)}")
@@ -167,7 +168,7 @@ print(json.dumps(out))
 
 @pytest.mark.skipif(not PHIMAKER, reason="PHIMAKER_PYTHON not set")
 @given(st.integers(0, 10**9))
-@settings(deadline=None, max_examples=60)
+@settings(deadline=None, max_examples=examples(60))
 def test_against_phimaker(seed):
     """Image, kernel and cokernel against phimaker. (phimaker assumes a cell whose boundary is in L is in L, so L is
     the full subcomplex on some vertices; and its relative diagram is of the quotient space K / L, not of the pair, so
