@@ -7,6 +7,8 @@ the page sends the data to a Web Worker, which runs phlite's reductions on a poo
 * `src/lib.rs`: the WebAssembly API, one function per pipeline:
   * `rips` (Vietoris–Rips in the Euclidean, Manhattan or Chebyshev metric, optionally DTM-weighted, by
     `phlite_clouds` with 64-bit simplex indices);
+  * `rips_zigzag` (zigzag persistence of the Rips complexes of sliding windows of consecutive points, by
+    `phlite_complexes::zigzag`);
   * `rips_six_pack` (the six-pack of the inclusion of the Rips filtration of selected points into that of all of them:
     image, kernel, cokernel, both barcodes and the pair's, as bars with a `kind`, by `phlite_clouds::rips::image`);
   * `delaunay` (alpha and Delaunay–Čech filtrations of points in the plane or in space, by `phlite_clouds::alpha`);

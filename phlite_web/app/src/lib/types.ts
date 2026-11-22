@@ -100,6 +100,16 @@ export type Job =
       options: AlgoOptions;
     }
   | { pipeline: 'delaunay'; coords: Float64Array; pointDim: number; cech: boolean; options: AlgoOptions }
+  | {
+      /** Zigzag persistence of the Rips complexes of sliding windows of consecutive points. */
+      pipeline: 'rips-zigzag';
+      coords: Float64Array;
+      pointDim: number;
+      window: number;
+      threshold: number;
+      maxDim: number;
+      metric: Metric;
+    }
   | { pipeline: 'magnitude'; n: number; sources: Uint32Array; targets: Uint32Array; lMax: number; integral: boolean }
   | { pipeline: 'grpph'; n: number; sources: Uint32Array; targets: Uint32Array; weights: Float64Array; grounded: boolean; options: AlgoOptions }
   | {

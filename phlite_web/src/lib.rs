@@ -736,6 +736,105 @@ pub fn rips_six_pack(
     })
 }
 
+/// Zigzag persistence of sliding windows (`phlite_complexes::zigzag`, by FastZigzag): the Rips complexes at scale
+/// `threshold` (simplices up to dimension `max_dim + 1`) of the windows of `window` consecutive points, each included in
+/// the union with the next, `K_0 -> K_0 ∪ K_1 <- K_1 -> ...`. Bars are over windows: a bar alive in windows `b` to `d`
+/// is `[b, d + 1)` (a union between windows `i` and `i + 1` counts as `i + 0.5`). Over Z/2, no representatives.
+#[wasm_bindgen]
+pub fn rips_zigzag(
+    coords: &[f64],
+    point_dim: usize,
+    window: usize,
+    threshold: f64,
+    max_dim: usize,
+    metric: &str,
+) -> Result<JsValue, JsError> {
+    use phlite_complexes::zigzag::{zigzag_barcode, Operation};
+    use std::collections::BTreeSet;
+    let distances = read_distances(coords, point_dim, metric)?;
+    let n = distances.len();
+    if window == 0 || window > n {
+        return Err(err(format!("The window must have between 1 and {n} points")));
+    }
+    if !(threshold >= 0.0) {
+        return Err(err("Give a threshold (a scale) for the Rips complexes"));
+    }
+    let top = max_dim + 1;
+    // The Rips complex of points lo..hi: cliques of up to top + 1 points within threshold of each other
+    let rips = |lo: usize, hi: usize| -> BTreeSet<Vec<u32>> {
+        let mut out = BTreeSet::new();
+        let mut stack: Vec<Vec<u32>> = (lo..hi).map(|v| vec![v as u32]).collect();
+        while let Some(s) = stack.pop() {
+            if s.len() <= top {
+                let last = *s.last().expect("non-empty") as usize;
+                for w in last + 1..hi {
+                    if s.iter().all(|&v| distances[v as usize][w].into_inner() <= threshold) {
+                        let mut t = s.clone();
+                        t.push(w as u32);
+                        stack.push(t);
+                    }
+                }
+            }
+            out.insert(s);
+        }
+        out
+    };
+    let faces = |s: &[u32]| -> Vec<Vec<u32>> {
+        if s.len() < 2 {
+            return vec![];
+        }
+        (0..s.len()).map(|i| s.iter().enumerate().filter(|&(j, _)| j != i).map(|(_, &v)| v).collect()).collect()
+    };
+    let mut ops: Vec<Operation<Vec<u32>>> = vec![];
+    let mut levels: Vec<(f64, usize)> = vec![]; // (level in windows, position)
+    let mut current: BTreeSet<Vec<u32>> = BTreeSet::new();
+    for i in 0..=n - window {
+        let next = rips(i, i + window);
+        let mut new: Vec<&Vec<u32>> = next.difference(&current).collect();
+        new.sort_by_key(|s| s.len());
+        for s in new {
+            ops.push(Operation::Insert { cell: s.clone(), dimension: s.len() - 1, faces: faces(s) });
+        }
+        if i > 0 {
+            levels.push((i as f64 - 0.5, ops.len()));
+        }
+        let mut gone: Vec<&Vec<u32>> = current.difference(&next).collect();
+        gone.sort_by_key(|s| std::cmp::Reverse(s.len()));
+        for s in gone {
+            ops.push(Operation::Delete(s.clone()));
+        }
+        levels.push((i as f64, ops.len()));
+        current = next;
+    }
+    let bars = zigzag_barcode(&ops, Algorithm::Clearing(phlite::reduction::Clearing::new()))
+        .map_err(|e| err(e.to_string()))?;
+    let last = (n - window) as f64;
+    let mut out = vec![];
+    for bar in bars.into_iter().filter(|b| b.dimension <= max_dim) {
+        let inside: Vec<f64> = levels.iter().filter(|(_, p)| bar.birth <= *p && *p <= bar.death).map(|(l, _)| *l).collect();
+        let (Some(&b), Some(&d)) = (inside.first(), inside.last()) else { continue };
+        out.push(OutBar {
+            dim: bar.dimension,
+            birth: b,
+            death: (d < last).then_some(d + 0.5),
+            birth_cell: vec![],
+            death_cell: None,
+            rep: None,
+            kind: None,
+        });
+    }
+    to_js(Barcode {
+        bars: out,
+        summary: format!(
+            "{} windows of {window} of {n} points, Rips complexes at scale {threshold} up to dimension {}: {} zigzag operations",
+            n - window + 1,
+            top,
+            ops.len()
+        ),
+        edges: None,
+    })
+}
+
 /// Magnitude homology, for [`magnitude`]: `ranks[l][k]` (`null` where an integral Smith form was too large) and, over
 /// the integers, `torsion` as `[k, l, orders]`.
 #[derive(Serialize)]

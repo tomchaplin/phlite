@@ -30,7 +30,9 @@
     selection = [];
     fitKey++;
   }
-  type Filtration = 'rips' | 'dtm' | 'alpha' | 'cech' | 'sixpack';
+  type Filtration = 'rips' | 'dtm' | 'alpha' | 'cech' | 'sixpack' | 'zigzag';
+  /** For the sliding-window zigzag: the number of consecutive points in a window. */
+  let windowSize = $state(20);
   let filtration = $state<Filtration>('rips');
   let dtmK = $state(10);
   const isDelaunay = $derived(filtration === 'alpha' || filtration === 'cech');
@@ -132,6 +134,8 @@
     if (thresholdValue !== null && !(thresholdValue > 0)) return 'The threshold must be a positive number.';
     if (filtration === 'sixpack' && cloud.dim !== 2) return 'Subset maps are for clouds in the plane, where you can select the subset.';
     if (filtration === 'sixpack' && selection.length === 0) return 'Select some points (with the Select tool, or a box) to be the subset.';
+    if (filtration === 'zigzag' && thresholdValue === null) return 'Give a threshold: the scale of the Rips complexes of the windows.';
+    if (filtration === 'zigzag' && !(windowSize >= 1 && windowSize <= cloud.points.length)) return `The window must have between 1 and ${cloud.points.length} points.`;
     if (filtration === 'dtm' && !(dtmK >= 1 && dtmK <= cloud.points.length)) return `k must be between 1 and the number of points (${cloud.points.length}).`;
     if (options.algorithm === 'standard' && !isDelaunay && cloud.points.length > 120)
       return 'The standard algorithm builds every simplex, which takes a very long time for more than about 120 points. Compute anyway?';
@@ -141,6 +145,18 @@
     if (cloud.points.length === 0) return null;
     const opts = $state.snapshot(options);
     if (isDelaunay) return { pipeline: 'delaunay', coords: flatten(cloud), pointDim: cloud.dim, cech: filtration === 'cech', options: opts };
+    if (filtration === 'zigzag') {
+      if (thresholdValue === null) return null;
+      return {
+        pipeline: 'rips-zigzag',
+        coords: flatten(cloud),
+        pointDim: cloud.dim,
+        window: Math.min(windowSize, cloud.points.length),
+        threshold: thresholdValue,
+        maxDim: Math.min(maxDim, 2),
+        metric,
+      };
+    }
     if (filtration === 'sixpack') {
       if (selection.length === 0) return null;
       return {
@@ -211,7 +227,7 @@
         <View3D points={cloud.points} t={runner.t} {bar} {edges} />
       {/if}
       <div style="margin-top: 0.6rem">
-        <FiltrationSlider bind:t={runner.t} {domain} label={isDelaunay ? 'Radius' : 'Diameter'} />
+        <FiltrationSlider bind:t={runner.t} {domain} label={filtration === 'zigzag' ? 'Window' : isDelaunay ? 'Radius' : 'Diameter'} />
       </div>
       <div class="legend" style="margin-top: 0.4rem">
         <span>{cloud.points.length} points{cloud.dim === 3 ? ' in space' : ''}</span>
@@ -305,6 +321,7 @@
           <button class:on={filtration === 'dtm'} onclick={() => setFiltration('dtm')}>DTM-Rips</button>
           <button class:on={filtration === 'alpha'} onclick={() => setFiltration('alpha')}>Alpha</button>
           <button class:on={filtration === 'cech'} onclick={() => setFiltration('cech')}>Delaunay–Čech</button>
+          <button class:on={filtration === 'zigzag'} onclick={() => setFiltration('zigzag')} title="Zigzag persistence of the Rips complexes of windows of consecutive points">Sliding windows</button>
           <button class:on={filtration === 'sixpack'} onclick={() => setFiltration('sixpack')} title="The image, kernel and cokernel of the map on homology from the Rips filtration of the selected points to that of all of them">Subset maps</button>
         </div>
       </div>
@@ -322,6 +339,15 @@
           </select>
         </label>
         <label class="field"><span>Threshold</span><input type="text" placeholder="none (the enclosing radius)" bind:value={threshold} /></label>
+        {#if filtration === 'zigzag'}
+          <label class="field"><span>Window (points)</span><input type="range" min="2" max={Math.max(2, cloud.points.length)} bind:value={windowSize} /><span>{windowSize}</span></label>
+          <p class="note">
+            <strong>Zigzag persistence</strong>: the Rips complexes, at the threshold's scale, of every window of
+            {windowSize} consecutive points (in the cloud's order), each included in the union with the next. A bar is a
+            feature that persists from window to window; the axis counts windows. Computed by FastZigzag (Dey and Hou), as
+            <code>Zigzag.rips_windows</code>. Try the noisy circle: the loop lives while a window spans it.
+          </p>
+        {/if}
         {#if filtration === 'sixpack'}
           <p class="note">
             The <em>six-pack</em> of the inclusion of the Rips filtration of the selected points (the subset) into that of
