@@ -265,10 +265,13 @@ def test_cylinder_matches_inclusion(seed):
     chosen = sorted(closure([s for s in ordered if rng.random() < 0.5]), key=lambda s: (len(s), s)) or [ordered[0]]
     Kf = ChainComplex.from_simplices(ordered).filtration([values[s] for s in ordered])
     Lf = ChainComplex.from_simplices(chosen).filtration([values[s] for s in chosen])
-    by_map = FilteredMap(Lf, Kf, {s: [s] for s in chosen}).six_pack(representatives=False)
+    inclusion = FilteredMap(Lf, Kf, {s: [s] for s in chosen})
+    by_map = inclusion.six_pack(representatives=False, method="cylinder")
+    # (and recognised as an inclusion: the direct route)
+    auto = inclusion.six_pack(representatives=False)
     direct = Kf.six_pack(chosen, representatives=False)
     for name in by_map:
-        assert by_map[name].to_gudhi() == direct[name].to_gudhi(), name
+        assert by_map[name].to_gudhi() == direct[name].to_gudhi() == auto[name].to_gudhi(), name
 
 
 def test_api_and_errors():
@@ -365,3 +368,17 @@ def test_rips_lazy(trial):
         return out
 
     check(mapped, L, K, f, inclusion=False, max_dim=1)
+
+
+def test_from_simplices_composes():
+    """FilteredComplex.from_simplices takes the (simplex, value) pairs every exporter returns."""
+    from phlite.complexes import FilteredComplex
+
+    pairs = [((0,), 0.0), ((1,), 0.0), ((2,), 0.0), ((0, 1), 1.0), ((1, 2), 2.0), ((0, 2), 3.0)]
+    a = FilteredComplex.from_simplices(pairs)
+    b = FilteredComplex.from_simplices([s for s, _ in pairs], [v for _, v in pairs])
+    assert a.persistence().diagrams()[1].tolist() == b.persistence().diagrams()[1].tolist() == [[3.0, float("inf")]]
+    assert FilteredComplex.from_simplices(pairs, modulus=0).torsion() == {}
+    assert FilteredComplex.from_simplices(pairs).six_pack([(0,), (1,)]).kernel.diagram(0).tolist() == [[1.0, float("inf")]]
+    with pytest.raises(ValueError, match="pairs"):
+        FilteredComplex.from_simplices([(0,), (1,)])

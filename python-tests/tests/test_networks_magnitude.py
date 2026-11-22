@@ -127,3 +127,20 @@ def test_rp2_integral():
     g = kaneta_yoshinaga_rp2().to_directed()
     ours = magnitude(g, l_max=4, pairs=[("bottom", "top")], integral=True)
     assert ours["torsion"] == {(3, 4): {2: 1}}
+
+
+def test_result_object():
+    """magnitude returns a MagnitudeHomology: a list of lists, with entries, groups, a table and the magnitude."""
+    from phlite.networks import MagnitudeHomology
+
+    # The directed 3-cycle
+    mh = magnitude(3, [(0, 1), (1, 2), (2, 0)], l_max=3)
+    assert isinstance(mh, MagnitudeHomology) and mh.modulus == 2
+    assert mh[0] == [3] and mh.rank(0, 0) == 3 and mh.rank(1, 1) == 3 and mh.rank(5, 1) == 0
+    assert mh.group(1, 1) == "F_2^3" and mh.group(2, 1) == "0"
+    assert mh.magnitude_coefficients()[:2] == [3, -3]
+    assert "l\\k" in repr(mh) and mh.to_array().shape == (4, 4)
+    integral = magnitude(3, [(0, 1), (1, 2), (2, 0)], l_max=3, integral=True)
+    assert integral.integral and integral["free"] == integral[:] and integral.group(0, 0) == "Z^3"
+    both = magnitude(3, [(0, 1), (1, 2), (2, 0)], l_max=2, modulus=[2, 3])
+    assert set(both) == {2, 3} and both[3].modulus == 3

@@ -8,12 +8,17 @@
 """
 
 import itertools
+import json
+import os
 import random
+import subprocess
+
+import pytest
 
 from hypothesis import given, note, settings
 from hypothesis import strategies as st
 
-from phlite.complexes import ChainComplex, zigzag
+from phlite.complexes import ChainComplex, Zigzag, ZigzagBar, ZigzagBarcode, zigzag
 
 
 def random_zigzag(seed, steps=40, n=6):
@@ -142,3 +147,85 @@ def test_insertions_only_is_ordinary_persistence(seed):
         for b, d in diagram.tolist():
             expected.append((k, int(b), m if d == float("inf") else int(d) - 1, True, d == float("inf")))
     assert sorted(bars) == sorted(expected)
+
+
+DIONYSUS = os.environ.get("DIONYSUS_PYTHON")
+
+DIONYSUS_RUNNER = r"""
+import json, sys
+import dionysus as d
+ops = json.loads(sys.stdin.read())
+times = {}
+for i, (s, ins) in enumerate(ops):
+    times.setdefault(tuple(s), []).append(i + 1)
+f = d.Filtration([d.Simplex(list(s), 0) for s in times])
+t = [times[tuple(s)] for s in f]
+zz, dgms, cells = d.zigzag_homology_persistence(f, t)
+print(json.dumps([[[p.birth, -1 if p.death == float("inf") else p.death] for p in dg] for dg in dgms]))
+"""
+
+
+@pytest.mark.skipif(not DIONYSUS, reason="DIONYSUS_PYTHON not set")
+@given(st.integers(0, 10**9))
+@settings(deadline=None, max_examples=150)
+def test_against_dionysus(seed):
+    """The same barcode as Dionysus 2's zigzag_homology_persistence (operation i at time i + 1; its (b, d) is our
+    [b, d - 1], its inf our alive at the end), random zigzags with simplices inserted again after deletion."""
+    ops = random_zigzag(seed, steps=60)
+    note(ops)
+    out = subprocess.run([DIONYSUS, "-I", "-c", DIONYSUS_RUNNER], input=json.dumps([[list(s), i] for s, i in ops]),
+                         capture_output=True, text=True, check=True)
+    theirs = sorted((k, b, float("inf") if e < 0 else e) for k, dg in enumerate(json.loads(out.stdout)) for b, e in dg
+                    if e < 0 or e > b)
+    ours = sorted((k, b, e) for k, dg in enumerate(zigzag(ops).to_dionysus()) for b, e in dg)
+    assert ours == theirs
+
+
+def test_builder_and_barcode():
+    triangle = [(0,), (1,), (2,), (0, 1), (1, 2), (0, 2)]
+    barcode = Zigzag().insert(*triangle).delete((0, 2)).barcode()
+    assert isinstance(barcode, ZigzagBarcode) and barcode.n_positions == 8
+    assert barcode.in_dimension(1) == [ZigzagBar(1, 6, 6, True, True)]
+    assert str(barcode.in_dimension(1)[0]) == "H1 [6, 6]"
+    assert barcode.rank(6, 1) == 1 and barcode.betti_curve(0).tolist() == [0, 1, 2, 3, 2, 1, 1, 1]
+    # The same as the operations; tuples still compare
+    ops = Zigzag().insert(*triangle).delete((0, 2)).operations
+    assert zigzag(ops) == barcode and list(zigzag(ops)) == [tuple(b) for b in barcode]
+    # Faces and cofaces filled in
+    zz = Zigzag().insert((0, 1, 2), with_faces=True)
+    assert len(zz) == 7 and (0, 1, 2) in zz.current
+    zz.delete((0,), with_cofaces=True)
+    assert zz.current == {(1,), (2,), (1, 2)}
+    with pytest.raises(ValueError, match="already there"):
+        Zigzag().insert((0,)).insert((0,))
+    with pytest.raises(ValueError):
+        Zigzag().insert((0, 1)).barcode()
+
+
+def closure(simplices):
+    return {f for s in simplices for k in range(1, len(s) + 1) for f in itertools.combinations(sorted(s), k)}
+
+
+@given(st.integers(0, 10**9))
+@settings(deadline=None, max_examples=100)
+def test_from_complexes_levels(seed):
+    """Zigzag.from_complexes: at each level, the Betti numbers are those of K_i (even levels) or K_i ∪ K_{i+1} (odd),
+    and over each arrow the intervals spanning it number the rank of the map."""
+    rng = random.Random(seed)
+    ks = [closure([tuple(rng.sample(range(5), rng.randint(1, 3))) for _ in range(rng.randint(1, 5))])
+          for _ in range(rng.randint(1, 5))]
+    note(ks)
+    levels = [ks[0]]
+    for a, b in zip(ks, ks[1:]):
+        levels += [a | b, b]
+    barcode = Zigzag.from_complexes(ks).barcode(levels=True)
+    assert barcode.n_positions == len(levels)
+    everything = sorted(set().union(*levels), key=lambda s: (len(s), s))
+    index = {s: i for i, s in enumerate(everything)}
+    for p in range(3):
+        for i, k in enumerate(levels):
+            assert barcode.rank(i, p) == map_rank(k, k, p, index), (p, i)
+        for i in range(len(levels) - 1):
+            small, big = (levels[i], levels[i + 1]) if i % 2 == 0 else (levels[i + 1], levels[i])
+            spanning = sum(1 for b in barcode.in_dimension(p) if b.birth <= i and i + 1 <= b.death)
+            assert spanning == map_rank(small, big, p, index), (p, i)

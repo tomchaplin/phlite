@@ -7,6 +7,8 @@ use pyo3::{
 };
 use pyo3_stub_gen::derive::*;
 
+use phlite::fields::NonZeroCoefficient;
+use phlite::matrices::MatrixOracle;
 use phlite::six_pack::{ConeCell, SixPackBar};
 use phlite_bindings::{six_pack_into_python, PackBarParts};
 
@@ -91,7 +93,8 @@ macro_rules! dispatch_pair {
 /// `six_pack` gives the barcodes of `L` and `K`, of the image, kernel and cokernel of `H(L) -> H(K)`, and of the map's
 /// mapping cone, each bar with a representative (computed through the map's mapping cylinder, lazily).
 ///
-/// For the inclusion of a subcomplex, `FilteredComplex.six_pack` is faster (no cylinder).
+/// A map that is the inclusion of a subcomplex with the same values (each cell to one cell, with coefficient 1) is
+/// recognised, and its six-pack computed directly, as `FilteredComplex.six_pack` does, without the cylinder.
 ///
 /// ```python
 /// L = ChainComplex.from_simplices(...).filtration(...)
@@ -109,6 +112,24 @@ pub struct FilteredMap {
 }
 
 impl FilteredMap {
+    /// If the map is the inclusion of a subcomplex with the restricted filtration (each cell to one cell, with
+    /// coefficient 1, one to one, at the same value), which cells of `K` are its image, and the cell of `L` each comes
+    /// from: its six-pack is then computed without the cylinder.
+    fn as_inclusion(&self) -> Option<(Vec<bool>, Vec<u32>)> {
+        let (l, k) = (&self.domain.get().complex, &self.codomain.get().complex);
+        let mut mask = vec![false; k.n_cells()];
+        let mut source = vec![u32::MAX; k.n_cells()];
+        for (c, image) in self.images.iter().enumerate() {
+            let &[(1, target)] = image.as_slice() else { return None };
+            if mask[target as usize] || l.value(c as u32) != k.value(target) {
+                return None;
+            }
+            mask[target as usize] = true;
+            source[target as usize] = c as u32;
+        }
+        Some((mask, source))
+    }
+
     /// The map over the complexes' field, checked.
     fn checked<'a, CF: IntField>(
         &self,
@@ -257,21 +278,56 @@ impl FilteredMap {
     /// Args:
     ///     max_dim: The maximum dimension of the bars (default: all).
     ///     representatives: Whether to compute a representative for every bar.
+    ///     method: `'auto'` (inclusions of subcomplexes directly, other maps through the mapping cylinder) or
+    ///         `'cylinder'` (always through the cylinder).
     ///
     /// Returns:
     ///     A `phlite.core.SixPack`. Representatives are lists of `(cell, coefficient)`: cycles of `L` for the domain,
     ///     image and kernel, of `K` for the codomain and cokernel; those of the relative barcode are chains of the
     ///     mapping cone, with `phlite.core.Cone(cell)` the cone on a cell of `L`.
-    #[pyo3(signature = (*, max_dim = None, representatives = true))]
+    #[pyo3(signature = (*, max_dim = None, representatives = true, method = "auto"))]
     #[gen_stub(override_return_type(type_repr = "phlite.core.SixPack", imports = ("phlite.core")))]
     fn six_pack<'py>(
         &self,
         py: Python<'py>,
         max_dim: Option<usize>,
         representatives: bool,
+        #[gen_stub(override_type(type_repr = "typing.Literal['auto', 'cylinder']", imports = ("typing")))] method: &str,
     ) -> PyResult<Bound<'py, PyAny>> {
+        let cylinder = match method {
+            "auto" => false,
+            "cylinder" => true,
+            other => return Err(PyValueError::new_err(format!("method must be 'auto' or 'cylinder', got {other:?}"))),
+        };
         let (l, k) = (self.domain.get(), self.codomain.get());
         dispatch_pair!(&l.complex, &k.complex, a, b => {
+            if let Some((mask, source)) = self.as_inclusion().filter(|_| !cylinder) {
+                // (Checked as a chain map when made: so the image is a subcomplex)
+                let pack = py
+                    .detach(|| b.six_pack(&mask, representatives, max_dim))
+                    .map_err(|_| PyValueError::new_err("the image of an inclusion isn't a subcomplex"))?;
+                let mut pack = pack.map(|v| v, |c: Cell| Cell(source[c.idx()]), |c| c);
+                // Relative cycles of (K, L) as cycles of the mapping cone, as the cylinder gives them: a chain `a` of
+                // K outside L, with boundary in L, is the class of `a - Cone(f^-1 ∂a)`
+                let boundary = b.boundary();
+                for bar in &mut pack.relative {
+                    if let Some(rep) = &mut bar.representative {
+                        let mut cone = vec![];
+                        for (x, cell) in rep.iter() {
+                            if let &ConeCell::Codomain(k) = cell {
+                                let x = *x;
+                                for (y, face) in boundary.column(b.rank(k)) {
+                                    cone.push((x * y, b.cell(face)));
+                                }
+                            }
+                        }
+                        for (x, face) in phlite::image_kernel::consolidated(cone.into_iter()) {
+                            rep.push((x.additive_inverse(), ConeCell::Cone(Cell(source[face.idx()]))));
+                        }
+                    }
+                }
+                return pack_to_python(py, pack, max_dim, l.chain.get(), k.chain.get(), representatives);
+            }
             let map = self.checked(py, a, b)?;
             let pack = py.detach(|| map.six_pack(representatives, max_dim));
             pack_to_python(py, pack, max_dim, l.chain.get(), k.chain.get(), representatives)

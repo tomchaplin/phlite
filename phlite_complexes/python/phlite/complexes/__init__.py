@@ -3,8 +3,16 @@
 from . import _complexes
 from ._complexes import *  # noqa: F403
 
+from . import zigzags  # noqa: E402
+from .zigzags import Zigzag, ZigzagBar, ZigzagBarcode, zigzag  # noqa: E402
+
 __doc__ = _complexes.__doc__
-__all__ = [name for name in _complexes.__all__ if not name.startswith("_")]
+__all__ = [name for name in _complexes.__all__ if not name.startswith("_")] + [
+    "zigzag",
+    "Zigzag",
+    "ZigzagBar",
+    "ZigzagBarcode",
+]
 
 
 def _simplicial_images(cells, vertex_map):

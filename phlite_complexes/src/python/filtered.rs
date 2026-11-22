@@ -54,6 +54,48 @@ impl FilteredComplex {
 #[gen_stub_pymethods]
 #[pymethods]
 impl FilteredComplex {
+    /// A filtered simplicial complex in one step: from `(simplex, value)` pairs, as every exporter of a filtration
+    /// returns them (`phlite.clouds.rips_complex`, `alpha_complex`, `cech_complex`, `witness_complex`, ...), or from
+    /// simplices and their values. Shorthand for `ChainComplex.from_simplices(simplices, modulus=...)
+    /// .filtration(values)`, so that any filtration goes on to `persistence`, `six_pack`, `spectral_sequence`, or (with
+    /// `modulus=0`) `torsion`:
+    ///
+    /// ```python
+    /// FilteredComplex.from_simplices(clouds.cech_complex(points, 2)).persistence(1)
+    /// ```
+    ///
+    /// Args:
+    ///     simplices: `(simplex, value)` pairs, or (with `values`) simplices, each a sequence of integer vertices.
+    ///     values: The simplices' values, in the same order (if `simplices` are bare simplices).
+    ///     modulus: The characteristic of the coefficient field, or 0 for the integers.
+    #[staticmethod]
+    #[pyo3(signature = (simplices, values = None, *, modulus = 2))]
+    fn from_simplices<'py>(
+        py: Python<'py>,
+        #[gen_stub(override_type(type_repr = "typing.Iterable[typing.Any]", imports = ("typing")))] simplices: &Bound<'py, PyAny>,
+        #[gen_stub(override_type(type_repr = "typing.Optional[typing.Any]", imports = ("typing")))] values: Option<&Bound<'py, PyAny>>,
+        modulus: u64,
+    ) -> PyResult<Py<FilteredComplex>> {
+        let (simplices, values) = match values {
+            Some(values) => (simplices.clone(), values.clone()),
+            None => {
+                let (mut cells, mut vals) = (vec![], vec![]);
+                for pair in simplices.try_iter()? {
+                    let (cell, value): (Bound<'py, PyAny>, f64) = pair?.extract().map_err(|_| {
+                        PyValueError::new_err("give (simplex, value) pairs, or the simplices and their values")
+                    })?;
+                    cells.push(cell);
+                    vals.push(value);
+                }
+                (PyList::new(py, cells)?.into_any(), PyList::new(py, vals)?.into_any())
+            }
+        };
+        let kwargs = PyDict::new(py);
+        kwargs.set_item("modulus", modulus)?;
+        let chain = py.get_type::<ChainComplex>().call_method("from_simplices", (simplices,), Some(&kwargs))?;
+        chain.call_method1("filtration", (values,))?.extract().map_err(PyErr::from)
+    }
+
     /// The six-pack of persistence barcodes of the inclusion of a subcomplex `L` into this filtered complex `K`: the
     /// barcodes of `L` and `K`, of the image, kernel and cokernel of `H(L) -> H(K)`, and of the pair `(K, L)`, with a
     /// representative for every bar (see `phlite.core.SixPack`).

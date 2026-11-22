@@ -8,6 +8,8 @@ use pyo3_stub_gen::derive::*;
 use super::DEFAULTS;
 use crate::zigzag::{zigzag_barcode, Operation, ZigzagBar, ZigzagError};
 
+/// The engine behind `phlite.complexes.zigzag` and `Zigzag` (which return a `ZigzagBarcode`): the intervals as tuples.
+///
 /// Compute the zigzag persistence of a sequence of simplicial complexes, each obtained from the last by inserting or
 /// deleting one simplex, starting from the empty complex, over Z/2.
 ///
@@ -33,7 +35,7 @@ use crate::zigzag::{zigzag_barcode, Operation, ZigzagBar, ZigzagError};
 ///         that isn't there or with a coface).
 #[gen_stub_pyfunction(module = "phlite.complexes")]
 #[pyfunction]
-#[pyo3(signature = (operations, *, algorithm = None))]
+#[pyo3(name = "_zigzag", signature = (operations, *, algorithm = None))]
 #[allow(clippy::type_complexity)]
 pub(crate) fn zigzag(
     py: Python<'_>,

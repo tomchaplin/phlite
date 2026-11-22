@@ -9,13 +9,19 @@ import numpy
 import numpy.typing
 from phlite import core
 import typing
+from . import zigzags as zigzags
+from .zigzags import Zigzag as Zigzag, ZigzagBar as ZigzagBar, ZigzagBarcode as ZigzagBarcode, zigzag as zigzag
+
 __all__ = [
+    "zigzag",
+    "Zigzag",
+    "ZigzagBar",
+    "ZigzagBarcode",
     "Bar",
     "ChainComplex",
     "ComplexBarcode",
     "FilteredComplex",
     "FilteredMap",
-    "zigzag",
 ]
 
 @typing.final
@@ -307,6 +313,24 @@ class FilteredComplex:
         r"""
         The filtration value of every cell, in cell order.
         """
+    @staticmethod
+    def from_simplices(simplices: typing.Iterable[typing.Any], values: typing.Optional[typing.Any] = None, *, modulus: builtins.int = 2) -> FilteredComplex:
+        r"""
+        A filtered simplicial complex in one step: from `(simplex, value)` pairs, as every exporter of a filtration
+        returns them (`phlite.clouds.rips_complex`, `alpha_complex`, `cech_complex`, `witness_complex`, ...), or from
+        simplices and their values. Shorthand for `ChainComplex.from_simplices(simplices, modulus=...)
+        .filtration(values)`, so that any filtration goes on to `persistence`, `six_pack`, `spectral_sequence`, or (with
+        `modulus=0`) `torsion`:
+        
+        ```python
+        FilteredComplex.from_simplices(clouds.cech_complex(points, 2)).persistence(1)
+        ```
+        
+        Args:
+            simplices: `(simplex, value)` pairs, or (with `values`) simplices, each a sequence of integer vertices.
+            values: The simplices' values, in the same order (if `simplices` are bare simplices).
+            modulus: The characteristic of the coefficient field, or 0 for the integers.
+        """
     def six_pack(self, subcomplex: typing.Any, *, max_dim: typing.Optional[builtins.int] = None, representatives: builtins.bool = True) -> phlite.core.SixPack:
         r"""
         The six-pack of persistence barcodes of the inclusion of a subcomplex `L` into this filtered complex `K`: the
@@ -486,7 +510,8 @@ class FilteredMap:
     `six_pack` gives the barcodes of `L` and `K`, of the image, kernel and cokernel of `H(L) -> H(K)`, and of the map's
     mapping cone, each bar with a representative (computed through the map's mapping cylinder, lazily).
     
-    For the inclusion of a subcomplex, `FilteredComplex.six_pack` is faster (no cylinder).
+    A map that is the inclusion of a subcomplex with the same values (each cell to one cell, with coefficient 1) is
+    recognised, and its six-pack computed directly, as `FilteredComplex.six_pack` does, without the cylinder.
     
     ```python
     L = ChainComplex.from_simplices(...).filtration(...)
@@ -532,7 +557,7 @@ class FilteredMap:
             codomain: The filtered complex `K`, with the image of every simplex of `L` no later than it.
             vertex_map: The image of each vertex of `L`: a dict, or a sequence indexed by vertex.
         """
-    def six_pack(self, *, max_dim: typing.Optional[builtins.int] = None, representatives: builtins.bool = True) -> phlite.core.SixPack:
+    def six_pack(self, *, max_dim: typing.Optional[builtins.int] = None, representatives: builtins.bool = True, method: typing.Literal['auto', 'cylinder'] = "auto") -> phlite.core.SixPack:
         r"""
         The six-pack of the map: the barcodes of `L` and `K`, of the image, kernel and cokernel of `H(L) -> H(K)`, and
         of the mapping cone (see `phlite.core.SixPack`).
@@ -540,6 +565,8 @@ class FilteredMap:
         Args:
             max_dim: The maximum dimension of the bars (default: all).
             representatives: Whether to compute a representative for every bar.
+            method: `'auto'` (inclusions of subcomplexes directly, other maps through the mapping cylinder) or
+                `'cylinder'` (always through the cylinder).
         
         Returns:
             A `phlite.core.SixPack`. Representatives are lists of `(cell, coefficient)`: cycles of `L` for the domain,
@@ -548,8 +575,10 @@ class FilteredMap:
         """
     def __repr__(self) -> builtins.str: ...
 
-def zigzag(operations: typing.Iterable[tuple[typing.Sequence[builtins.int], builtins.bool]], *, algorithm: typing.Optional[core.Algorithm] = None) -> builtins.list[tuple[builtins.int, builtins.int, builtins.int, builtins.bool, builtins.bool]]:
+def _zigzag(operations: typing.Iterable[tuple[typing.Sequence[builtins.int], builtins.bool]], *, algorithm: typing.Optional[core.Algorithm] = None) -> builtins.list[tuple[builtins.int, builtins.int, builtins.int, builtins.bool, builtins.bool]]:
     r"""
+    The engine behind `phlite.complexes.zigzag` and `Zigzag` (which return a `ZigzagBarcode`): the intervals as tuples.
+    
     Compute the zigzag persistence of a sequence of simplicial complexes, each obtained from the last by inserting or
     deleting one simplex, starting from the empty complex, over Z/2.
     

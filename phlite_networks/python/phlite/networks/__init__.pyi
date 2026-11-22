@@ -9,7 +9,11 @@ import networkx
 import phlite
 from phlite import core
 import typing
+from . import magnitudes as magnitudes
+from .magnitudes import MagnitudeHomology as MagnitudeHomology
+
 __all__ = [
+    "MagnitudeHomology",
     "directed_flag",
     "dowker",
     "flag",
@@ -157,10 +161,10 @@ def grpph(graph: networkx.DiGraph, /, *, weight: builtins.str = 'weight', method
 def grpph(n_vertices: builtins.int, edges: typing.Sequence[tuple[builtins.int, builtins.int, builtins.float]], /, *, method: typing.Literal["cohomology", "homology"] = 'cohomology', algorithm: typing.Optional[core.Algorithm] = None, representatives: builtins.bool = False) -> core.Barcode: ...
 
 @typing.overload
-def magnitude(graph: networkx.DiGraph, /, l_max: builtins.int, *, k_max: typing.Optional[builtins.int] = None, pairs: typing.Optional[typing.Sequence[tuple[typing.Any, typing.Any]]] = None, modulus: builtins.int | typing.Sequence[builtins.int] = 2, by_pair: builtins.bool = False, integral: builtins.bool = False) -> typing.Any: ...
+def magnitude(graph: networkx.DiGraph, /, l_max: builtins.int, *, k_max: typing.Optional[builtins.int] = None, pairs: typing.Optional[typing.Sequence[tuple[typing.Any, typing.Any]]] = None, modulus: builtins.int | typing.Sequence[builtins.int] = 2, by_pair: builtins.bool = False, integral: builtins.bool = False) -> typing.Union[MagnitudeHomology, typing.Dict[typing.Any, MagnitudeHomology]]: ...
 
 @typing.overload
-def magnitude(n_vertices: builtins.int, edges: typing.Sequence[tuple[builtins.int, builtins.int] | tuple[builtins.int, builtins.int, builtins.float]], /, l_max: builtins.int, *, k_max: typing.Optional[builtins.int] = None, pairs: typing.Optional[typing.Sequence[tuple[builtins.int, builtins.int]]] = None, modulus: builtins.int | typing.Sequence[builtins.int] = 2, by_pair: builtins.bool = False, integral: builtins.bool = False) -> typing.Any: ...
+def magnitude(n_vertices: builtins.int, edges: typing.Sequence[tuple[builtins.int, builtins.int] | tuple[builtins.int, builtins.int, builtins.float]], /, l_max: builtins.int, *, k_max: typing.Optional[builtins.int] = None, pairs: typing.Optional[typing.Sequence[tuple[builtins.int, builtins.int]]] = None, modulus: builtins.int | typing.Sequence[builtins.int] = 2, by_pair: builtins.bool = False, integral: builtins.bool = False) -> typing.Union[MagnitudeHomology, typing.Dict[typing.Any, MagnitudeHomology]]: ...
 
 @typing.overload
 def magnitude_path_spectral_sequence(graph: networkx.DiGraph, /, l_max: builtins.int, *, k_max: typing.Optional[builtins.int] = None, modulus: builtins.int = 2, integral: builtins.bool = False) -> core.SpectralSequence: ...

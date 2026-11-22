@@ -41,12 +41,12 @@ use crate::mpss::mpss_backend;
 ///         eliminated over Z, and what is left (nearly always a few cells) put in Smith normal form.
 ///
 /// Returns:
-///     The ranks as a list over `l = 0, ..., l_max` of lists over `k = 0, ..., min(l, k_max)`: `ranks[l][k]` is the
-///     rank of `MH_{k,l}` (summed over the pairs). With `by_pair`, a dict from each pair `(s, t)` with some non-zero
-///     rank to its own such list. With a list of moduli, a dict from each modulus to its result. With `integral`, a
-///     dict `{"free": ranks, "torsion": torsion}`, where `ranks[l][k]` is the free rank of `MH_{k,l}` (or `None` if
-///     its Smith form overflowed or was too large) and `torsion` maps `(k, l)` to `{order: multiplicity}` of the
-///     invariant factors of its torsion (with `by_pair`, a dict from each pair to such a dict).
+///     A `MagnitudeHomology`: the ranks, indexed `[l][k]` as a list over `l = 0, ..., l_max` of lists over
+///     `k = 0, ..., min(l, k_max)` (summed over the pairs), with `rank(k, l)`, `group(k, l)`, `table()` (also how it
+///     prints) and `magnitude_coefficients()`. With `by_pair`, a dict from each pair `(s, t)` with some non-zero rank
+///     to its own. With a list of moduli, a dict from each modulus to its result. With `integral`, over the integers:
+///     free ranks (`None` if its Smith form overflowed or was too large) and `torsion(k, l)`, the invariant factors of
+///     the torsion as `{order: multiplicity}`.
 #[gen_stub_pyfunction(
     python_overload = r#"
     import builtins
@@ -64,7 +64,7 @@ use crate::mpss::mpss_backend;
         modulus: builtins.int | typing.Sequence[builtins.int] = 2,
         by_pair: builtins.bool = False,
         integral: builtins.bool = False,
-    ) -> typing.Any: ...
+    ) -> typing.Union[MagnitudeHomology, typing.Dict[typing.Any, MagnitudeHomology]]: ...
     @typing.overload
     def magnitude(
         n_vertices: builtins.int,
@@ -77,7 +77,7 @@ use crate::mpss::mpss_backend;
         modulus: builtins.int | typing.Sequence[builtins.int] = 2,
         by_pair: builtins.bool = False,
         integral: builtins.bool = False,
-    ) -> typing.Any: ...
+    ) -> typing.Union[MagnitudeHomology, typing.Dict[typing.Any, MagnitudeHomology]]: ...
     "#,
     no_default_overload = true,
     module = "phlite.networks"
