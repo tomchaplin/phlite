@@ -66,7 +66,7 @@ fn witness<'py>(
     let landmarks = read_rows(landmarks, "landmarks")?;
     let witnesses = read_rows(witnesses, "witnesses")?;
     let algorithm = algorithm_from_py(algorithm.as_ref(), &DEFAULTS)?;
-    let bars = py.detach(|| {
+    let bars = phlite_bindings::detach(py, || {
         algorithm.run(WitnessRun {
             landmarks,
             witnesses,
@@ -107,7 +107,7 @@ fn witness_complex<'py>(
     let landmarks = read_rows(landmarks, "landmarks")?;
     let witnesses = read_rows(witnesses, "witnesses")?;
     let bound = max_alpha_square.unwrap_or(f64::INFINITY);
-    let simplices = py.detach(|| witness_simplices(&landmarks, &witnesses, kind(strong), dimension, bound));
+    let simplices = phlite_bindings::detach(py, || witness_simplices(&landmarks, &witnesses, kind(strong), dimension, bound));
     simplices.into_iter().map(|(v, s)| Ok((pyo3::types::PyTuple::new(py, s)?, v))).collect()
 }
 

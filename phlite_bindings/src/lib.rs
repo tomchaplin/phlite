@@ -218,6 +218,18 @@ pub fn add_functions(
 // ====== Arguments ========================================================
 
 /// Parse the `method` argument. In the stubs, type it as `typing.Literal['cohomology', 'homology']`.
+/// Run `f` without the GIL (as `py.detach`) on a rayon thread pool of its own, which is gone when it returns: for
+/// computations that use rayon outside a parallel algorithm's pool (image/kernel/cokernel reductions, six-packs, witness
+/// complexes, magnitude homology). Run on rayon's global pool instead, they would start it, and a process forked after
+/// that (as Python's `multiprocessing` does on Linux) would hang in its first parallel call, the pool's threads not
+/// having been forked with it.
+pub fn detach<T: Send>(py: Python<'_>, f: impl FnOnce() -> T + Send) -> T {
+    py.detach(|| match rayon::ThreadPoolBuilder::new().build() {
+        Ok(pool) => pool.install(f),
+        Err(_) => f(),
+    })
+}
+
 pub fn parse_method(name: &str) -> PyResult<Method> {
     match name {
         "cohomology" => Ok(Method::Cohomology),

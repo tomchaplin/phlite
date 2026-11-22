@@ -149,14 +149,14 @@ fn magnitude<'py>(
     let edges: Vec<(u32, u32)> = edges.into_iter().map(|(a, b, _)| (a, b)).collect();
     let query = MagnitudeQuery { l_max, k_max, pairs };
     if integral {
-        let results: Vec<PairGroups> = py.detach(|| {
+        let results: Vec<PairGroups> = phlite_bindings::detach(py, || {
             let graph = MagnitudeGraph::new(n_vertices as usize, &edges);
             magnitude_integral(&graph, &query, true)
         });
         let k_cap = k_max.unwrap_or(l_max).min(l_max);
         return integral_result(py, &results, l_max, k_cap, by_pair, &labels);
     }
-    let results: Vec<PairRanks> = py.detach(|| {
+    let results: Vec<PairRanks> = phlite_bindings::detach(py, || {
         let graph = MagnitudeGraph::new(n_vertices as usize, &edges);
         magnitude_ranks(&graph, &query, &moduli, true)
     });
@@ -275,7 +275,7 @@ fn magnitude_path_spectral_sequence<'py>(
         read_graph(graph, edges, "weight", "magnitude_path_spectral_sequence", u32::MAX >> 1)?;
     let edges: Vec<(u32, u32)> = edges.into_iter().map(|(a, b, _)| (a, b)).collect();
     let k_cap = k_max.unwrap_or(l_max).min(l_max);
-    let (backend, tuples) = py.detach(|| {
+    let (backend, tuples) = phlite_bindings::detach(py, || {
         let graph = MagnitudeGraph::new(n_vertices as usize, &edges);
         mpss_backend(&graph, l_max, k_max, (!integral).then_some(modulus))
     });

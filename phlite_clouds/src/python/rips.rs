@@ -456,7 +456,7 @@ fn rips_image_kernel<'py>(
     if !rips_index_fits(n, max_dim + 1) {
         return Err(PyValueError::new_err(format!("Too many points ({n}) to index simplices of dimension {}", max_dim + 1)));
     }
-    let result = py.detach(|| match &input {
+    let result = phlite_bindings::detach(py, || match &input {
         Input::Dense(d) => rips_image_kernel_cokernel(d, &in_subset, max_dim, threshold),
         Input::Sparse(d) => rips_image_kernel_cokernel(d, &in_subset, max_dim, threshold),
     });
@@ -646,7 +646,7 @@ fn rips_six_pack<'py>(
             max_dim + 1
         )));
     }
-    let pack = py.detach(|| match &input {
+    let pack = phlite_bindings::detach(py, || match &input {
         Input::Dense(d) => rips_six_pack::<usize, _>(d, &in_subset, max_dim, threshold, representatives),
         Input::Sparse(d) => rips_six_pack::<usize, _>(d, &in_subset, max_dim, threshold, representatives),
     });
@@ -755,7 +755,7 @@ fn rips_map_six_pack<'py>(
     > {
         Ok(RipsMap::new(l, k, vertex_map, max_dim, threshold)?.six_pack(representatives))
     }
-    let pack = py.detach(|| match (&l, &k) {
+    let pack = phlite_bindings::detach(py, || match (&l, &k) {
         (Input::Dense(a), Input::Dense(b)) => {
             run(a, b, &vertex_map, max_dim, threshold, representatives)
         }

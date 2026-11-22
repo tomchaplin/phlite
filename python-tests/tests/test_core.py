@@ -3,6 +3,7 @@
 stale."""
 
 import importlib
+import os
 import importlib.metadata
 from pathlib import Path
 
@@ -245,3 +246,42 @@ def test_modules_and_names():
         phlite.core.__all__
     )
     assert isinstance(phlite.core.__version__, str)
+
+
+def test_fork_after_parallel_helpers():
+    """Calls that use rayon outside a parallel algorithm's pool (magnitude homology and its spectral sequence, witness
+    complexes, six-packs, images/kernels/cokernels) run on a pool of their own: a process forked after them (as
+    multiprocessing does on Linux) can call them again, rather than hang on rayon's global pool, whose threads it
+    hasn't got."""
+    import numpy as np
+    import signal
+
+    from phlite.clouds import rips_six_pack, witness_complex
+    from phlite.complexes import FilteredComplex
+    from phlite.networks import magnitude, magnitude_path_spectral_sequence
+
+    rng = np.random.default_rng(0)
+    edges = [(a, b) for a in range(15) for b in range(15) if a != b and rng.random() < 0.2]
+    points = rng.random((40, 2))
+    fc = FilteredComplex.from_simplices([((0,), 0), ((1,), 0), ((2,), 0), ((0, 1), 1), ((1, 2), 1), ((0, 2), 2)])
+
+    def everything():
+        magnitude(15, edges, 4)
+        magnitude(15, edges, 4, integral=True)
+        magnitude_path_spectral_sequence(15, edges, 3)
+        witness_complex(points[:8], points, 2)
+        rips_six_pack(points=points[:20], subset=list(range(10)), max_dim=1)
+        fc.six_pack([(0,), (1,), (0, 1)])
+        fc.image_kernel_cokernel([(0,), (1,), (0, 1)])
+
+    everything()
+    pid = os.fork()
+    if pid == 0:
+        signal.alarm(60)  # a hang kills the child, which then fails the test
+        try:
+            everything()
+            os._exit(0)
+        except BaseException:
+            os._exit(1)
+    _, status = os.waitpid(pid, 0)
+    assert os.WIFEXITED(status) and os.WEXITSTATUS(status) == 0, "the forked child hung or failed"

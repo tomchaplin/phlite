@@ -133,7 +133,7 @@ impl FilteredComplex {
             ))
         };
         dispatch_field!(AnyComplex, &this.complex, c => {
-            let pack = py.detach(|| c.six_pack(&mask, representatives, max_dim)).map_err(not_subcomplex)?;
+            let pack = phlite_bindings::detach(py, || c.six_pack(&mask, representatives, max_dim)).map_err(not_subcomplex)?;
             super::maps::pack_to_python(py, pack, max_dim, chain, chain, representatives)
         }, integers => Err(PyValueError::new_err("six_pack needs a field (build the complex with a modulus other than 0)")))
     }
@@ -361,8 +361,7 @@ impl FilteredComplex {
         let this = slf.get();
         let chain = this.chain.get();
         let mask = this.subcomplex_mask(subcomplex)?;
-        let pairs = py
-            .detach(|| this.complex.image_kernel_cokernel(&mask))?
+        let pairs = phlite_bindings::detach(py, || this.complex.image_kernel_cokernel(&mask))?
             .map_err(|(cell, face)| {
                 PyValueError::new_err(format!(
                     "not a subcomplex: {} is in it but its face {} isn't",

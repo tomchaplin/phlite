@@ -303,8 +303,7 @@ impl FilteredMap {
         dispatch_pair!(&l.complex, &k.complex, a, b => {
             if let Some((mask, source)) = self.as_inclusion().filter(|_| !cylinder) {
                 // (Checked as a chain map when made: so the image is a subcomplex)
-                let pack = py
-                    .detach(|| b.six_pack(&mask, representatives, max_dim))
+                let pack = phlite_bindings::detach(py, || b.six_pack(&mask, representatives, max_dim))
                     .map_err(|_| PyValueError::new_err("the image of an inclusion isn't a subcomplex"))?;
                 let mut pack = pack.map(|v| v, |c: Cell| Cell(source[c.idx()]), |c| c);
                 // Relative cycles of (K, L) as cycles of the mapping cone, as the cylinder gives them: a chain `a` of
@@ -329,7 +328,7 @@ impl FilteredMap {
                 return pack_to_python(py, pack, max_dim, l.chain.get(), k.chain.get(), representatives);
             }
             let map = self.checked(py, a, b)?;
-            let pack = py.detach(|| map.six_pack(representatives, max_dim));
+            let pack = phlite_bindings::detach(py, || map.six_pack(representatives, max_dim));
             pack_to_python(py, pack, max_dim, l.chain.get(), k.chain.get(), representatives)
         })
     }
