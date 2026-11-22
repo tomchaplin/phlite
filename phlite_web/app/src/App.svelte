@@ -9,16 +9,23 @@
   import Complexes from './pipelines/complexes/Complexes.svelte';
   import Videos from './pipelines/videos/Videos.svelte';
 
-  type Tab = 'points' | 'images' | 'videos' | 'networks' | 'complexes';
+  type Tab = 'points' | 'images' | 'networks' | 'complexes';
   const tabs: [Tab, string, string][] = [
     ['points', 'Point clouds', 'Rips, alpha, Čech, zigzags'],
-    ['images', 'Images', 'cubical, T or V'],
-    ['videos', 'Videos', 'zigzags of frames'],
+    ['images', 'Images', 'cubical, T or V, videos'],
     ['networks', 'Networks', 'path homology, flag, zigzags, magnitude'],
     ['complexes', 'Chain complexes', 'your own complexes, zigzags'],
   ];
-  const fromHash = () => (tabs.find(([id]) => `#${id}` === location.hash)?.[0] ?? 'points') as Tab;
+  // `#videos` (the videos' old tab) is the images tab's zigzag
+  const fromHash = () => (location.hash === '#videos' ? 'images' : (tabs.find(([id]) => `#${id}` === location.hash)?.[0] ?? 'points')) as Tab;
   let tab = $state<Tab>(fromHash());
+  /** The images tab computes an image's persistence, or the zigzag of a video's frames. */
+  let imageKind = $state<'persistence' | 'zigzag'>(location.hash === '#videos' ? 'zigzag' : 'persistence');
+  let videosVisited = $state(location.hash === '#videos');
+  $effect(() => {
+    if (imageKind === 'zigzag') videosVisited = true;
+    if (tab === 'images') history.replaceState(null, '', imageKind === 'zigzag' ? '#videos' : '#images');
+  });
   // Mount a pipeline the first time it's shown, then keep it (and its data) alive
   let visited = $state(new Set<Tab>([fromHash()]));
   function show(t: Tab) {
@@ -28,7 +35,11 @@
   }
   // Follow the address bar too (edited links, back and forward)
   $effect(() => {
-    const follow = () => show(fromHash());
+    const follow = () => {
+      if (location.hash === '#videos') imageKind = 'zigzag';
+      else if (location.hash === '#images') imageKind = 'persistence';
+      show(fromHash());
+    };
     addEventListener('hashchange', follow);
     return () => removeEventListener('hashchange', follow);
   });
@@ -86,8 +97,9 @@
     {#if visited.has(id)}
       <section hidden={tab !== id}>
         {#if id === 'points'}<Points />
-        {:else if id === 'images'}<Images />
-        {:else if id === 'videos'}<Videos />
+        {:else if id === 'images'}
+          <div hidden={imageKind !== 'persistence'}><Images bind:kind={imageKind} /></div>
+          {#if videosVisited}<div hidden={imageKind !== 'zigzag'}><Videos bind:kind={imageKind} /></div>{/if}
         {:else if id === 'networks'}<Networks />
         {:else}<Complexes />{/if}
       </section>

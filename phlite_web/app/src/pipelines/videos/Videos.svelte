@@ -16,6 +16,8 @@
   import { EXAMPLES, decodeVideo, recordCamera, concat, type Video } from './data';
 
   type Source = 'examples' | 'upload' | 'camera';
+  /** Persistence of an image, or (on the videos' side of the tab) the zigzag of a video: shared with the other side. */
+  let { kind = $bindable() }: { kind: 'persistence' | 'zigzag' } = $props();
   let source = $state<Source>('examples');
   let exampleId = $state(EXAMPLES[0].id);
   let video = $state.raw<Video>(EXAMPLES[0].make());
@@ -149,6 +151,16 @@
 
     <div class="panel secondary">
       <h3>Compute</h3>
+      <div class="field"><span>Compute</span>
+        <Segmented
+          label="What to compute"
+          bind:value={kind}
+          options={[
+            { id: 'persistence', label: 'Persistence', title: "The persistent homology of the image's sublevel (or superlevel) sets" },
+            { id: 'zigzag', label: 'Zigzag (video)', title: "Zigzag persistence of a video's frames, each cut at a threshold" },
+          ]}
+        />
+      </div>
       <label class="field"><span>Threshold</span><input type="range" min="0" max="1" step="0.01" bind:value={threshold} /><span>{threshold.toFixed(2)}</span></label>
       <div class="field"><span>Pixels</span>
         <Segmented

@@ -17,6 +17,8 @@
   import type { BinaryFiltration, Job } from '../../lib/types';
   import { EXAMPLES, smoothNoise, loadImage, blur, type Img } from './data';
 
+  /** Persistence of an image, or (on the videos' side of the tab) the zigzag of a video: shared with the other side. */
+  let { kind = $bindable() }: { kind: 'persistence' | 'zigzag' } = $props();
   let source = $state<Source>('examples');
   let exampleId = $state(EXAMPLES[0].id);
   let img = $state.raw<Img>(EXAMPLES[0].make());
@@ -232,6 +234,16 @@
 
     <div class="panel secondary">
       <h3>Compute</h3>
+      <div class="field"><span>Compute</span>
+        <Segmented
+          label="What to compute"
+          bind:value={kind}
+          options={[
+            { id: 'persistence', label: 'Persistence', title: "The persistent homology of the image's sublevel (or superlevel) sets" },
+            { id: 'zigzag', label: 'Zigzag (video)', title: "Zigzag persistence of a video's frames, each cut at a threshold" },
+          ]}
+        />
+      </div>
       <div class="field"><span>Order</span>
         <Segmented
           label="Order"
