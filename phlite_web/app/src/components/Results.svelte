@@ -114,11 +114,9 @@
               born with {describe(bar.birth_cell, bar.dim)}{bar.death_cell ? `, killed by ${describe(bar.death_cell, bar.dim + 1)}` : ', never dies'}
             </div>
           {/if}
-          {#if bar.kind}
-            <!-- (extended persistence has no representatives here) -->
-          {:else if bar.rep}
+          {#if bar.rep}
             <div class="rep"><span class="muted">Representative ({bar.rep.length} cell{bar.rep.length === 1 ? '' : 's'}):</span> {repText(bar)}</div>
-          {:else}
+          {:else if !bar.kind || KINDS[bar.kind].order >= 10}
             <div class="muted">Turn on representatives to see a cycle for this bar.</div>
           {/if}
         {:else}

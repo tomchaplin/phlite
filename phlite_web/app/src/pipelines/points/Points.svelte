@@ -30,7 +30,7 @@
     selection = [];
     fitKey++;
   }
-  type Filtration = 'rips' | 'dtm' | 'alpha' | 'cech';
+  type Filtration = 'rips' | 'dtm' | 'alpha' | 'cech' | 'sixpack';
   let filtration = $state<Filtration>('rips');
   let dtmK = $state(10);
   const isDelaunay = $derived(filtration === 'alpha' || filtration === 'cech');
@@ -116,7 +116,11 @@
 
   function setFiltration(f: Filtration) {
     filtration = f;
-    options = defaultsFor(f === 'rips' || f === 'dtm' ? RIPS : COMPLEX);
+    options = defaultsFor(f === 'rips' || f === 'dtm' || f === 'sixpack' ? RIPS : COMPLEX);
+    if (f === 'sixpack') {
+      options.representatives = true;
+      tool = cloud.dim === 2 ? 'select' : null;
+    }
     showBalls = f === 'alpha' || f === 'cech';
   }
 
@@ -126,6 +130,8 @@
     if (cloud.points.length === 0) return 'No points yet.';
     if (isDelaunay && cloud.dim !== 2 && cloud.dim !== 3) return 'Alpha and Delaunay–Čech persistence are for points in the plane or in space.';
     if (thresholdValue !== null && !(thresholdValue > 0)) return 'The threshold must be a positive number.';
+    if (filtration === 'sixpack' && cloud.dim !== 2) return 'Subset maps are for clouds in the plane, where you can select the subset.';
+    if (filtration === 'sixpack' && selection.length === 0) return 'Select some points (with the Select tool, or a box) to be the subset.';
     if (filtration === 'dtm' && !(dtmK >= 1 && dtmK <= cloud.points.length)) return `k must be between 1 and the number of points (${cloud.points.length}).`;
     if (options.algorithm === 'standard' && !isDelaunay && cloud.points.length > 120)
       return 'The standard algorithm builds every simplex, which takes a very long time for more than about 120 points. Compute anyway?';
@@ -135,6 +141,19 @@
     if (cloud.points.length === 0) return null;
     const opts = $state.snapshot(options);
     if (isDelaunay) return { pipeline: 'delaunay', coords: flatten(cloud), pointDim: cloud.dim, cech: filtration === 'cech', options: opts };
+    if (filtration === 'sixpack') {
+      if (selection.length === 0) return null;
+      return {
+        pipeline: 'rips-six-pack',
+        coords: flatten(cloud),
+        pointDim: cloud.dim,
+        subset: Uint32Array.from([...selection].sort((a, b) => a - b)),
+        maxDim: Math.min(maxDim, 2),
+        threshold: thresholdValue,
+        metric,
+        options: opts,
+      };
+    }
     return {
       pipeline: 'rips',
       coords: flatten(cloud),
@@ -155,13 +174,13 @@
 
   // ---- Viewing ----
   // Rips and DTM-Rips filter the complete complex on the points (a flag filtration): draw its complex at t
-  const isFlag = $derived(filtration === 'rips' || filtration === 'dtm');
+  const isFlag = $derived(filtration === 'rips' || filtration === 'dtm' || filtration === 'sixpack');
   // The edges are phlite's, sent with the barcode, so the complex drawn is the one computed. Only while the result is
   // for these points (live, a result one edit behind with the same number of points is drawn on the moved points)
   const edges = $derived.by(() => {
     const job = runner.resultJob;
     const edges = runner.result?.barcode.edges;
-    if (!isFlag || !edges || job?.pipeline !== 'rips') return null;
+    if (!isFlag || !edges || (job?.pipeline !== 'rips' && job?.pipeline !== 'rips-six-pack')) return null;
     if (job.coords.length !== cloud.points.length * cloud.dim) return null;
     return edges;
   });
@@ -286,6 +305,7 @@
           <button class:on={filtration === 'dtm'} onclick={() => setFiltration('dtm')}>DTM-Rips</button>
           <button class:on={filtration === 'alpha'} onclick={() => setFiltration('alpha')}>Alpha</button>
           <button class:on={filtration === 'cech'} onclick={() => setFiltration('cech')}>Delaunay–Čech</button>
+          <button class:on={filtration === 'sixpack'} onclick={() => setFiltration('sixpack')} title="The image, kernel and cokernel of the map on homology from the Rips filtration of the selected points to that of all of them">Subset maps</button>
         </div>
       </div>
       {#if !isDelaunay}
@@ -302,6 +322,15 @@
           </select>
         </label>
         <label class="field"><span>Threshold</span><input type="text" placeholder="none (the enclosing radius)" bind:value={threshold} /></label>
+        {#if filtration === 'sixpack'}
+          <p class="note">
+            The <em>six-pack</em> of the inclusion of the Rips filtration of the selected points (the subset) into that of
+            all of them: the barcodes of the <strong>image</strong> (what of the subset's homology is really there), the
+            <strong>kernel</strong> (what of it dies among all the points), the <strong>cokernel</strong> (what the
+            subset doesn't see), the subset's and the whole's own barcodes, and the pair's. Select points to change the
+            subset; with live on, the barcodes follow. As <code>phlite.clouds.rips_six_pack</code>.
+          </p>
+        {/if}
         {#if filtration === 'dtm'}
           <label class="field"><span>DTM neighbours k</span><input type="range" min="1" max={Math.max(1, Math.min(50, cloud.points.length))} bind:value={dtmK} /><span>{dtmK}</span></label>
           <p class="note">

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import SpectralTable from './SpectralTable.svelte';
   import { untrack } from 'svelte';
   import SourceTabs, { type Source } from '../../components/SourceTabs.svelte';
   import FileDrop from '../../components/FileDrop.svelte';
@@ -230,12 +231,18 @@ abc 2 _ : ab bc -ac`}</pre>
     <div class="panel">
       <Results result={runner.result} error={runner.error} running={runner.running} {domain} bind:selected={runner.selected} bind:t={runner.t} {describe} name="complex" />
     </div>
+    {#if runner.result && !extended && runner.result.barcode.bars.length > 0}
+      <div class="panel secondary">
+        <SpectralTable bars={runner.result.barcode.bars} {values} topDim={topDim} />
+      </div>
+    {/if}
 
     <div class="panel secondary">
       <h3>Compute</h3>
       <label class="field"><span>Coefficients</span>
         <select bind:value={modulus}>
           {#each [2, 3, 5, 7] as p}<option value={p}>Z/{p}</option>{/each}
+          <option value={0}>Z (torsion)</option>
         </select>
       </label>
       <label class="field"><span>Up to dimension</span>

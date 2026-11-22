@@ -8,17 +8,30 @@ export interface Bar {
   death_cell: number[] | null;
   /** A representative cycle as `[coefficient, cell]` pairs, if representatives were computed. */
   rep: [number, number[]][] | null;
-  /** For extended persistence, which kind of bar (its death may then be below its birth). */
+  /** For extended persistence, which kind of bar (its death may then be below its birth); for a six-pack, which of
+   * its barcodes (`domain`, `codomain`, `image`, `kernel`, `cokernel` or `pair`). */
   kind?: ExtendedKind;
 }
 
-export type ExtendedKind = 'ordinary' | 'relative' | 'extended+' | 'extended-';
+export type ExtendedKind =
+  | 'ordinary'
+  | 'relative'
+  | 'extended+'
+  | 'extended-'
+  | 'domain'
+  | 'codomain'
+  | 'image'
+  | 'kernel'
+  | 'cokernel'
+  | 'pair';
 
 export interface Barcode {
   bars: Bar[];
   summary: string;
   /** The filtration's edges, if the pipeline draws its complex (see `FiltrationEdges`). */
   edges?: FiltrationEdges | null;
+  /** Magnitude homology (no bars): `ranks[l][k]` (`null`: unknown), and over the integers `[k, l, orders]` of torsion. */
+  magnitude?: { ranks: (number | null)[][]; torsion: [number, number, string[]][]; integral: boolean };
 }
 
 /**
@@ -53,6 +66,8 @@ export interface AlgoOptions {
   parallelSetup?: boolean;
 }
 
+export type BinaryFiltration = 'height' | 'radial' | 'dilation' | 'erosion' | 'signed_distance' | 'density';
+
 export type Metric = 'euclidean' | 'manhattan' | 'chebyshev';
 
 /** The complexes of `phlite_web::network`. */
@@ -73,7 +88,19 @@ export type Job =
       dtmK: number | null;
       options: AlgoOptions;
     }
+  | {
+      /** The six-pack of the inclusion of the Rips filtration of a subset of the points into that of all of them. */
+      pipeline: 'rips-six-pack';
+      coords: Float64Array;
+      pointDim: number;
+      subset: Uint32Array;
+      maxDim: number;
+      threshold: number | null;
+      metric: Metric;
+      options: AlgoOptions;
+    }
   | { pipeline: 'delaunay'; coords: Float64Array; pointDim: number; cech: boolean; options: AlgoOptions }
+  | { pipeline: 'magnitude'; n: number; sources: Uint32Array; targets: Uint32Array; lMax: number; integral: boolean }
   | { pipeline: 'grpph'; n: number; sources: Uint32Array; targets: Uint32Array; weights: Float64Array; grounded: boolean; options: AlgoOptions }
   | {
       pipeline: 'network';
@@ -104,6 +131,10 @@ export type Job =
       height: number;
       superlevel: boolean;
       construction: 'T' | 'V';
+      /** Wrap both axes round (a torus). */
+      periodic: boolean;
+      /** First turn the image into a binary one (pixels above 0.5) and filter that, as giotto-tda's filtrations. */
+      binary: BinaryFiltration | null;
       options: AlgoOptions;
     }
   | {

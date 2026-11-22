@@ -541,35 +541,8 @@ pub fn rips(
     options: JsValue,
 ) -> Result<JsValue, JsError> {
     let config = Config::resolve(options, RIPS_DEFAULTS)?;
-    use phlite_clouds::rips::Metric;
     let metric_name = metric;
-    let metric = match metric {
-        "euclidean" => Metric::Euclidean,
-        "manhattan" => Metric::Manhattan,
-        "chebyshev" => Metric::Chebyshev,
-        other => return Err(err(format!("Unknown metric {other:?}"))),
-    };
-    let distances = if point_dim == 0 {
-        let n = (coords.len() as f64).sqrt() as usize;
-        if n * n != coords.len() {
-            return Err(err("A distance matrix must be square"));
-        }
-        (0..n)
-            .map(|i| (0..n).map(|j| not_nan(coords[i * n + j])).collect())
-            .collect::<Result<Vec<Vec<_>>, _>>()?
-    } else {
-        if !coords.len().is_multiple_of(point_dim) {
-            return Err(err("The coordinates don't divide into points"));
-        }
-        if !coords.iter().all(|x| x.is_finite()) {
-            return Err(err("Coordinates must be finite"));
-        }
-        let points: Vec<&[f64]> = coords.chunks(point_dim).collect();
-        points
-            .iter()
-            .map(|p| points.iter().map(|q| metric.distance(p, q)).collect())
-            .collect::<Vec<Vec<_>>>()
-    };
+    let distances = read_distances(coords, point_dim, metric)?;
     let n = distances.len();
     if n == 0 {
         return to_js(Barcode {
@@ -656,6 +629,212 @@ pub fn rips(
         ),
         edges,
     })
+}
+
+/// The distance matrix of points (`point_dim` coordinates each, in `metric`), or (`point_dim == 0`) a distance matrix
+/// given row by row.
+fn read_distances(coords: &[f64], point_dim: usize, metric: &str) -> Result<Vec<Vec<NotNan<f64>>>, JsError> {
+    use phlite_clouds::rips::Metric;
+    let metric = match metric {
+        "euclidean" => Metric::Euclidean,
+        "manhattan" => Metric::Manhattan,
+        "chebyshev" => Metric::Chebyshev,
+        other => return Err(err(format!("Unknown metric {other:?}"))),
+    };
+    if point_dim == 0 {
+        let n = (coords.len() as f64).sqrt() as usize;
+        if n * n != coords.len() {
+            return Err(err("A distance matrix must be square"));
+        }
+        return (0..n)
+            .map(|i| (0..n).map(|j| not_nan(coords[i * n + j])).collect())
+            .collect::<Result<Vec<Vec<_>>, _>>();
+    }
+    if !coords.len().is_multiple_of(point_dim) {
+        return Err(err("The coordinates don't divide into points"));
+    }
+    if !coords.iter().all(|x| x.is_finite()) {
+        return Err(err("Coordinates must be finite"));
+    }
+    let points: Vec<&[f64]> = coords.chunks(point_dim).collect();
+    Ok(points.iter().map(|p| points.iter().map(|q| metric.distance(p, q)).collect()).collect())
+}
+
+/// The six-pack of the inclusion of the Rips filtration of a subset of the points (`subset`, point indices) into that
+/// of all of them (`phlite_clouds::rips::image::rips_six_pack`): bars of the subset's filtration (`kind` `"domain"`),
+/// the whole's (`"codomain"`), the image, kernel and cokernel of the map on homology (`"image"`, `"kernel"`,
+/// `"cokernel"`) and the pair (`"pair"`), with representatives (lists of simplices) if asked for. Bars have no birth
+/// or death cells (empty). Over Z/2, serially (the reductions run in parallel with each other).
+#[wasm_bindgen]
+pub fn rips_six_pack(
+    coords: &[f64],
+    point_dim: usize,
+    subset: &[u32],
+    max_dim: usize,
+    threshold: Option<f64>,
+    metric: &str,
+    options: JsValue,
+) -> Result<JsValue, JsError> {
+    use phlite::six_pack::{ConeCell, SixPackBar};
+    let config = Config::resolve(options, RIPS_DEFAULTS)?;
+    let distances = read_distances(coords, point_dim, metric)?;
+    let n = distances.len();
+    if n == 0 {
+        return to_js(Barcode { bars: vec![], summary: "No points".into(), edges: None });
+    }
+    if !phlite_clouds::rips::RipsIndex::<u64>::fits(n, max_dim + 1) {
+        return Err(err(format!("Too many points ({n}) for simplices of dimension {}", max_dim + 1)));
+    }
+    let mut in_subset = vec![false; n];
+    for &v in subset {
+        *in_subset.get_mut(v as usize).ok_or_else(|| err(format!("Point {v} isn't one of the {n}")))? = true;
+    }
+    let threshold = not_nan(threshold.unwrap_or(f64::INFINITY))?;
+    let pack = phlite_clouds::rips::image::rips_six_pack::<u64, _>(
+        &distances,
+        &in_subset,
+        max_dim,
+        threshold,
+        config.representatives,
+    );
+    let simplex = |s: phlite_clouds::rips::RipsIndex<u64>| -> Vec<u32> { s.vertices(n).iter().map(|&v| v as u32).collect() };
+    fn out<C>(
+        bars: Vec<SixPackBar<NotNan<f64>, C, Z2>>,
+        kind: &'static str,
+        max_dim: usize,
+        cell: impl Fn(C) -> Vec<u32>,
+    ) -> impl Iterator<Item = OutBar> {
+        bars.into_iter().filter(move |b| b.dimension <= max_dim).map(move |b| OutBar {
+            dim: b.dimension,
+            birth: b.birth.into_inner(),
+            death: b.death.map(NotNan::into_inner),
+            birth_cell: vec![],
+            death_cell: None,
+            rep: b.representative.map(|rep| rep.into_iter().map(|(_, c)| (1, cell(c))).collect()),
+            kind: Some(kind),
+        })
+    }
+    let in_cone = |c: ConeCell<_, _>| match c {
+        ConeCell::Codomain(k) => simplex(k),
+        ConeCell::Cone(l) => simplex(l),
+    };
+    let mut bars: Vec<OutBar> = vec![];
+    bars.extend(out(pack.domain, "domain", max_dim, simplex));
+    bars.extend(out(pack.codomain, "codomain", max_dim, simplex));
+    bars.extend(out(pack.image, "image", max_dim, simplex));
+    bars.extend(out(pack.kernel, "kernel", max_dim, simplex));
+    bars.extend(out(pack.cokernel, "cokernel", max_dim, simplex));
+    bars.extend(out(pack.relative, "pair", max_dim, in_cone));
+    let edges = (n <= DRAWN_POINTS).then(|| FiltrationEdges::flag(&distances));
+    to_js(Barcode {
+        bars,
+        summary: format!(
+            "{} of {n} points, dimensions 0–{max_dim}: the six-pack of the inclusion of their Rips filtrations",
+            subset.len()
+        ),
+        edges,
+    })
+}
+
+/// Magnitude homology, for [`magnitude`]: `ranks[l][k]` (`null` where an integral Smith form was too large) and, over
+/// the integers, `torsion` as `[k, l, orders]`.
+#[derive(Serialize)]
+struct MagnitudeTable {
+    ranks: Vec<Vec<Option<usize>>>,
+    torsion: Vec<(usize, usize, Vec<String>)>,
+    integral: bool,
+}
+
+/// Magnitude homology of a digraph (`phlite_networks::magnitude`, Hepworth and Willerton): the ranks of `MH_{k,l}` for
+/// lengths up to `l_max`, over Z/2 or (`integral`) the integers, with its torsion. Edge lengths are 1. Returned as a
+/// barcode with no bars, a `summary` and a `magnitude` table.
+#[wasm_bindgen]
+pub fn magnitude(n: u32, sources: &[u32], targets: &[u32], l_max: usize, integral: bool) -> Result<JsValue, JsError> {
+    use phlite_networks::magnitude::{magnitude_integral, magnitude_ranks, total_ranks, MagnitudeGraph, MagnitudeQuery};
+    if sources.len() != targets.len() {
+        return Err(err("sources and targets must have the same length"));
+    }
+    let mut edges = vec![];
+    for (&s, &t) in sources.iter().zip(targets) {
+        if s >= n || t >= n {
+            return Err(err(format!("Edge {s} → {t} has a node out of range")));
+        }
+        if s != t {
+            edges.push((s, t));
+        }
+    }
+    let graph = MagnitudeGraph::new(n as usize, &edges);
+    let query = MagnitudeQuery { l_max, k_max: None, pairs: None };
+    let parallel = rayon::current_num_threads() > 1;
+    let table = if integral {
+        let pairs = magnitude_integral(&graph, &query, parallel);
+        let mut ranks: Vec<Vec<Option<usize>>> = (0..=l_max).map(|l| vec![Some(0); l + 1]).collect();
+        let mut torsion: std::collections::BTreeMap<(usize, usize), Vec<String>> = Default::default();
+        for pair in &pairs {
+            for (l, row) in pair.groups.iter().enumerate() {
+                for (k, group) in row.iter().enumerate() {
+                    match group {
+                        None => ranks[l][k] = None,
+                        Some((rank, orders)) => {
+                            if let Some(r) = &mut ranks[l][k] {
+                                *r += rank;
+                            }
+                            if !orders.is_empty() {
+                                torsion.entry((k, l)).or_default().extend(orders.iter().map(u128::to_string));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        MagnitudeTable { ranks, torsion: torsion.into_iter().map(|((k, l), o)| (k, l, o)).collect(), integral }
+    } else {
+        let pairs = magnitude_ranks(&graph, &query, &[2], parallel);
+        let ranks = total_ranks(&pairs, 0, l_max, None).into_iter().map(|row| row.into_iter().map(Some).collect()).collect();
+        MagnitudeTable { ranks, torsion: vec![], integral }
+    };
+    #[derive(Serialize)]
+    struct Out {
+        bars: Vec<OutBar>,
+        summary: String,
+        magnitude: MagnitudeTable,
+    }
+    Out {
+        bars: vec![],
+        summary: format!(
+            "Magnitude homology of {n} nodes and {} edges, lengths 0–{l_max}, over {}",
+            edges.len(),
+            if integral { "the integers" } else { "Z/2" }
+        ),
+        magnitude: table,
+    }
+    .serialize(&serde_wasm_bindgen::Serializer::json_compatible())
+    .map_err(|e| err(e.to_string()))
+}
+
+/// A filtration of the binary image `pixels > 0.5` (`width` × `height`, row by row), as giotto-tda's
+/// (`phlite_images::filtrations`): `kind` is `"height"` (along the diagonal), `"radial"` (from the centre),
+/// `"dilation"`, `"erosion"`, `"signed_distance"` or `"density"` (radius 3). Unreached pixels enter last.
+#[wasm_bindgen]
+pub fn binary_filtration(pixels: &[f64], width: usize, height: usize, kind: &str) -> Result<Vec<f64>, JsError> {
+    use phlite_images::filtrations as f;
+    if pixels.len() != width * height {
+        return Err(err("The image size doesn't match its pixels"));
+    }
+    let image: Vec<bool> = pixels.iter().map(|&v| v > 0.5).collect();
+    let shape = [height, width];
+    let mut out = match kind {
+        "height" => f::height(&image, &shape, &[1.0, 1.0]).map_err(|e| err(e.to_string()))?,
+        "radial" => f::radial(&image, &shape, &[(height as f64 - 1.0) / 2.0, (width as f64 - 1.0) / 2.0], f64::INFINITY, f::Metric::Euclidean)
+            .map_err(|e| err(e.to_string()))?,
+        "dilation" => f::dilation(&image, &shape, None),
+        "erosion" => f::erosion(&image, &shape, None),
+        "signed_distance" => f::signed_distance(&image, &shape, None),
+        "density" => f::density(&image, &shape, 3.0, f::Metric::Euclidean),
+        other => return Err(err(format!("Unknown filtration {other:?}"))),
+    };
+    f::unreached_last(&mut out);
+    Ok(out)
 }
 
 fn not_nan(x: f64) -> Result<NotNan<f64>, JsError> {
@@ -1266,15 +1445,71 @@ pub fn complex(
         3 => complex_bars::<Z3>(raw, values, max_dim, extended, &config)?,
         5 => complex_bars::<Z5>(raw, values, max_dim, extended, &config)?,
         7 => complex_bars::<Z7>(raw, values, max_dim, extended, &config)?,
+        0 if !extended => return integral_complex(raw, values, max_dim),
+        0 => return Err(err("Extended persistence is over a field: choose Z/p")),
         other => {
             return Err(err(format!(
-                "Unsupported modulus {other}; use 2, 3, 5 or 7"
+                "Unsupported modulus {other}; use 0 (the integers), 2, 3, 5 or 7"
             )))
         }
     };
     to_js(Barcode {
         bars,
         summary: format!("{sizes}, over Z/{modulus}; {}", describe(&config)),
+        edges: None,
+    })
+}
+
+/// Persistence over the integers (`phlite::integral_persistence`): the barcode over Q, with the primes whose barcode
+/// over `F_p` differs from it (the primes of the torsion) named in the summary.
+fn integral_complex(raw: RawChain, values: Option<Vec<f64>>, max_dim: Option<usize>) -> Result<JsValue, JsError> {
+    use phlite_complexes::field::Integer;
+    let chain = Chain::<Integer>::from_raw(raw).map_err(|e| err(e.to_string()))?;
+    let values = match values {
+        None => None,
+        Some(values) => Some(
+            chain
+                .extend(values.into_iter().map(|v| (!v.is_nan()).then_some(v)).collect())
+                .map_err(|e| err(e.to_string()))?,
+        ),
+    };
+    let complex = chain.filter(values).map_err(|e| err(e.to_string()))?;
+    let filtered = complex.integral();
+    let result = phlite::integral_persistence::integral_persistence(&filtered.boundary, &filtered.degree)
+        .map_err(|e| err(e.to_string()))?;
+    let at = |rank: usize| complex.at_rank(phlite_complexes::complex::Cell(rank as u32));
+    let bars: Vec<OutBar> = result
+        .rational
+        .iter()
+        .filter_map(|&(b, d)| {
+            let (cell, birth, dim) = at(b);
+            let death = d.map(at);
+            if max_dim.is_some_and(|m| dim > m) || death.is_some_and(|(_, v, _)| v == birth) {
+                return None;
+            }
+            Some(OutBar {
+                dim,
+                birth,
+                death: death.map(|(_, v, _)| v),
+                birth_cell: vec![cell.0],
+                death_cell: death.map(|(c, _, _)| vec![c.0]),
+                rep: None,
+                kind: None,
+            })
+        })
+        .collect();
+    let primes: Vec<String> = result.torsion.iter().map(|(p, _)| p.to_string()).collect();
+    let torsion = if primes.is_empty() {
+        "no torsion: the barcode is the same over every field".to_string()
+    } else {
+        format!("torsion: the barcode over Z/p differs for p = {}", primes.join(", "))
+    };
+    to_js(Barcode {
+        bars,
+        summary: format!(
+            "{} cells, over the integers: the barcode over Q (no representatives); {torsion}",
+            complex.n_cells()
+        ),
         edges: None,
     })
 }
@@ -1331,6 +1566,7 @@ pub fn image(
     height: usize,
     superlevel: bool,
     construction: &str,
+    periodic: bool,
     options: JsValue,
 ) -> Result<JsValue, JsError> {
     use phlite_images::cubical::{filtration_barcode, Construction, CubicalComplex, Filtration};
@@ -1344,6 +1580,55 @@ pub fn image(
         other => return Err(err(format!("Unknown construction {other:?}"))),
     };
     let filtration = if superlevel { Filtration::Superlevel } else { Filtration::Sublevel };
+    if periodic {
+        // Both axes wrap round (a torus, so H₂ too): the explicit periodic complex, without representatives
+        struct P<'a> {
+            pixels: &'a [f64],
+            shape: [usize; 2],
+            construction: Construction,
+            filtration: Filtration,
+        }
+        impl Visitor for P<'_> {
+            type Output = Vec<phlite_images::cubical::periodic::PeriodicBar>;
+            fn visit<R: ColumnRepresentation>(self, algorithm: Algorithm<'_, R>) -> Self::Output {
+                phlite_images::cubical::periodic::periodic_barcode(
+                    self.pixels,
+                    &self.shape,
+                    &[true, true],
+                    self.construction,
+                    self.filtration,
+                    2,
+                    algorithm,
+                )
+            }
+        }
+        let bars = config.run(P { pixels, shape: [height, width], construction, filtration });
+        let sign = if superlevel { -1.0 } else { 1.0 };
+        let cell = |c: &(usize, Vec<u32>)| vec![c.1[1], c.1[0]];
+        let bars = bars
+            .into_iter()
+            .filter(|bar| bar.death.as_ref().is_none_or(|(_, d)| *d != bar.birth_value))
+            .map(|bar| OutBar {
+                dim: bar.birth.0,
+                birth: sign * bar.birth_value.into_inner(),
+                death: bar.death.as_ref().map(|(_, d)| sign * d.into_inner()),
+                birth_cell: cell(&bar.birth),
+                death_cell: bar.death.as_ref().map(|(c, _)| cell(c)),
+                rep: None,
+                kind: None,
+            })
+            .collect();
+        return to_js(Barcode {
+            bars,
+            summary: format!(
+                "{width}×{height} image wrapped round (a torus, {}-construction), {} sets, dimensions 0–2; {}",
+                if construction == Construction::T { "T" } else { "V" },
+                if superlevel { "superlevel" } else { "sublevel" },
+                describe(&config)
+            ),
+            edges: None,
+        });
+    }
     let complex = CubicalComplex::new(pixels.to_vec(), [height, width], construction, filtration)
         .map_err(|e| err(e.to_string()))?;
     struct V<'a> {

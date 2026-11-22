@@ -12,7 +12,7 @@
   import { Runner } from '../../lib/runner.svelte';
   import { IMAGE, defaultsFor } from '../../lib/options';
   import { randomSeed } from '../../lib/random';
-  import type { Job } from '../../lib/types';
+  import type { BinaryFiltration, Job } from '../../lib/types';
   import { EXAMPLES, smoothNoise, loadImage, blur, type Img } from './data';
 
   let source = $state<Source>('examples');
@@ -20,6 +20,10 @@
   let img = $state.raw<Img>(EXAMPLES[0].make());
   let superlevel = $state(EXAMPLES[0].superlevel);
   let construction = $state<'T' | 'V'>('T');
+  /** Wrap both axes round, as GUDHI's PeriodicCubicalComplex (a torus). */
+  let periodic = $state(false);
+  /** A filtration of the binary image (pixels above 0.5), as giotto-tda's, or none: the image itself. */
+  let binary = $state<BinaryFiltration | null>(null);
   let options = $state(defaultsFor(IMAGE));
   const runner = new Runner();
 
@@ -92,6 +96,8 @@
     height: img.height,
     superlevel,
     construction,
+    periodic,
+    binary,
     options: $state.snapshot(options),
   });
   $effect(() => {
@@ -247,6 +253,30 @@
         {/if}
         Computed by <code>phlite_images</code>' cubical complexes, nothing stored but the image.
       </p>
+      <label class="field"><span>Filtration</span>
+        <select bind:value={binary}>
+          <option value={null}>the pixel values</option>
+          <option value="height">binary: height (along the diagonal)</option>
+          <option value="radial">binary: radial (from the centre)</option>
+          <option value="dilation">binary: dilation</option>
+          <option value="erosion">binary: erosion</option>
+          <option value="signed_distance">binary: signed distance</option>
+          <option value="density">binary: density (radius 3)</option>
+        </select>
+      </label>
+      {#if binary}
+        <p class="note">
+          The image is made binary (pixels above 0.5 active) and filtered as giotto-tda's <code>gtda.images</code>
+          filtrations do (<code>phlite.images.filtrations</code>): pixels unreached by the filtration enter last. The
+          view still shows the image itself.
+        </p>
+      {/if}
+      <label class="field"><span>Periodic</span>
+        <input type="checkbox" bind:checked={periodic} />
+        <span class="note">wrap both axes round, so the image lives on a torus (as <code>cubical(image, periodic=True)</code>
+          and GUDHI's <code>PeriodicCubicalComplex</code>): features crossing an edge join up, a constant image has two
+          loops and a void. Built explicitly, without representatives.</span>
+      </label>
       <Options bind:options defaults={IMAGE} />
       <ComputeRow {runner} {job} />
     </div>

@@ -14,7 +14,7 @@
   const s = $derived(Math.max(4, Math.min(20, (width - margin - 8) / Math.max(n, 1))));
   const labels = $derived(s >= 12);
   const repCells = $derived(new Map((bar?.rep ?? []).map(([coeff, cell]) => [cell[0], coeff])));
-  const reduce = (k: number) => ((k % modulus) + modulus) % modulus;
+  const reduce = (k: number) => (modulus === 0 ? k : ((k % modulus) + modulus) % modulus);
 </script>
 
 <div class="matrix" bind:clientWidth={width}>
@@ -55,7 +55,7 @@
     {/if}
   </svg>
   <p class="note">
-    The boundary matrix (over Z/{modulus}), columns and rows in filtration order{labels ? '' : ' (too many cells for labels)'}.
+    The boundary matrix (over {modulus === 0 ? "Z" : `Z/${modulus}`}), columns and rows in filtration order{labels ? '' : ' (too many cells for labels)'}.
     {#if bar}Shaded: the representative's cells; outlined: the birth cell's row and the death cell's column.{/if}
     Values run from {fmt(values[order[0]])} to {fmt(values[order[n - 1]])}.
   </p>

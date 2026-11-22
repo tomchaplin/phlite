@@ -143,7 +143,7 @@ export const EXAMPLES: ComplexExample[] = [
     id: 'rp2',
     name: 'Projective plane',
     about:
-      'The 6-vertex projective plane, every cell at 0. Over Z/2 it has H₁ and H₂ of rank 1; over Z/3 (try it in Compute) both vanish: its H₁ is Z/2 over the integers, which only fields of characteristic 2 see.',
+      'The 6-vertex projective plane, every cell at 0. Over Z/2 it has H₁ and H₂ of rank 1; over Z/3 (try it in Compute) both vanish: its H₁ is Z/2 over the integers, which only fields of characteristic 2 see. Over Z (torsion) the barcode is over Q, and the summary names 2 as the prime of the torsion.',
     modulus: 2,
     make: () =>
       simplicial(
@@ -154,7 +154,7 @@ export const EXAMPLES: ComplexExample[] = [
   {
     id: 'klein',
     name: 'Klein bottle',
-    about: 'A 4 × 4 grid glued with a twist, every cell at 0. Over Z/2: Betti numbers 1, 2, 1. Over Z/3: 1, 1, 0 (it isn\'t orientable).',
+    about: 'A 4 × 4 grid glued with a twist, every cell at 0. Over Z/2: Betti numbers 1, 2, 1. Over Z/3: 1, 1, 0 (it isn\'t orientable). Over Z, H₁ = Z ⊕ Z/2: the prime 2 again.',
     modulus: 2,
     make: () => gluedGrid(4, true),
   },

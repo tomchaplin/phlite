@@ -3,6 +3,7 @@
   import SourceTabs, { type Source } from '../../components/SourceTabs.svelte';
   import FileDrop from '../../components/FileDrop.svelte';
   import Options from '../../components/Options.svelte';
+  import MagnitudeTable from './MagnitudeTable.svelte';
   import ComputeRow from '../../components/ComputeRow.svelte';
   import Results from '../../components/Results.svelte';
   import FiltrationSlider from '../../components/FiltrationSlider.svelte';
@@ -20,7 +21,7 @@
   let exampleId = $state(EXAMPLES[0].id);
   let g = $state.raw<Digraph>(EXAMPLES[0].make());
   /** The digraph's complexes, and (`u-`) those of the graph with its edges undirected. */
-  type Complex = 'grpph' | NetworkKind | 'u-flag';
+  type Complex = 'grpph' | NetworkKind | 'u-flag' | 'magnitude';
   const COMPLEXES: { id: Complex; name: string; about: string }[] = [
     {
       id: 'grpph',
@@ -64,6 +65,12 @@
       about: 'The Dowker source complex: as the sink complex with the edges reversed. By Dowker duality, the same barcode as the sink complex.',
     },
     {
+      id: 'magnitude',
+      name: 'Magnitude homology',
+      about:
+        'Magnitude homology (Hepworth and Willerton): tuples of nodes, consecutive ones distinct, graded by the total length of shortest paths through them, every edge of length 1. A table of ranks, not a barcode; over the integers it finds torsion (rare: the smallest known graphs with any have 15 nodes).',
+    },
+    {
       id: 'u-flag',
       name: 'Flag (undirected)',
       about:
@@ -76,7 +83,9 @@
   let pathFiltration = $state(false);
   /** Whether the complex has a choice of filtration (GrPPH and the grounded flag complex are by shortest paths). */
   const undirected = $derived(complex.startsWith('u-'));
-  const choosesFiltration = $derived(complex !== 'grpph' && complex !== 'grounded-flag');
+  const choosesFiltration = $derived(complex !== 'grpph' && complex !== 'grounded-flag' && complex !== 'magnitude');
+  let lMax = $state(4);
+  let integral = $state(false);
   const pathHomology = $derived(complex === 'grpph' || complex === 'pph');
   const shortestPath = $derived(complex === 'grpph' || complex === 'grounded-flag' || (choosesFiltration && pathFiltration));
   /** PPH of the shortest-path filtration in H₀ and H₁ is GrPPH without the grounding (as Python's `pph`). */
@@ -177,6 +186,7 @@
       weights: Float64Array.from(g.edges.map((e) => e.w)),
       options: $state.snapshot(options),
     };
+    if (complex === 'magnitude') return { pipeline: 'magnitude', n: graph.n, sources: graph.sources, targets: graph.targets, lMax, integral };
     if (viaGrpph) return { pipeline: 'grpph', grounded: complex === 'grpph', ...graph };
     if (undirected) {
       const kind: GraphKind = pathFiltration ? 'flag-sp' : 'flag';
@@ -191,7 +201,7 @@
     };
   });
   // Moving a node changes nothing to compute
-  const jobKey = $derived(job ? JSON.stringify([g.nodes.length, g.edges, options, complex, maxDim, pathFiltration]) : '');
+  const jobKey = $derived(job ? JSON.stringify([g.nodes.length, g.edges, options, complex, maxDim, pathFiltration, lMax, integral]) : '');
   $effect(() => {
     jobKey;
     const j = untrack(() => job);
@@ -321,7 +331,11 @@ c,a,2</pre>
 
   <div>
     <div class="panel">
-      <Results result={runner.result} error={runner.error} running={runner.running} {domain} bind:selected={runner.selected} bind:t={runner.t} {describe} name={complex} />
+      {#if complex === 'magnitude'}
+        <MagnitudeTable result={runner.result} error={runner.error} running={runner.running} />
+      {:else}
+        <Results result={runner.result} error={runner.error} running={runner.running} {domain} bind:selected={runner.selected} bind:t={runner.t} {describe} name={complex} />
+      {/if}
     </div>
 
     <div class="panel secondary">
@@ -339,7 +353,10 @@ c,a,2</pre>
           </select>
         </label>
       {/if}
-      {#if complex !== 'grpph' && complex !== 'grounded-flag'}
+      {#if complex === 'magnitude'}
+        <label class="field"><span>Up to length</span><input type="range" min="1" max="10" bind:value={lMax} /><span>{lMax}</span></label>
+        <label class="field"><span>Over the integers</span><input type="checkbox" bind:checked={integral} /></label>
+      {:else if complex !== 'grpph' && complex !== 'grounded-flag'}
         <label class="field"><span>Up to dimension</span>
           <select bind:value={maxDim}>
             <option value={0}>H₀</option><option value={1}>H₁</option><option value={2}>H₂</option><option value={3}>H₃</option>
@@ -347,7 +364,7 @@ c,a,2</pre>
         </label>
       {/if}
       <p class="note">{COMPLEXES.find((c) => c.id === complex)?.about}</p>
-      <Options bind:options {defaults} />
+      {#if complex !== 'magnitude'}<Options bind:options {defaults} />{/if}
       <ComputeRow {runner} {job} />
     </div>
   </div>
