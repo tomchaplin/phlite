@@ -11,11 +11,11 @@
 
   type Tab = 'points' | 'images' | 'videos' | 'networks' | 'complexes';
   const tabs: [Tab, string, string][] = [
-    ['points', 'Point clouds', 'Rips, DTM, alpha, Čech'],
+    ['points', 'Point clouds', 'Rips, alpha, Čech, zigzags'],
     ['images', 'Images', 'cubical, T or V'],
     ['videos', 'Videos', 'zigzags of frames'],
-    ['networks', 'Networks', 'path homology, flag, magnitude, MPSS'],
-    ['complexes', 'Chain complexes', 'explicit boundary matrices'],
+    ['networks', 'Networks', 'path homology, flag, zigzags, magnitude'],
+    ['complexes', 'Chain complexes', 'your own complexes, zigzags'],
   ];
   const fromHash = () => (tabs.find(([id]) => `#${id}` === location.hash)?.[0] ?? 'points') as Tab;
   let tab = $state<Tab>(fromHash());

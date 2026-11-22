@@ -8,6 +8,9 @@
   import Results from '../../components/Results.svelte';
   import FiltrationSlider from '../../components/FiltrationSlider.svelte';
   import ComplexView, { type Tool } from './ComplexView.svelte';
+  import Segmented from '../../components/Segmented.svelte';
+  import More from '../../components/More.svelte';
+  import { JOINS } from '../../lib/joins';
   import MatrixView from './MatrixView.svelte';
   import { Runner } from '../../lib/runner.svelte';
   import { COMPLEX, defaultsFor } from '../../lib/options';
@@ -280,13 +283,18 @@ abc 2 _ : ab bc -ac`}</pre>
 
     <div class="panel secondary">
       <h3>Compute</h3>
-      <label class="field"><span>Persistence</span>
-        <select bind:value={kind} onchange={() => kind === 'zigzag' && (runner.t = domain[0])}>
-          <option value="ordinary">ordinary (the filtration by value)</option>
-          <option value="extended">extended (up, then back down)</option>
-          <option value="zigzag">zigzag (each cell over its lifetimes)</option>
-        </select>
-      </label>
+      <div class="field"><span>Compute</span>
+        <Segmented
+          label="What to compute"
+          bind:value={kind}
+          options={[
+            { id: 'ordinary', label: 'Persistence', title: 'The filtration by value' },
+            { id: 'extended', label: 'Extended', title: 'Up through the filtration, then back down' },
+            { id: 'zigzag', label: 'Zigzag', title: 'Each cell over its lifetimes' },
+          ]}
+          onchange={(k) => k === 'zigzag' && (runner.t = domain[0])}
+        />
+      </div>
       {#if !zigzag}<label class="field"><span>Coefficients</span>
         <select bind:value={modulus}>
           {#each [2, 3, 5, 7] as p}<option value={p}>Z/{p}</option>{/each}
@@ -301,18 +309,16 @@ abc 2 _ : ab bc -ac`}</pre>
       </label>
       {#if zigzag}
         <div class="field"><span>Join</span>
-          <div class="tools">
-            <button class:on={!intersection} onclick={() => (intersection = false)}>Unions</button>
-            <button class:on={intersection} onclick={() => (intersection = true)}>Intersections</button>
-          </div>
+          <Segmented label="Join" value={intersection ? 'intersection' : 'union'} options={JOINS} onchange={(j) => (intersection = j === 'intersection')} />
         </div>
-        <p class="note">
-          <strong>Zigzag persistence</strong> of cells that live over intervals of time: a cell is there when
-          start ≤ t &lt; end for one of its lifetimes (by default from its value on, which makes this ordinary persistence),
-          and its faces must be there whenever it is. At each time something changes, the zigzag passes through the
-          {intersection ? 'intersection' : 'union'} of the complexes before and after, so a class can live for an instant.
-          Over Z/2, by FastZigzag (Dey and Hou), as <code>phlite.complexes.timed_zigzag</code>.
-        </p>
+        <More>
+          {#snippet lead()}Each cell lives over its lifetimes, start–end below; the slider moves through time.{/snippet}
+          A cell is there when start ≤ t &lt; end for one of its lifetimes (by default from its value on, which makes this
+          ordinary persistence), and its faces must be there whenever it is. At each time something changes, the zigzag
+          passes through the {intersection ? 'intersection' : 'union'} of the complexes before and after, so a class can
+          live for an instant. Over Z/2, by FastZigzag (Dey and Hou), as <code>phlite.complexes.timed_zigzag</code>; in the
+          text format, <code>~ 0-3 5-inf</code>.
+        </More>
         {#if c.length <= 80}
           <div class="lifetimes">
             {#each c as x, i}
@@ -325,13 +331,13 @@ abc 2 _ : ab bc -ac`}</pre>
         {/if}
       {/if}
       {#if extended}
-        <p class="note">
-          Up through the filtration, then back down (each cell at the least value of it and its faces), so every class
-          dies: ordinary and relative bars, and extended bars for the whole complex's homology (Ext⁺ for a component,
-          from its lowest value to its highest; Ext⁻ for a loop of a graph, from its highest to its lowest). With
-          vertex heights, the classical setting: lower-star up, upper-star down. phlite.complexes'
-          <code>extended_persistence</code>.
-        </p>
+        <More>
+          {#snippet lead()}Up through the filtration, then back down, so that every class dies.{/snippet}
+          Each cell comes back at the least value of it and its faces: ordinary and relative bars, and extended bars for
+          the whole complex's homology (Ext⁺ for a component, from its lowest value to its highest; Ext⁻ for a loop of a
+          graph, from its highest to its lowest). With vertex heights, the classical setting: lower-star up, upper-star
+          down. phlite.complexes' <code>extended_persistence</code>.
+        </More>
       {/if}
       {#if !zigzag}<Options bind:options defaults={COMPLEX} />{/if}
       <ComputeRow {runner} {job} />

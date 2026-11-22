@@ -991,7 +991,8 @@ pub fn network_zigzag(
     to_js(Barcode {
         bars: frame_bars(bars, n_snapshots),
         summary: format!(
-            "{n_snapshots} snapshots of the edges active in windows of {width} every {step} from {start}, {} complexes, joined by {}",
+            "{n_snapshots} snapshot{} of the edges active in windows of {width} every {step} from {start}, {} complexes, joined by {}",
+            if n_snapshots == 1 { "" } else { "s" },
             if directed { "directed flag" } else { "clique" },
             if intersection { "intersections" } else { "unions" }
         ),

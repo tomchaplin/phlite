@@ -4,6 +4,7 @@
   // cancelled by d^{d-b}; an essential bar is a generator of every page at (b, k). As phlite's `spectral_sequence()`.
   import type { Bar } from '../../lib/types';
   import { fmt } from '../../lib/format';
+  import More from '../../components/More.svelte';
 
   let { bars, values, topDim }: { bars: Bar[]; values: number[]; topDim: number } = $props();
 
@@ -48,12 +49,12 @@
       </tbody>
     </table>
   </div>
-  <p class="note">
-    The dimension of each entry E<sup>r</sup><sub>p</sub> of the filtration's spectral sequence, from the barcode: page
-    r sees differentials across r steps, and from page {last + 1} on nothing changes (E<sup>∞</sup>, whose rows add up
-    to the homology). As <code>FilteredComplex.spectral_sequence()</code>, which also gives groups, generators and the
-    differentials, over Z too.
-  </p>
+  <More>
+    {#snippet lead()}The dimension of each entry E<sup>r</sup><sub>p</sub> of the filtration's spectral sequence.{/snippet}
+    Read off the barcode: page r sees differentials across r steps, and from page {last + 1} on nothing changes
+    (E<sup>∞</sup>, whose rows add up to the homology). As <code>FilteredComplex.spectral_sequence()</code>, which also
+    gives groups, generators and the differentials, over Z too.
+  </More>
 </div>
 
 <style>

@@ -3,6 +3,10 @@
   // (K_0 -> K_0 ∪ K_1 <- K_1 -> ...), and the barcode follows features from frame to frame.
   import { untrack } from 'svelte';
   import FileDrop from '../../components/FileDrop.svelte';
+  import SourceTabs from '../../components/SourceTabs.svelte';
+  import Segmented from '../../components/Segmented.svelte';
+  import More from '../../components/More.svelte';
+  import { JOINS } from '../../lib/joins';
   import ComputeRow from '../../components/ComputeRow.svelte';
   import Results from '../../components/Results.svelte';
   import FiltrationSlider from '../../components/FiltrationSlider.svelte';
@@ -107,11 +111,7 @@
 
     <div class="panel secondary">
       <h3>Video</h3>
-      <div class="tools" role="tablist">
-        <button class:on={source === 'examples'} onclick={() => (source = 'examples')}>Examples</button>
-        <button class:on={source === 'upload'} onclick={() => (source = 'upload')}>Upload</button>
-        <button class:on={source === 'camera'} onclick={() => (source = 'camera')}>Camera</button>
-      </div>
+      <SourceTabs bind:source tabs={[['examples', 'Examples'], ['upload', 'Upload'], ['camera', 'Camera']]} />
       {#if source === 'examples'}
         <div class="chips">
           {#each EXAMPLES as ex}
@@ -151,32 +151,37 @@
       <h3>Compute</h3>
       <label class="field"><span>Threshold</span><input type="range" min="0" max="1" step="0.01" bind:value={threshold} /><span>{threshold.toFixed(2)}</span></label>
       <div class="field"><span>Pixels</span>
-        <div class="tools">
-          <button class:on={!superlevel} onclick={() => (superlevel = false)}>Dark (at most)</button>
-          <button class:on={superlevel} onclick={() => (superlevel = true)}>Bright (at least)</button>
-        </div>
+        <Segmented
+          label="Pixels"
+          value={superlevel ? 'bright' : 'dark'}
+          options={[
+            { id: 'dark', label: 'Dark (at most)' },
+            { id: 'bright', label: 'Bright (at least)' },
+          ]}
+          onchange={(v) => (superlevel = v === 'bright')}
+        />
       </div>
       <div class="field"><span>Construction</span>
-        <div class="tools">
-          <button class:on={construction === 'T'} onclick={() => (construction = 'T')}>T: pixels as squares</button>
-          <button class:on={construction === 'V'} onclick={() => (construction = 'V')}>V: pixels as vertices</button>
-        </div>
+        <Segmented
+          label="Construction"
+          bind:value={construction}
+          options={[
+            { id: 'T', label: 'T: pixels as squares', title: 'Pixels touching at a corner are connected' },
+            { id: 'V', label: 'V: pixels as vertices', title: 'Only pixels sharing a side are connected' },
+          ]}
+        />
       </div>
       <div class="field"><span>Join</span>
-        <div class="tools">
-          <button class:on={!intersection} onclick={() => (intersection = false)}>Unions</button>
-          <button class:on={intersection} onclick={() => (intersection = true)}>Intersections</button>
-        </div>
+        <Segmented label="Join" value={intersection ? 'intersection' : 'union'} options={JOINS} onchange={(j) => (intersection = j === 'intersection')} />
       </div>
       <label class="field"><span>Periodic</span><input type="checkbox" bind:checked={periodic} /><span class="note">wrap the frames round (a torus)</span></label>
-      <p class="note">
-        <strong>Zigzag persistence</strong> of the video: each frame cut at the threshold is a cubical complex, and each is
-        joined to the next by their union (K₀ → K₀ ∪ K₁ ← K₁ → …) or their intersection (K₀ ← K₀ ∩ K₁ → K₁ → …).
-        A bar is a component (H₀) or a loop (H₁) followed from frame to frame, for as long as it overlaps itself (with
-        unions) or what it shares with the next frame carries it (with intersections): merging ends a bar, splitting
-        starts one. The axis counts frames (a bar ending at i + 0.5 lasted into the join of frames i and i + 1). Computed by FastZigzag (Dey and Hou), as
-        <code>phlite.images.video_zigzag</code>.
-      </p>
+      <More>
+        {#snippet lead()}A bar is a component or a loop followed from frame to frame: merging ends a bar, splitting starts one.{/snippet}
+        Each frame cut at the threshold is a cubical complex, joined to the next by their union (K₀ → K₀ ∪ K₁ ← K₁ → …:
+        a feature lasts while it overlaps itself) or their intersection (K₀ ← K₀ ∩ K₁ → K₁ → …: while what it shares
+        with the next frame carries it). The axis counts frames: a bar ending at i + 0.5 lasted into the join of frames
+        i and i + 1. By FastZigzag (Dey and Hou), as <code>phlite.images.video_zigzag</code>.
+      </More>
       <ComputeRow {runner} {job} />
     </div>
   </div>

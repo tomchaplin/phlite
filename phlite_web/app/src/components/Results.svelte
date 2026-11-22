@@ -63,7 +63,8 @@
     {:else if error}
       <span class="error">{error}</span>
     {:else if result}
-      <span>{result.barcode.summary}</span>
+      {@const [what, ...how] = result.barcode.summary.split('; ')}
+      <span class="what">{what}{#if how.length}<span class="how">{how.join('; ')}</span>{/if}</span>
       <span class="time">{duration(result.ms)}</span>
     {:else}
       <span class="muted">No barcode yet.</span>
@@ -128,6 +129,8 @@
 </div>
 
 <style>
+  .what { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+  .how { font-size: 0.78rem; color: var(--muted); }
   .results { display: flex; flex-direction: column; gap: 0.6rem; }
   .status { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; min-height: 1.8rem; font-size: 0.9rem; }
   .time { margin-left: auto; font-variant-numeric: tabular-nums; color: var(--muted); }

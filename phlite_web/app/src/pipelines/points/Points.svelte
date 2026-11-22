@@ -7,6 +7,9 @@
   import Results from '../../components/Results.svelte';
   import FiltrationSlider from '../../components/FiltrationSlider.svelte';
   import EditBar from '../../components/EditBar.svelte';
+  import Segmented from '../../components/Segmented.svelte';
+  import More from '../../components/More.svelte';
+  import { JOINS } from '../../lib/joins';
   import { History } from '../../lib/history.svelte';
   import View2D, { type Tool } from './View2D.svelte';
   import View3D from './View3D.svelte';
@@ -68,6 +71,8 @@
   const runner = new Runner();
   /** Either zigzag: windows of the cloud, or the cloud's points moving. */
   const isZigzag = $derived(filtration === 'zigzag' || filtration === 'moving');
+  /** What kind of thing is computed: a filtration's barcode, a zigzag, or the maps of a subset. */
+  const kind = $derived(isZigzag ? 'zigzag' : filtration === 'sixpack' ? 'maps' : 'filtration');
   // ---- Moving points: frames of the cloud moving (or uploaded) ----
   let motion = $state<Motion>('breathe');
   let nMovFrames = $state(20);
@@ -392,17 +397,45 @@
 
     <div class="panel secondary">
       <h3>Compute</h3>
-      <div class="field"><span>Filtration</span>
-        <div class="tools">
-          <button class:on={filtration === 'rips'} onclick={() => setFiltration('rips')}>Vietoris–Rips</button>
-          <button class:on={filtration === 'dtm'} onclick={() => setFiltration('dtm')}>DTM-Rips</button>
-          <button class:on={filtration === 'alpha'} onclick={() => setFiltration('alpha')}>Alpha</button>
-          <button class:on={filtration === 'cech'} onclick={() => setFiltration('cech')}>Delaunay–Čech</button>
-          <button class:on={filtration === 'zigzag'} onclick={() => setFiltration('zigzag')} title="Zigzag persistence of the complexes of windows of consecutive points">Sliding windows</button>
-          <button class:on={filtration === 'moving'} onclick={() => setFiltration('moving')} title="Zigzag persistence of the cloud's points moving, frame by frame">Moving points</button>
-          <button class:on={filtration === 'sixpack'} onclick={() => setFiltration('sixpack')} title="The image, kernel and cokernel of the map on homology from the Rips filtration of the selected points to that of all of them">Subset maps</button>
-        </div>
+      <div class="field"><span>Compute</span>
+        <Segmented
+          label="What to compute"
+          value={kind}
+          options={[
+            { id: 'filtration', label: 'Persistence', title: 'The persistent homology of a filtration of the cloud' },
+            { id: 'zigzag', label: 'Zigzag', title: 'Zigzag persistence: windows of the cloud, or its points moving' },
+            { id: 'maps', label: 'Subset maps', title: 'The image, kernel and cokernel of the map from the Rips filtration of the selected points to that of all of them' },
+          ]}
+          onchange={(k) => setFiltration(k === 'filtration' ? 'rips' : k === 'zigzag' ? 'zigzag' : 'sixpack')}
+        />
       </div>
+      {#if kind === 'filtration'}
+        <div class="field"><span>Filtration</span>
+          <Segmented
+            label="Filtration"
+            value={filtration}
+            options={[
+              { id: 'rips', label: 'Vietoris–Rips' },
+              { id: 'dtm', label: 'DTM-Rips' },
+              { id: 'alpha', label: 'Alpha' },
+              { id: 'cech', label: 'Delaunay–Čech' },
+            ]}
+            onchange={setFiltration}
+          />
+        </div>
+      {:else if kind === 'zigzag'}
+        <div class="field"><span>Frames</span>
+          <Segmented
+            label="Frames"
+            value={filtration}
+            options={[
+              { id: 'zigzag', label: 'Sliding windows', title: 'Windows of consecutive points' },
+              { id: 'moving', label: 'Moving points', title: "The cloud's points moving, frame by frame" },
+            ]}
+            onchange={setFiltration}
+          />
+        </div>
+      {/if}
       {#if !isDelaunay}
         <label class="field"><span>Up to dimension</span>
           <select bind:value={maxDim}>
@@ -428,19 +461,17 @@
           <label class="field"><span>Window (points)</span><input type="range" min="2" max={Math.max(2, cloud.points.length)} bind:value={windowSize} /><span>{windowSize}</span></label>
           <label class="field"><span>Step (points)</span><input type="range" min="1" max={Math.max(1, Math.min(windowSize, cloud.points.length))} bind:value={windowStep} /><span>{windowStep}</span></label>
           <div class="field"><span>Join</span>
-            <div class="tools">
-              <button class:on={!intersection} onclick={() => (intersection = false)}>Unions</button>
-              <button class:on={intersection} onclick={() => (intersection = true)}>Intersections</button>
-            </div>
+            <Segmented label="Join" value={intersection ? 'intersection' : 'union'} options={JOINS} onchange={(j) => (intersection = j === 'intersection')} />
           </div>
-          <p class="note">
-            <strong>Zigzag persistence</strong>: the {ZZ_COMPLEXES.find((c) => c.id === zzComplex)?.name} complexes, at the
-            threshold's scale ({ZZ_COMPLEXES.find((c) => c.id === zzComplex)?.scale}), of windows of {windowSize}
-            consecutive points (in the cloud's order) starting every {windowStep}, each joined to the next by their
-            {intersection ? 'intersection (K₀ ← K₀ ∩ K₁ → K₁ …)' : 'union (K₀ → K₀ ∪ K₁ ← K₁ …)'}. A bar is a
-            feature that persists from window to window; the axis counts windows, and the slider's window is drawn solid. Computed by FastZigzag (Dey and Hou), as
-            <code>phlite.clouds.cloud_zigzag</code>. Try the noisy circle: the loop lives while a window spans it.
-          </p>
+          <More>
+            {#snippet lead()}A bar is a feature followed from window to window; the slider's window is drawn solid.{/snippet}
+            The {ZZ_COMPLEXES.find((c) => c.id === zzComplex)?.name} complexes, at the threshold's scale
+            ({ZZ_COMPLEXES.find((c) => c.id === zzComplex)?.scale}), of windows of {windowSize} consecutive points (in the
+            cloud's order) starting every {windowStep}, each joined to the next by their
+            {intersection ? 'intersection (K₀ ← K₀ ∩ K₁ → K₁ …)' : 'union (K₀ → K₀ ∪ K₁ ← K₁ …)'}: a feature lasts while it
+            {intersection ? 'is carried by what one window shares with the next' : 'overlaps itself from window to window'}. By
+            FastZigzag (Dey and Hou), as <code>phlite.clouds.cloud_zigzag</code>.
+          </More>
         {/if}
         {#if filtration === 'moving'}
           {#if uploadedFrames && uploadedFrames.frames[0] === cloud.points}
@@ -454,46 +485,56 @@
             {#if motion === 'drift'}<div class="field"><span>Seed {movSeed}</span><button onclick={() => (movSeed = randomSeed())}>New walk</button></div>{/if}
             <p class="note">{MOTIONS.find((m) => m.id === motion)?.about}</p>
           {/if}
-          <FileDrop accept=".csv,.txt,.tsv" onfile={uploadFrames}>
-            Or upload frames: one point per line, <code>frame, x, y</code> (or <code>frame, x, y, z</code>), the same number
-            of points in every frame, the j-th point of each frame the same point.
-          </FileDrop>
+          <details class="upload">
+            <summary>Upload frames instead</summary>
+            <FileDrop accept=".csv,.txt,.tsv" onfile={uploadFrames}>
+              One point per line, <code>frame, x, y</code> (or <code>frame, x, y, z</code>), the same number of points in
+              every frame, the j-th point of each frame the same point.
+            </FileDrop>
+          </details>
           {#if framesError}<p class="error">{framesError}</p>{/if}
           <div class="field"><span>Join</span>
-            <div class="tools">
-              <button class:on={!intersection} onclick={() => (intersection = false)}>Unions</button>
-              <button class:on={intersection} onclick={() => (intersection = true)}>Intersections</button>
-            </div>
+            <Segmented label="Join" value={intersection ? 'intersection' : 'union'} options={JOINS} onchange={(j) => (intersection = j === 'intersection')} />
           </div>
-          <p class="note">
-            <strong>Zigzag persistence of moving points</strong>: each frame's {ZZ_COMPLEXES.find((c) => c.id === zzComplex)?.name}
-            complex at the threshold's scale ({ZZ_COMPLEXES.find((c) => c.id === zzComplex)?.scale}), on the same points
-            throughout, joined to the next frame's by their {intersection ? 'intersection' : 'union'}. A bar is a feature
-            followed from frame to frame; the slider moves through the frames. As
-            <code>phlite.clouds.cloud_zigzag</code> with a frame per time.
-          </p>
+          <More>
+            {#snippet lead()}A bar is a feature followed from frame to frame; the slider moves through the frames.{/snippet}
+            Each frame's {ZZ_COMPLEXES.find((c) => c.id === zzComplex)?.name} complex at the threshold's scale
+            ({ZZ_COMPLEXES.find((c) => c.id === zzComplex)?.scale}), on the same points throughout, joined to the next
+            frame's by their {intersection ? 'intersection' : 'union'}. As <code>phlite.clouds.cloud_zigzag</code> with a
+            frame per time.
+          </More>
         {/if}
         {#if filtration === 'sixpack'}
-          <p class="note">
-            The <em>six-pack</em> of the inclusion of the Rips filtration of the selected points (the subset) into that of
-            all of them: the barcodes of the <strong>image</strong> (what of the subset's homology is really there), the
+          <More>
+            {#snippet lead()}Select points (the subset) to see what of their homology survives among all the points.{/snippet}
+            The <em>six-pack</em> of the inclusion of the Rips filtration of the subset into that of all the points: the
+            barcodes of the <strong>image</strong> (what of the subset's homology is really there), the
             <strong>kernel</strong> (what of it dies among all the points), the <strong>cokernel</strong> (what the
-            subset doesn't see), the subset's and the whole's own barcodes, and the pair's. Select points to change the
-            subset; with live on, the barcodes follow. As <code>phlite.clouds.rips_six_pack</code>.
-          </p>
+            subset doesn't see), the subset's and the whole's own barcodes, and the pair's. With live on, the barcodes
+            follow the selection. As <code>phlite.clouds.rips_six_pack</code>.
+          </More>
         {/if}
         {#if filtration === 'dtm'}
           <label class="field"><span>DTM neighbours k</span><input type="range" min="1" max={Math.max(1, Math.min(50, cloud.points.length))} bind:value={dtmK} /><span>{dtmK}</span></label>
-          <p class="note">
-            Weighted Rips, each point weighted by its distance to measure (the root mean square distance to its k nearest
-            neighbours, itself included): a point appears at twice its weight, and an edge when the balls about its ends,
-            of radius the scale less the weights, meet. Outliers come late, so noise matters less.
-          </p>
+          <More>
+            {#snippet lead()}Rips weighted so that outliers come late, and noise matters less.{/snippet}
+            Each point is weighted by its distance to measure (the root mean square distance to its k nearest neighbours,
+            itself included): a point appears at twice its weight, and an edge when the balls about its ends, of radius
+            the scale less the weights, meet.
+          </More>
         {/if}
       {:else if filtration === 'alpha'}
-        <p class="note">The exact Delaunay triangulation (in the plane or in space), each cell entering at the radius of its smallest empty circumsphere: the same barcode as the Čech filtration, from a small complex.</p>
+        <More>
+          {#snippet lead()}The Čech barcode, from the much smaller Delaunay triangulation.{/snippet}
+          The exact Delaunay triangulation (in the plane or in space), each cell entering at the radius of its smallest
+          empty circumsphere.
+        </More>
       {:else}
-        <p class="note">The exact Delaunay triangulation (in the plane or in space), each cell entering at the radius of its minimal enclosing ball, when the balls about its vertices first meet.</p>
+        <More>
+          {#snippet lead()}The Delaunay triangulation, each cell entering when the balls about its vertices first meet.{/snippet}
+          Each cell enters at the radius of its minimal enclosing ball (as GUDHI's <code>DelaunayCechComplex</code>), in
+          the plane or in space.
+        </More>
       {/if}
       {#if !isZigzag}<Options bind:options defaults={isDelaunay ? COMPLEX : RIPS} />{/if}
       <ComputeRow {runner} {job} disabled={blocked} />

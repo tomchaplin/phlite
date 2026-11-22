@@ -11,6 +11,8 @@
   }: { options: Required<AlgoOptions>; defaults: PipelineDefaults; allowHomology?: boolean } = $props();
 
   let advanced = $state(false);
+  /** The options are folded into a one-line summary until opened. */
+  let open = $state(false);
   let threads = $state(engine.requested);
 
   function setAlgorithm(algorithm: AlgoOptions['algorithm']) {
@@ -40,6 +42,11 @@
 </script>
 
 <div class="options">
+  <button class="summary link" aria-expanded={open} onclick={() => (open = !open)}>
+    {open ? '▾' : '▸'} Algorithm: {options.algorithm === 'parallel' ? 'parallel clearing' : options.algorithm === 'clearing' ? 'clearing' : 'standard'} ·
+    {options.method}{options.representatives ? ' · representatives' : ''}{isDefault(defaults, options) ? '' : ' (changed)'}
+  </button>
+  {#if open}
   <div class="row">
     <label for="algo">Algorithm</label>
     <select id="algo" value={options.algorithm} onchange={(e) => setAlgorithm(e.currentTarget.value as AlgoOptions['algorithm'])}>
@@ -135,6 +142,7 @@
       <button class="link" onclick={() => (options = defaultsFor(defaults))}>Reset to defaults</button>
     {/if}
   </div>
+  {/if}
 </div>
 
 <style>

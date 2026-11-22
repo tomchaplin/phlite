@@ -1,16 +1,27 @@
-<script lang="ts">
+<script lang="ts" module>
   export type Source = 'examples' | 'random' | 'upload' | 'draw';
-  let { source = $bindable(), drawLabel = 'Draw' }: { source: Source; drawLabel?: string } = $props();
-  const tabs: [Source, string][] = $derived([
-    ['examples', 'Examples'],
-    ['random', 'Random'],
-    ['upload', 'Upload'],
-    ['draw', drawLabel],
-  ]);
+</script>
+
+<script lang="ts" generics="T extends string = Source">
+  // Where the data comes from: examples, random, upload, drawn (or, with `tabs`, any list of sources).
+  let {
+    source = $bindable(),
+    drawLabel = 'Draw',
+    tabs,
+  }: { source: T; drawLabel?: string; tabs?: [T, string][] } = $props();
+  const shown = $derived(
+    tabs ??
+      ([
+        ['examples', 'Examples'],
+        ['random', 'Random'],
+        ['upload', 'Upload'],
+        ['draw', drawLabel],
+      ] as [T, string][]),
+  );
 </script>
 
 <div class="tabs" role="tablist">
-  {#each tabs as [id, name]}
+  {#each shown as [id, name]}
     <button role="tab" aria-selected={source === id} class:active={source === id} onclick={() => (source = id)}>{name}</button>
   {/each}
 </div>

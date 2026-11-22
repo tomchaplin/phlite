@@ -9,6 +9,9 @@
   import Results from '../../components/Results.svelte';
   import FiltrationSlider from '../../components/FiltrationSlider.svelte';
   import EditBar from '../../components/EditBar.svelte';
+  import Segmented from '../../components/Segmented.svelte';
+  import More from '../../components/More.svelte';
+  import { JOINS } from '../../lib/joins';
   import { History } from '../../lib/history.svelte';
   import GraphView, { type Tool } from './GraphView.svelte';
   import { Runner } from '../../lib/runner.svelte';
@@ -97,6 +100,16 @@
     },
   ];
   let complex = $state<Complex>('grpph');
+  /** The complex's explanation: its first sentence, and the rest folded away. */
+  const about = $derived(COMPLEXES.find((c) => c.id === complex)?.about ?? '');
+  const aboutCut = $derived(about.search(/\.(\s|$)/) + 1);
+  const aboutLead = $derived(aboutCut > 0 ? about.slice(0, aboutCut) : about);
+  const aboutRest = $derived(aboutCut > 0 ? about.slice(aboutCut).trim() : '');
+  type Kind = 'persistence' | 'zigzag' | 'magnitude';
+  const kindOf = (c: Complex): Kind =>
+    c === 'zz-clique' || c === 'zz-flag' ? 'zigzag' : c === 'magnitude' || c === 'mpss' ? 'magnitude' : 'persistence';
+  /** The last complex chosen of each kind, to go back to. */
+  const lastOf: Record<Kind, Complex> = $state({ persistence: 'grpph', zigzag: 'zz-clique', magnitude: 'magnitude' });
   /** A zigzag over time: snapshots of the edges active in windows of `zzWidth`, starting every `zzStep`. */
   const zigzag = $derived(complex === 'zz-clique' || complex === 'zz-flag');
   let zzWidth = $state(4);
@@ -155,6 +168,7 @@
   const runner = new Runner();
   function setComplex(c: Complex) {
     complex = c;
+    lastOf[kindOf(c)] = c;
     if (c === 'zz-clique' || c === 'zz-flag') runner.t = 0;
     options = defaultsFor(defaultsOf(c, pathFiltration));
   }
@@ -416,11 +430,57 @@ c,a,2</pre>
 
     <div class="panel secondary">
       <h3>Compute</h3>
-      <label class="field"><span>Complex</span>
-        <select value={complex} onchange={(e) => setComplex(e.currentTarget.value as Complex)}>
-          {#each COMPLEXES as c}<option value={c.id}>{c.name}</option>{/each}
-        </select>
-      </label>
+      <div class="field"><span>Compute</span>
+        <Segmented
+          label="What to compute"
+          value={kindOf(complex)}
+          options={[
+            { id: 'persistence', label: 'Persistence', title: 'Persistent homology of the weighted digraph' },
+            { id: 'zigzag', label: 'Zigzag over time', title: 'Edge weights as times: snapshots in sliding windows of time' },
+            { id: 'magnitude', label: 'Magnitude', title: 'Magnitude homology and the magnitude-path spectral sequence' },
+          ]}
+          onchange={(k) => setComplex(lastOf[k])}
+        />
+      </div>
+      {#if kindOf(complex) === 'persistence'}
+        <label class="field"><span>Complex</span>
+          <select value={complex} onchange={(e) => setComplex(e.currentTarget.value as Complex)}>
+            <optgroup label="Path homology">
+              {#each COMPLEXES.filter((c) => c.id === 'grpph' || c.id === 'pph') as c}<option value={c.id}>{c.name}</option>{/each}
+            </optgroup>
+            <optgroup label="Complexes of the digraph">
+              {#each COMPLEXES.filter((c) => ['flag', 'grounded-flag', 'tuples', 'dowker-sink', 'dowker-source'].includes(c.id)) as c}<option value={c.id}>{c.name}</option>{/each}
+            </optgroup>
+            <optgroup label="Of the undirected graph">
+              {#each COMPLEXES.filter((c) => c.id === 'u-flag') as c}<option value={c.id}>{c.name}</option>{/each}
+            </optgroup>
+          </select>
+        </label>
+      {:else if kindOf(complex) === 'zigzag'}
+        <div class="field"><span>Complex</span>
+          <Segmented
+            label="Complex"
+            value={complex}
+            options={[
+              { id: 'zz-clique', label: 'Clique' },
+              { id: 'zz-flag', label: 'Directed flag' },
+            ]}
+            onchange={setComplex}
+          />
+        </div>
+      {:else}
+        <div class="field"><span>Table</span>
+          <Segmented
+            label="Magnitude"
+            value={complex}
+            options={[
+              { id: 'magnitude', label: 'Magnitude homology' },
+              { id: 'mpss', label: 'Spectral sequence' },
+            ]}
+            onchange={setComplex}
+          />
+        </div>
+      {/if}
       {#if choosesFiltration}
         <label class="field"><span>Filtration</span>
           <select bind:value={pathFiltration}>
@@ -444,10 +504,7 @@ c,a,2</pre>
         <label class="field"><span>Window of time</span><input type="number" min="0" step="0.5" bind:value={zzWidth} /></label>
         <label class="field"><span>Step</span><input type="number" min="0.01" step="0.5" bind:value={zzStep} /><span>{zzCount} snapshots</span></label>
         <div class="field"><span>Join</span>
-          <div class="tools">
-            <button class:on={!zzIntersection} onclick={() => (zzIntersection = false)}>Unions</button>
-            <button class:on={zzIntersection} onclick={() => (zzIntersection = true)}>Intersections</button>
-          </div>
+          <Segmented label="Join" value={zzIntersection ? 'intersection' : 'union'} options={JOINS} onchange={(j) => (zzIntersection = j === 'intersection')} />
         </div>
         <label class="field"><span>Up to dimension</span>
           <select bind:value={maxDim}>
@@ -461,7 +518,10 @@ c,a,2</pre>
           </select>
         </label>
       {/if}
-      <p class="note">{COMPLEXES.find((c) => c.id === complex)?.about}</p>
+      <More>
+        {#snippet lead()}{aboutLead}{/snippet}
+        {#if aboutRest}{aboutRest}{/if}
+      </More>
       {#if complex !== 'magnitude' && complex !== 'mpss' && !zigzag}<Options bind:options {defaults} />{/if}
       <ComputeRow {runner} {job} />
     </div>
