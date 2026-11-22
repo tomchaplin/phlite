@@ -452,3 +452,44 @@ windows over Z (14.8 s for a 3,456-cell mesh).
 * Still missing from other packages: weighted alpha (GUDHI; needs a regular triangulation), zigzag persistence
   (Dionysus, GUDHI; a different reduction), Rips/cubical/alpha over Z/p natively (Ripser's `--modulus`; today through
   the exporters and `modulus=p`), and a native (implicit) periodic cubical complex for large volumes.
+
+# Part 3 (night of 2026-11-21/22, unattended): review, APIs, docs, playground
+
+Tom asked for a review of the day's work (generality through Rust traits, Python and Rust implementations,
+documentation, playground examples), then work on every topic: integral PH and spectral sequences, magnitude, zigzag,
+phimaker, the Perseus comparison and GUDHI's filtrations.
+
+**Generality (Rust).** `phlite::six_pack::FilteredChainMap` (any two oracles and a chain map; six-pack by a lazy
+mapping cylinder; `Inclusion` direct), implemented for explicit complexes (`ComplexMap`) and lazy Rips (`RipsMap`,
+`rips_six_pack` generic over the index type); `integral_persistence_of` (any oracle with integer coefficients); image
+filtrations ported to Rust (`phlite_images::filtrations`, now behind the Python functions).
+
+**Python APIs.** `SixPack`/`PackBarcode`/`PackBar` (with `ranks`, `plot`), `FilteredMap` (auto-detects inclusions,
+`method='cylinder'`), `FilteredComplex.from_simplices(pairs)` (every exporter's output goes straight on),
+`Zigzag` (chained `insert`/`delete`, `with_faces`/`with_cofaces`, `move_to`, `from_complexes`, `rips_windows`) and
+`ZigzagBarcode` (named-tuple bars, `betti_curve`, `to_dionysus`, `plot`), `MagnitudeHomology` (list-compatible,
+`rank`/`group`/`torsion`/`magnitude_coefficients`/table).
+
+**Correctness.** Six-packs: ranks and representative bases against linear algebra (inclusions, simplicial maps via
+the mapping cone, lazy Rips); 20,000-seed sweep. Dionysus: 1,000 random zigzags with re-insertions identical. phimaker:
+1,000 random cases identical. Čech radii in 4–6 dimensions against minimal enclosing balls as convex programs (GUDHI's
+Python has no Čech complex).
+
+**Benchmarks** (`perf-results/maps-zigzag-2026-11-22.md`, `gudhi-filtrations-2026-11-22.md`):
+* images/kernels/cokernels 1.2–1.8× faster than phimaker; the six-pack with representatives in about phimaker's time;
+* zigzag 17–385× faster than Dionysus (1.7M operations: 4.9 s against 32 min);
+* witness complexes (after making them 8× faster: allocation-free enumeration, u128 keys, parallel witnesses) 4–26×
+  faster than GUDHI's relaxed complex, and 700–18,000× faster than its strong one;
+* periodic cubical complexes (after removing per-cell allocations: 2.5–4× faster) 1.1–1.3× faster than GUDHI.
+* Perseus is still 6–13× faster on 2D images (its planar union-find engine): the largest open gap.
+
+**Docs.** Book chapters: maps and six-packs, zigzag, the integers, spectral sequences, magnitude homology; references;
+READMEs credit Perseus, Cohen-Steiner et al./phimaker, Dey–Hou/Dionysus, Kenzo, Hepworth–Willerton, Asao,
+Hepworth–Roff, gramag, GUDHI, giotto-tda, Glisse–Pritam, with honest performance summaries.
+
+**Playground.** Points: subset six-packs (select points), sliding-window zigzags; networks: magnitude homology table;
+images: periodic, binary filtrations; complexes: over Z (torsion primes), spectral sequence pages.
+
+Not done: running the C++ FastZigzag binary (blocked by the permission classifier; needs Tom's approval); Perseus's
+planar engine for 2D images; spectral sequences in the playground over Z (the panel reads pages off the barcode, so
+over a field only).
