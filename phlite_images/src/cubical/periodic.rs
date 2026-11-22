@@ -14,18 +14,39 @@ use phlite_complexes::complex::{Chain, RawChain};
 
 use super::{Construction, Filtration};
 
-/// An explicit cubical complex: every cell present (entering at a finite value), its dimension, coordinates on the
-/// doubled grid, value (in the sublevel filtration of the possibly negated image) and oriented boundary.
+/// An explicit cubical complex: every cell present (entering at a finite value), its dimension, position on the
+/// doubled grid, value (in the sublevel filtration of the possibly negated image) and oriented boundary, faces first.
 #[derive(Debug, Clone, Default)]
 pub struct ExplicitCubical {
     pub dimensions: Vec<usize>,
-    pub coordinates: Vec<Vec<u32>>,
     pub values: Vec<f64>,
-    /// Faces of each cell, as positions in these lists, with coefficients ±1
-    pub boundary: Vec<Vec<(usize, i64)>>,
+    /// The faces of cell `i` are `faces[indptr[i]..indptr[i + 1]]`: positions in these lists, with coefficients ±1
+    pub indptr: Vec<usize>,
+    pub faces: Vec<(usize, i64)>,
+    /// Each cell's index in the doubled grid (row-major over `sizes`)
+    pub grid: Vec<usize>,
+    /// The doubled grid's size along each axis
+    pub sizes: Vec<usize>,
 }
 
-/// The cubical complex of the image with this `shape` (pixels in C order), with the axes in `periodic` wrapping round.
+impl ExplicitCubical {
+    /// The coordinates of cell `i` on the doubled grid.
+    pub fn coordinates(&self, i: usize) -> Vec<u32> {
+        let mut index = self.grid[i];
+        let mut out = vec![0; self.sizes.len()];
+        for (a, &size) in self.sizes.iter().enumerate().rev() {
+            out[a] = (index % size) as u32;
+            index /= size;
+        }
+        out
+    }
+}
+
+/// The cubical complex of the image with this `shape` (pixels in C order, at most [`super::MAX_AXES`] axes), with the
+/// axes in `periodic` wrapping round.
+///
+/// # Panics
+/// If there are more than [`super::MAX_AXES`] axes.
 pub fn explicit_cubical(
     pixels: &[f64],
     shape: &[usize],
@@ -33,8 +54,10 @@ pub fn explicit_cubical(
     construction: Construction,
     filtration: Filtration,
 ) -> ExplicitCubical {
+    const M: usize = super::MAX_AXES;
     let d = shape.len();
     assert_eq!(periodic.len(), d);
+    assert!(d <= M, "at most {M} axes");
     if shape.contains(&0) {
         return ExplicitCubical::default();
     }
@@ -51,115 +74,137 @@ pub fn explicit_cubical(
             (Construction::V, false) => 2 * shape[a] - 1,
         })
         .collect();
-    let pixel_strides: Vec<usize> = (0..d).map(|a| shape[a + 1..].iter().product()).collect();
+    let mut pixel_strides = [0usize; M];
+    let mut grid_strides = [0usize; M];
+    for a in 0..d {
+        pixel_strides[a] = shape[a + 1..].iter().product();
+        grid_strides[a] = sizes[a + 1..].iter().product();
+    }
     let n_cells: usize = sizes.iter().product();
-    // The pixels around a coordinate along an axis: the top cells (T: odd coordinates) or vertices (V: even) next to
-    // it, as pixel coordinates (none past a non-periodic edge)
-    let around = |a: usize, c: usize| -> Vec<usize> {
+    // The pixels next to coordinate `c` along axis `a` (at most two): the top cells (T: odd coordinates) or vertices
+    // (V: even) next to it, as pixel coordinates (none past a non-periodic edge)
+    let around = |a: usize, c: usize| -> ([usize; 2], usize) {
         let (n, size) = (shape[a], sizes[a]);
-        let neighbours: Vec<usize> = match construction {
-            Construction::T if c % 2 == 1 => vec![c],
-            Construction::V if c % 2 == 0 => vec![c],
-            _ => {
-                let mut out = vec![];
-                if c > 0 {
-                    out.push(c - 1);
-                } else if periodic[a] {
-                    out.push(size - 1);
-                }
-                if c + 1 < size {
-                    out.push(c + 1);
-                } else if periodic[a] {
-                    out.push(0);
-                }
-                out
-            }
-        };
-        neighbours
-            .into_iter()
-            .map(|x| match construction {
+        let mut neighbours = [0usize; 2];
+        let mut k = 0;
+        let mut push = |x: usize| {
+            let p = match construction {
                 Construction::T => (x - 1) / 2,
                 Construction::V => x / 2,
-            })
-            .filter(|&p| p < n)
-            .collect()
+            };
+            if p < n {
+                neighbours[k] = p;
+                k += 1;
+            }
+        };
+        match construction {
+            Construction::T if c % 2 == 1 => push(c),
+            Construction::V if c % 2 == 0 => push(c),
+            _ => {
+                if c > 0 {
+                    push(c - 1);
+                } else if periodic[a] {
+                    push(size - 1);
+                }
+                if c + 1 < size {
+                    push(c + 1);
+                } else if periodic[a] {
+                    push(0);
+                }
+            }
+        }
+        (neighbours, k)
     };
-    let decode = |mut i: usize| -> Vec<usize> {
-        let mut c = vec![0; d];
+    let decode = |mut i: usize| -> [usize; M] {
+        let mut c = [0usize; M];
         for a in (0..d).rev() {
             c[a] = i % sizes[a];
             i /= sizes[a];
         }
         c
     };
-    let encode = |c: &[usize]| c.iter().zip(&sizes).fold(0, |acc, (&x, &s)| acc * s + x);
     // Values: T takes the least of the top cells around, V the greatest of the vertices
-    let mut values = vec![f64::INFINITY; n_cells];
-    for (i, value) in values.iter_mut().enumerate() {
-        let c = decode(i);
-        let choices: Vec<Vec<usize>> = (0..d).map(|a| around(a, c[a])).collect();
-        if choices.iter().any(Vec::is_empty) {
-            continue;
-        }
-        let mut best = match construction {
-            Construction::T => f64::INFINITY,
-            Construction::V => f64::NEG_INFINITY,
-        };
-        // Every pixel around: one choice along each axis (a mixed-radix count)
-        let total: usize = choices.iter().map(Vec::len).product();
-        for combination in 0..total {
-            let mut rest = combination;
-            let mut p = 0;
-            for a in (0..d).rev() {
-                let k = choices[a].len();
-                p += choices[a][rest % k] * pixel_strides[a];
-                rest /= k;
+    let values: Vec<f64> = (0..n_cells)
+        .map(|i| {
+            let c = decode(i);
+            let mut choices = [([0usize; 2], 0usize); M];
+            for a in 0..d {
+                choices[a] = around(a, c[a]);
+                if choices[a].1 == 0 {
+                    return f64::INFINITY;
+                }
             }
-            let v = pixel(pixels[p]);
-            best = match construction {
-                Construction::T => best.min(v),
-                Construction::V => best.max(v),
+            let mut best = match construction {
+                Construction::T => f64::INFINITY,
+                Construction::V => f64::NEG_INFINITY,
             };
-        }
-        *value = best;
+            // Every pixel around: one choice along each axis (a mixed-radix count)
+            let total: usize = choices[..d].iter().map(|(_, k)| k).product();
+            for combination in 0..total {
+                let mut rest = combination;
+                let mut p = 0;
+                for a in (0..d).rev() {
+                    let (options, k) = choices[a];
+                    p += options[rest % k] * pixel_strides[a];
+                    rest /= k;
+                }
+                let v = pixel(pixels[p]);
+                best = match construction {
+                    Construction::T => best.min(v),
+                    Construction::V => best.max(v),
+                };
+            }
+            best
+        })
+        .collect();
+    // Keep the cells present, listed by dimension (so that faces come before their cofaces, which ties in value
+    // need), with the oriented boundary: over the spanned axes (the i-th signed (-1)^i), the upper face minus the
+    // lower
+    let dimension_of = |i: usize| decode(i)[..d].iter().filter(|&&x| x % 2 == 1).count();
+    let mut by_dimension: Vec<Vec<usize>> = vec![vec![]; d + 1];
+    for i in (0..n_cells).filter(|&i| values[i] < f64::INFINITY) {
+        by_dimension[dimension_of(i)].push(i);
     }
-    // Keep the cells present, with the oriented boundary: sum over the spanned axes (the i-th spanned axis signed
-    // (-1)^i) of the upper face minus the lower
-    // (Listed by dimension, so that faces come before their cofaces, which ties in value need)
-    let dimension_of = |i: usize| decode(i).iter().filter(|&&x| x % 2 == 1).count();
-    let mut present: Vec<usize> = (0..n_cells).filter(|&i| values[i] < f64::INFINITY).collect();
-    present.sort_by_key(|&i| (dimension_of(i), i));
     let mut position = vec![usize::MAX; n_cells];
-    let mut out = ExplicitCubical::default();
-    for i in present {
-        position[i] = out.values.len();
-        out.values.push(values[i]);
-        let c = decode(i);
-        out.dimensions.push(c.iter().filter(|&&x| x % 2 == 1).count());
-        out.coordinates.push(c.iter().map(|&x| x as u32).collect());
+    let mut out = ExplicitCubical { sizes: sizes.clone(), indptr: vec![0], ..Default::default() };
+    for (k, cells) in by_dimension.into_iter().enumerate() {
+        for i in cells {
+            position[i] = out.values.len();
+            out.values.push(values[i]);
+            out.dimensions.push(k);
+            out.grid.push(i);
+        }
     }
-    for c in out.coordinates.iter() {
-        let c: Vec<usize> = c.iter().map(|&x| x as usize).collect();
-        let mut faces: Vec<(usize, i64)> = vec![];
+    for &i in &out.grid {
+        let c = decode(i);
+        let start = out.faces.len();
         let mut spanned = 0;
         for a in 0..d {
             if c[a] % 2 == 1 {
-                let sign = if spanned % 2 == 0 { 1 } else { -1 };
+                let sign: i64 = if spanned % 2 == 0 { 1 } else { -1 };
                 spanned += 1;
-                for (step_up, s) in [(true, sign), (false, -sign)] {
-                    let mut f = c.clone();
-                    f[a] = if step_up { (c[a] + 1) % sizes[a] } else { c[a] - 1 };
-                    let j = position[encode(&f)];
+                let up = if c[a] + 1 == sizes[a] { i + grid_strides[a] - sizes[a] * grid_strides[a] } else { i + grid_strides[a] };
+                let down = i - grid_strides[a];
+                for (g, s) in [(up, sign), (down, -sign)] {
+                    let j = position[g];
                     debug_assert_ne!(j, usize::MAX, "a face of a present cell is present");
-                    match faces.iter_mut().find(|(k, _)| *k == j) {
+                    // (A periodic axis of one pixel: both faces are the same cell, and cancel)
+                    match out.faces[start..].iter_mut().find(|(f, _)| *f == j) {
                         Some((_, x)) => *x += s,
-                        None => faces.push((j, s)),
+                        None => out.faces.push((j, s)),
                     }
                 }
             }
         }
-        faces.retain(|&(_, x)| x != 0);
-        out.boundary.push(faces);
+        let mut end = start;
+        for q in start..out.faces.len() {
+            if out.faces[q].1 != 0 {
+                out.faces[end] = out.faces[q];
+                end += 1;
+            }
+        }
+        out.faces.truncate(end);
+        out.indptr.push(end);
     }
     out
 }
@@ -184,19 +229,16 @@ pub fn periodic_barcode<R: ColumnRepresentation>(
     if complex.values.is_empty() {
         return vec![];
     }
-    let mut raw = RawChain { dimensions: vec![], indptr: vec![0], indices: vec![], coefficients: Some(vec![]) };
-    for (k, faces) in complex.dimensions.iter().zip(&complex.boundary) {
-        raw.dimensions.push(*k as i64);
-        for &(f, x) in faces {
-            raw.indices.push(f as i64);
-            raw.coefficients.as_mut().expect("set").push(x);
-        }
-        raw.indptr.push(raw.indices.len() as i64);
-    }
+    let raw = RawChain {
+        dimensions: complex.dimensions.iter().map(|&k| k as i64).collect(),
+        indptr: complex.indptr.iter().map(|&q| q as i64).collect(),
+        indices: complex.faces.iter().map(|&(f, _)| f as i64).collect(),
+        coefficients: Some(complex.faces.iter().map(|&(_, x)| x).collect()),
+    };
     let filtered = Chain::<Z2>::from_raw(raw)
         .and_then(|chain| chain.filter(Some(complex.values.clone())))
         .expect("a cubical complex, faces no later than their cofaces");
-    let cell = |c: phlite_complexes::complex::Cell| (complex.dimensions[c.0 as usize], complex.coordinates[c.0 as usize].clone());
+    let cell = |c: phlite_complexes::complex::Cell| (complex.dimensions[c.0 as usize], complex.coordinates(c.0 as usize));
     filtered
         .barcode(Some(max_dim), Method::Cohomology, algorithm, false)
         .into_iter()
