@@ -15,7 +15,7 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Mathematics",
 ]
 # Every phlite package is released on the same version (phlite_bindings' tests check this pin)
-dependencies = ["phlite-core==0.2.0", "numpy"]
+dependencies = ["phlite-core==0.3.0", "numpy"]
 dynamic = ["version"]
 
 [project.urls]
