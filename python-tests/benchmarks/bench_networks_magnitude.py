@@ -98,4 +98,7 @@ def test_magnitude(benchmark, n, p, l_max, implementation):
         implementation=IMPLEMENTATIONS[implementation],
         make_input=lambda: (n, edges_of(n, p), l_max),
         reference=functools.partial(reference, n, p, l_max) if implementation == "phlite (serial)" else None,
+        # gramag's own rayon pool, once started (by the timed runs of an earlier case), hangs a forked child: run its
+        # first run here (these cases are small)
+        timeout=0 if implementation == "gramag" else None,
     )

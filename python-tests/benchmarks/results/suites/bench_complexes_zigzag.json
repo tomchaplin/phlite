@@ -1,0 +1,1104 @@
+{
+    "machine_info": {
+        "processor": "",
+        "machine": "x86_64",
+        "python_compiler": "Clang 22.1.3 ",
+        "python_implementation": "CPython",
+        "python_implementation_version": "3.13.13",
+        "python_version": "3.13.13",
+        "python_build": [
+            "main",
+            "May 10 2026 19:26:54"
+        ],
+        "release": "7.3.4-arch1-2",
+        "system": "Linux",
+        "cpu": {
+            "python_version": "3.13.13.final.0 (64 bit)",
+            "cpuinfo_version": [
+                10,
+                1,
+                1
+            ],
+            "cpuinfo_version_string": "10.1.1",
+            "arch": "X86_64",
+            "bits": 64,
+            "count": 8,
+            "arch_string_raw": "x86_64",
+            "vendor_id_raw": "GenuineIntel",
+            "brand_raw": "11th Gen Intel(R) Core(TM) i7-1185G7 @ 3.00GHz",
+            "hz_advertised_friendly": "3.0000 GHz",
+            "hz_advertised": [
+                3000000000,
+                0
+            ],
+            "stepping": 1,
+            "model": 140,
+            "family": 6,
+            "flags": [
+                "3dnowprefetch",
+                "abm",
+                "acpi",
+                "adx",
+                "aes",
+                "aperfmperf",
+                "apic",
+                "arat",
+                "arch_capabilities",
+                "arch_perfmon",
+                "art",
+                "avx",
+                "avx2",
+                "avx512_bitalg",
+                "avx512_vbmi2",
+                "avx512_vnni",
+                "avx512_vp2intersect",
+                "avx512_vpopcntdq",
+                "avx512bitalg",
+                "avx512bw",
+                "avx512cd",
+                "avx512dq",
+                "avx512f",
+                "avx512ifma",
+                "avx512vbmi",
+                "avx512vbmi2",
+                "avx512vl",
+                "avx512vnni",
+                "avx512vpopcntdq",
+                "bmi1",
+                "bmi2",
+                "bts",
+                "cat_l2",
+                "cdp_l2",
+                "clflush",
+                "clflushopt",
+                "clwb",
+                "cmov",
+                "constant_tsc",
+                "cpuid",
+                "cpuid_fault",
+                "cx16",
+                "cx8",
+                "de",
+                "ds_cpl",
+                "dtes64",
+                "dtherm",
+                "dts",
+                "epb",
+                "ept",
+                "ept_ad",
+                "erms",
+                "est",
+                "f16c",
+                "flexpriority",
+                "flush_l1d",
+                "fma",
+                "fpu",
+                "fsgsbase",
+                "fsrm",
+                "fxsr",
+                "gfni",
+                "ht",
+                "hwp",
+                "hwp_act_window",
+                "hwp_epp",
+                "hwp_notify",
+                "hwp_pkg_req",
+                "ibpb",
+                "ibrs",
+                "ibrs_enhanced",
+                "ibt",
+                "ida",
+                "intel_pt",
+                "invpcid",
+                "lahf_lm",
+                "lm",
+                "mca",
+                "mce",
+                "md_clear",
+                "mmx",
+                "monitor",
+                "movbe",
+                "movdir64b",
+                "movdiri",
+                "msr",
+                "mtrr",
+                "nonstop_tsc",
+                "nopl",
+                "nx",
+                "ospke",
+                "osxsave",
+                "pae",
+                "pat",
+                "pbe",
+                "pcid",
+                "pclmulqdq",
+                "pdcm",
+                "pdpe1gb",
+                "pebs",
+                "pge",
+                "pku",
+                "pln",
+                "pni",
+                "popcnt",
+                "pqe",
+                "pse",
+                "pse36",
+                "pts",
+                "rdpid",
+                "rdrand",
+                "rdrnd",
+                "rdseed",
+                "rdt_a",
+                "rdtscp",
+                "rep_good",
+                "sdbg",
+                "sep",
+                "sha",
+                "sha_ni",
+                "smap",
+                "smep",
+                "smx",
+                "split_lock_detect",
+                "ss",
+                "ssbd",
+                "sse",
+                "sse2",
+                "sse4_1",
+                "sse4_2",
+                "ssse3",
+                "stibp",
+                "syscall",
+                "tm",
+                "tm2",
+                "tme",
+                "tpr_shadow",
+                "tsc",
+                "tsc_adjust",
+                "tsc_deadline_timer",
+                "tsc_known_freq",
+                "tscdeadline",
+                "umip",
+                "user_shstk",
+                "vaes",
+                "vme",
+                "vmx",
+                "vnmi",
+                "vpclmulqdq",
+                "vpid",
+                "x2apic",
+                "xgetbv1",
+                "xsave",
+                "xsavec",
+                "xsaveopt",
+                "xsaves",
+                "xtopology",
+                "xtpr"
+            ],
+            "l3_cache_size": 12582912,
+            "l2_cache_size": 5242880,
+            "l1_data_cache_size": 196608,
+            "l1_instruction_cache_size": 131072,
+            "l2_cache_line_size": 256,
+            "l2_cache_associativity": 7
+        }
+    },
+    "commit_info": {
+        "id": "f91c0ac2772629e4a0e33e0b526532f5b703a958",
+        "time": "2026-11-23T08:07:29Z",
+        "author_time": "2026-11-23T08:07:29Z",
+        "dirty": true,
+        "project": "phlite",
+        "branch": "perseus-techniques"
+    },
+    "benchmarks": [
+        {
+            "group": "sliding Rips n=300 window=20 (6611 operations)",
+            "name": "test_zigzag[300-20-phlite (serial)]",
+            "fullname": "benchmarks/bench_complexes_zigzag.py::test_zigzag[300-20-phlite (serial)]",
+            "params": {
+                "case": [
+                    300,
+                    20,
+                    0.35
+                ],
+                "implementation": "phlite (serial)"
+            },
+            "param": "300-20-phlite (serial)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 2.4,
+                "fingerprint": [
+                    [
+                        25,
+                        0,
+                        7925.0
+                    ],
+                    [
+                        1554,
+                        0,
+                        7372.0
+                    ],
+                    [
+                        1063,
+                        0,
+                        320161.0
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.003691425983561203,
+                "max": 0.004662407009163871,
+                "mean": 0.004016222994929801,
+                "stddev": 0.0005596143692117291,
+                "rounds": 3,
+                "median": 0.003694835992064327,
+                "iqr": 0.0007282357692020014,
+                "q1": 0.003692278485686984,
+                "q3": 0.004420514254888985,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.003691425983561203,
+                "hd15iqr": 0.004662407009163871,
+                "ops": 248.99015848035077,
+                "total": 0.012048668984789401,
+                "data": [
+                    0.004662407009163871,
+                    0.003691425983561203,
+                    0.003694835992064327
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "sliding Rips n=300 window=20 (6611 operations)",
+            "name": "test_zigzag[300-20-phlite (timed)]",
+            "fullname": "benchmarks/bench_complexes_zigzag.py::test_zigzag[300-20-phlite (timed)]",
+            "params": {
+                "case": [
+                    300,
+                    20,
+                    0.35
+                ],
+                "implementation": "phlite (timed)"
+            },
+            "param": "300-20-phlite (timed)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 3.5,
+                "fingerprint": [
+                    [
+                        25,
+                        0,
+                        7925.0
+                    ],
+                    [
+                        1554,
+                        0,
+                        7372.0
+                    ],
+                    [
+                        1063,
+                        0,
+                        320161.0
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.008271675993455574,
+                "max": 0.028142344992375,
+                "mean": 0.015060903659711281,
+                "stddev": 0.011331585777549108,
+                "rounds": 3,
+                "median": 0.00876868999330327,
+                "iqr": 0.01490300174918957,
+                "q1": 0.008395929493417498,
+                "q3": 0.02329893124260707,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.008271675993455574,
+                "hd15iqr": 0.028142344992375,
+                "ops": 66.39707832904165,
+                "total": 0.045182710979133844,
+                "data": [
+                    0.00876868999330327,
+                    0.008271675993455574,
+                    0.028142344992375
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "sliding Rips n=300 window=20 (6611 operations)",
+            "name": "test_zigzag[300-20-fzz]",
+            "fullname": "benchmarks/bench_complexes_zigzag.py::test_zigzag[300-20-fzz]",
+            "params": {
+                "case": [
+                    300,
+                    20,
+                    0.35
+                ],
+                "implementation": "fzz"
+            },
+            "param": "300-20-fzz",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 0.1,
+                "fingerprint": [
+                    [
+                        25,
+                        0,
+                        7925.0
+                    ],
+                    [
+                        1554,
+                        0,
+                        7372.0
+                    ],
+                    [
+                        1063,
+                        0,
+                        320161.0
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.0089869030052796,
+                "max": 0.010263545991620049,
+                "mean": 0.009512714663287625,
+                "stddev": 0.0006674052124966816,
+                "rounds": 3,
+                "median": 0.009287694992963225,
+                "iqr": 0.0009574822397553362,
+                "q1": 0.009062101002200507,
+                "q3": 0.010019583241955843,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.0089869030052796,
+                "hd15iqr": 0.010263545991620049,
+                "ops": 105.12246350237912,
+                "total": 0.028538143989862874,
+                "data": [
+                    0.010263545991620049,
+                    0.0089869030052796,
+                    0.009287694992963225
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "sliding Rips n=300 window=20 (6611 operations)",
+            "name": "test_zigzag[300-20-Dionysus 2]",
+            "fullname": "benchmarks/bench_complexes_zigzag.py::test_zigzag[300-20-Dionysus 2]",
+            "params": {
+                "case": [
+                    300,
+                    20,
+                    0.35
+                ],
+                "implementation": "Dionysus 2"
+            },
+            "param": "300-20-Dionysus 2",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 0.5,
+                "fingerprint": [
+                    [
+                        25,
+                        0,
+                        7925.0
+                    ],
+                    [
+                        1554,
+                        0,
+                        7372.0
+                    ],
+                    [
+                        1063,
+                        0,
+                        320161.0
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.13058479598839767,
+                "max": 0.132142082991777,
+                "mean": 0.1315152506576851,
+                "stddev": 0.0008218428040359829,
+                "rounds": 3,
+                "median": 0.13181887299288064,
+                "iqr": 0.0011679652525344864,
+                "q1": 0.13089331523951842,
+                "q3": 0.1320612804920529,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.13058479598839767,
+                "hd15iqr": 0.132142082991777,
+                "ops": 7.603680903919297,
+                "total": 0.3945457519730553,
+                "data": [
+                    0.13181887299288064,
+                    0.132142082991777,
+                    0.13058479598839767
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "sliding Rips n=1000 window=30 (126182 operations)",
+            "name": "test_zigzag[1000-30-phlite (serial)]",
+            "fullname": "benchmarks/bench_complexes_zigzag.py::test_zigzag[1000-30-phlite (serial)]",
+            "params": {
+                "case": [
+                    1000,
+                    30,
+                    0.3
+                ],
+                "implementation": "phlite (serial)"
+            },
+            "param": "1000-30-phlite (serial)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 59.5,
+                "fingerprint": [
+                    [
+                        25,
+                        0,
+                        143683.0
+                    ],
+                    [
+                        18824,
+                        0,
+                        284036.0
+                    ],
+                    [
+                        42245,
+                        0,
+                        81065980.0
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.147810925001977,
+                "max": 0.19656601900351234,
+                "mean": 0.17924717166655077,
+                "stddev": 0.02727160649111242,
+                "rounds": 3,
+                "median": 0.19336457099416293,
+                "iqr": 0.036566320501151495,
+                "q1": 0.1591993365000235,
+                "q3": 0.195765657001175,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.147810925001977,
+                "hd15iqr": 0.19656601900351234,
+                "ops": 5.578888585535264,
+                "total": 0.5377415149996523,
+                "data": [
+                    0.19336457099416293,
+                    0.19656601900351234,
+                    0.147810925001977
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "sliding Rips n=1000 window=30 (126182 operations)",
+            "name": "test_zigzag[1000-30-phlite (timed)]",
+            "fullname": "benchmarks/bench_complexes_zigzag.py::test_zigzag[1000-30-phlite (timed)]",
+            "params": {
+                "case": [
+                    1000,
+                    30,
+                    0.3
+                ],
+                "implementation": "phlite (timed)"
+            },
+            "param": "1000-30-phlite (timed)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 94.6,
+                "fingerprint": [
+                    [
+                        25,
+                        0,
+                        143683.0
+                    ],
+                    [
+                        18824,
+                        0,
+                        284036.0
+                    ],
+                    [
+                        42245,
+                        0,
+                        81065980.0
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.3399613850051537,
+                "max": 0.40937878799741156,
+                "mean": 0.38553056766007404,
+                "stddev": 0.039478400582454866,
+                "rounds": 3,
+                "median": 0.4072515299776569,
+                "iqr": 0.052063052244193386,
+                "q1": 0.3567839212482795,
+                "q3": 0.4088469734924729,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.3399613850051537,
+                "hd15iqr": 0.40937878799741156,
+                "ops": 2.5938280486275462,
+                "total": 1.1565917029802222,
+                "data": [
+                    0.3399613850051537,
+                    0.40937878799741156,
+                    0.4072515299776569
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "sliding Rips n=1000 window=30 (126182 operations)",
+            "name": "test_zigzag[1000-30-fzz]",
+            "fullname": "benchmarks/bench_complexes_zigzag.py::test_zigzag[1000-30-fzz]",
+            "params": {
+                "case": [
+                    1000,
+                    30,
+                    0.3
+                ],
+                "implementation": "fzz"
+            },
+            "param": "1000-30-fzz",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 0.6,
+                "fingerprint": [
+                    [
+                        25,
+                        0,
+                        143683.0
+                    ],
+                    [
+                        18824,
+                        0,
+                        284036.0
+                    ],
+                    [
+                        42245,
+                        0,
+                        81065980.0
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.5707844120042864,
+                "max": 0.5767347990185954,
+                "mean": 0.57286843668165,
+                "stddev": 0.003351764021315787,
+                "rounds": 3,
+                "median": 0.5710860990220681,
+                "iqr": 0.004462790260731708,
+                "q1": 0.5708598337587318,
+                "q3": 0.5753226240194635,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.5707844120042864,
+                "hd15iqr": 0.5767347990185954,
+                "ops": 1.745601495855692,
+                "total": 1.7186053100449499,
+                "data": [
+                    0.5767347990185954,
+                    0.5707844120042864,
+                    0.5710860990220681
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "sliding Rips n=1000 window=30 (126182 operations)",
+            "name": "test_zigzag[1000-30-Dionysus 2]",
+            "fullname": "benchmarks/bench_complexes_zigzag.py::test_zigzag[1000-30-Dionysus 2]",
+            "params": {
+                "case": [
+                    1000,
+                    30,
+                    0.3
+                ],
+                "implementation": "Dionysus 2"
+            },
+            "param": "1000-30-Dionysus 2",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 12.6,
+                "fingerprint": [
+                    [
+                        25,
+                        0,
+                        143683.0
+                    ],
+                    [
+                        18824,
+                        0,
+                        284036.0
+                    ],
+                    [
+                        42245,
+                        0,
+                        81065980.0
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 13.092595066002104,
+                "max": 13.297260941995773,
+                "mean": 13.171895425000306,
+                "stddev": 0.10983409891763503,
+                "rounds": 3,
+                "median": 13.125830267003039,
+                "iqr": 0.15349940699525177,
+                "q1": 13.100903866252338,
+                "q3": 13.25440327324759,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 13.092595066002104,
+                "hd15iqr": 13.297260941995773,
+                "ops": 0.07591921798149083,
+                "total": 39.51568627500092,
+                "data": [
+                    13.125830267003039,
+                    13.297260941995773,
+                    13.092595066002104
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "sliding Rips n=2000 window=35 (461837 operations)",
+            "name": "test_zigzag[2000-35-phlite (serial)]",
+            "fullname": "benchmarks/bench_complexes_zigzag.py::test_zigzag[2000-35-phlite (serial)]",
+            "params": {
+                "case": [
+                    2000,
+                    35,
+                    0.27
+                ],
+                "implementation": "phlite (serial)"
+            },
+            "param": "2000-35-phlite (serial)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 279.1,
+                "fingerprint": [
+                    [
+                        36,
+                        0,
+                        532422.0
+                    ],
+                    [
+                        55558,
+                        0,
+                        1125489.0
+                    ],
+                    [
+                        171385,
+                        0,
+                        557838907.0
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.9269382339844014,
+                "max": 0.9269382339844014,
+                "mean": 0.9269382339844014,
+                "stddev": 0,
+                "rounds": 1,
+                "median": 0.9269382339844014,
+                "iqr": 0.0,
+                "q1": 0.9269382339844014,
+                "q3": 0.9269382339844014,
+                "iqr_outliers": 0,
+                "stddev_outliers": 0,
+                "outliers": "0;0",
+                "ld15iqr": 0.9269382339844014,
+                "hd15iqr": 0.9269382339844014,
+                "ops": 1.0788205333828402,
+                "total": 0.9269382339844014,
+                "data": [
+                    0.9269382339844014
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "sliding Rips n=2000 window=35 (461837 operations)",
+            "name": "test_zigzag[2000-35-phlite (timed)]",
+            "fullname": "benchmarks/bench_complexes_zigzag.py::test_zigzag[2000-35-phlite (timed)]",
+            "params": {
+                "case": [
+                    2000,
+                    35,
+                    0.27
+                ],
+                "implementation": "phlite (timed)"
+            },
+            "param": "2000-35-phlite (timed)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 411.6,
+                "fingerprint": [
+                    [
+                        36,
+                        0,
+                        532422.0
+                    ],
+                    [
+                        55558,
+                        0,
+                        1125489.0
+                    ],
+                    [
+                        171385,
+                        0,
+                        557838907.0
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 1.880834605981363,
+                "max": 1.880834605981363,
+                "mean": 1.880834605981363,
+                "stddev": 0,
+                "rounds": 1,
+                "median": 1.880834605981363,
+                "iqr": 0.0,
+                "q1": 1.880834605981363,
+                "q3": 1.880834605981363,
+                "iqr_outliers": 0,
+                "stddev_outliers": 0,
+                "outliers": "0;0",
+                "ld15iqr": 1.880834605981363,
+                "hd15iqr": 1.880834605981363,
+                "ops": 0.531678860448354,
+                "total": 1.880834605981363,
+                "data": [
+                    1.880834605981363
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "sliding Rips n=2000 window=35 (461837 operations)",
+            "name": "test_zigzag[2000-35-fzz]",
+            "fullname": "benchmarks/bench_complexes_zigzag.py::test_zigzag[2000-35-fzz]",
+            "params": {
+                "case": [
+                    2000,
+                    35,
+                    0.27
+                ],
+                "implementation": "fzz"
+            },
+            "param": "2000-35-fzz",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 9.4,
+                "fingerprint": [
+                    [
+                        36,
+                        0,
+                        532422.0
+                    ],
+                    [
+                        55558,
+                        0,
+                        1125489.0
+                    ],
+                    [
+                        171385,
+                        0,
+                        557838907.0
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 181.2044410009985,
+                "max": 181.2044410009985,
+                "mean": 181.2044410009985,
+                "stddev": 0,
+                "rounds": 1,
+                "median": 181.2044410009985,
+                "iqr": 0.0,
+                "q1": 181.2044410009985,
+                "q3": 181.2044410009985,
+                "iqr_outliers": 0,
+                "stddev_outliers": 0,
+                "outliers": "0;0",
+                "ld15iqr": 181.2044410009985,
+                "hd15iqr": 181.2044410009985,
+                "ops": 0.005518628541750198,
+                "total": 181.2044410009985,
+                "data": [
+                    181.2044410009985
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "sliding Rips n=5000 window=40 (1674242 operations)",
+            "name": "test_zigzag[5000-40-phlite (serial)]",
+            "fullname": "benchmarks/bench_complexes_zigzag.py::test_zigzag[5000-40-phlite (serial)]",
+            "params": {
+                "case": [
+                    5000,
+                    40,
+                    0.25
+                ],
+                "implementation": "phlite (serial)"
+            },
+            "param": "5000-40-phlite (serial)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 1443.1,
+                "fingerprint": [
+                    [
+                        72,
+                        0,
+                        1961852.0
+                    ],
+                    [
+                        176418,
+                        0,
+                        4195340.0
+                    ],
+                    [
+                        651904,
+                        0,
+                        2989603557.0
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 5.236792313982733,
+                "max": 5.236792313982733,
+                "mean": 5.236792313982733,
+                "stddev": 0,
+                "rounds": 1,
+                "median": 5.236792313982733,
+                "iqr": 0.0,
+                "q1": 5.236792313982733,
+                "q3": 5.236792313982733,
+                "iqr_outliers": 0,
+                "stddev_outliers": 0,
+                "outliers": "0;0",
+                "ld15iqr": 5.236792313982733,
+                "hd15iqr": 5.236792313982733,
+                "ops": 0.19095658946219904,
+                "total": 5.236792313982733,
+                "data": [
+                    5.236792313982733
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "sliding Rips n=5000 window=40 (1674242 operations)",
+            "name": "test_zigzag[5000-40-phlite (timed)]",
+            "fullname": "benchmarks/bench_complexes_zigzag.py::test_zigzag[5000-40-phlite (timed)]",
+            "params": {
+                "case": [
+                    5000,
+                    40,
+                    0.25
+                ],
+                "implementation": "phlite (timed)"
+            },
+            "param": "5000-40-phlite (timed)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 1908.5,
+                "fingerprint": [
+                    [
+                        72,
+                        0,
+                        1961852.0
+                    ],
+                    [
+                        176418,
+                        0,
+                        4195340.0
+                    ],
+                    [
+                        651904,
+                        0,
+                        2989603557.0
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 8.465343302988913,
+                "max": 8.465343302988913,
+                "mean": 8.465343302988913,
+                "stddev": 0,
+                "rounds": 1,
+                "median": 8.465343302988913,
+                "iqr": 0.0,
+                "q1": 8.465343302988913,
+                "q3": 8.465343302988913,
+                "iqr_outliers": 0,
+                "stddev_outliers": 0,
+                "outliers": "0;0",
+                "ld15iqr": 8.465343302988913,
+                "hd15iqr": 8.465343302988913,
+                "ops": 0.11812870006664981,
+                "total": 8.465343302988913,
+                "data": [
+                    8.465343302988913
+                ],
+                "iterations": 1
+            }
+        }
+    ],
+    "datetime": "2026-11-23T13:04:32.035806+00:00",
+    "version": "5.3.1"
+}

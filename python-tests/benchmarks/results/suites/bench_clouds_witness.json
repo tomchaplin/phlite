@@ -1,0 +1,1729 @@
+{
+    "machine_info": {
+        "processor": "",
+        "machine": "x86_64",
+        "python_compiler": "GCC 16.2.1 20260810",
+        "python_implementation": "CPython",
+        "python_implementation_version": "3.11.18",
+        "python_version": "3.11.18",
+        "python_build": [
+            "main",
+            "Nov 18 2026 23:11:18"
+        ],
+        "release": "7.3.4-arch1-2",
+        "system": "Linux",
+        "cpu": {
+            "python_version": "3.11.18.final.0 (64 bit)",
+            "cpuinfo_version": [
+                10,
+                1,
+                1
+            ],
+            "cpuinfo_version_string": "10.1.1",
+            "arch": "X86_64",
+            "bits": 64,
+            "count": 8,
+            "arch_string_raw": "x86_64",
+            "vendor_id_raw": "GenuineIntel",
+            "brand_raw": "11th Gen Intel(R) Core(TM) i7-1185G7 @ 3.00GHz",
+            "hz_advertised_friendly": "3.0000 GHz",
+            "hz_advertised": [
+                3000000000,
+                0
+            ],
+            "stepping": 1,
+            "model": 140,
+            "family": 6,
+            "flags": [
+                "3dnowprefetch",
+                "abm",
+                "acpi",
+                "adx",
+                "aes",
+                "aperfmperf",
+                "apic",
+                "arat",
+                "arch_capabilities",
+                "arch_perfmon",
+                "art",
+                "avx",
+                "avx2",
+                "avx512_bitalg",
+                "avx512_vbmi2",
+                "avx512_vnni",
+                "avx512_vp2intersect",
+                "avx512_vpopcntdq",
+                "avx512bitalg",
+                "avx512bw",
+                "avx512cd",
+                "avx512dq",
+                "avx512f",
+                "avx512ifma",
+                "avx512vbmi",
+                "avx512vbmi2",
+                "avx512vl",
+                "avx512vnni",
+                "avx512vpopcntdq",
+                "bmi1",
+                "bmi2",
+                "bts",
+                "cat_l2",
+                "cdp_l2",
+                "clflush",
+                "clflushopt",
+                "clwb",
+                "cmov",
+                "constant_tsc",
+                "cpuid",
+                "cpuid_fault",
+                "cx16",
+                "cx8",
+                "de",
+                "ds_cpl",
+                "dtes64",
+                "dtherm",
+                "dts",
+                "epb",
+                "ept",
+                "ept_ad",
+                "erms",
+                "est",
+                "f16c",
+                "flexpriority",
+                "flush_l1d",
+                "fma",
+                "fpu",
+                "fsgsbase",
+                "fsrm",
+                "fxsr",
+                "gfni",
+                "ht",
+                "hwp",
+                "hwp_act_window",
+                "hwp_epp",
+                "hwp_notify",
+                "hwp_pkg_req",
+                "ibpb",
+                "ibrs",
+                "ibrs_enhanced",
+                "ibt",
+                "ida",
+                "intel_pt",
+                "invpcid",
+                "lahf_lm",
+                "lm",
+                "mca",
+                "mce",
+                "md_clear",
+                "mmx",
+                "monitor",
+                "movbe",
+                "movdir64b",
+                "movdiri",
+                "msr",
+                "mtrr",
+                "nonstop_tsc",
+                "nopl",
+                "nx",
+                "ospke",
+                "osxsave",
+                "pae",
+                "pat",
+                "pbe",
+                "pcid",
+                "pclmulqdq",
+                "pdcm",
+                "pdpe1gb",
+                "pebs",
+                "pge",
+                "pku",
+                "pln",
+                "pni",
+                "popcnt",
+                "pqe",
+                "pse",
+                "pse36",
+                "pts",
+                "rdpid",
+                "rdrand",
+                "rdrnd",
+                "rdseed",
+                "rdt_a",
+                "rdtscp",
+                "rep_good",
+                "sdbg",
+                "sep",
+                "sha",
+                "sha_ni",
+                "smap",
+                "smep",
+                "smx",
+                "split_lock_detect",
+                "ss",
+                "ssbd",
+                "sse",
+                "sse2",
+                "sse4_1",
+                "sse4_2",
+                "ssse3",
+                "stibp",
+                "syscall",
+                "tm",
+                "tm2",
+                "tme",
+                "tpr_shadow",
+                "tsc",
+                "tsc_adjust",
+                "tsc_deadline_timer",
+                "tsc_known_freq",
+                "tscdeadline",
+                "umip",
+                "user_shstk",
+                "vaes",
+                "vme",
+                "vmx",
+                "vnmi",
+                "vpclmulqdq",
+                "vpid",
+                "x2apic",
+                "xgetbv1",
+                "xsave",
+                "xsavec",
+                "xsaveopt",
+                "xsaves",
+                "xtopology",
+                "xtpr"
+            ],
+            "l3_cache_size": 12582912,
+            "l2_cache_size": 5242880,
+            "l1_data_cache_size": 196608,
+            "l1_instruction_cache_size": 131072,
+            "l2_cache_line_size": 256,
+            "l2_cache_associativity": 7
+        }
+    },
+    "commit_info": {
+        "id": "b37a927e230c38099e3f43b88b0e18bc89ca01ff",
+        "time": "2026-11-22T21:01:41Z",
+        "author_time": "2026-11-22T21:01:41Z",
+        "dirty": true,
+        "project": "phlite",
+        "branch": "perseus-techniques"
+    },
+    "benchmarks": [
+        {
+            "group": "witness relaxed n=500 m=30 d=2",
+            "name": "test_witness[500-30-2-relaxed-GUDHI]",
+            "fullname": "benchmarks/bench_clouds_witness.py::test_witness[500-30-2-relaxed-GUDHI]",
+            "params": {
+                "n": 500,
+                "m": 30,
+                "dim": 2,
+                "strong": false,
+                "implementation": "GUDHI"
+            },
+            "param": "500-30-2-relaxed-GUDHI",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 0.7,
+                "fingerprint": [
+                    [
+                        0,
+                        1,
+                        0
+                    ],
+                    [
+                        9,
+                        0,
+                        0.053296
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.01696488301968202,
+                "max": 0.01781544100958854,
+                "mean": 0.017250035336473957,
+                "stddev": 0.0004896618030294336,
+                "rounds": 3,
+                "median": 0.01696978198015131,
+                "iqr": 0.0006379184924298897,
+                "q1": 0.016966107759799343,
+                "q3": 0.017604026252229232,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.01696488301968202,
+                "hd15iqr": 0.01781544100958854,
+                "ops": 57.9708957398813,
+                "total": 0.05175010600942187,
+                "data": [
+                    0.01781544100958854,
+                    0.01696978198015131,
+                    0.01696488301968202
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "witness relaxed n=500 m=30 d=2",
+            "name": "test_witness[500-30-2-relaxed-phlite (serial)]",
+            "fullname": "benchmarks/bench_clouds_witness.py::test_witness[500-30-2-relaxed-phlite (serial)]",
+            "params": {
+                "n": 500,
+                "m": 30,
+                "dim": 2,
+                "strong": false,
+                "implementation": "phlite (serial)"
+            },
+            "param": "500-30-2-relaxed-phlite (serial)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 0.9,
+                "fingerprint": [
+                    [
+                        0,
+                        1,
+                        0
+                    ],
+                    [
+                        9,
+                        0,
+                        0.053296
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.002418946009129286,
+                "max": 0.0035987510054837912,
+                "mean": 0.002877676005785664,
+                "stddev": 0.0006321420985992747,
+                "rounds": 3,
+                "median": 0.0026153310027439147,
+                "iqr": 0.0008848537472658791,
+                "q1": 0.002468042257532943,
+                "q3": 0.003352896004798822,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.002418946009129286,
+                "hd15iqr": 0.0035987510054837912,
+                "ops": 347.5026368463533,
+                "total": 0.008633028017356992,
+                "data": [
+                    0.0035987510054837912,
+                    0.0026153310027439147,
+                    0.002418946009129286
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "witness relaxed n=500 m=30 d=2",
+            "name": "test_witness[500-30-2-relaxed-phlite (parallel)]",
+            "fullname": "benchmarks/bench_clouds_witness.py::test_witness[500-30-2-relaxed-phlite (parallel)]",
+            "params": {
+                "n": 500,
+                "m": 30,
+                "dim": 2,
+                "strong": false,
+                "implementation": "phlite (parallel)"
+            },
+            "param": "500-30-2-relaxed-phlite (parallel)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 0.8,
+                "fingerprint": [
+                    [
+                        0,
+                        1,
+                        0
+                    ],
+                    [
+                        9,
+                        0,
+                        0.053296
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.00312517600832507,
+                "max": 0.003387082979315892,
+                "mean": 0.003265415997399638,
+                "stddev": 0.0001319376095341047,
+                "rounds": 3,
+                "median": 0.0032839890045579523,
+                "iqr": 0.0001964302282431163,
+                "q1": 0.0031648792573832907,
+                "q3": 0.003361309485626407,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.00312517600832507,
+                "hd15iqr": 0.003387082979315892,
+                "ops": 306.2396952781312,
+                "total": 0.009796247992198914,
+                "data": [
+                    0.003387082979315892,
+                    0.0032839890045579523,
+                    0.00312517600832507
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "witness strong n=500 m=30 d=2",
+            "name": "test_witness[500-30-2-strong-GUDHI]",
+            "fullname": "benchmarks/bench_clouds_witness.py::test_witness[500-30-2-strong-GUDHI]",
+            "params": {
+                "n": 500,
+                "m": 30,
+                "dim": 2,
+                "strong": true,
+                "implementation": "GUDHI"
+            },
+            "param": "500-30-2-strong-GUDHI",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 0.1,
+                "fingerprint": [
+                    [
+                        29,
+                        1,
+                        0.020721
+                    ],
+                    [
+                        17,
+                        0,
+                        0.093919
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.2194996569887735,
+                "max": 0.22343040601117536,
+                "mean": 0.2211408229971615,
+                "stddev": 0.0020440230989807627,
+                "rounds": 3,
+                "median": 0.22049240599153563,
+                "iqr": 0.002948061766801402,
+                "q1": 0.21974784423946403,
+                "q3": 0.22269590600626543,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.2194996569887735,
+                "hd15iqr": 0.22343040601117536,
+                "ops": 4.5220054192022054,
+                "total": 0.6634224689914845,
+                "data": [
+                    0.22049240599153563,
+                    0.22343040601117536,
+                    0.2194996569887735
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "witness strong n=500 m=30 d=2",
+            "name": "test_witness[500-30-2-strong-phlite (serial)]",
+            "fullname": "benchmarks/bench_clouds_witness.py::test_witness[500-30-2-strong-phlite (serial)]",
+            "params": {
+                "n": 500,
+                "m": 30,
+                "dim": 2,
+                "strong": true,
+                "implementation": "phlite (serial)"
+            },
+            "param": "500-30-2-strong-phlite (serial)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 0.9,
+                "fingerprint": [
+                    [
+                        29,
+                        1,
+                        0.020721
+                    ],
+                    [
+                        17,
+                        0,
+                        0.093919
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.0022209119924809784,
+                "max": 0.003119628003332764,
+                "mean": 0.0026368406640055277,
+                "stddev": 0.0004530730384116883,
+                "rounds": 3,
+                "median": 0.0025699819962028414,
+                "iqr": 0.0006740370081388392,
+                "q1": 0.002308179493411444,
+                "q3": 0.0029822165015502833,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.0022209119924809784,
+                "hd15iqr": 0.003119628003332764,
+                "ops": 379.2417242538033,
+                "total": 0.007910521992016584,
+                "data": [
+                    0.003119628003332764,
+                    0.0025699819962028414,
+                    0.0022209119924809784
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "witness strong n=500 m=30 d=2",
+            "name": "test_witness[500-30-2-strong-phlite (parallel)]",
+            "fullname": "benchmarks/bench_clouds_witness.py::test_witness[500-30-2-strong-phlite (parallel)]",
+            "params": {
+                "n": 500,
+                "m": 30,
+                "dim": 2,
+                "strong": true,
+                "implementation": "phlite (parallel)"
+            },
+            "param": "500-30-2-strong-phlite (parallel)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 0.9,
+                "fingerprint": [
+                    [
+                        29,
+                        1,
+                        0.020721
+                    ],
+                    [
+                        17,
+                        0,
+                        0.093919
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.002809242985676974,
+                "max": 0.004070021997904405,
+                "mean": 0.0034358193224761635,
+                "stddev": 0.0006304241034406583,
+                "rounds": 3,
+                "median": 0.0034281929838471115,
+                "iqr": 0.0009455842591705732,
+                "q1": 0.0029639804852195084,
+                "q3": 0.003909564744390082,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.002809242985676974,
+                "hd15iqr": 0.004070021997904405,
+                "ops": 291.05139302823096,
+                "total": 0.01030745796742849,
+                "data": [
+                    0.0034281929838471115,
+                    0.004070021997904405,
+                    0.002809242985676974
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "witness relaxed n=2000 m=60 d=2",
+            "name": "test_witness[2000-60-2-relaxed-GUDHI]",
+            "fullname": "benchmarks/bench_clouds_witness.py::test_witness[2000-60-2-relaxed-GUDHI]",
+            "params": {
+                "n": 2000,
+                "m": 60,
+                "dim": 2,
+                "strong": false,
+                "implementation": "GUDHI"
+            },
+            "param": "2000-60-2-relaxed-GUDHI",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 3.3,
+                "fingerprint": [
+                    [
+                        0,
+                        1,
+                        0
+                    ],
+                    [
+                        17,
+                        0,
+                        0.031372
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.08910906699020416,
+                "max": 0.09363200300140306,
+                "mean": 0.09087369933452767,
+                "stddev": 0.0024196641426645258,
+                "rounds": 3,
+                "median": 0.08988002801197581,
+                "iqr": 0.003392202008399181,
+                "q1": 0.08930180724564707,
+                "q3": 0.09269400925404625,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.08910906699020416,
+                "hd15iqr": 0.09363200300140306,
+                "ops": 11.004284048333528,
+                "total": 0.27262109800358303,
+                "data": [
+                    0.08988002801197581,
+                    0.09363200300140306,
+                    0.08910906699020416
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "witness relaxed n=2000 m=60 d=2",
+            "name": "test_witness[2000-60-2-relaxed-phlite (serial)]",
+            "fullname": "benchmarks/bench_clouds_witness.py::test_witness[2000-60-2-relaxed-phlite (serial)]",
+            "params": {
+                "n": 2000,
+                "m": 60,
+                "dim": 2,
+                "strong": false,
+                "implementation": "phlite (serial)"
+            },
+            "param": "2000-60-2-relaxed-phlite (serial)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 5.1,
+                "fingerprint": [
+                    [
+                        0,
+                        1,
+                        0
+                    ],
+                    [
+                        17,
+                        0,
+                        0.031372
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.009941083990270272,
+                "max": 0.010988904017722234,
+                "mean": 0.01031580800190568,
+                "stddev": 0.0005841670070636165,
+                "rounds": 3,
+                "median": 0.010017435997724533,
+                "iqr": 0.0007858650205889717,
+                "q1": 0.009960171992133837,
+                "q3": 0.010746037012722809,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.009941083990270272,
+                "hd15iqr": 0.010988904017722234,
+                "ops": 96.93860139848144,
+                "total": 0.03094742400571704,
+                "data": [
+                    0.010988904017722234,
+                    0.009941083990270272,
+                    0.010017435997724533
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "witness relaxed n=2000 m=60 d=2",
+            "name": "test_witness[2000-60-2-relaxed-phlite (parallel)]",
+            "fullname": "benchmarks/bench_clouds_witness.py::test_witness[2000-60-2-relaxed-phlite (parallel)]",
+            "params": {
+                "n": 2000,
+                "m": 60,
+                "dim": 2,
+                "strong": false,
+                "implementation": "phlite (parallel)"
+            },
+            "param": "2000-60-2-relaxed-phlite (parallel)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 3.4,
+                "fingerprint": [
+                    [
+                        0,
+                        1,
+                        0
+                    ],
+                    [
+                        17,
+                        0,
+                        0.031372
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.01134518499020487,
+                "max": 0.013017844990827143,
+                "mean": 0.01201940699441669,
+                "stddev": 0.0008822045548615325,
+                "rounds": 3,
+                "median": 0.011695191002218053,
+                "iqr": 0.0012544950004667044,
+                "q1": 0.011432686493208166,
+                "q3": 0.01268718149367487,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.01134518499020487,
+                "hd15iqr": 0.013017844990827143,
+                "ops": 83.19878014485445,
+                "total": 0.03605822098325007,
+                "data": [
+                    0.01134518499020487,
+                    0.011695191002218053,
+                    0.013017844990827143
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "witness strong n=2000 m=60 d=2",
+            "name": "test_witness[2000-60-2-strong-GUDHI]",
+            "fullname": "benchmarks/bench_clouds_witness.py::test_witness[2000-60-2-strong-GUDHI]",
+            "params": {
+                "n": 2000,
+                "m": 60,
+                "dim": 2,
+                "strong": true,
+                "implementation": "GUDHI"
+            },
+            "param": "2000-60-2-strong-GUDHI",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 0.5,
+                "fingerprint": [
+                    [
+                        59,
+                        1,
+                        0.008462
+                    ],
+                    [
+                        51,
+                        0,
+                        0.101376
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 2.9515600629965775,
+                "max": 2.9745594800042454,
+                "mean": 2.962966572328393,
+                "stddev": 0.011500841444439885,
+                "rounds": 3,
+                "median": 2.9627801739843562,
+                "iqr": 0.017249562755750958,
+                "q1": 2.954365090743522,
+                "q3": 2.971614653499273,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 2.9515600629965775,
+                "hd15iqr": 2.9745594800042454,
+                "ops": 0.3374995888712198,
+                "total": 8.888899716985179,
+                "data": [
+                    2.9745594800042454,
+                    2.9515600629965775,
+                    2.9627801739843562
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "witness strong n=2000 m=60 d=2",
+            "name": "test_witness[2000-60-2-strong-phlite (serial)]",
+            "fullname": "benchmarks/bench_clouds_witness.py::test_witness[2000-60-2-strong-phlite (serial)]",
+            "params": {
+                "n": 2000,
+                "m": 60,
+                "dim": 2,
+                "strong": true,
+                "implementation": "phlite (serial)"
+            },
+            "param": "2000-60-2-strong-phlite (serial)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 5.2,
+                "fingerprint": [
+                    [
+                        59,
+                        1,
+                        0.008462
+                    ],
+                    [
+                        51,
+                        0,
+                        0.101376
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.009359118004795164,
+                "max": 0.010134314012248069,
+                "mean": 0.009681132001181444,
+                "stddev": 0.00040390097616757343,
+                "rounds": 3,
+                "median": 0.009549963986501098,
+                "iqr": 0.0005813970055896789,
+                "q1": 0.009406829500221647,
+                "q3": 0.009988226505811326,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.009359118004795164,
+                "hd15iqr": 0.010134314012248069,
+                "ops": 103.29370572345923,
+                "total": 0.02904339600354433,
+                "data": [
+                    0.010134314012248069,
+                    0.009359118004795164,
+                    0.009549963986501098
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "witness strong n=2000 m=60 d=2",
+            "name": "test_witness[2000-60-2-strong-phlite (parallel)]",
+            "fullname": "benchmarks/bench_clouds_witness.py::test_witness[2000-60-2-strong-phlite (parallel)]",
+            "params": {
+                "n": 2000,
+                "m": 60,
+                "dim": 2,
+                "strong": true,
+                "implementation": "phlite (parallel)"
+            },
+            "param": "2000-60-2-strong-phlite (parallel)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 3.6,
+                "fingerprint": [
+                    [
+                        59,
+                        1,
+                        0.008462
+                    ],
+                    [
+                        51,
+                        0,
+                        0.101376
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.011899627017555758,
+                "max": 0.01203153099049814,
+                "mean": 0.01196104233774046,
+                "stddev": 6.641843526070942e-05,
+                "rounds": 3,
+                "median": 0.011951969005167484,
+                "iqr": 9.892797970678657e-05,
+                "q1": 0.01191271251445869,
+                "q3": 0.012011640494165476,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.011899627017555758,
+                "hd15iqr": 0.01203153099049814,
+                "ops": 83.60475381352995,
+                "total": 0.03588312701322138,
+                "data": [
+                    0.011899627017555758,
+                    0.01203153099049814,
+                    0.011951969005167484
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "witness relaxed n=2000 m=40 d=3",
+            "name": "test_witness[2000-40-3-relaxed-GUDHI]",
+            "fullname": "benchmarks/bench_clouds_witness.py::test_witness[2000-40-3-relaxed-GUDHI]",
+            "params": {
+                "n": 2000,
+                "m": 40,
+                "dim": 3,
+                "strong": false,
+                "implementation": "GUDHI"
+            },
+            "param": "2000-40-3-relaxed-GUDHI",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 3.3,
+                "fingerprint": [
+                    [
+                        0,
+                        1,
+                        0
+                    ],
+                    [
+                        5,
+                        0,
+                        0.019874
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.02577496101730503,
+                "max": 0.027231133019085974,
+                "mean": 0.026396554011929158,
+                "stddev": 0.0007510868830192744,
+                "rounds": 3,
+                "median": 0.026183567999396473,
+                "iqr": 0.0010921290013357066,
+                "q1": 0.025877112762827892,
+                "q3": 0.0269692417641636,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.02577496101730503,
+                "hd15iqr": 0.027231133019085974,
+                "ops": 37.88373283679676,
+                "total": 0.07918966203578748,
+                "data": [
+                    0.027231133019085974,
+                    0.02577496101730503,
+                    0.026183567999396473
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "witness relaxed n=2000 m=40 d=3",
+            "name": "test_witness[2000-40-3-relaxed-phlite (serial)]",
+            "fullname": "benchmarks/bench_clouds_witness.py::test_witness[2000-40-3-relaxed-phlite (serial)]",
+            "params": {
+                "n": 2000,
+                "m": 40,
+                "dim": 3,
+                "strong": false,
+                "implementation": "phlite (serial)"
+            },
+            "param": "2000-40-3-relaxed-phlite (serial)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 1.8,
+                "fingerprint": [
+                    [
+                        0,
+                        1,
+                        0
+                    ],
+                    [
+                        5,
+                        0,
+                        0.019874
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.0037213710020296276,
+                "max": 0.004688362998422235,
+                "mean": 0.004076644331992914,
+                "stddev": 0.0005320634719826417,
+                "rounds": 3,
+                "median": 0.00382019899552688,
+                "iqr": 0.0007252439972944558,
+                "q1": 0.0037460780004039407,
+                "q3": 0.0044713219976983964,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.0037213710020296276,
+                "hd15iqr": 0.004688362998422235,
+                "ops": 245.29979035751165,
+                "total": 0.012229932995978743,
+                "data": [
+                    0.004688362998422235,
+                    0.00382019899552688,
+                    0.0037213710020296276
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "witness relaxed n=2000 m=40 d=3",
+            "name": "test_witness[2000-40-3-relaxed-phlite (parallel)]",
+            "fullname": "benchmarks/bench_clouds_witness.py::test_witness[2000-40-3-relaxed-phlite (parallel)]",
+            "params": {
+                "n": 2000,
+                "m": 40,
+                "dim": 3,
+                "strong": false,
+                "implementation": "phlite (parallel)"
+            },
+            "param": "2000-40-3-relaxed-phlite (parallel)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 1.5,
+                "fingerprint": [
+                    [
+                        0,
+                        1,
+                        0
+                    ],
+                    [
+                        5,
+                        0,
+                        0.019874
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.004596359998686239,
+                "max": 0.006090167997172102,
+                "mean": 0.005265585001325235,
+                "stddev": 0.0007589253346840307,
+                "rounds": 3,
+                "median": 0.005110227008117363,
+                "iqr": 0.0011203559988643974,
+                "q1": 0.00472482675104402,
+                "q3": 0.0058451827499084175,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.004596359998686239,
+                "hd15iqr": 0.006090167997172102,
+                "ops": 189.9124218388501,
+                "total": 0.015796755003975704,
+                "data": [
+                    0.005110227008117363,
+                    0.006090167997172102,
+                    0.004596359998686239
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "witness strong n=2000 m=40 d=3",
+            "name": "test_witness[2000-40-3-strong-GUDHI]",
+            "fullname": "benchmarks/bench_clouds_witness.py::test_witness[2000-40-3-strong-GUDHI]",
+            "params": {
+                "n": 2000,
+                "m": 40,
+                "dim": 3,
+                "strong": true,
+                "implementation": "GUDHI"
+            },
+            "param": "2000-40-3-strong-GUDHI",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 0.3,
+                "fingerprint": [
+                    [
+                        39,
+                        1,
+                        0.020428
+                    ],
+                    [
+                        69,
+                        0,
+                        0.485753
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.0428466230223421,
+                "max": 0.04314748299657367,
+                "mean": 0.04304276134159105,
+                "stddev": 0.0001699909877106538,
+                "rounds": 3,
+                "median": 0.04313417800585739,
+                "iqr": 0.00022564498067367822,
+                "q1": 0.042918511768220924,
+                "q3": 0.0431441567488946,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.0428466230223421,
+                "hd15iqr": 0.04314748299657367,
+                "ops": 23.232710189383855,
+                "total": 0.12912828402477317,
+                "data": [
+                    0.04313417800585739,
+                    0.0428466230223421,
+                    0.04314748299657367
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "witness strong n=2000 m=40 d=3",
+            "name": "test_witness[2000-40-3-strong-phlite (serial)]",
+            "fullname": "benchmarks/bench_clouds_witness.py::test_witness[2000-40-3-strong-phlite (serial)]",
+            "params": {
+                "n": 2000,
+                "m": 40,
+                "dim": 3,
+                "strong": true,
+                "implementation": "phlite (serial)"
+            },
+            "param": "2000-40-3-strong-phlite (serial)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 1.6,
+                "fingerprint": [
+                    [
+                        39,
+                        1,
+                        0.020428
+                    ],
+                    [
+                        69,
+                        0,
+                        0.485753
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.0032760169997345656,
+                "max": 0.0037625220138579607,
+                "mean": 0.003469144673241923,
+                "stddev": 0.0002582813950100782,
+                "rounds": 3,
+                "median": 0.0033688950061332434,
+                "iqr": 0.0003648787605925463,
+                "q1": 0.003299236501334235,
+                "q3": 0.0036641152619267814,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.0032760169997345656,
+                "hd15iqr": 0.0037625220138579607,
+                "ops": 288.255490672719,
+                "total": 0.01040743401972577,
+                "data": [
+                    0.0037625220138579607,
+                    0.0033688950061332434,
+                    0.0032760169997345656
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "witness strong n=2000 m=40 d=3",
+            "name": "test_witness[2000-40-3-strong-phlite (parallel)]",
+            "fullname": "benchmarks/bench_clouds_witness.py::test_witness[2000-40-3-strong-phlite (parallel)]",
+            "params": {
+                "n": 2000,
+                "m": 40,
+                "dim": 3,
+                "strong": true,
+                "implementation": "phlite (parallel)"
+            },
+            "param": "2000-40-3-strong-phlite (parallel)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 1.2,
+                "fingerprint": [
+                    [
+                        39,
+                        1,
+                        0.020428
+                    ],
+                    [
+                        69,
+                        0,
+                        0.485753
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.003934745996957645,
+                "max": 0.004670533002354205,
+                "mean": 0.004207722997913758,
+                "stddev": 0.0004029554022922655,
+                "rounds": 3,
+                "median": 0.004017889994429424,
+                "iqr": 0.0005518402540474199,
+                "q1": 0.00395553199632559,
+                "q3": 0.00450737225037301,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.003934745996957645,
+                "hd15iqr": 0.004670533002354205,
+                "ops": 237.65822999655933,
+                "total": 0.012623168993741274,
+                "data": [
+                    0.004670533002354205,
+                    0.004017889994429424,
+                    0.003934745996957645
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "witness relaxed n=10000 m=100 d=2",
+            "name": "test_witness[10000-100-2-relaxed-GUDHI]",
+            "fullname": "benchmarks/bench_clouds_witness.py::test_witness[10000-100-2-relaxed-GUDHI]",
+            "params": {
+                "n": 10000,
+                "m": 100,
+                "dim": 2,
+                "strong": false,
+                "implementation": "GUDHI"
+            },
+            "param": "10000-100-2-relaxed-GUDHI",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 17.0,
+                "fingerprint": [
+                    [
+                        0,
+                        1,
+                        0
+                    ],
+                    [
+                        16,
+                        0,
+                        0.005169
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.4820172559993807,
+                "max": 0.48624927998753265,
+                "mean": 0.4836731333246765,
+                "stddev": 0.0022611232826437538,
+                "rounds": 3,
+                "median": 0.48275286398711614,
+                "iqr": 0.003174017991113942,
+                "q1": 0.4822011579963146,
+                "q3": 0.4853751759874285,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.4820172559993807,
+                "hd15iqr": 0.48624927998753265,
+                "ops": 2.0675119850593964,
+                "total": 1.4510193999740295,
+                "data": [
+                    0.48275286398711614,
+                    0.4820172559993807,
+                    0.48624927998753265
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "witness relaxed n=10000 m=100 d=2",
+            "name": "test_witness[10000-100-2-relaxed-phlite (serial)]",
+            "fullname": "benchmarks/bench_clouds_witness.py::test_witness[10000-100-2-relaxed-phlite (serial)]",
+            "params": {
+                "n": 10000,
+                "m": 100,
+                "dim": 2,
+                "strong": false,
+                "implementation": "phlite (serial)"
+            },
+            "param": "10000-100-2-relaxed-phlite (serial)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 14.5,
+                "fingerprint": [
+                    [
+                        0,
+                        1,
+                        0
+                    ],
+                    [
+                        16,
+                        0,
+                        0.005169
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.04021389302215539,
+                "max": 0.048359938024077564,
+                "mean": 0.04359741468215361,
+                "stddev": 0.004244496026903642,
+                "rounds": 3,
+                "median": 0.04221841300022788,
+                "iqr": 0.0061095337514416315,
+                "q1": 0.04071502301667351,
+                "q3": 0.046824556768115144,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.04021389302215539,
+                "hd15iqr": 0.048359938024077564,
+                "ops": 22.93713990360408,
+                "total": 0.13079224404646084,
+                "data": [
+                    0.04021389302215539,
+                    0.04221841300022788,
+                    0.048359938024077564
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "witness relaxed n=10000 m=100 d=2",
+            "name": "test_witness[10000-100-2-relaxed-phlite (parallel)]",
+            "fullname": "benchmarks/bench_clouds_witness.py::test_witness[10000-100-2-relaxed-phlite (parallel)]",
+            "params": {
+                "n": 10000,
+                "m": 100,
+                "dim": 2,
+                "strong": false,
+                "implementation": "phlite (parallel)"
+            },
+            "param": "10000-100-2-relaxed-phlite (parallel)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 12.0,
+                "fingerprint": [
+                    [
+                        0,
+                        1,
+                        0
+                    ],
+                    [
+                        16,
+                        0,
+                        0.005169
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.056152545992517844,
+                "max": 0.059815582004375756,
+                "mean": 0.05782928599122291,
+                "stddev": 0.001851034008494327,
+                "rounds": 3,
+                "median": 0.057519729976775125,
+                "iqr": 0.002747277008893434,
+                "q1": 0.056494341988582164,
+                "q3": 0.0592416189974756,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.056152545992517844,
+                "hd15iqr": 0.059815582004375756,
+                "ops": 17.292276445394396,
+                "total": 0.17348785797366872,
+                "data": [
+                    0.057519729976775125,
+                    0.056152545992517844,
+                    0.059815582004375756
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "witness strong n=10000 m=100 d=2",
+            "name": "test_witness[10000-100-2-strong-GUDHI]",
+            "fullname": "benchmarks/bench_clouds_witness.py::test_witness[10000-100-2-strong-GUDHI]",
+            "params": {
+                "n": 10000,
+                "m": 100,
+                "dim": 2,
+                "strong": true,
+                "implementation": "GUDHI"
+            },
+            "param": "10000-100-2-strong-GUDHI",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 2.4,
+                "fingerprint": [
+                    [
+                        99,
+                        1,
+                        0.003182
+                    ],
+                    [
+                        119,
+                        0,
+                        0.089391
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 7.622861595009454,
+                "max": 7.658950028999243,
+                "mean": 7.638034943995687,
+                "stddev": 0.01871682174751664,
+                "rounds": 3,
+                "median": 7.632293207978364,
+                "iqr": 0.027066325492342003,
+                "q1": 7.625219498251681,
+                "q3": 7.652285823744023,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 7.622861595009454,
+                "hd15iqr": 7.658950028999243,
+                "ops": 0.13092372676117528,
+                "total": 22.91410483198706,
+                "data": [
+                    7.632293207978364,
+                    7.622861595009454,
+                    7.658950028999243
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "witness strong n=10000 m=100 d=2",
+            "name": "test_witness[10000-100-2-strong-phlite (serial)]",
+            "fullname": "benchmarks/bench_clouds_witness.py::test_witness[10000-100-2-strong-phlite (serial)]",
+            "params": {
+                "n": 10000,
+                "m": 100,
+                "dim": 2,
+                "strong": true,
+                "implementation": "phlite (serial)"
+            },
+            "param": "10000-100-2-strong-phlite (serial)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 14.1,
+                "fingerprint": [
+                    [
+                        99,
+                        1,
+                        0.003182
+                    ],
+                    [
+                        119,
+                        0,
+                        0.089391
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.038739998009987175,
+                "max": 0.03891156197641976,
+                "mean": 0.03880512565956451,
+                "stddev": 9.294274118363765e-05,
+                "rounds": 3,
+                "median": 0.03876381699228659,
+                "iqr": 0.00012867297482443973,
+                "q1": 0.03874595275556203,
+                "q3": 0.03887462573038647,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.038739998009987175,
+                "hd15iqr": 0.03891156197641976,
+                "ops": 25.769791567561246,
+                "total": 0.11641537697869353,
+                "data": [
+                    0.03876381699228659,
+                    0.03891156197641976,
+                    0.038739998009987175
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "witness strong n=10000 m=100 d=2",
+            "name": "test_witness[10000-100-2-strong-phlite (parallel)]",
+            "fullname": "benchmarks/bench_clouds_witness.py::test_witness[10000-100-2-strong-phlite (parallel)]",
+            "params": {
+                "n": 10000,
+                "m": 100,
+                "dim": 2,
+                "strong": true,
+                "implementation": "phlite (parallel)"
+            },
+            "param": "10000-100-2-strong-phlite (parallel)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 10.2,
+                "fingerprint": [
+                    [
+                        99,
+                        1,
+                        0.003182
+                    ],
+                    [
+                        119,
+                        0,
+                        0.089391
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.052754556003492326,
+                "max": 0.054493611009093,
+                "mean": 0.053778796340338886,
+                "stddev": 0.0009098825535100854,
+                "rounds": 3,
+                "median": 0.05408822200843133,
+                "iqr": 0.001304291254200507,
+                "q1": 0.05308797250472708,
+                "q3": 0.054392263758927584,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.052754556003492326,
+                "hd15iqr": 0.054493611009093,
+                "ops": 18.59468913494278,
+                "total": 0.16133638902101666,
+                "data": [
+                    0.052754556003492326,
+                    0.05408822200843133,
+                    0.054493611009093
+                ],
+                "iterations": 1
+            }
+        }
+    ],
+    "datetime": "2026-11-22T22:36:51.354148+00:00",
+    "version": "5.3.1"
+}

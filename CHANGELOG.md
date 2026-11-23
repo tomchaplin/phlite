@@ -49,7 +49,8 @@ each is tested against the reference implementations named below and benchmarked
 ### Magnitude homology
 
 - **Magnitude homology** of digraphs over Z/p or the integers, with its torsion (`phlite.networks.magnitude`,
-  `MagnitudeHomology`), by Markowitz elimination: 8–100× faster than gramag, and level with Perseus.
+  `MagnitudeHomology`), by Markowitz elimination: 2–20× faster than gramag on `BENCHMARKS.md`'s random digraphs, and up to 100× on
+  larger graphs; level with Perseus.
 - **The magnitude-path spectral sequence** (Asao; Hepworth and Roff), every page as groups with generators
   (`magnitude_path_spectral_sequence`), tested against Hepworth and Roff's computations for directed and bi-directed
   cycles.

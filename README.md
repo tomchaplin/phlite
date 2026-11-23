@@ -141,7 +141,7 @@ agree). On one thread, phlite is faster on most of their own inputs:
 * images, kernels and cokernels: 1.2–1.8× faster than phimaker (and the whole six-pack, with representatives, in about
   phimaker's time); zigzag persistence 17–385× faster than Dionysus (and within 1.6× of Dey and Hou's fzz reducing the same
   way); spectral sequences over Z 1–1000× faster than
-  Kenzo; magnitude homology 8–100× faster than gramag, and level with Perseus.
+  Kenzo; magnitude homology 2–100× faster than gramag (more on larger graphs), and level with Perseus.
 
 It is slower in places too, and often uses more memory:
 

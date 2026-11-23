@@ -56,7 +56,8 @@ function; `phlite_networks_grpph` and `phlite_networks_pph` are command-line too
   cohomology.
 
 * **[gramag](https://github.com/tomchaplin/gramag)** and **[Perseus](https://people.maths.ox.ac.uk/nanda/perseus/)**
-  (magnitude homology): phlite is 8–100× faster than gramag, and runs where gramag runs out of memory; level with
+  (magnitude homology): phlite is 2–100× faster than gramag (2–20× on the random digraphs in `BENCHMARKS.md`, more
+  on larger graphs), and runs where gramag runs out of memory; level with
   Perseus in time (whose coreductions and elimination phlite borrows, with its sorted enumeration), with about 1.3×
   its memory. Every rank and torsion group agrees with both.
 

@@ -176,11 +176,13 @@ def _before_fork():
 # ====== Running a benchmark ==============================================
 
 
-def run(benchmark, *, group, implementation, make_input, reference=None, rounds=None):
+def run(benchmark, *, group, implementation, make_input, reference=None, rounds=None, timeout=None):
     """Benchmark `implementation(input)` on inputs from `make_input()`, checking it agrees with `reference()`.
 
     `reference` returns the reference fingerprint (and should be cached, since every benchmark of a case asks for it);
     leave it out for the reference implementation itself. `rounds` overrides `ROUNDS`, for cases too slow to repeat.
+    `timeout` overrides `TIMEOUT`: 0 runs the first run in this process, not a forked child, for an implementation
+    that a fork would hang (one with a thread pool of its own that an earlier run started, as gramag's rayon pool).
     """
     benchmark.group = group
     benchmark.extra_info["threads"] = THREADS
@@ -191,7 +193,7 @@ def run(benchmark, *, group, implementation, make_input, reference=None, rounds=
         result, peak = peak_heap_mb(lambda: implementation(data))
         return _resolve(result), peak
 
-    out = call_with_timeout(first_run, TIMEOUT)
+    out = call_with_timeout(first_run, TIMEOUT if timeout is None else timeout)
     del data
     if out is None:
         pytest.skip(f"over the time limit of {TIMEOUT:g} s (PHLITE_BENCH_TIMEOUT)")

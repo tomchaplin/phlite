@@ -6,65 +6,65 @@ phlite's Python bindings against reference implementations (with [pytest-benchma
 In the Python tables each time is the fastest of several runs (one run for the largest cases), with the peak heap memory allocated during a separate run in MB (measured with [memray](https://bloomberg.github.io/memray/), which includes native allocations, such as Rust's). Parallel implementations use 4 threads. Every barcode agrees with the reference implementation's (each benchmark checks this). An empty cell is a case not run (as each section says), or one whose first run went over the time limit (10 minutes, by default) and was stopped.
 
 * Machine: 11th Gen Intel(R) Core(TM) i7-1185G7 @ 3.00GHz (8 cores), Linux x86_64
-* Measured 2026-11-16 at commit `8a41862 (with uncommitted changes)`
+* Measured 2026-11-22 at commit `b37a927`
 
 Full results are in `python-tests/benchmarks/results/` (pytest-benchmark JSON; compare runs with `pytest-benchmark compare`). See [python-tests/README.md](README.md#benchmarks) for how to run them and check for regressions.
 
 ## Rips: `phlite.clouds.rips` vs ripser and giotto-ph
 
-Vietoris–Rips persistence in dimensions up to `dim` of `n` points, from a distance matrix: uniformly random in the unit cube (unlabelled; every bar is short), or noisy samples (by tadasets) of a torus in R³ (two long H1 bars and one long H2 bar), a 2-sphere (one long H2 bar), a wedge of two 2-spheres (two) or a wedge of three circles in the plane (three long H1 bars). giotto-ph is ripser with parallelism. The cases with 1000 or more points are timed once each, and at 1000 points in dimension 2 ripser runs out of memory (over 7 GB), so isn't run.
+Vietoris–Rips persistence in dimensions up to `dim` of `n` points, from a distance matrix: uniformly random in the unit cube (unlabelled; every bar is short), or noisy samples (by tadasets) of a torus in R³ (two long H1 bars and one long H2 bar), a 2-sphere (one long H2 bar), a wedge of two 2-spheres (two) or a wedge of three circles in the plane (three long H1 bars). giotto-ph is ripser with parallelism. Perseus 6 (whose default is over Q, with a certificate of the primes where the barcode differs) runs over Z/2 on one thread. The cases with 1000 or more points are timed once each, and at 1000 points in dimension 2 ripser runs out of memory (over 7 GB), so isn't run.
 
-Python 3.11.13.
+Python 3.11.18.
 
-| case | ripser | giotto-ph (1 thread) | giotto-ph (parallel) | phlite (serial) | phlite (parallel) | phlite (serial, reps) |
-|---|---:|---:|---:|---:|---:|---:|
-| rips n=100 dim≤2 | 43.3 ms · 8 MB | 13.7 ms · 0 MB | 5.9 ms · 0 MB | 8.9 ms · 0 MB | 3.6 ms · 0 MB | 14.6 ms · 0 MB |
-| rips n=200 dim≤2 | 367.2 ms · 53 MB | 99.8 ms · 1 MB | 33.0 ms · 1 MB | 65.5 ms · 1 MB | 22.4 ms · 1 MB | 115.3 ms · 2 MB |
-| rips n=300 dim≤2 | 1.66 s · 90 MB | 392.6 ms · 5 MB | 150.9 ms · 5 MB | 256.4 ms · 4 MB | 97.4 ms · 4 MB | 436.2 ms · 4 MB |
-| rips n=400 dim≤2 | 3.64 s · 11 MB | 1.01 s · 4 MB | 430.0 ms · 4 MB | 518.0 ms · 4 MB | 189.9 ms · 5 MB | 927.9 ms · 6 MB |
-| rips torus n=400 dim≤2 | 2.96 s · 11 MB | 875.1 ms · 16 MB | 390.6 ms · 16 MB | 499.6 ms · 11 MB | 218.3 ms · 19 MB | 719.4 ms · 11 MB |
-| rips sphere n=400 dim≤2 | 18.36 s · 14 MB | 7.65 s · 7 MB | 6.81 s · 8 MB | 6.91 s · 546 MB | 6.36 s · 6 MB | 7.54 s · 546 MB |
-| rips spheres n=400 dim≤2 | 5.14 s · 11 MB | 2.46 s · 5 MB | 1.39 s · 5 MB | 2.44 s · 138 MB | 1.46 s · 5 MB | 2.70 s · 138 MB |
-| rips circles n=1000 dim≤1 | 2.21 s · 62 MB | 1.34 s · 18 MB | 1.32 s · 18 MB | 1.19 s · 76 MB | 1.13 s · 76 MB | 1.22 s · 76 MB |
-| rips n=1000 dim≤1 | 519.6 ms · 63 MB | 232.8 ms · 19 MB | 173.4 ms · 19 MB | 185.2 ms · 21 MB | 77.9 ms · 32 MB |  |
-| rips n=1000 dim≤2 |  | 18.42 s · 19 MB | 7.62 s · 19 MB | 8.54 s · 24 MB | 3.70 s · 32 MB |  |
-| rips n=2000 dim≤1 | 2.73 s · 248 MB | 1.56 s · 74 MB | 1.72 s · 74 MB | 1.03 s · 100 MB | 555.7 ms · 134 MB |  |
-| rips torus n=1000 dim≤2 |  | 15.15 s · 18 MB | 6.95 s · 18 MB | 7.83 s · 148 MB | 3.78 s · 144 MB |  |
-| rips circles n=2000 dim≤1 | 20.34 s · 247 MB | 15.45 s · 71 MB | 11.40 s · 71 MB | 14.88 s · 572 MB | 9.54 s · 1108 MB |  |
+| case | ripser | giotto-ph (1 thread) | giotto-ph (parallel) | perseus (F2) | phlite (serial) | phlite (parallel) | phlite (serial, reps) |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| rips n=100 dim≤2 | 43.3 ms · 8 MB | 14.9 ms · 0 MB | 6.0 ms · 0 MB | 835 µs · 0 MB | 1.1 ms · 0 MB | 1.2 ms · 0 MB | 14.3 ms · 0 MB |
+| rips n=200 dim≤2 | 357.7 ms · 66 MB | 105.4 ms · 1 MB | 41.4 ms · 1 MB | 3.2 ms · 1 MB | 5.4 ms · 1 MB | 4.5 ms · 1 MB | 118.4 ms · 2 MB |
+| rips n=300 dim≤2 | 1.61 s · 260 MB | 410.2 ms · 5 MB | 168.9 ms · 5 MB | 8.5 ms · 3 MB | 12.4 ms · 3 MB | 10.3 ms · 3 MB | 411.0 ms · 4 MB |
+| rips n=400 dim≤2 | 3.53 s · 518 MB | 1.06 s · 5 MB | 442.8 ms · 6 MB | 14.8 ms · 4 MB | 19.4 ms · 4 MB | 15.7 ms · 4 MB | 860.8 ms · 6 MB |
+| rips torus n=400 dim≤2 | 2.96 s · 400 MB | 950.1 ms · 16 MB | 417.0 ms · 16 MB | 32.8 ms · 4 MB | 44.8 ms · 4 MB | 35.3 ms · 4 MB | 774.7 ms · 11 MB |
+| rips sphere n=400 dim≤2 | 18.06 s · 1703 MB | 7.40 s · 813 MB | 6.55 s · 813 MB | 306.4 ms · 5 MB | 268.3 ms · 7 MB | 213.0 ms · 7 MB | 7.25 s · 546 MB |
+| rips spheres n=400 dim≤2 | 5.37 s · 418 MB | 2.69 s · 104 MB | 1.42 s · 104 MB | 183.6 ms · 4 MB | 196.4 ms · 5 MB | 140.5 ms · 6 MB | 2.68 s · 138 MB |
+| rips circles n=1000 dim≤1 | 2.19 s · 166 MB | 1.31 s · 119 MB | 1.28 s · 119 MB | 177.1 ms · 26 MB | 86.1 ms · 23 MB | 86.0 ms · 23 MB | 1.21 s · 76 MB |
+| rips n=1000 dim≤1 | 548.3 ms · 79 MB | 251.5 ms · 31 MB | 194.5 ms · 26 MB | 87.6 ms · 27 MB | 103.6 ms · 23 MB | 97.8 ms · 23 MB |  |
+| rips n=1000 dim≤2 |  | 19.27 s · 31 MB | 8.07 s · 31 MB | 111.6 ms · 25 MB | 117.6 ms · 23 MB | 102.4 ms · 23 MB |  |
+| rips n=2000 dim≤1 | 2.75 s · 365 MB | 1.51 s · 175 MB | 1.62 s · 275 MB | 510.6 ms · 106 MB | 533.5 ms · 92 MB | 527.8 ms · 92 MB |  |
+| rips torus n=1000 dim≤2 |  | 14.71 s · 219 MB | 6.79 s · 219 MB | 364.1 ms · 25 MB | 400.8 ms · 26 MB | 374.2 ms · 26 MB |  |
+| rips circles n=2000 dim≤1 | 20.11 s · 1070 MB | 14.56 s · 878 MB | 10.76 s · 1415 MB | 1.55 s · 104 MB | 496.5 ms · 90 MB | 508.6 ms · 90 MB |  |
 
 How phlite compares on one thread, per case: the fastest other implementation, phlite's default (`phlite (serial)`), and the fastest phlite configuration (all of them are in the next table). Ratios are to the fastest other implementation (below 1 means phlite is faster).
 
 | case | fastest other (1 thread) | phlite default | fastest phlite (1 thread) |
 |---|---|---:|---|
-| rips n=100 dim≤2 | giotto-ph (1 thread): 13.7 ms · 0 MB | 8.9 ms · 0 MB (0.65×) | phlite (serial): 8.9 ms · 0 MB (0.65×) |
-| rips n=200 dim≤2 | giotto-ph (1 thread): 99.8 ms · 1 MB | 65.5 ms · 1 MB (0.66×) | phlite (serial): 65.5 ms · 1 MB (0.66×) |
-| rips n=300 dim≤2 | giotto-ph (1 thread): 392.6 ms · 5 MB | 256.4 ms · 4 MB (0.65×) | phlite (serial, heap, uncached): 254.3 ms · 4 MB (0.65×) |
-| rips n=400 dim≤2 | giotto-ph (1 thread): 1.01 s · 4 MB | 518.0 ms · 4 MB (0.51×) | phlite (serial, heap, uncached): 511.7 ms · 4 MB (0.51×) |
-| rips torus n=400 dim≤2 | giotto-ph (1 thread): 875.1 ms · 16 MB | 499.6 ms · 11 MB (0.57×) | phlite (serial, heap, uncached): 489.0 ms · 11 MB (0.56×) |
-| rips sphere n=400 dim≤2 | giotto-ph (1 thread): 7.65 s · 7 MB | 6.91 s · 546 MB (0.90×) | phlite (serial, merged, uncached): 4.31 s · 1095 MB (0.56×) |
-| rips spheres n=400 dim≤2 | giotto-ph (1 thread): 2.46 s · 5 MB | 2.44 s · 138 MB (0.99×) | phlite (serial, merged, uncached): 2.08 s · 142 MB (0.84×) |
-| rips circles n=1000 dim≤1 | giotto-ph (1 thread): 1.34 s · 18 MB | 1.19 s · 76 MB (0.89×) | phlite (serial, merged): 864.2 ms · 43 MB (0.65×) |
-| rips n=1000 dim≤1 | giotto-ph (1 thread): 232.8 ms · 19 MB | 185.2 ms · 21 MB (0.80×) | phlite (serial, merged): 178.2 ms · 36 MB (0.77×) |
-| rips n=1000 dim≤2 | giotto-ph (1 thread): 18.42 s · 19 MB | 8.54 s · 24 MB (0.46×) | phlite (serial, heap, uncached): 8.51 s · 24 MB (0.46×) |
-| rips n=2000 dim≤1 | giotto-ph (1 thread): 1.56 s · 74 MB | 1.03 s · 100 MB (0.66×) | phlite (serial, merged): 863.2 ms · 97 MB (0.55×) |
-| rips torus n=1000 dim≤2 | giotto-ph (1 thread): 15.15 s · 18 MB | 7.83 s · 148 MB (0.52×) | phlite (serial): 7.83 s · 148 MB (0.52×) |
-| rips circles n=2000 dim≤1 | giotto-ph (1 thread): 15.45 s · 71 MB | 14.88 s · 572 MB (0.96×) | phlite (serial, merged): 7.67 s · 90 MB (0.50×) |
+| rips n=100 dim≤2 | perseus (F2): 835 µs · 0 MB | 1.1 ms · 0 MB (1.30×) | phlite (serial, store R): 1.0 ms · 0 MB (1.25×) |
+| rips n=200 dim≤2 | perseus (F2): 3.2 ms · 1 MB | 5.4 ms · 1 MB (1.66×) | phlite (serial, store R): 3.8 ms · 1 MB (1.19×) |
+| rips n=300 dim≤2 | perseus (F2): 8.5 ms · 3 MB | 12.4 ms · 3 MB (1.45×) | phlite (serial, store R): 8.7 ms · 3 MB (1.02×) |
+| rips n=400 dim≤2 | perseus (F2): 14.8 ms · 4 MB | 19.4 ms · 4 MB (1.31×) | phlite (serial, heap, uncached): 14.6 ms · 4 MB (0.99×) |
+| rips torus n=400 dim≤2 | perseus (F2): 32.8 ms · 4 MB | 44.8 ms · 4 MB (1.37×) | phlite (serial, merged): 36.9 ms · 4 MB (1.13×) |
+| rips sphere n=400 dim≤2 | perseus (F2): 306.4 ms · 5 MB | 268.3 ms · 7 MB (0.88×) | phlite (serial, heap, uncached): 259.5 ms · 7 MB (0.85×) |
+| rips spheres n=400 dim≤2 | perseus (F2): 183.6 ms · 4 MB | 196.4 ms · 5 MB (1.07×) | phlite (serial): 196.4 ms · 5 MB (1.07×) |
+| rips circles n=1000 dim≤1 | perseus (F2): 177.1 ms · 26 MB | 86.1 ms · 23 MB (0.49×) | phlite (serial, merged): 83.6 ms · 23 MB (0.47×) |
+| rips n=1000 dim≤1 | perseus (F2): 87.6 ms · 27 MB | 103.6 ms · 23 MB (1.18×) | phlite (serial, heap, uncached): 95.3 ms · 23 MB (1.09×) |
+| rips n=1000 dim≤2 | perseus (F2): 111.6 ms · 25 MB | 117.6 ms · 23 MB (1.05×) | phlite (serial, store R): 101.7 ms · 23 MB (0.91×) |
+| rips n=2000 dim≤1 | perseus (F2): 510.6 ms · 106 MB | 533.5 ms · 92 MB (1.04×) | phlite (serial, heap, uncached): 528.2 ms · 92 MB (1.03×) |
+| rips torus n=1000 dim≤2 | perseus (F2): 364.1 ms · 25 MB | 400.8 ms · 26 MB (1.10×) | phlite (serial, merged): 388.2 ms · 26 MB (1.07×) |
+| rips circles n=2000 dim≤1 | perseus (F2): 1.55 s · 104 MB | 496.5 ms · 90 MB (0.32×) | phlite (serial): 496.5 ms · 90 MB (0.32×) |
 
 <details><summary>Every phlite configuration (fastest per case in bold)</summary>
 
 | configuration | rips n=100 dim≤2 | rips n=200 dim≤2 | rips n=300 dim≤2 | rips n=400 dim≤2 | rips torus n=400 dim≤2 | rips sphere n=400 dim≤2 | rips spheres n=400 dim≤2 | rips circles n=1000 dim≤1 | rips n=1000 dim≤1 | rips n=1000 dim≤2 | rips n=2000 dim≤1 | rips torus n=1000 dim≤2 | rips circles n=2000 dim≤1 |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| phlite (serial) | 8.9 ms · 0 MB | 65.5 ms · 1 MB | 256.4 ms · 4 MB | 518.0 ms · 4 MB | 499.6 ms · 11 MB | 6.91 s · 546 MB | 2.44 s · 138 MB | 1.19 s · 76 MB | 185.2 ms · 21 MB | 8.54 s · 24 MB | 1.03 s · 100 MB | 7.83 s · 148 MB | 14.88 s · 572 MB |
-| phlite (parallel) | **3.6 ms · 0 MB** | **22.4 ms · 1 MB** | **97.4 ms · 4 MB** | **189.9 ms · 5 MB** | **218.3 ms · 19 MB** | 6.36 s · 6 MB | 1.46 s · 5 MB | 1.13 s · 76 MB | **77.9 ms · 32 MB** | **3.70 s · 32 MB** | 555.7 ms · 134 MB | **3.78 s · 144 MB** | 9.54 s · 1108 MB |
-| phlite (serial, reps) | 14.6 ms · 0 MB | 115.3 ms · 2 MB | 436.2 ms · 4 MB | 927.9 ms · 6 MB | 719.4 ms · 11 MB | 7.54 s · 546 MB | 2.70 s · 138 MB | 1.22 s · 76 MB |  |  |  |  |  |
-| phlite (serial, merged) | 9.1 ms · 0 MB | 68.7 ms · 3 MB | 261.3 ms · 10 MB | 529.7 ms · 22 MB | 492.3 ms · 16 MB | 4.46 s · 25 MB | 2.09 s · 20 MB | **864.2 ms · 43 MB** | 178.2 ms · 36 MB | 8.82 s · 36 MB | 863.2 ms · 97 MB | 8.22 s · 52 MB | **7.67 s · 90 MB** |
-| phlite (serial, merged, uncached) | 9.1 ms · 0 MB | 67.4 ms · 1 MB | 263.1 ms · 4 MB | 528.1 ms · 4 MB | 502.5 ms · 11 MB | **4.31 s · 1095 MB** | 2.08 s · 142 MB | 866.9 ms · 144 MB | 229.2 ms · 21 MB | 8.81 s · 24 MB | 1.32 s · 100 MB | 8.18 s · 148 MB | 7.80 s · 1112 MB |
-| phlite (serial, heap) | 9.3 ms · 1 MB | 69.9 ms · 3 MB | 263.1 ms · 13 MB | 537.6 ms · 23 MB | 504.4 ms · 24 MB | 7.98 s · 26 MB | 2.69 s · 21 MB | 1.31 s · 78 MB | 192.4 ms · 42 MB | 8.92 s · 42 MB | 979.7 ms · 102 MB | 8.63 s · 88 MB | 15.59 s · 150 MB |
-| phlite (serial, heap, uncached) | 8.9 ms · 0 MB | 66.7 ms · 1 MB | 254.3 ms · 4 MB | 511.7 ms · 4 MB | 489.0 ms · 11 MB | 6.92 s · 546 MB | 2.38 s · 138 MB | 1.23 s · 76 MB | 193.7 ms · 21 MB | 8.51 s · 24 MB | 1.05 s · 100 MB | 7.93 s · 148 MB | 14.99 s · 572 MB |
-| phlite (serial, sorted) | 11.4 ms · 1 MB | 75.6 ms · 3 MB | 311.9 ms · 14 MB | 602.1 ms · 25 MB |  |  |  |  | 587.2 ms · 51 MB | 9.79 s · 51 MB | 8.84 s · 109 MB |  |  |
-| phlite (serial, sorted, uncached) | 10.8 ms · 1 MB | 72.3 ms · 1 MB | 302.9 ms · 5 MB | 572.3 ms · 6 MB |  |  |  |  | 560.1 ms · 25 MB | 9.38 s · 32 MB | 8.77 s · 199 MB |  |  |
-| phlite (serial, store R) | 10.0 ms · 1 MB | 75.3 ms · 3 MB | 300.5 ms · 13 MB | 585.4 ms · 24 MB | 635.5 ms · 35 MB | 22.47 s · 1574 MB | 4.72 s · 418 MB | 2.97 s · 254 MB | 432.0 ms · 69 MB | 9.79 s · 330 MB | 2.88 s · 452 MB | 13.50 s · 758 MB | 47.97 s · 2062 MB |
-| phlite (parallel, lock-free) | 3.7 ms · 0 MB | 23.3 ms · 1 MB | 100.6 ms · 4 MB | 202.4 ms · 5 MB | 222.4 ms · 10 MB | 6.35 s · 6 MB | **1.23 s · 5 MB** | 1.12 s · 76 MB | 82.6 ms · 32 MB | 3.70 s · 32 MB | **517.5 ms · 124 MB** | 3.94 s · 143 MB | 9.55 s · 1108 MB |
+| phlite (serial) | 1.1 ms · 0 MB | 5.4 ms · 1 MB | 12.4 ms · 3 MB | 19.4 ms · 4 MB | 44.8 ms · 4 MB | 268.3 ms · 7 MB | 196.4 ms · 5 MB | 86.1 ms · 23 MB | 103.6 ms · 23 MB | 117.6 ms · 23 MB | 533.5 ms · 92 MB | 400.8 ms · 26 MB | **496.5 ms · 90 MB** |
+| phlite (parallel) | 1.2 ms · 0 MB | 4.5 ms · 1 MB | 10.3 ms · 3 MB | 15.7 ms · 4 MB | 35.3 ms · 4 MB | 213.0 ms · 7 MB | 140.5 ms · 6 MB | 86.0 ms · 23 MB | 97.8 ms · 23 MB | 102.4 ms · 23 MB | **527.8 ms · 92 MB** | **374.2 ms · 26 MB** | 508.6 ms · 90 MB |
+| phlite (serial, reps) | 14.3 ms · 0 MB | 118.4 ms · 2 MB | 411.0 ms · 4 MB | 860.8 ms · 6 MB | 774.7 ms · 11 MB | 7.25 s · 546 MB | 2.68 s · 138 MB | 1.21 s · 76 MB |  |  |  |  |  |
+| phlite (serial, merged) | 1.1 ms · 0 MB | 4.2 ms · 1 MB | 8.9 ms · 3 MB | 15.1 ms · 4 MB | 36.9 ms · 4 MB | 262.0 ms · 7 MB | 200.8 ms · 8 MB | **83.6 ms · 23 MB** | 95.5 ms · 23 MB | 104.9 ms · 23 MB | 532.8 ms · 92 MB | 388.2 ms · 26 MB | 508.4 ms · 90 MB |
+| phlite (serial, merged, uncached) | 1.1 ms · 0 MB | 4.0 ms · 1 MB | 9.1 ms · 3 MB | 14.6 ms · 4 MB | 38.0 ms · 4 MB | 260.5 ms · 7 MB | 199.0 ms · 5 MB | 86.2 ms · 23 MB | 97.4 ms · 23 MB | 105.0 ms · 23 MB | 528.7 ms · 92 MB | 401.5 ms · 26 MB | 502.9 ms · 90 MB |
+| phlite (serial, heap) | 1.1 ms · 0 MB | 4.1 ms · 1 MB | 8.9 ms · 3 MB | 14.7 ms · 4 MB | 37.5 ms · 4 MB | 264.2 ms · 7 MB | 203.3 ms · 9 MB | 85.0 ms · 23 MB | 97.3 ms · 23 MB | 102.5 ms · 23 MB | 534.0 ms · 92 MB | 401.2 ms · 26 MB | 508.8 ms · 90 MB |
+| phlite (serial, heap, uncached) | 1.1 ms · 0 MB | 4.0 ms · 1 MB | 9.0 ms · 3 MB | 14.6 ms · 4 MB | 38.3 ms · 4 MB | 259.5 ms · 7 MB | 197.2 ms · 5 MB | 86.4 ms · 23 MB | **95.3 ms · 23 MB** | 102.7 ms · 23 MB | 528.2 ms · 92 MB | 406.7 ms · 26 MB | 510.8 ms · 90 MB |
+| phlite (serial, sorted) | 1.1 ms · 0 MB | 4.0 ms · 1 MB | 8.8 ms · 3 MB | 14.6 ms · 4 MB |  |  |  |  | 95.4 ms · 23 MB | 102.6 ms · 23 MB | 533.0 ms · 92 MB |  |  |
+| phlite (serial, sorted, uncached) | 1.1 ms · 0 MB | 4.0 ms · 1 MB | 8.8 ms · 3 MB | 14.9 ms · 4 MB |  |  |  |  | 95.9 ms · 23 MB | 105.0 ms · 23 MB | 532.9 ms · 92 MB |  |  |
+| phlite (serial, store R) | **1.0 ms · 0 MB** | 3.8 ms · 1 MB | 8.7 ms · 3 MB | 14.8 ms · 4 MB | 37.8 ms · 4 MB | 273.9 ms · 7 MB | 212.1 ms · 9 MB | 85.3 ms · 23 MB | 100.4 ms · 23 MB | 101.7 ms · 23 MB | 529.4 ms · 92 MB | 405.0 ms · 26 MB | 513.7 ms · 90 MB |
+| phlite (parallel, lock-free) | 1.2 ms · 0 MB | **3.8 ms · 1 MB** | **8.6 ms · 3 MB** | **13.7 ms · 4 MB** | **32.7 ms · 4 MB** | **196.6 ms · 7 MB** | **137.5 ms · 6 MB** | 86.7 ms · 23 MB | 96.5 ms · 23 MB | **100.6 ms · 23 MB** | 532.9 ms · 92 MB | 377.1 ms · 26 MB | 513.5 ms · 90 MB |
 
 </details>
 
@@ -72,36 +72,36 @@ How phlite compares on one thread, per case: the fastest other implementation, p
 
 Vietoris–Rips persistence in dimensions up to `dim` of `n` points uniformly random in the unit cube, keeping only the edges up to the radius at which each point has `degree` neighbours on average, given to every implementation as the same scipy sparse matrix (missing entries never appear). `phlite (points)` starts from the points instead, so includes computing the distances.
 
-Python 3.11.13.
+Python 3.11.18.
 
 | case | ripser | giotto-ph (1 thread) | giotto-ph (parallel) | phlite (serial) | phlite (parallel) | phlite (points) |
 |---|---:|---:|---:|---:|---:|---:|
-| sparse rips n=2000 degree=20 dim≤2 | 50.8 ms · 5 MB | 46.6 ms · 3 MB | 22.3 ms · 2 MB | 38.5 ms · 2 MB | 17.0 ms · 2 MB | 43.6 ms · 2 MB |
-| sparse rips n=5000 degree=20 dim≤2 | 153.9 ms · 8 MB | 134.0 ms · 6 MB | 62.9 ms · 6 MB | 111.4 ms · 5 MB | 44.3 ms · 5 MB | 141.8 ms · 4 MB |
-| sparse rips n=10000 degree=10 dim≤2 | 78.9 ms · 8 MB | 72.7 ms · 7 MB | 35.4 ms · 7 MB | 54.6 ms · 5 MB | 25.3 ms · 5 MB | 177.4 ms · 4 MB |
-| sparse rips n=20000 degree=20 dim≤1 | 453.8 ms · 10 MB | 252.6 ms · 11 MB | 156.6 ms · 11 MB | 270.7 ms · 19 MB | 117.5 ms · 19 MB | 780.6 ms · 6 MB |
-| sparse rips n=50000 degree=20 dim≤1 | 1.59 s · 21 MB | 955.8 ms · 22 MB | 739.9 ms · 22 MB | 941.7 ms · 43 MB | 520.7 ms · 43 MB | 4.35 s · 7 MB |
-| sparse rips n=20000 degree=20 dim≤2 | 902.8 ms · 9 MB | 725.7 ms · 11 MB | 372.4 ms · 11 MB | 548.1 ms · 19 MB | 252.5 ms · 19 MB | 1.08 s · 5 MB |
+| sparse rips n=2000 degree=20 dim≤2 | 55.0 ms · 6 MB | 48.9 ms · 3 MB | 23.7 ms · 3 MB | 25.5 ms · 19 MB | 20.9 ms · 19 MB | 29.6 ms · 19 MB |
+| sparse rips n=5000 degree=20 dim≤2 | 162.2 ms · 15 MB | 144.0 ms · 7 MB | 76.4 ms · 7 MB | 80.9 ms · 11 MB | 62.7 ms · 11 MB | 108.3 ms · 12 MB |
+| sparse rips n=10000 degree=10 dim≤2 | 83.7 ms · 11 MB | 79.1 ms · 8 MB | 40.0 ms · 8 MB | 64.6 ms · 5 MB | 26.8 ms · 5 MB | 187.8 ms · 4 MB |
+| sparse rips n=20000 degree=20 dim≤1 | 472.6 ms · 35 MB | 269.3 ms · 29 MB | 185.2 ms · 30 MB | 280.4 ms · 19 MB | 139.3 ms · 19 MB | 824.8 ms · 19 MB |
+| sparse rips n=50000 degree=20 dim≤1 | 1.68 s · 88 MB | 954.0 ms · 74 MB | 680.7 ms · 76 MB | 935.7 ms · 43 MB | 489.3 ms · 43 MB | 4.47 s · 43 MB |
+| sparse rips n=20000 degree=20 dim≤2 | 911.9 ms · 59 MB | 743.3 ms · 29 MB | 388.2 ms · 30 MB | 552.1 ms · 19 MB | 278.2 ms · 19 MB | 1.11 s · 19 MB |
 
 How phlite compares on one thread, per case: the fastest other implementation, phlite's default (`phlite (serial)`), and the fastest phlite configuration (all of them are in the next table). Ratios are to the fastest other implementation (below 1 means phlite is faster).
 
 | case | fastest other (1 thread) | phlite default | fastest phlite (1 thread) |
 |---|---|---:|---|
-| sparse rips n=2000 degree=20 dim≤2 | giotto-ph (1 thread): 46.6 ms · 3 MB | 38.5 ms · 2 MB (0.83×) | phlite (serial, merged): 36.4 ms · 2 MB (0.78×) |
-| sparse rips n=5000 degree=20 dim≤2 | giotto-ph (1 thread): 134.0 ms · 6 MB | 111.4 ms · 5 MB (0.83×) | phlite (serial, merged): 102.9 ms · 5 MB (0.77×) |
-| sparse rips n=10000 degree=10 dim≤2 | giotto-ph (1 thread): 72.7 ms · 7 MB | 54.6 ms · 5 MB (0.75×) | phlite (serial): 54.6 ms · 5 MB (0.75×) |
-| sparse rips n=20000 degree=20 dim≤1 | giotto-ph (1 thread): 252.6 ms · 11 MB | 270.7 ms · 19 MB (1.07×) | phlite (serial, merged): 219.2 ms · 19 MB (0.87×) |
-| sparse rips n=50000 degree=20 dim≤1 | giotto-ph (1 thread): 955.8 ms · 22 MB | 941.7 ms · 43 MB (0.99×) | phlite (serial, merged): 732.5 ms · 43 MB (0.77×) |
-| sparse rips n=20000 degree=20 dim≤2 | giotto-ph (1 thread): 725.7 ms · 11 MB | 548.1 ms · 19 MB (0.76×) | phlite (serial, merged): 518.6 ms · 19 MB (0.71×) |
+| sparse rips n=2000 degree=20 dim≤2 | giotto-ph (1 thread): 48.9 ms · 3 MB | 25.5 ms · 19 MB (0.52×) | phlite (serial, merged): 23.8 ms · 19 MB (0.49×) |
+| sparse rips n=5000 degree=20 dim≤2 | giotto-ph (1 thread): 144.0 ms · 7 MB | 80.9 ms · 11 MB (0.56×) | phlite (serial, merged): 75.5 ms · 11 MB (0.52×) |
+| sparse rips n=10000 degree=10 dim≤2 | giotto-ph (1 thread): 79.1 ms · 8 MB | 64.6 ms · 5 MB (0.82×) | phlite (serial, merged): 61.5 ms · 5 MB (0.78×) |
+| sparse rips n=20000 degree=20 dim≤1 | giotto-ph (1 thread): 269.3 ms · 29 MB | 280.4 ms · 19 MB (1.04×) | phlite (serial, merged): 228.3 ms · 19 MB (0.85×) |
+| sparse rips n=50000 degree=20 dim≤1 | giotto-ph (1 thread): 954.0 ms · 74 MB | 935.7 ms · 43 MB (0.98×) | phlite (serial, merged): 723.0 ms · 49 MB (0.76×) |
+| sparse rips n=20000 degree=20 dim≤2 | giotto-ph (1 thread): 743.3 ms · 29 MB | 552.1 ms · 19 MB (0.74×) | phlite (serial, merged): 503.2 ms · 19 MB (0.68×) |
 
 <details><summary>Every phlite configuration (fastest per case in bold)</summary>
 
 | configuration | sparse rips n=2000 degree=20 dim≤2 | sparse rips n=5000 degree=20 dim≤2 | sparse rips n=10000 degree=10 dim≤2 | sparse rips n=20000 degree=20 dim≤1 | sparse rips n=50000 degree=20 dim≤1 | sparse rips n=20000 degree=20 dim≤2 |
 |---|---:|---:|---:|---:|---:|---:|
-| phlite (serial) | 38.5 ms · 2 MB | 111.4 ms · 5 MB | 54.6 ms · 5 MB | 270.7 ms · 19 MB | 941.7 ms · 43 MB | 548.1 ms · 19 MB |
-| phlite (parallel) | **17.0 ms · 2 MB** | **44.3 ms · 5 MB** | **25.3 ms · 5 MB** | **117.5 ms · 19 MB** | **520.7 ms · 43 MB** | **252.5 ms · 19 MB** |
-| phlite (serial, merged) | 36.4 ms · 2 MB | 102.9 ms · 5 MB | 54.9 ms · 5 MB | 219.2 ms · 19 MB | 732.5 ms · 43 MB | 518.6 ms · 19 MB |
-| phlite (points) | 43.6 ms · 2 MB | 141.8 ms · 4 MB | 177.4 ms · 4 MB | 780.6 ms · 6 MB | 4.35 s · 7 MB | 1.08 s · 5 MB |
+| phlite (serial) | 25.5 ms · 19 MB | 80.9 ms · 11 MB | 64.6 ms · 5 MB | 280.4 ms · 19 MB | 935.7 ms · 43 MB | 552.1 ms · 19 MB |
+| phlite (parallel) | **20.9 ms · 19 MB** | **62.7 ms · 11 MB** | **26.8 ms · 5 MB** | **139.3 ms · 19 MB** | **489.3 ms · 43 MB** | **278.2 ms · 19 MB** |
+| phlite (serial, merged) | 23.8 ms · 19 MB | 75.5 ms · 11 MB | 61.5 ms · 5 MB | 228.3 ms · 19 MB | 723.0 ms · 49 MB | 503.2 ms · 19 MB |
+| phlite (points) | 29.6 ms · 19 MB | 108.3 ms · 12 MB | 187.8 ms · 4 MB | 824.8 ms · 19 MB | 4.47 s · 43 MB | 1.11 s · 19 MB |
 
 </details>
 
@@ -109,37 +109,37 @@ How phlite compares on one thread, per case: the fastest other implementation, p
 
 Alpha persistence (squared radii) of `n` points uniformly random in the unit square (`plane`) or cube (`space`), or a noisy torus in R³ (`torus`, long bars), from the points: Delaunay triangulation, alpha values and reduction. GUDHI builds its alpha complex (default 'safe' precision) and computes persistence.
 
-Python 3.11.13.
+Python 3.11.18.
 
 | case | gudhi | phlite (serial) | phlite (parallel) |
 |---|---:|---:|---:|
-| alpha plane n=10000 | 87.2 ms · 4 MB | 61.2 ms · 4 MB | 71.0 ms · 4 MB |
-| alpha plane n=100000 | 1.48 s · 9 MB | 1.39 s · 7 MB | 1.53 s · 7 MB |
-| alpha space n=10000 | 647.5 ms · 4 MB | 313.2 ms · 28 MB | 333.9 ms · 28 MB |
-| alpha space n=50000 | 4.70 s · 2 MB | 1.94 s · 6 MB | 2.09 s · 6 MB |
-| alpha torus n=20000 | 1.42 s · 5 MB | 605.1 ms · 26 MB | 635.8 ms · 26 MB |
-| alpha plane n=1000000 | 23.21 s · 10 MB | 167.22 s · 26 MB | 171.06 s · 26 MB |
-| alpha space n=300000 | 37.76 s · 4 MB | 16.37 s · 10 MB | 18.51 s · 10 MB |
+| alpha plane n=10000 | 89.7 ms · 13 MB | 43.2 ms · 11 MB | 49.3 ms · 11 MB |
+| alpha plane n=100000 | 1.49 s · 123 MB | 509.3 ms · 114 MB | 517.5 ms · 114 MB |
+| alpha space n=10000 | 642.0 ms · 72 MB | 326.4 ms · 57 MB | 338.9 ms · 58 MB |
+| alpha space n=50000 | 4.69 s · 353 MB | 1.88 s · 265 MB | 1.95 s · 268 MB |
+| alpha torus n=20000 | 1.43 s · 132 MB | 587.8 ms · 101 MB | 589.6 ms · 104 MB |
+| alpha plane n=1000000 | 22.00 s · 1198 MB | 8.45 s · 1019 MB | 8.63 s · 1019 MB |
+| alpha space n=300000 | 37.53 s · 2108 MB | 15.47 s · 1638 MB | 16.28 s · 1698 MB |
 
 How phlite compares on one thread, per case: the fastest other implementation, phlite's default (`phlite (serial)`), and the fastest phlite configuration (all of them are in the next table). Ratios are to the fastest other implementation (below 1 means phlite is faster).
 
 | case | fastest other (1 thread) | phlite default | fastest phlite (1 thread) |
 |---|---|---:|---|
-| alpha plane n=10000 | gudhi: 87.2 ms · 4 MB | 61.2 ms · 4 MB (0.70×) | phlite (serial): 61.2 ms · 4 MB (0.70×) |
-| alpha plane n=100000 | gudhi: 1.48 s · 9 MB | 1.39 s · 7 MB (0.94×) | phlite (serial): 1.39 s · 7 MB (0.94×) |
-| alpha space n=10000 | gudhi: 647.5 ms · 4 MB | 313.2 ms · 28 MB (0.48×) | phlite (serial): 313.2 ms · 28 MB (0.48×) |
-| alpha space n=50000 | gudhi: 4.70 s · 2 MB | 1.94 s · 6 MB (0.41×) | phlite (serial): 1.94 s · 6 MB (0.41×) |
-| alpha torus n=20000 | gudhi: 1.42 s · 5 MB | 605.1 ms · 26 MB (0.43×) | phlite (serial): 605.1 ms · 26 MB (0.43×) |
-| alpha plane n=1000000 | gudhi: 23.21 s · 10 MB | 167.22 s · 26 MB (7.20×) | phlite (serial): 167.22 s · 26 MB (7.20×) |
-| alpha space n=300000 | gudhi: 37.76 s · 4 MB | 16.37 s · 10 MB (0.43×) | phlite (serial): 16.37 s · 10 MB (0.43×) |
+| alpha plane n=10000 | gudhi: 89.7 ms · 13 MB | 43.2 ms · 11 MB (0.48×) | phlite (serial, merged): 42.9 ms · 11 MB (0.48×) |
+| alpha plane n=100000 | gudhi: 1.49 s · 123 MB | 509.3 ms · 114 MB (0.34×) | phlite (serial): 509.3 ms · 114 MB (0.34×) |
+| alpha space n=10000 | gudhi: 642.0 ms · 72 MB | 326.4 ms · 57 MB (0.51×) | phlite (serial): 326.4 ms · 57 MB (0.51×) |
+| alpha space n=50000 | gudhi: 4.69 s · 353 MB | 1.88 s · 265 MB (0.40×) | phlite (serial): 1.88 s · 265 MB (0.40×) |
+| alpha torus n=20000 | gudhi: 1.43 s · 132 MB | 587.8 ms · 101 MB (0.41×) | phlite (serial): 587.8 ms · 101 MB (0.41×) |
+| alpha plane n=1000000 | gudhi: 22.00 s · 1198 MB | 8.45 s · 1019 MB (0.38×) | phlite (serial): 8.45 s · 1019 MB (0.38×) |
+| alpha space n=300000 | gudhi: 37.53 s · 2108 MB | 15.47 s · 1638 MB (0.41×) | phlite (serial): 15.47 s · 1638 MB (0.41×) |
 
 <details><summary>Every phlite configuration (fastest per case in bold)</summary>
 
 | configuration | alpha plane n=10000 | alpha plane n=100000 | alpha space n=10000 | alpha space n=50000 | alpha torus n=20000 | alpha plane n=1000000 | alpha space n=300000 |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| phlite (serial) | **61.2 ms · 4 MB** | **1.39 s · 7 MB** | **313.2 ms · 28 MB** | **1.94 s · 6 MB** | **605.1 ms · 26 MB** | **167.22 s · 26 MB** | **16.37 s · 10 MB** |
-| phlite (parallel) | 71.0 ms · 4 MB | 1.53 s · 7 MB | 333.9 ms · 28 MB | 2.09 s · 6 MB | 635.8 ms · 26 MB | 171.06 s · 26 MB | 18.51 s · 10 MB |
-| phlite (serial, merged) | 67.3 ms · 4 MB | 1.52 s · 7 MB | 349.9 ms · 28 MB | 2.19 s · 6 MB | 655.3 ms · 26 MB | 171.16 s · 26 MB | 20.04 s · 10 MB |
+| phlite (serial) | 43.2 ms · 11 MB | **509.3 ms · 114 MB** | **326.4 ms · 57 MB** | **1.88 s · 265 MB** | **587.8 ms · 101 MB** | **8.45 s · 1019 MB** | **15.47 s · 1638 MB** |
+| phlite (parallel) | 49.3 ms · 11 MB | 517.5 ms · 114 MB | 338.9 ms · 58 MB | 1.95 s · 268 MB | 589.6 ms · 104 MB | 8.63 s · 1019 MB | 16.28 s · 1698 MB |
+| phlite (serial, merged) | **42.9 ms · 11 MB** | 530.8 ms · 114 MB | 344.1 ms · 56 MB | 2.08 s · 259 MB | 636.7 ms · 101 MB | 8.62 s · 1019 MB | 17.94 s · 1610 MB |
 
 </details>
 
@@ -147,37 +147,37 @@ How phlite compares on one thread, per case: the fastest other implementation, p
 
 Delaunay–Čech persistence (squared radii) of `n` points uniformly random in the unit square (`plane`) or cube (`space`), or a noisy torus in R³ (`torus`, long bars), from the points: Delaunay triangulation, minimal enclosing balls and reduction. GUDHI builds its Delaunay–Čech complex (default 'safe' precision) and computes persistence.
 
-Python 3.11.13.
+Python 3.11.18.
 
 | case | gudhi | phlite (serial) | phlite (parallel) |
 |---|---:|---:|---:|
-| delaunay-cech plane n=10000 | 73.5 ms · 4 MB | 58.5 ms · 4 MB | 68.3 ms · 4 MB |
-| delaunay-cech plane n=100000 | 1.34 s · 9 MB | 1.41 s · 7 MB | 1.52 s · 7 MB |
-| delaunay-cech space n=10000 | 543.7 ms · 4 MB | 402.5 ms · 28 MB | 427.9 ms · 28 MB |
-| delaunay-cech space n=50000 | 3.99 s · 2 MB | 2.34 s · 6 MB | 2.53 s · 6 MB |
-| delaunay-cech torus n=20000 | 1.17 s · 5 MB | 792.9 ms · 26 MB | 846.3 ms · 26 MB |
-| delaunay-cech plane n=1000000 | 21.15 s · 10 MB | 168.12 s · 26 MB | 170.90 s · 26 MB |
-| delaunay-cech space n=200000 | 20.31 s · 3 MB | 11.33 s · 7 MB | 12.30 s · 7 MB |
+| delaunay-cech plane n=10000 | 74.6 ms · 15 MB | 42.5 ms · 11 MB | 47.2 ms · 11 MB |
+| delaunay-cech plane n=100000 | 1.32 s · 132 MB | 507.4 ms · 114 MB | 516.1 ms · 114 MB |
+| delaunay-cech space n=10000 | 555.5 ms · 60 MB | 414.9 ms · 57 MB | 436.2 ms · 58 MB |
+| delaunay-cech space n=50000 | 3.98 s · 296 MB | 2.29 s · 264 MB | 2.44 s · 269 MB |
+| delaunay-cech torus n=20000 | 1.17 s · 107 MB | 800.2 ms · 101 MB | 829.4 ms · 104 MB |
+| delaunay-cech plane n=1000000 | 19.76 s · 1285 MB | 7.86 s · 1019 MB | 8.35 s · 1019 MB |
+| delaunay-cech space n=200000 | 18.95 s · 1195 MB | 10.67 s · 1075 MB | 11.72 s · 1082 MB |
 
 How phlite compares on one thread, per case: the fastest other implementation, phlite's default (`phlite (serial)`), and the fastest phlite configuration (all of them are in the next table). Ratios are to the fastest other implementation (below 1 means phlite is faster).
 
 | case | fastest other (1 thread) | phlite default | fastest phlite (1 thread) |
 |---|---|---:|---|
-| delaunay-cech plane n=10000 | gudhi: 73.5 ms · 4 MB | 58.5 ms · 4 MB (0.80×) | phlite (serial): 58.5 ms · 4 MB (0.80×) |
-| delaunay-cech plane n=100000 | gudhi: 1.34 s · 9 MB | 1.41 s · 7 MB (1.05×) | phlite (serial): 1.41 s · 7 MB (1.05×) |
-| delaunay-cech space n=10000 | gudhi: 543.7 ms · 4 MB | 402.5 ms · 28 MB (0.74×) | phlite (serial): 402.5 ms · 28 MB (0.74×) |
-| delaunay-cech space n=50000 | gudhi: 3.99 s · 2 MB | 2.34 s · 6 MB (0.59×) | phlite (serial): 2.34 s · 6 MB (0.59×) |
-| delaunay-cech torus n=20000 | gudhi: 1.17 s · 5 MB | 792.9 ms · 26 MB (0.68×) | phlite (serial): 792.9 ms · 26 MB (0.68×) |
-| delaunay-cech plane n=1000000 | gudhi: 21.15 s · 10 MB | 168.12 s · 26 MB (7.95×) | phlite (serial): 168.12 s · 26 MB (7.95×) |
-| delaunay-cech space n=200000 | gudhi: 20.31 s · 3 MB | 11.33 s · 7 MB (0.56×) | phlite (serial): 11.33 s · 7 MB (0.56×) |
+| delaunay-cech plane n=10000 | gudhi: 74.6 ms · 15 MB | 42.5 ms · 11 MB (0.57×) | phlite (serial): 42.5 ms · 11 MB (0.57×) |
+| delaunay-cech plane n=100000 | gudhi: 1.32 s · 132 MB | 507.4 ms · 114 MB (0.38×) | phlite (serial): 507.4 ms · 114 MB (0.38×) |
+| delaunay-cech space n=10000 | gudhi: 555.5 ms · 60 MB | 414.9 ms · 57 MB (0.75×) | phlite (serial): 414.9 ms · 57 MB (0.75×) |
+| delaunay-cech space n=50000 | gudhi: 3.98 s · 296 MB | 2.29 s · 264 MB (0.58×) | phlite (serial): 2.29 s · 264 MB (0.58×) |
+| delaunay-cech torus n=20000 | gudhi: 1.17 s · 107 MB | 800.2 ms · 101 MB (0.68×) | phlite (serial): 800.2 ms · 101 MB (0.68×) |
+| delaunay-cech plane n=1000000 | gudhi: 19.76 s · 1285 MB | 7.86 s · 1019 MB (0.40×) | phlite (serial): 7.86 s · 1019 MB (0.40×) |
+| delaunay-cech space n=200000 | gudhi: 18.95 s · 1195 MB | 10.67 s · 1075 MB (0.56×) | phlite (serial): 10.67 s · 1075 MB (0.56×) |
 
 <details><summary>Every phlite configuration (fastest per case in bold)</summary>
 
 | configuration | delaunay-cech plane n=10000 | delaunay-cech plane n=100000 | delaunay-cech space n=10000 | delaunay-cech space n=50000 | delaunay-cech torus n=20000 | delaunay-cech plane n=1000000 | delaunay-cech space n=200000 |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| phlite (serial) | **58.5 ms · 4 MB** | **1.41 s · 7 MB** | **402.5 ms · 28 MB** | **2.34 s · 6 MB** | **792.9 ms · 26 MB** | **168.12 s · 26 MB** | **11.33 s · 7 MB** |
-| phlite (parallel) | 68.3 ms · 4 MB | 1.52 s · 7 MB | 427.9 ms · 28 MB | 2.53 s · 6 MB | 846.3 ms · 26 MB | 170.90 s · 26 MB | 12.30 s · 7 MB |
-| phlite (serial, merged) | 66.8 ms · 4 MB | 1.53 s · 7 MB | 429.2 ms · 28 MB | 2.60 s · 6 MB | 854.0 ms · 26 MB | 171.52 s · 26 MB | 13.36 s · 7 MB |
+| phlite (serial) | **42.5 ms · 11 MB** | **507.4 ms · 114 MB** | **414.9 ms · 57 MB** | **2.29 s · 264 MB** | **800.2 ms · 101 MB** | **7.86 s · 1019 MB** | **10.67 s · 1075 MB** |
+| phlite (parallel) | 47.2 ms · 11 MB | 516.1 ms · 114 MB | 436.2 ms · 58 MB | 2.44 s · 269 MB | 829.4 ms · 104 MB | 8.35 s · 1019 MB | 11.72 s · 1082 MB |
+| phlite (serial, merged) | 43.9 ms · 11 MB | 524.5 ms · 114 MB | 439.0 ms · 56 MB | 2.53 s · 259 MB | 829.0 ms · 101 MB | 7.89 s · 1019 MB | 12.41 s · 1079 MB |
 
 </details>
 
@@ -185,32 +185,104 @@ How phlite compares on one thread, per case: the fastest other implementation, p
 
 DTM-Rips persistence in dimensions up to `dim` of `n` points, a noisy circle (or `sphere`, a noisy 2-sphere) with 10% uniform outliers, weighted by the distance to measure (k = 10), computed once and given to both: GUDHI's WeightedRipsComplex (building its simplex tree and computing persistence) and `phlite.clouds.rips(distances, weights=...)`.
 
-Python 3.11.13.
+Python 3.11.18.
 
 | case | gudhi | phlite (serial) | phlite (parallel) |
 |---|---:|---:|---:|
-| dtm-rips circle n=200 dim≤1 | 887.8 ms · 81 MB | 17.4 ms · 5 MB | 16.9 ms · 5 MB |
-| dtm-rips circle n=500 dim≤1 | 23.66 s · 3 MB | 315.1 ms · 69 MB | 284.9 ms · 69 MB |
-| dtm-rips sphere n=150 dim≤2 | 28.01 s · 52 MB | 68.7 ms · 3 MB | 25.9 ms · 3 MB |
-| dtm-rips circle n=1000 dim≤1 |  | 2.76 s · 278 MB | 2.66 s · 277 MB |
-| dtm-rips sphere n=300 dim≤2 |  | 1.04 s · 137 MB | 669.5 ms · 4 MB |
+| dtm-rips circle n=200 dim≤1 | 834.8 ms · 439 MB | 17.6 ms · 5 MB | 16.8 ms · 5 MB |
+| dtm-rips circle n=500 dim≤1 | 22.09 s · 6988 MB | 313.7 ms · 69 MB | 279.6 ms · 69 MB |
+| dtm-rips sphere n=150 dim≤2 | 26.04 s · 6990 MB | 71.4 ms · 3 MB | 26.4 ms · 3 MB |
+| dtm-rips circle n=1000 dim≤1 |  | 2.65 s · 278 MB | 2.59 s · 277 MB |
+| dtm-rips sphere n=300 dim≤2 |  | 1.04 s · 137 MB | 667.5 ms · 137 MB |
 
 How phlite compares on one thread, per case: the fastest other implementation, phlite's default (`phlite (serial)`), and the fastest phlite configuration (all of them are in the next table). Ratios are to the fastest other implementation (below 1 means phlite is faster).
 
 | case | fastest other (1 thread) | phlite default | fastest phlite (1 thread) |
 |---|---|---:|---|
-| dtm-rips circle n=200 dim≤1 | gudhi: 887.8 ms · 81 MB | 17.4 ms · 5 MB (0.02×) | phlite (serial): 17.4 ms · 5 MB (0.02×) |
-| dtm-rips circle n=500 dim≤1 | gudhi: 23.66 s · 3 MB | 315.1 ms · 69 MB (0.01×) | phlite (serial): 315.1 ms · 69 MB (0.01×) |
-| dtm-rips sphere n=150 dim≤2 | gudhi: 28.01 s · 52 MB | 68.7 ms · 3 MB (0.00×) | phlite (serial): 68.7 ms · 3 MB (0.00×) |
-| dtm-rips circle n=1000 dim≤1 |  | 2.76 s · 278 MB | phlite (serial): 2.76 s · 278 MB |
+| dtm-rips circle n=200 dim≤1 | gudhi: 834.8 ms · 439 MB | 17.6 ms · 5 MB (0.02×) | phlite (serial): 17.6 ms · 5 MB (0.02×) |
+| dtm-rips circle n=500 dim≤1 | gudhi: 22.09 s · 6988 MB | 313.7 ms · 69 MB (0.01×) | phlite (serial): 313.7 ms · 69 MB (0.01×) |
+| dtm-rips sphere n=150 dim≤2 | gudhi: 26.04 s · 6990 MB | 71.4 ms · 3 MB (0.00×) | phlite (serial): 71.4 ms · 3 MB (0.00×) |
+| dtm-rips circle n=1000 dim≤1 |  | 2.65 s · 278 MB | phlite (serial): 2.65 s · 278 MB |
 | dtm-rips sphere n=300 dim≤2 |  | 1.04 s · 137 MB | phlite (serial): 1.04 s · 137 MB |
 
 <details><summary>Every phlite configuration (fastest per case in bold)</summary>
 
 | configuration | dtm-rips circle n=200 dim≤1 | dtm-rips circle n=500 dim≤1 | dtm-rips sphere n=150 dim≤2 | dtm-rips circle n=1000 dim≤1 | dtm-rips sphere n=300 dim≤2 |
 |---|---:|---:|---:|---:|---:|
-| phlite (serial) | 17.4 ms · 5 MB | 315.1 ms · 69 MB | 68.7 ms · 3 MB | 2.76 s · 278 MB | 1.04 s · 137 MB |
-| phlite (parallel) | **16.9 ms · 5 MB** | **284.9 ms · 69 MB** | **25.9 ms · 3 MB** | **2.66 s · 277 MB** | **669.5 ms · 4 MB** |
+| phlite (serial) | 17.6 ms · 5 MB | 313.7 ms · 69 MB | 71.4 ms · 3 MB | 2.65 s · 278 MB | 1.04 s · 137 MB |
+| phlite (parallel) | **16.8 ms · 5 MB** | **279.6 ms · 69 MB** | **26.4 ms · 3 MB** | **2.59 s · 277 MB** | **667.5 ms · 137 MB** |
+
+</details>
+
+## Witness complexes: `phlite.clouds.witness` vs GUDHI
+
+Persistence in dimensions 0 and 1 of the witness complex (values α² up to about 3/m, simplices up to dimension 2) of `m` random landmarks among `n` random points in the unit square or cube, each point a witness: GUDHI's `EuclideanWitnessComplex` / `EuclideanStrongWitnessComplex` (building the simplex tree and computing persistence) against `witness(landmarks, points, 1, strong=...)`.
+
+Python 3.11.18.
+
+| case | GUDHI | phlite (serial) | phlite (parallel) |
+|---|---:|---:|---:|
+| witness relaxed n=500 m=30 d=2 | 17.0 ms · 1 MB | 2.4 ms · 1 MB | 3.1 ms · 1 MB |
+| witness strong n=500 m=30 d=2 | 219.5 ms · 0 MB | 2.2 ms · 1 MB | 2.8 ms · 1 MB |
+| witness relaxed n=2000 m=60 d=2 | 89.1 ms · 3 MB | 9.9 ms · 5 MB | 11.3 ms · 3 MB |
+| witness strong n=2000 m=60 d=2 | 2.95 s · 0 MB | 9.4 ms · 5 MB | 11.9 ms · 4 MB |
+| witness relaxed n=2000 m=40 d=3 | 25.8 ms · 3 MB | 3.7 ms · 2 MB | 4.6 ms · 2 MB |
+| witness strong n=2000 m=40 d=3 | 42.8 ms · 0 MB | 3.3 ms · 2 MB | 3.9 ms · 1 MB |
+| witness relaxed n=10000 m=100 d=2 | 482.0 ms · 17 MB | 40.2 ms · 14 MB | 56.2 ms · 12 MB |
+| witness strong n=10000 m=100 d=2 | 7.62 s · 2 MB | 38.7 ms · 14 MB | 52.8 ms · 10 MB |
+
+How phlite compares on one thread, per case: the fastest other implementation, phlite's default (`phlite (serial)`), and the fastest phlite configuration (all of them are in the next table). Ratios are to the fastest other implementation (below 1 means phlite is faster).
+
+| case | fastest other (1 thread) | phlite default | fastest phlite (1 thread) |
+|---|---|---:|---|
+| witness relaxed n=500 m=30 d=2 | GUDHI: 17.0 ms · 1 MB | 2.4 ms · 1 MB (0.14×) | phlite (serial): 2.4 ms · 1 MB (0.14×) |
+| witness strong n=500 m=30 d=2 | GUDHI: 219.5 ms · 0 MB | 2.2 ms · 1 MB (0.01×) | phlite (serial): 2.2 ms · 1 MB (0.01×) |
+| witness relaxed n=2000 m=60 d=2 | GUDHI: 89.1 ms · 3 MB | 9.9 ms · 5 MB (0.11×) | phlite (serial): 9.9 ms · 5 MB (0.11×) |
+| witness strong n=2000 m=60 d=2 | GUDHI: 2.95 s · 0 MB | 9.4 ms · 5 MB (0.00×) | phlite (serial): 9.4 ms · 5 MB (0.00×) |
+| witness relaxed n=2000 m=40 d=3 | GUDHI: 25.8 ms · 3 MB | 3.7 ms · 2 MB (0.14×) | phlite (serial): 3.7 ms · 2 MB (0.14×) |
+| witness strong n=2000 m=40 d=3 | GUDHI: 42.8 ms · 0 MB | 3.3 ms · 2 MB (0.08×) | phlite (serial): 3.3 ms · 2 MB (0.08×) |
+| witness relaxed n=10000 m=100 d=2 | GUDHI: 482.0 ms · 17 MB | 40.2 ms · 14 MB (0.08×) | phlite (serial): 40.2 ms · 14 MB (0.08×) |
+| witness strong n=10000 m=100 d=2 | GUDHI: 7.62 s · 2 MB | 38.7 ms · 14 MB (0.01×) | phlite (serial): 38.7 ms · 14 MB (0.01×) |
+
+<details><summary>Every phlite configuration (fastest per case in bold)</summary>
+
+| configuration | witness relaxed n=500 m=30 d=2 | witness strong n=500 m=30 d=2 | witness relaxed n=2000 m=60 d=2 | witness strong n=2000 m=60 d=2 | witness relaxed n=2000 m=40 d=3 | witness strong n=2000 m=40 d=3 | witness relaxed n=10000 m=100 d=2 | witness strong n=10000 m=100 d=2 |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| phlite (serial) | **2.4 ms · 1 MB** | **2.2 ms · 1 MB** | **9.9 ms · 5 MB** | **9.4 ms · 5 MB** | **3.7 ms · 2 MB** | **3.3 ms · 2 MB** | **40.2 ms · 14 MB** | **38.7 ms · 14 MB** |
+| phlite (parallel) | 3.1 ms · 1 MB | 2.8 ms · 1 MB | 11.3 ms · 3 MB | 11.9 ms · 4 MB | 4.6 ms · 2 MB | 3.9 ms · 1 MB | 56.2 ms · 12 MB | 52.8 ms · 10 MB |
+
+</details>
+
+## Čech complexes: `phlite.clouds.cech`
+
+Persistence (dimensions 0 to `max_dim`) of the Čech filtration of `n` random points in the unit cube of dimension `d`, by `cech(points, max_dim, max_radius=r)` (every simplex of up to `max_dim + 2` points within the radius, listed and reduced). In the plane and in space the Delaunay–Čech filtration has the same barcode from a far smaller complex, so GUDHI's `DelaunayCechComplex` and phlite's `delaunay_cech` are there for scale; in more dimensions phlite is alone.
+
+Python 3.11.18.
+
+| case | GUDHI (Delaunay–Čech) | phlite (delaunay_cech) | phlite (serial) |
+|---|---:|---:|---:|
+| cech n=40 d=2 max_dim=1 r=0.3 | 185 µs · 0 MB | 158 µs · 0 MB | 3.9 ms · 1 MB |
+| cech n=80 d=2 max_dim=1 r=0.2 | 391 µs · 0 MB | 324 µs · 0 MB | 7.9 ms · 2 MB |
+| cech n=40 d=3 max_dim=2 r=0.35 | 621 µs · 0 MB | 848 µs · 0 MB | 13.7 ms · 2 MB |
+| cech n=30 d=4 max_dim=2 r=0.5 |  |  | 17.1 ms · 2 MB |
+| cech n=25 d=6 max_dim=2 r=0.8 |  |  | 34.0 ms · 4 MB |
+
+How phlite compares on one thread, per case: the fastest other implementation, phlite's default (`phlite (serial)`), and the fastest phlite configuration (all of them are in the next table). Ratios are to the fastest other implementation (below 1 means phlite is faster).
+
+| case | fastest other (1 thread) | phlite default | fastest phlite (1 thread) |
+|---|---|---:|---|
+| cech n=40 d=2 max_dim=1 r=0.3 | GUDHI (Delaunay–Čech): 185 µs · 0 MB | 3.9 ms · 1 MB (21.01×) | phlite (delaunay_cech): 158 µs · 0 MB (0.85×) |
+| cech n=80 d=2 max_dim=1 r=0.2 | GUDHI (Delaunay–Čech): 391 µs · 0 MB | 7.9 ms · 2 MB (20.26×) | phlite (delaunay_cech): 324 µs · 0 MB (0.83×) |
+| cech n=40 d=3 max_dim=2 r=0.35 | GUDHI (Delaunay–Čech): 621 µs · 0 MB | 13.7 ms · 2 MB (22.03×) | phlite (delaunay_cech): 848 µs · 0 MB (1.37×) |
+| cech n=30 d=4 max_dim=2 r=0.5 |  | 17.1 ms · 2 MB | phlite (serial): 17.1 ms · 2 MB |
+| cech n=25 d=6 max_dim=2 r=0.8 |  | 34.0 ms · 4 MB | phlite (serial): 34.0 ms · 4 MB |
+
+<details><summary>Every phlite configuration (fastest per case in bold)</summary>
+
+| configuration | cech n=40 d=2 max_dim=1 r=0.3 | cech n=80 d=2 max_dim=1 r=0.2 | cech n=40 d=3 max_dim=2 r=0.35 | cech n=30 d=4 max_dim=2 r=0.5 | cech n=25 d=6 max_dim=2 r=0.8 |
+|---|---:|---:|---:|---:|---:|
+| phlite (serial) | 3.9 ms · 1 MB | 7.9 ms · 2 MB | 13.7 ms · 2 MB | **17.1 ms · 2 MB** | **34.0 ms · 4 MB** |
+| phlite (delaunay_cech) | **158 µs · 0 MB** | **324 µs · 0 MB** | **848 µs · 0 MB** |  |  |
 
 </details>
 
@@ -218,47 +290,47 @@ How phlite compares on one thread, per case: the fastest other implementation, p
 
 Grounded persistent path homology (dimension 1) of digraphs with integer weights 1–5: random digraphs on `n` nodes, each edge present with probability `p`; a directed `ring` of `n` nodes with random short chords (one long bar, around the ring); and a `lattice` of `n`×`n` nodes, with edges right and down, and four rectangular holes (a long bar around each). `GrPPH_par_wedge` is grpphati's parallel pipeline over wedge components. The largest case of each kind is timed once, and only phlite runs on it (grpphati needs over 5 GB on random digraphs of 100 nodes, and minutes on the others); its barcodes are checked against phlite's default. grpphati splits some digraphs (the lattices) into parts that joblib reduces in worker processes, whose memory isn't counted.
 
-Python 3.11.13.
+Python 3.11.18.
 
 | case | grpphati (GrPPH) | grpphati (GrPPH_par_wedge) | phlite (serial) | phlite (parallel) | phlite (serial, reps) |
 |---|---:|---:|---:|---:|---:|
-| grpph n=25 p=0.1 | 37.6 ms · 8 MB | 53.2 ms · 4 MB | 1.2 ms · 0 MB | 1.3 ms · 0 MB | 1.8 ms · 0 MB |
-| grpph n=50 p=0.1 | 1.22 s · 354 MB | 1.37 s · 347 MB | 34.8 ms · 4 MB | 16.0 ms · 4 MB | 46.0 ms · 4 MB |
-| grpph n=100 p=0.1 |  |  | 393.3 ms · 45 MB | 136.2 ms · 46 MB | 506.3 ms · 45 MB |
-| grpph ring n=100 | 17.27 s · 7362 MB | 17.60 s · 6943 MB | 163.9 ms · 31 MB | 93.6 ms · 31 MB | 192.4 ms · 31 MB |
-| grpph lattice 15x15 | 2.69 s · 0 MB | 3.28 s · 0 MB | 111.6 ms · 7 MB | 51.3 ms · 7 MB | 143.0 ms · 7 MB |
-| grpph n=200 p=0.1 |  |  | 5.07 s · 454 MB | 2.34 s · 454 MB | 6.26 s · 454 MB |
-| grpph ring n=400 |  |  | 12.14 s · 1958 MB | 8.28 s · 1958 MB | 13.63 s · 1958 MB |
-| grpph lattice 30x30 |  |  | 6.68 s · 283 MB | 3.13 s · 287 MB | 8.88 s · 283 MB |
+| grpph n=25 p=0.1 | 41.6 ms · 8 MB | 58.3 ms · 4 MB | 1.3 ms · 0 MB | 1.2 ms · 0 MB | 1.8 ms · 0 MB |
+| grpph n=50 p=0.1 | 1.33 s · 356 MB | 1.40 s · 349 MB | 35.3 ms · 4 MB | 17.7 ms · 4 MB | 46.3 ms · 4 MB |
+| grpph n=100 p=0.1 |  |  | 390.1 ms · 45 MB | 152.3 ms · 46 MB | 507.2 ms · 45 MB |
+| grpph ring n=100 |  |  | 171.6 ms · 31 MB | 100.5 ms · 31 MB | 194.0 ms · 31 MB |
+| grpph lattice 15x15 | 2.70 s · 0 MB | 3.35 s · 0 MB | 111.4 ms · 7 MB | 54.1 ms · 7 MB | 149.5 ms · 7 MB |
+| grpph n=200 p=0.1 |  |  | 5.13 s · 454 MB | 2.90 s · 454 MB | 6.37 s · 454 MB |
+| grpph ring n=400 |  |  | 12.09 s · 1958 MB | 8.37 s · 1958 MB | 13.45 s · 1958 MB |
+| grpph lattice 30x30 |  |  | 6.38 s · 283 MB | 3.14 s · 287 MB | 8.84 s · 283 MB |
 
 How phlite compares on one thread, per case: the fastest other implementation, phlite's default (`phlite (serial)`), and the fastest phlite configuration (all of them are in the next table). Ratios are to the fastest other implementation (below 1 means phlite is faster).
 
 | case | fastest other (1 thread) | phlite default | fastest phlite (1 thread) |
 |---|---|---:|---|
-| grpph n=25 p=0.1 | grpphati (GrPPH): 37.6 ms · 8 MB | 1.2 ms · 0 MB (0.03×) | phlite (serial, heap, uncached): 1.1 ms · 0 MB (0.03×) |
-| grpph n=50 p=0.1 | grpphati (GrPPH): 1.22 s · 354 MB | 34.8 ms · 4 MB (0.03×) | phlite (serial): 34.8 ms · 4 MB (0.03×) |
-| grpph n=100 p=0.1 |  | 393.3 ms · 45 MB | phlite (serial): 393.3 ms · 45 MB |
-| grpph ring n=100 | grpphati (GrPPH): 17.27 s · 7362 MB | 163.9 ms · 31 MB (0.01×) | phlite (serial, heap, uncached): 117.4 ms · 13 MB (0.01×) |
-| grpph lattice 15x15 | grpphati (GrPPH): 2.69 s · 0 MB | 111.6 ms · 7 MB (0.04×) | phlite (serial, heap, uncached): 85.1 ms · 2 MB (0.03×) |
-| grpph n=200 p=0.1 |  | 5.07 s · 454 MB | phlite (serial, merged): 5.05 s · 454 MB |
-| grpph ring n=400 |  | 12.14 s · 1958 MB | phlite (serial, merged, uncached): 11.53 s · 1619 MB |
-| grpph lattice 30x30 |  | 6.68 s · 283 MB | phlite (serial, heap, uncached): 5.16 s · 32 MB |
+| grpph n=25 p=0.1 | grpphati (GrPPH): 41.6 ms · 8 MB | 1.3 ms · 0 MB (0.03×) | phlite (serial, heap, uncached): 1.1 ms · 0 MB (0.03×) |
+| grpph n=50 p=0.1 | grpphati (GrPPH): 1.33 s · 356 MB | 35.3 ms · 4 MB (0.03×) | phlite (serial, merged): 34.6 ms · 4 MB (0.03×) |
+| grpph n=100 p=0.1 |  | 390.1 ms · 45 MB | phlite (serial): 390.1 ms · 45 MB |
+| grpph ring n=100 |  | 171.6 ms · 31 MB | phlite (serial, heap, uncached): 119.8 ms · 13 MB |
+| grpph lattice 15x15 | grpphati (GrPPH): 2.70 s · 0 MB | 111.4 ms · 7 MB (0.04×) | phlite (serial, heap, uncached): 89.3 ms · 2 MB (0.03×) |
+| grpph n=200 p=0.1 |  | 5.13 s · 454 MB | phlite (serial, merged): 5.10 s · 454 MB |
+| grpph ring n=400 |  | 12.09 s · 1958 MB | phlite (serial, merged, uncached): 11.35 s · 1619 MB |
+| grpph lattice 30x30 |  | 6.38 s · 283 MB | phlite (serial, heap, uncached): 5.07 s · 32 MB |
 
 <details><summary>Every phlite configuration (fastest per case in bold)</summary>
 
 | configuration | grpph n=25 p=0.1 | grpph n=50 p=0.1 | grpph n=100 p=0.1 | grpph ring n=100 | grpph lattice 15x15 | grpph n=200 p=0.1 | grpph ring n=400 | grpph lattice 30x30 |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|
-| phlite (serial) | 1.2 ms · 0 MB | 34.8 ms · 4 MB | 393.3 ms · 45 MB | 163.9 ms · 31 MB | 111.6 ms · 7 MB | 5.07 s · 454 MB | 12.14 s · 1958 MB | 6.68 s · 283 MB |
-| phlite (parallel) | 1.3 ms · 0 MB | **16.0 ms · 4 MB** | **136.2 ms · 46 MB** | **93.6 ms · 31 MB** | **51.3 ms · 7 MB** | 2.34 s · 454 MB | 8.28 s · 1958 MB | 3.13 s · 287 MB |
-| phlite (serial, reps) | 1.8 ms · 0 MB | 46.0 ms · 4 MB | 506.3 ms · 45 MB | 192.4 ms · 31 MB | 143.0 ms · 7 MB | 6.26 s · 454 MB | 13.63 s · 1958 MB | 8.88 s · 283 MB |
-| phlite (serial, merged) | 1.2 ms · 0 MB | 36.3 ms · 4 MB | 394.4 ms · 45 MB | 164.0 ms · 31 MB | 107.9 ms · 7 MB | 5.05 s · 454 MB | 12.17 s · 1958 MB | 6.67 s · 283 MB |
-| phlite (serial, merged, uncached) | 1.7 ms · 0 MB | 81.2 ms · 6 MB | 1.09 s · 51 MB | 161.5 ms · 26 MB | 104.3 ms · 3 MB | 12.07 s · 811 MB | 11.53 s · 1619 MB | 6.37 s · 44 MB |
-| phlite (serial, heap) | 1.3 ms · 0 MB | 49.5 ms · 9 MB | 612.1 ms · 84 MB | 197.3 ms · 41 MB | 112.5 ms · 8 MB | 9.84 s · 765 MB | 17.50 s · 3211 MB | 6.76 s · 301 MB |
-| phlite (serial, heap, uncached) | **1.1 ms · 0 MB** | 52.4 ms · 6 MB | 698.9 ms · 51 MB | 117.4 ms · 13 MB | 85.1 ms · 2 MB | 10.84 s · 406 MB | 13.05 s · 812 MB | 5.16 s · 32 MB |
-| phlite (serial, sorted) | 1.4 ms · 0 MB | 214.9 ms · 9 MB | 5.88 s · 94 MB | 1.71 s · 50 MB | 165.3 ms · 8 MB | 311.95 s · 844 MB |  | 11.28 s · 301 MB |
-| phlite (serial, sorted, uncached) | 1.3 ms · 0 MB | 225.0 ms · 5 MB | 6.03 s · 42 MB | 1.64 s · 20 MB | 152.7 ms · 2 MB | 314.74 s · 440 MB |  | 10.71 s · 37 MB |
-| phlite (serial, store R) | 1.3 ms · 0 MB | 66.4 ms · 12 MB | 822.2 ms · 132 MB | 228.3 ms · 62 MB | 117.6 ms · 12 MB | 8.52 s · 1285 MB | 17.93 s · 3791 MB | 7.13 s · 550 MB |
-| phlite (parallel, lock-free) | 1.2 ms · 0 MB | 18.4 ms · 4 MB | 154.6 ms · 45 MB | 97.0 ms · 31 MB | 52.7 ms · 7 MB | **2.16 s · 454 MB** | **8.04 s · 1958 MB** | **3.12 s · 286 MB** |
+| phlite (serial) | 1.3 ms · 0 MB | 35.3 ms · 4 MB | 390.1 ms · 45 MB | 171.6 ms · 31 MB | 111.4 ms · 7 MB | 5.13 s · 454 MB | 12.09 s · 1958 MB | 6.38 s · 283 MB |
+| phlite (parallel) | 1.2 ms · 0 MB | 17.7 ms · 4 MB | **152.3 ms · 46 MB** | 100.5 ms · 31 MB | 54.1 ms · 7 MB | 2.90 s · 454 MB | **8.37 s · 1958 MB** | **3.14 s · 287 MB** |
+| phlite (serial, reps) | 1.8 ms · 0 MB | 46.3 ms · 4 MB | 507.2 ms · 45 MB | 194.0 ms · 31 MB | 149.5 ms · 7 MB | 6.37 s · 454 MB | 13.45 s · 1958 MB | 8.84 s · 283 MB |
+| phlite (serial, merged) | 1.3 ms · 0 MB | 34.6 ms · 4 MB | 392.4 ms · 45 MB | 164.7 ms · 31 MB | 112.0 ms · 7 MB | 5.10 s · 454 MB | 11.99 s · 1958 MB | 6.64 s · 283 MB |
+| phlite (serial, merged, uncached) | 1.3 ms · 0 MB | 81.9 ms · 6 MB | 1.08 s · 51 MB | 161.5 ms · 26 MB | 109.1 ms · 3 MB | 11.95 s · 811 MB | 11.35 s · 1619 MB | 6.30 s · 44 MB |
+| phlite (serial, heap) | 1.4 ms · 0 MB | 49.2 ms · 9 MB | 610.8 ms · 84 MB | 197.0 ms · 41 MB | 116.6 ms · 8 MB | 9.81 s · 765 MB | 17.32 s · 3211 MB | 6.58 s · 301 MB |
+| phlite (serial, heap, uncached) | **1.1 ms · 0 MB** | 51.7 ms · 6 MB | 698.9 ms · 51 MB | 119.8 ms · 13 MB | 89.3 ms · 2 MB | 10.80 s · 406 MB | 12.59 s · 812 MB | 5.07 s · 32 MB |
+| phlite (serial, sorted) | 1.5 ms · 0 MB | 214.5 ms · 9 MB | 5.86 s · 94 MB | 1.69 s · 50 MB | 167.6 ms · 8 MB | 314.94 s · 844 MB |  | 11.10 s · 301 MB |
+| phlite (serial, sorted, uncached) | 1.3 ms · 0 MB | 224.2 ms · 5 MB | 6.03 s · 42 MB | 1.63 s · 20 MB | 157.6 ms · 2 MB | 317.57 s · 440 MB |  | 10.61 s · 37 MB |
+| phlite (serial, store R) | 1.4 ms · 0 MB | 64.3 ms · 12 MB | 822.7 ms · 132 MB | 225.8 ms · 62 MB | 121.0 ms · 12 MB | 8.53 s · 1285 MB | 17.57 s · 3791 MB | 6.97 s · 550 MB |
+| phlite (parallel, lock-free) | 3.6 ms · 0 MB | **16.9 ms · 4 MB** | 162.0 ms · 45 MB | **100.1 ms · 31 MB** | **52.5 ms · 7 MB** | **2.75 s · 454 MB** | 8.38 s · 1958 MB | 3.19 s · 286 MB |
 
 </details>
 
@@ -266,33 +338,33 @@ How phlite compares on one thread, per case: the fastest other implementation, p
 
 Persistent homology in dimensions up to `dim` of the directed flag complex of a random weighted digraph on `n` nodes, each edge present with probability `p`, weights uniform in [0, 1]: flagser (by pyflagser, from a dense adjacency matrix) against `directed_flag(n, edges, dim)`.
 
-Python 3.11.13.
+Python 3.11.18.
 
 | case | flagser | phlite (serial) | phlite (parallel) |
 |---|---:|---:|---:|
-| directed flag n=100 p=0.2 dim≤2 | 327.2 ms · 1 MB | 223.0 ms · 4 MB | 102.6 ms · 9 MB |
-| directed flag n=200 p=0.1 dim≤2 | 642.4 ms · 3 MB | 348.4 ms · 5 MB | 126.3 ms · 5 MB |
-| directed flag n=60 p=0.3 dim≤3 | 103.6 ms · 1 MB | 74.4 ms · 2 MB | 35.5 ms · 2 MB |
-| directed flag n=500 p=0.05 dim≤2 | 86.50 s · 40 MB | 50.39 s · 78 MB | 24.21 s · 179 MB |
-| directed flag n=100 p=0.3 dim≤3 | 6.07 s · 12 MB | 3.21 s · 43 MB | 2.26 s · 82 MB |
+| directed flag n=100 p=0.2 dim≤2 | 235.6 ms · 1 MB | 155.4 ms · 4 MB | 85.7 ms · 8 MB |
+| directed flag n=200 p=0.1 dim≤2 | 378.6 ms · 3 MB | 202.9 ms · 5 MB | 94.1 ms · 5 MB |
+| directed flag n=60 p=0.3 dim≤3 | 69.8 ms · 1 MB | 46.1 ms · 2 MB | 20.0 ms · 2 MB |
+| directed flag n=500 p=0.05 dim≤2 | 67.87 s · 40 MB | 49.60 s · 78 MB | 22.47 s · 92 MB |
+| directed flag n=100 p=0.3 dim≤3 | 5.89 s · 12 MB | 3.15 s · 42 MB | 1.95 s · 88 MB |
 
 How phlite compares on one thread, per case: the fastest other implementation, phlite's default (`phlite (serial)`), and the fastest phlite configuration (all of them are in the next table). Ratios are to the fastest other implementation (below 1 means phlite is faster).
 
 | case | fastest other (1 thread) | phlite default | fastest phlite (1 thread) |
 |---|---|---:|---|
-| directed flag n=100 p=0.2 dim≤2 | flagser: 327.2 ms · 1 MB | 223.0 ms · 4 MB (0.68×) | phlite (serial): 223.0 ms · 4 MB (0.68×) |
-| directed flag n=200 p=0.1 dim≤2 | flagser: 642.4 ms · 3 MB | 348.4 ms · 5 MB (0.54×) | phlite (serial, merged): 343.8 ms · 5 MB (0.54×) |
-| directed flag n=60 p=0.3 dim≤3 | flagser: 103.6 ms · 1 MB | 74.4 ms · 2 MB (0.72×) | phlite (serial, merged): 67.0 ms · 2 MB (0.65×) |
-| directed flag n=500 p=0.05 dim≤2 | flagser: 86.50 s · 40 MB | 50.39 s · 78 MB (0.58×) | phlite (serial, merged): 50.09 s · 78 MB (0.58×) |
-| directed flag n=100 p=0.3 dim≤3 | flagser: 6.07 s · 12 MB | 3.21 s · 43 MB (0.53×) | phlite (serial): 3.21 s · 43 MB (0.53×) |
+| directed flag n=100 p=0.2 dim≤2 | flagser: 235.6 ms · 1 MB | 155.4 ms · 4 MB (0.66×) | phlite (serial): 155.4 ms · 4 MB (0.66×) |
+| directed flag n=200 p=0.1 dim≤2 | flagser: 378.6 ms · 3 MB | 202.9 ms · 5 MB (0.54×) | phlite (serial): 202.9 ms · 5 MB (0.54×) |
+| directed flag n=60 p=0.3 dim≤3 | flagser: 69.8 ms · 1 MB | 46.1 ms · 2 MB (0.66×) | phlite (serial): 46.1 ms · 2 MB (0.66×) |
+| directed flag n=500 p=0.05 dim≤2 | flagser: 67.87 s · 40 MB | 49.60 s · 78 MB (0.73×) | phlite (serial, merged): 48.66 s · 78 MB (0.72×) |
+| directed flag n=100 p=0.3 dim≤3 | flagser: 5.89 s · 12 MB | 3.15 s · 42 MB (0.53×) | phlite (serial, merged): 3.14 s · 42 MB (0.53×) |
 
 <details><summary>Every phlite configuration (fastest per case in bold)</summary>
 
 | configuration | directed flag n=100 p=0.2 dim≤2 | directed flag n=200 p=0.1 dim≤2 | directed flag n=60 p=0.3 dim≤3 | directed flag n=500 p=0.05 dim≤2 | directed flag n=100 p=0.3 dim≤3 |
 |---|---:|---:|---:|---:|---:|
-| phlite (serial) | 223.0 ms · 4 MB | 348.4 ms · 5 MB | 74.4 ms · 2 MB | 50.39 s · 78 MB | 3.21 s · 43 MB |
-| phlite (parallel) | **102.6 ms · 9 MB** | **126.3 ms · 5 MB** | **35.5 ms · 2 MB** | **24.21 s · 179 MB** | **2.26 s · 82 MB** |
-| phlite (serial, merged) | 253.7 ms · 4 MB | 343.8 ms · 5 MB | 67.0 ms · 2 MB | 50.09 s · 78 MB | 3.31 s · 43 MB |
+| phlite (serial) | 155.4 ms · 4 MB | 202.9 ms · 5 MB | 46.1 ms · 2 MB | 49.60 s · 78 MB | 3.15 s · 42 MB |
+| phlite (parallel) | **85.7 ms · 8 MB** | **94.1 ms · 5 MB** | **20.0 ms · 2 MB** | **22.47 s · 92 MB** | **1.95 s · 88 MB** |
+| phlite (serial, merged) | 157.3 ms · 4 MB | 204.0 ms · 5 MB | 48.4 ms · 2 MB | 48.66 s · 78 MB | 3.14 s · 42 MB |
 
 </details>
 
@@ -300,32 +372,32 @@ How phlite compares on one thread, per case: the fastest other implementation, p
 
 Persistent path homology (dimensions 0 and 1, on the shortest-path filtration) of a random weighted digraph on `n` nodes, each edge present with probability `p`, weights uniform in [0, 1]: grpphati's `PPH` pipeline against `pph(n, edges, filtration='shortest_path')`. On the largest cases only phlite runs.
 
-Python 3.11.13.
+Python 3.11.18.
 
 | case | grpphati (PPH) | phlite (serial) | phlite (parallel) |
 |---|---:|---:|---:|
-| pph n=30 p=0.2 | 94.8 ms · 16 MB | 1.9 ms · 0 MB | 2.2 ms · 0 MB |
-| pph n=60 p=0.1 | 1.43 s · 403 MB | 15.6 ms · 1 MB | 11.0 ms · 1 MB |
-| pph n=60 p=0.3 | 1.34 s · 311 MB | 14.1 ms · 1 MB | 9.5 ms · 1 MB |
-| pph n=200 p=0.1 |  | 501.9 ms · 16 MB | 194.8 ms · 16 MB |
-| pph n=300 p=0.3 |  | 1.81 s · 58 MB | 850.1 ms · 58 MB |
+| pph n=30 p=0.2 | 91.7 ms · 16 MB | 1.8 ms · 0 MB | 2.0 ms · 0 MB |
+| pph n=60 p=0.1 | 1.41 s · 402 MB | 14.9 ms · 1 MB | 10.7 ms · 1 MB |
+| pph n=60 p=0.3 | 1.35 s · 314 MB | 13.1 ms · 1 MB | 9.9 ms · 1 MB |
+| pph n=200 p=0.1 |  | 457.6 ms · 16 MB | 174.1 ms · 16 MB |
+| pph n=300 p=0.3 |  | 1.65 s · 58 MB | 660.0 ms · 58 MB |
 
 How phlite compares on one thread, per case: the fastest other implementation, phlite's default (`phlite (serial)`), and the fastest phlite configuration (all of them are in the next table). Ratios are to the fastest other implementation (below 1 means phlite is faster).
 
 | case | fastest other (1 thread) | phlite default | fastest phlite (1 thread) |
 |---|---|---:|---|
-| pph n=30 p=0.2 | grpphati (PPH): 94.8 ms · 16 MB | 1.9 ms · 0 MB (0.02×) | phlite (serial): 1.9 ms · 0 MB (0.02×) |
-| pph n=60 p=0.1 | grpphati (PPH): 1.43 s · 403 MB | 15.6 ms · 1 MB (0.01×) | phlite (serial): 15.6 ms · 1 MB (0.01×) |
-| pph n=60 p=0.3 | grpphati (PPH): 1.34 s · 311 MB | 14.1 ms · 1 MB (0.01×) | phlite (serial): 14.1 ms · 1 MB (0.01×) |
-| pph n=200 p=0.1 |  | 501.9 ms · 16 MB | phlite (serial): 501.9 ms · 16 MB |
-| pph n=300 p=0.3 |  | 1.81 s · 58 MB | phlite (serial): 1.81 s · 58 MB |
+| pph n=30 p=0.2 | grpphati (PPH): 91.7 ms · 16 MB | 1.8 ms · 0 MB (0.02×) | phlite (serial): 1.8 ms · 0 MB (0.02×) |
+| pph n=60 p=0.1 | grpphati (PPH): 1.41 s · 402 MB | 14.9 ms · 1 MB (0.01×) | phlite (serial): 14.9 ms · 1 MB (0.01×) |
+| pph n=60 p=0.3 | grpphati (PPH): 1.35 s · 314 MB | 13.1 ms · 1 MB (0.01×) | phlite (serial): 13.1 ms · 1 MB (0.01×) |
+| pph n=200 p=0.1 |  | 457.6 ms · 16 MB | phlite (serial): 457.6 ms · 16 MB |
+| pph n=300 p=0.3 |  | 1.65 s · 58 MB | phlite (serial): 1.65 s · 58 MB |
 
 <details><summary>Every phlite configuration (fastest per case in bold)</summary>
 
 | configuration | pph n=30 p=0.2 | pph n=60 p=0.1 | pph n=60 p=0.3 | pph n=200 p=0.1 | pph n=300 p=0.3 |
 |---|---:|---:|---:|---:|---:|
-| phlite (serial) | **1.9 ms · 0 MB** | 15.6 ms · 1 MB | 14.1 ms · 1 MB | 501.9 ms · 16 MB | 1.81 s · 58 MB |
-| phlite (parallel) | 2.2 ms · 0 MB | **11.0 ms · 1 MB** | **9.5 ms · 1 MB** | **194.8 ms · 16 MB** | **850.1 ms · 58 MB** |
+| phlite (serial) | **1.8 ms · 0 MB** | 14.9 ms · 1 MB | 13.1 ms · 1 MB | 457.6 ms · 16 MB | 1.65 s · 58 MB |
+| phlite (parallel) | 2.0 ms · 0 MB | **10.7 ms · 1 MB** | **9.9 ms · 1 MB** | **174.1 ms · 16 MB** | **660.0 ms · 58 MB** |
 
 </details>
 
@@ -333,69 +405,69 @@ How phlite compares on one thread, per case: the fastest other implementation, p
 
 Persistent homology in dimensions up to `dim` of the Dowker sink complex (`dowker`) and the ordered-tuple complex (`tuples`) of a random weighted digraph on `n` nodes, each edge present with probability `p`, weights uniform in [0, 1]. No other library computes these, so the references build the complex in Python: the Dowker complex in a GUDHI simplex tree, the ordered tuples as columns for LoPHAT.
 
-Python 3.11.13.
+Python 3.11.18.
 
 | case | brute force | phlite (serial) | phlite (parallel) |
 |---|---:|---:|---:|
-| dowker n=20 p=0.3 dim≤2 | 66.4 ms · 0 MB | 830 µs · 0 MB | 575 µs · 0 MB |
-| dowker n=40 p=0.2 dim≤1 | 206.8 ms · 1 MB | 3.1 ms · 0 MB | 2.1 ms · 0 MB |
-| tuples n=20 p=0.3 dim≤2 | 5.2 ms · 0 MB | 247 µs · 0 MB | 296 µs · 0 MB |
-| tuples n=60 p=0.2 dim≤1 | 38.5 ms · 2 MB | 2.0 ms · 0 MB | 1.2 ms · 0 MB |
-| dowker n=60 p=0.2 dim≤2 | 18.01 s · 22 MB | 651.5 ms · 12 MB | 289.0 ms · 15 MB |
-| tuples n=40 p=0.3 dim≤2 | 99.4 ms · 2 MB | 5.2 ms · 0 MB | 3.2 ms · 0 MB |
+| dowker n=20 p=0.3 dim≤2 | 76.7 ms · 1 MB | 836 µs · 0 MB | 531 µs · 0 MB |
+| dowker n=40 p=0.2 dim≤1 | 230.0 ms · 1 MB | 3.0 ms · 0 MB | 1.6 ms · 0 MB |
+| tuples n=20 p=0.3 dim≤2 | 6.0 ms · 0 MB | 242 µs · 0 MB | 261 µs · 0 MB |
+| tuples n=60 p=0.2 dim≤1 | 41.8 ms · 2 MB | 1.9 ms · 0 MB | 1.0 ms · 0 MB |
+| dowker n=60 p=0.2 dim≤2 | 19.14 s · 22 MB | 655.7 ms · 12 MB | 414.8 ms · 17 MB |
+| tuples n=40 p=0.3 dim≤2 | 108.5 ms · 2 MB | 5.3 ms · 0 MB | 2.8 ms · 0 MB |
 
 How phlite compares on one thread, per case: the fastest other implementation, phlite's default (`phlite (serial)`), and the fastest phlite configuration (all of them are in the next table). Ratios are to the fastest other implementation (below 1 means phlite is faster).
 
 | case | fastest other (1 thread) | phlite default | fastest phlite (1 thread) |
 |---|---|---:|---|
-| dowker n=20 p=0.3 dim≤2 | brute force: 66.4 ms · 0 MB | 830 µs · 0 MB (0.01×) | phlite (serial): 830 µs · 0 MB (0.01×) |
-| dowker n=40 p=0.2 dim≤1 | brute force: 206.8 ms · 1 MB | 3.1 ms · 0 MB (0.02×) | phlite (serial): 3.1 ms · 0 MB (0.02×) |
-| tuples n=20 p=0.3 dim≤2 | brute force: 5.2 ms · 0 MB | 247 µs · 0 MB (0.05×) | phlite (serial): 247 µs · 0 MB (0.05×) |
-| tuples n=60 p=0.2 dim≤1 | brute force: 38.5 ms · 2 MB | 2.0 ms · 0 MB (0.05×) | phlite (serial): 2.0 ms · 0 MB (0.05×) |
-| dowker n=60 p=0.2 dim≤2 | brute force: 18.01 s · 22 MB | 651.5 ms · 12 MB (0.04×) | phlite (serial): 651.5 ms · 12 MB (0.04×) |
-| tuples n=40 p=0.3 dim≤2 | brute force: 99.4 ms · 2 MB | 5.2 ms · 0 MB (0.05×) | phlite (serial): 5.2 ms · 0 MB (0.05×) |
+| dowker n=20 p=0.3 dim≤2 | brute force: 76.7 ms · 1 MB | 836 µs · 0 MB (0.01×) | phlite (serial): 836 µs · 0 MB (0.01×) |
+| dowker n=40 p=0.2 dim≤1 | brute force: 230.0 ms · 1 MB | 3.0 ms · 0 MB (0.01×) | phlite (serial): 3.0 ms · 0 MB (0.01×) |
+| tuples n=20 p=0.3 dim≤2 | brute force: 6.0 ms · 0 MB | 242 µs · 0 MB (0.04×) | phlite (serial): 242 µs · 0 MB (0.04×) |
+| tuples n=60 p=0.2 dim≤1 | brute force: 41.8 ms · 2 MB | 1.9 ms · 0 MB (0.05×) | phlite (serial): 1.9 ms · 0 MB (0.05×) |
+| dowker n=60 p=0.2 dim≤2 | brute force: 19.14 s · 22 MB | 655.7 ms · 12 MB (0.03×) | phlite (serial): 655.7 ms · 12 MB (0.03×) |
+| tuples n=40 p=0.3 dim≤2 | brute force: 108.5 ms · 2 MB | 5.3 ms · 0 MB (0.05×) | phlite (serial): 5.3 ms · 0 MB (0.05×) |
 
 <details><summary>Every phlite configuration (fastest per case in bold)</summary>
 
 | configuration | dowker n=20 p=0.3 dim≤2 | dowker n=40 p=0.2 dim≤1 | tuples n=20 p=0.3 dim≤2 | tuples n=60 p=0.2 dim≤1 | dowker n=60 p=0.2 dim≤2 | tuples n=40 p=0.3 dim≤2 |
 |---|---:|---:|---:|---:|---:|---:|
-| phlite (serial) | 830 µs · 0 MB | 3.1 ms · 0 MB | **247 µs · 0 MB** | 2.0 ms · 0 MB | 651.5 ms · 12 MB | 5.2 ms · 0 MB |
-| phlite (parallel) | **575 µs · 0 MB** | **2.1 ms · 0 MB** | 296 µs · 0 MB | **1.2 ms · 0 MB** | **289.0 ms · 15 MB** | **3.2 ms · 0 MB** |
+| phlite (serial) | 836 µs · 0 MB | 3.0 ms · 0 MB | **242 µs · 0 MB** | 1.9 ms · 0 MB | 655.7 ms · 12 MB | 5.3 ms · 0 MB |
+| phlite (parallel) | **531 µs · 0 MB** | **1.6 ms · 0 MB** | 261 µs · 0 MB | **1.0 ms · 0 MB** | **414.8 ms · 17 MB** | **2.8 ms · 0 MB** |
 
 </details>
 
 ## Flag complexes of graphs: `phlite.networks.flag`
 
-Persistent homology in dimensions up to `dim` of the flag complex of a random graph G(n, p), weights and node values uniform in [0, 1]: by edge weights (`weight`), by the node values' lower-star filtration (`lower star`), and Rips of the shortest-path metric (`shortest path`). The reference is GUDHI's SimplexTree (with the edges and values inserted, and expanded).
+Persistent homology in dimensions up to `dim` of the flag complex of a random graph G(n, p), weights and node values uniform in [0, 1]: by edge weights (`weight`), by the node values' lower-star filtration (`lower star`), and Rips of the shortest-path metric (`shortest path`). The reference is GUDHI's SimplexTree (with the edges and values inserted, and expanded). Perseus 6 (`perseus.flag`, over Z/2 on one thread) is given the same edges and node values.
 
-Python 3.11.13.
+Python 3.11.18.
 
-| case | gudhi | phlite (serial) | phlite (parallel) |
-|---|---:|---:|---:|
-| weight n=300 p=0.1 dim≤2 | 109.5 ms · 7 MB | 10.6 ms · 3 MB | 253.0 ms · 8 MB |
-| weight n=3000 p=0.003 dim≤2 | 23.2 ms · 6 MB | 8.3 ms · 6 MB | 11.0 ms · 6 MB |
-| lower star n=300 p=0.1 dim≤2 | 26.1 ms · 2 MB | 7.9 ms · 3 MB | 28.7 ms · 4 MB |
-| shortest path n=120 p=0.03 dim≤1 | 126.6 ms · 69 MB | 25.1 ms · 1 MB | 23.0 ms · 1 MB |
-| weight n=1000 p=0.1 dim≤2 | 338.33 s · 452 MB | 48.43 s · 655 MB |  |
-| shortest path n=300 p=0.02 dim≤1 | 4.05 s · 1694 MB | 228.2 ms · 7 MB | 195.3 ms · 7 MB |
+| case | gudhi | perseus (F2) | phlite (serial) | phlite (parallel) |
+|---|---:|---:|---:|---:|
+| weight n=300 p=0.1 dim≤2 | 112.1 ms · 8 MB | 1.14 s · 7 MB | 10.1 ms · 3 MB | 239.1 ms · 10 MB |
+| weight n=3000 p=0.003 dim≤2 | 24.1 ms · 6 MB | 8.1 ms · 4 MB | 7.2 ms · 6 MB | 8.0 ms · 6 MB |
+| lower star n=300 p=0.1 dim≤2 | 26.7 ms · 2 MB | 10.0 ms · 2 MB | 8.0 ms · 3 MB | 29.9 ms · 5 MB |
+| shortest path n=120 p=0.03 dim≤1 | 124.8 ms · 69 MB | 18.2 ms · 1 MB | 26.0 ms · 1 MB | 23.6 ms · 1 MB |
+| weight n=1000 p=0.1 dim≤2 | 315.17 s · 452 MB |  | 48.68 s · 655 MB | 585.55 s · 4114 MB |
+| shortest path n=300 p=0.02 dim≤1 | 3.47 s · 1694 MB | 157.9 ms · 4 MB | 218.7 ms · 7 MB | 199.1 ms · 7 MB |
 
 How phlite compares on one thread, per case: the fastest other implementation, phlite's default (`phlite (serial)`), and the fastest phlite configuration (all of them are in the next table). Ratios are to the fastest other implementation (below 1 means phlite is faster).
 
 | case | fastest other (1 thread) | phlite default | fastest phlite (1 thread) |
 |---|---|---:|---|
-| weight n=300 p=0.1 dim≤2 | gudhi: 109.5 ms · 7 MB | 10.6 ms · 3 MB (0.10×) | phlite (serial): 10.6 ms · 3 MB (0.10×) |
-| weight n=3000 p=0.003 dim≤2 | gudhi: 23.2 ms · 6 MB | 8.3 ms · 6 MB (0.36×) | phlite (serial): 8.3 ms · 6 MB (0.36×) |
-| lower star n=300 p=0.1 dim≤2 | gudhi: 26.1 ms · 2 MB | 7.9 ms · 3 MB (0.30×) | phlite (serial): 7.9 ms · 3 MB (0.30×) |
-| shortest path n=120 p=0.03 dim≤1 | gudhi: 126.6 ms · 69 MB | 25.1 ms · 1 MB (0.20×) | phlite (serial): 25.1 ms · 1 MB (0.20×) |
-| weight n=1000 p=0.1 dim≤2 | gudhi: 338.33 s · 452 MB | 48.43 s · 655 MB (0.14×) | phlite (serial): 48.43 s · 655 MB (0.14×) |
-| shortest path n=300 p=0.02 dim≤1 | gudhi: 4.05 s · 1694 MB | 228.2 ms · 7 MB (0.06×) | phlite (serial): 228.2 ms · 7 MB (0.06×) |
+| weight n=300 p=0.1 dim≤2 | gudhi: 112.1 ms · 8 MB | 10.1 ms · 3 MB (0.09×) | phlite (serial): 10.1 ms · 3 MB (0.09×) |
+| weight n=3000 p=0.003 dim≤2 | perseus (F2): 8.1 ms · 4 MB | 7.2 ms · 6 MB (0.90×) | phlite (serial): 7.2 ms · 6 MB (0.90×) |
+| lower star n=300 p=0.1 dim≤2 | perseus (F2): 10.0 ms · 2 MB | 8.0 ms · 3 MB (0.79×) | phlite (serial): 8.0 ms · 3 MB (0.79×) |
+| shortest path n=120 p=0.03 dim≤1 | perseus (F2): 18.2 ms · 1 MB | 26.0 ms · 1 MB (1.43×) | phlite (serial): 26.0 ms · 1 MB (1.43×) |
+| weight n=1000 p=0.1 dim≤2 | gudhi: 315.17 s · 452 MB | 48.68 s · 655 MB (0.15×) | phlite (serial): 48.68 s · 655 MB (0.15×) |
+| shortest path n=300 p=0.02 dim≤1 | perseus (F2): 157.9 ms · 4 MB | 218.7 ms · 7 MB (1.39×) | phlite (serial): 218.7 ms · 7 MB (1.39×) |
 
 <details><summary>Every phlite configuration (fastest per case in bold)</summary>
 
 | configuration | weight n=300 p=0.1 dim≤2 | weight n=3000 p=0.003 dim≤2 | lower star n=300 p=0.1 dim≤2 | shortest path n=120 p=0.03 dim≤1 | weight n=1000 p=0.1 dim≤2 | shortest path n=300 p=0.02 dim≤1 |
 |---|---:|---:|---:|---:|---:|---:|
-| phlite (serial) | **10.6 ms · 3 MB** | **8.3 ms · 6 MB** | **7.9 ms · 3 MB** | 25.1 ms · 1 MB | **48.43 s · 655 MB** | 228.2 ms · 7 MB |
-| phlite (parallel) | 253.0 ms · 8 MB | 11.0 ms · 6 MB | 28.7 ms · 4 MB | **23.0 ms · 1 MB** |  | **195.3 ms · 7 MB** |
+| phlite (serial) | **10.1 ms · 3 MB** | **7.2 ms · 6 MB** | **8.0 ms · 3 MB** | 26.0 ms · 1 MB | **48.68 s · 655 MB** | 218.7 ms · 7 MB |
+| phlite (parallel) | 239.1 ms · 10 MB | 8.0 ms · 6 MB | 29.9 ms · 5 MB | **23.6 ms · 1 MB** | 585.55 s · 4114 MB | **199.1 ms · 7 MB** |
 
 </details>
 
@@ -403,162 +475,332 @@ How phlite compares on one thread, per case: the fastest other implementation, p
 
 Extended persistence of the lower-star filtration of vertex values uniform in [0, 1] on a random graph G(n, p) (`graph`), or its flag complex up to triangles (`flag`). The reference is GUDHI's SimplexTree (the simplices inserted, extend_filtration, extended_persistence).
 
-Python 3.11.13.
+Python 3.11.18.
 
 | case | gudhi | phlite (serial) | phlite (parallel) |
 |---|---:|---:|---:|
-| graph n=2000 p=0.002 | 32.5 ms · 3 MB | 12.8 ms · 5 MB | 52.4 ms · 6 MB |
-| graph n=300 p=0.05 | 17.1 ms · 1 MB | 6.1 ms · 2 MB | 29.0 ms · 2 MB |
-| flag n=300 p=0.05 | 22.1 ms · 2 MB | 7.9 ms · 2 MB | 44.5 ms · 4 MB |
-| graph n=20000 p=0.0002 | 2.72 s · 45 MB | 491.7 ms · 71 MB | 3.46 s · 78 MB |
-| flag n=1000 p=0.02 | 192.3 ms · 7 MB | 48.0 ms · 15 MB | 301.9 ms · 16 MB |
+| graph n=2000 p=0.002 | 28.7 ms · 4 MB | 11.9 ms · 4 MB | 41.0 ms · 5 MB |
+| graph n=300 p=0.05 | 13.1 ms · 1 MB | 4.9 ms · 2 MB | 24.6 ms · 2 MB |
+| flag n=300 p=0.05 | 17.5 ms · 2 MB | 6.8 ms · 2 MB | 41.6 ms · 4 MB |
+| graph n=20000 p=0.0002 | 2.68 s · 46 MB | 478.8 ms · 71 MB | 2.03 s · 87 MB |
+| flag n=1000 p=0.02 | 190.9 ms · 7 MB | 50.4 ms · 15 MB | 335.6 ms · 16 MB |
 
 How phlite compares on one thread, per case: the fastest other implementation, phlite's default (`phlite (serial)`), and the fastest phlite configuration (all of them are in the next table). Ratios are to the fastest other implementation (below 1 means phlite is faster).
 
 | case | fastest other (1 thread) | phlite default | fastest phlite (1 thread) |
 |---|---|---:|---|
-| graph n=2000 p=0.002 | gudhi: 32.5 ms · 3 MB | 12.8 ms · 5 MB (0.39×) | phlite (serial): 12.8 ms · 5 MB (0.39×) |
-| graph n=300 p=0.05 | gudhi: 17.1 ms · 1 MB | 6.1 ms · 2 MB (0.35×) | phlite (serial): 6.1 ms · 2 MB (0.35×) |
-| flag n=300 p=0.05 | gudhi: 22.1 ms · 2 MB | 7.9 ms · 2 MB (0.36×) | phlite (serial): 7.9 ms · 2 MB (0.36×) |
-| graph n=20000 p=0.0002 | gudhi: 2.72 s · 45 MB | 491.7 ms · 71 MB (0.18×) | phlite (serial): 491.7 ms · 71 MB (0.18×) |
-| flag n=1000 p=0.02 | gudhi: 192.3 ms · 7 MB | 48.0 ms · 15 MB (0.25×) | phlite (serial): 48.0 ms · 15 MB (0.25×) |
+| graph n=2000 p=0.002 | gudhi: 28.7 ms · 4 MB | 11.9 ms · 4 MB (0.42×) | phlite (serial): 11.9 ms · 4 MB (0.42×) |
+| graph n=300 p=0.05 | gudhi: 13.1 ms · 1 MB | 4.9 ms · 2 MB (0.38×) | phlite (serial): 4.9 ms · 2 MB (0.38×) |
+| flag n=300 p=0.05 | gudhi: 17.5 ms · 2 MB | 6.8 ms · 2 MB (0.39×) | phlite (serial): 6.8 ms · 2 MB (0.39×) |
+| graph n=20000 p=0.0002 | gudhi: 2.68 s · 46 MB | 478.8 ms · 71 MB (0.18×) | phlite (serial): 478.8 ms · 71 MB (0.18×) |
+| flag n=1000 p=0.02 | gudhi: 190.9 ms · 7 MB | 50.4 ms · 15 MB (0.26×) | phlite (serial): 50.4 ms · 15 MB (0.26×) |
 
 <details><summary>Every phlite configuration (fastest per case in bold)</summary>
 
 | configuration | graph n=2000 p=0.002 | graph n=300 p=0.05 | flag n=300 p=0.05 | graph n=20000 p=0.0002 | flag n=1000 p=0.02 |
 |---|---:|---:|---:|---:|---:|
-| phlite (serial) | **12.8 ms · 5 MB** | **6.1 ms · 2 MB** | **7.9 ms · 2 MB** | **491.7 ms · 71 MB** | **48.0 ms · 15 MB** |
-| phlite (parallel) | 52.4 ms · 6 MB | 29.0 ms · 2 MB | 44.5 ms · 4 MB | 3.46 s · 78 MB | 301.9 ms · 16 MB |
+| phlite (serial) | **11.9 ms · 4 MB** | **4.9 ms · 2 MB** | **6.8 ms · 2 MB** | **478.8 ms · 71 MB** | **50.4 ms · 15 MB** |
+| phlite (parallel) | 41.0 ms · 5 MB | 24.6 ms · 2 MB | 41.6 ms · 4 MB | 2.03 s · 87 MB | 335.6 ms · 16 MB |
 
 </details>
 
-## Cubical complexes: `phlite.images.cubical` vs GUDHI and Cubical Ripser
+## Magnitude homology: `phlite.networks.magnitude` vs gramag
 
-Sublevel persistence, in every dimension, of a random image (`noise`: uniform; `smooth`: noise averaged over a 5-pixel window along each axis, then rounded to float32) of the given shape, in the T- or V-construction: GUDHI's `CubicalComplex` (`top_dimensional_cells` or `vertices`) and Cubical Ripser (`computePH_T` or `computePH`) against `cubical(image, construction=...)`.
+The ranks of magnitude homology MH_{k,l} over Z/2, for lengths l up to `l_max`, of a random digraph on `n` nodes, each edge present with probability `p`: gramag (`MagGraph.populate_paths`, `rank_homology`) against `magnitude(n, edges, l_max)`. Also phlite over the integers (Smith forms: ranks and torsion), and the magnitude-path spectral sequence to its last page (`magnitude_path_spectral_sequence`).
 
-Python 3.11.13.
+Python 3.11.18.
 
-| case | gudhi | cripser | phlite (serial) | phlite (parallel) |
+| case | gramag | phlite (serial) | phlite (integers) | phlite (spectral sequence) |
 |---|---:|---:|---:|---:|
-| cubical noise 256x256 T | 179.5 ms · 42 MB | 24.3 ms · 12 MB | 12.1 ms · 9 MB | 13.7 ms · 9 MB |
-| cubical noise 256x256 V | 157.7 ms · 28 MB | 24.6 ms · 12 MB | 10.5 ms · 8 MB | 10.2 ms · 8 MB |
-| cubical smooth 1024x1024 T | 3.45 s · 616 MB | 340.5 ms · 193 MB | 341.9 ms · 138 MB | 343.2 ms · 138 MB |
-| cubical smooth 1024x1024 V | 3.27 s · 550 MB | 332.4 ms · 201 MB | 310.9 ms · 113 MB | 315.7 ms · 113 MB |
-| cubical noise 32x32x32 T | 184.4 ms · 24 MB | 31.5 ms · 7 MB | 52.3 ms · 10 MB | 61.2 ms · 8 MB |
-| cubical smooth 64x64x64 V | 1.56 s · 230 MB | 132.3 ms · 27 MB | 215.5 ms · 38 MB | 161.3 ms · 38 MB |
-| cubical noise 1024x1024 T | 4.07 s · 616 MB | 479.9 ms · 197 MB | 420.9 ms · 138 MB | 425.1 ms · 138 MB |
-| cubical smooth 1080x1920 T | 7.70 s · 1098 MB | 765.2 ms · 382 MB | 888.1 ms · 241 MB | 897.3 ms · 242 MB |
-| cubical noise 64x64x64 V | 1.77 s · 220 MB | 332.4 ms · 58 MB | 511.9 ms · 56 MB | 839.2 ms · 54 MB |
-| cubical smooth 128x128x128 T | 16.86 s · 2362 MB | 2.13 s · 292 MB | 3.15 s · 404 MB | 2.65 s · 325 MB |
+| magnitude n=15 p=0.2 l_max=4 | 2.9 ms · 2 MB | 1.5 ms · 0 MB | 1.2 ms · 0 MB | 2.1 ms · 1 MB |
+| magnitude n=25 p=0.15 l_max=4 | 14.0 ms · 8 MB | 1.5 ms · 0 MB | 1.6 ms · 0 MB | 7.9 ms · 3 MB |
+| magnitude n=40 p=0.1 l_max=4 | 81.4 ms · 29 MB | 4.9 ms · 1 MB | 5.2 ms · 1 MB | 41.6 ms · 15 MB |
+| magnitude n=30 p=0.2 l_max=5 | 1.27 s · 141 MB | 64.2 ms · 8 MB | 76.1 ms · 8 MB | 969.9 ms · 239 MB |
 
 How phlite compares on one thread, per case: the fastest other implementation, phlite's default (`phlite (serial)`), and the fastest phlite configuration (all of them are in the next table). Ratios are to the fastest other implementation (below 1 means phlite is faster).
 
 | case | fastest other (1 thread) | phlite default | fastest phlite (1 thread) |
 |---|---|---:|---|
-| cubical noise 256x256 T | cripser: 24.3 ms · 12 MB | 12.1 ms · 9 MB (0.50×) | phlite (serial): 12.1 ms · 9 MB (0.50×) |
-| cubical noise 256x256 V | cripser: 24.6 ms · 12 MB | 10.5 ms · 8 MB (0.43×) | phlite (serial): 10.5 ms · 8 MB (0.43×) |
-| cubical smooth 1024x1024 T | cripser: 340.5 ms · 193 MB | 341.9 ms · 138 MB (1.00×) | phlite (serial): 341.9 ms · 138 MB (1.00×) |
-| cubical smooth 1024x1024 V | cripser: 332.4 ms · 201 MB | 310.9 ms · 113 MB (0.94×) | phlite (serial): 310.9 ms · 113 MB (0.94×) |
-| cubical noise 32x32x32 T | cripser: 31.5 ms · 7 MB | 52.3 ms · 10 MB (1.66×) | phlite (serial): 52.3 ms · 10 MB (1.66×) |
-| cubical smooth 64x64x64 V | cripser: 132.3 ms · 27 MB | 215.5 ms · 38 MB (1.63×) | phlite (serial): 215.5 ms · 38 MB (1.63×) |
-| cubical noise 1024x1024 T | cripser: 479.9 ms · 197 MB | 420.9 ms · 138 MB (0.88×) | phlite (serial): 420.9 ms · 138 MB (0.88×) |
-| cubical smooth 1080x1920 T | cripser: 765.2 ms · 382 MB | 888.1 ms · 241 MB (1.16×) | phlite (serial): 888.1 ms · 241 MB (1.16×) |
-| cubical noise 64x64x64 V | cripser: 332.4 ms · 58 MB | 511.9 ms · 56 MB (1.54×) | phlite (serial): 511.9 ms · 56 MB (1.54×) |
-| cubical smooth 128x128x128 T | cripser: 2.13 s · 292 MB | 3.15 s · 404 MB (1.48×) | phlite (serial): 3.15 s · 404 MB (1.48×) |
+| magnitude n=15 p=0.2 l_max=4 | gramag: 2.9 ms · 2 MB | 1.5 ms · 0 MB (0.52×) | phlite (integers): 1.2 ms · 0 MB (0.41×) |
+| magnitude n=25 p=0.15 l_max=4 | gramag: 14.0 ms · 8 MB | 1.5 ms · 0 MB (0.11×) | phlite (serial): 1.5 ms · 0 MB (0.11×) |
+| magnitude n=40 p=0.1 l_max=4 | gramag: 81.4 ms · 29 MB | 4.9 ms · 1 MB (0.06×) | phlite (serial): 4.9 ms · 1 MB (0.06×) |
+| magnitude n=30 p=0.2 l_max=5 | gramag: 1.27 s · 141 MB | 64.2 ms · 8 MB (0.05×) | phlite (serial): 64.2 ms · 8 MB (0.05×) |
+
+<details><summary>Every phlite configuration (fastest per case in bold)</summary>
+
+| configuration | magnitude n=15 p=0.2 l_max=4 | magnitude n=25 p=0.15 l_max=4 | magnitude n=40 p=0.1 l_max=4 | magnitude n=30 p=0.2 l_max=5 |
+|---|---:|---:|---:|---:|
+| phlite (serial) | 1.5 ms · 0 MB | **1.5 ms · 0 MB** | **4.9 ms · 1 MB** | **64.2 ms · 8 MB** |
+| phlite (integers) | **1.2 ms · 0 MB** | 1.6 ms · 0 MB | 5.2 ms · 1 MB | 76.1 ms · 8 MB |
+| phlite (spectral sequence) | 2.1 ms · 1 MB | 7.9 ms · 3 MB | 41.6 ms · 15 MB | 969.9 ms · 239 MB |
+
+</details>
+
+## Cubical complexes: `phlite.images.cubical` vs GUDHI and Cubical Ripser
+
+Sublevel persistence, in every dimension, of a random image (`noise`: uniform; `smooth`: noise averaged over a 5-pixel window along each axis, then rounded to float32) of the given shape, in the T- or V-construction: GUDHI's `CubicalComplex` (`top_dimensional_cells` or `vertices`) and Cubical Ripser (`computePH_T` or `computePH`) against `cubical(image, construction=...)`. Perseus 6 (`perseus.cubical`, over Z/2 on one thread) takes top cells, so only runs the T-construction.
+
+Python 3.11.18.
+
+| case | gudhi | cripser | perseus (F2) | phlite (serial) | phlite (parallel) |
+|---|---:|---:|---:|---:|---:|
+| cubical noise 256x256 T | 166.3 ms · 41 MB | 21.8 ms · 12 MB | 2.7 ms · 2 MB | 11.4 ms · 9 MB | 12.1 ms · 9 MB |
+| cubical noise 256x256 V | 154.7 ms · 28 MB | 22.2 ms · 12 MB |  | 9.7 ms · 8 MB | 9.7 ms · 8 MB |
+| cubical smooth 1024x1024 T | 3.51 s · 616 MB | 321.9 ms · 193 MB | 28.4 ms · 39 MB | 345.0 ms · 147 MB | 334.8 ms · 147 MB |
+| cubical smooth 1024x1024 V | 3.33 s · 548 MB | 321.5 ms · 201 MB |  | 312.1 ms · 122 MB | 298.7 ms · 122 MB |
+| cubical noise 32x32x32 T | 192.1 ms · 24 MB | 30.3 ms · 7 MB | 15.2 ms · 5 MB | 20.6 ms · 4 MB | 18.5 ms · 4 MB |
+| cubical smooth 64x64x64 V | 1.61 s · 230 MB | 135.5 ms · 27 MB |  | 217.7 ms · 40 MB | 169.0 ms · 40 MB |
+| cubical noise 1024x1024 T | 3.99 s · 618 MB | 481.7 ms · 197 MB | 41.0 ms · 40 MB | 397.7 ms · 147 MB | 387.5 ms · 147 MB |
+| cubical smooth 1080x1920 T | 7.36 s · 1096 MB | 694.4 ms · 382 MB | 58.4 ms · 61 MB | 780.4 ms · 258 MB | 748.1 ms · 258 MB |
+| cubical noise 64x64x64 V | 1.75 s · 218 MB | 320.8 ms · 58 MB |  | 502.4 ms · 56 MB | 951.8 ms · 54 MB |
+| cubical smooth 128x128x128 T | 16.29 s · 2358 MB | 2.09 s · 292 MB | 753.1 ms · 209 MB | 1.22 s · 183 MB | 723.0 ms · 186 MB |
+
+How phlite compares on one thread, per case: the fastest other implementation, phlite's default (`phlite (serial)`), and the fastest phlite configuration (all of them are in the next table). Ratios are to the fastest other implementation (below 1 means phlite is faster).
+
+| case | fastest other (1 thread) | phlite default | fastest phlite (1 thread) |
+|---|---|---:|---|
+| cubical noise 256x256 T | perseus (F2): 2.7 ms · 2 MB | 11.4 ms · 9 MB (4.23×) | phlite (serial): 11.4 ms · 9 MB (4.23×) |
+| cubical noise 256x256 V | cripser: 22.2 ms · 12 MB | 9.7 ms · 8 MB (0.44×) | phlite (serial): 9.7 ms · 8 MB (0.44×) |
+| cubical smooth 1024x1024 T | perseus (F2): 28.4 ms · 39 MB | 345.0 ms · 147 MB (12.13×) | phlite (serial): 345.0 ms · 147 MB (12.13×) |
+| cubical smooth 1024x1024 V | cripser: 321.5 ms · 201 MB | 312.1 ms · 122 MB (0.97×) | phlite (serial): 312.1 ms · 122 MB (0.97×) |
+| cubical noise 32x32x32 T | perseus (F2): 15.2 ms · 5 MB | 20.6 ms · 4 MB (1.35×) | phlite (serial): 20.6 ms · 4 MB (1.35×) |
+| cubical smooth 64x64x64 V | cripser: 135.5 ms · 27 MB | 217.7 ms · 40 MB (1.61×) | phlite (serial): 217.7 ms · 40 MB (1.61×) |
+| cubical noise 1024x1024 T | perseus (F2): 41.0 ms · 40 MB | 397.7 ms · 147 MB (9.69×) | phlite (serial): 397.7 ms · 147 MB (9.69×) |
+| cubical smooth 1080x1920 T | perseus (F2): 58.4 ms · 61 MB | 780.4 ms · 258 MB (13.36×) | phlite (serial): 780.4 ms · 258 MB (13.36×) |
+| cubical noise 64x64x64 V | cripser: 320.8 ms · 58 MB | 502.4 ms · 56 MB (1.57×) | phlite (serial): 502.4 ms · 56 MB (1.57×) |
+| cubical smooth 128x128x128 T | perseus (F2): 753.1 ms · 209 MB | 1.22 s · 183 MB (1.63×) | phlite (serial): 1.22 s · 183 MB (1.63×) |
 
 <details><summary>Every phlite configuration (fastest per case in bold)</summary>
 
 | configuration | cubical noise 256x256 T | cubical noise 256x256 V | cubical smooth 1024x1024 T | cubical smooth 1024x1024 V | cubical noise 32x32x32 T | cubical smooth 64x64x64 V | cubical noise 1024x1024 T | cubical smooth 1080x1920 T | cubical noise 64x64x64 V | cubical smooth 128x128x128 T |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| phlite (serial) | **12.1 ms · 9 MB** | 10.5 ms · 8 MB | **341.9 ms · 138 MB** | **310.9 ms · 113 MB** | **52.3 ms · 10 MB** | 215.5 ms · 38 MB | **420.9 ms · 138 MB** | **888.1 ms · 241 MB** | **511.9 ms · 56 MB** | 3.15 s · 404 MB |
-| phlite (parallel) | 13.7 ms · 9 MB | **10.2 ms · 8 MB** | 343.2 ms · 138 MB | 315.7 ms · 113 MB | 61.2 ms · 8 MB | **161.3 ms · 38 MB** | 425.1 ms · 138 MB | 897.3 ms · 242 MB | 839.2 ms · 54 MB | **2.65 s · 325 MB** |
+| phlite (serial) | **11.4 ms · 9 MB** | **9.7 ms · 8 MB** | 345.0 ms · 147 MB | 312.1 ms · 122 MB | 20.6 ms · 4 MB | 217.7 ms · 40 MB | 397.7 ms · 147 MB | 780.4 ms · 258 MB | **502.4 ms · 56 MB** | 1.22 s · 183 MB |
+| phlite (parallel) | 12.1 ms · 9 MB | 9.7 ms · 8 MB | **334.8 ms · 147 MB** | **298.7 ms · 122 MB** | **18.5 ms · 4 MB** | **169.0 ms · 40 MB** | **387.5 ms · 147 MB** | **748.1 ms · 258 MB** | 951.8 ms · 54 MB | **723.0 ms · 186 MB** |
+
+</details>
+
+## Periodic cubical complexes and binary filtrations: `phlite.images`
+
+Persistence of a random image (smoothed noise) wrapped round on every axis, as a torus: GUDHI's `PeriodicCubicalComplex` against `cubical(image, periodic=True)`, T-construction. And the binary filtrations of `phlite.images.filtrations` (as giotto-tda's), each followed by `cubical`, on the image cut at its median.
+
+Python 3.11.18.
+
+| case | GUDHI | phlite (serial) | phlite (dilation) | phlite (signed distance) | phlite (density) |
+|---|---:|---:|---:|---:|---:|
+| periodic 128×128 | 11.7 ms · 4 MB | 11.5 ms · 10 MB | 2.1 ms · 2 MB | 2.5 ms · 2 MB | 3.3 ms · 2 MB |
+| periodic 512×512 | 269.6 ms · 50 MB | 250.8 ms · 162 MB | 40.9 ms · 37 MB | 48.8 ms · 37 MB | 62.9 ms · 37 MB |
+| periodic 1024×1024 | 1.60 s · 199 MB | 1.44 s · 658 MB | 173.0 ms · 148 MB | 212.4 ms · 149 MB |  |
+| periodic 48×48×48 | 243.5 ms · 41 MB | 250.4 ms · 184 MB | 29.5 ms · 10 MB | 34.5 ms · 10 MB |  |
+| periodic 96×96×96 | 3.11 s · 326 MB | 3.41 s · 1567 MB | 305.3 ms · 78 MB | 343.2 ms · 79 MB |  |
+
+How phlite compares on one thread, per case: the fastest other implementation, phlite's default (`phlite (serial)`), and the fastest phlite configuration (all of them are in the next table). Ratios are to the fastest other implementation (below 1 means phlite is faster).
+
+| case | fastest other (1 thread) | phlite default | fastest phlite (1 thread) |
+|---|---|---:|---|
+| periodic 128×128 | GUDHI: 11.7 ms · 4 MB | 11.5 ms · 10 MB (0.98×) | phlite (dilation): 2.1 ms · 2 MB (0.18×) |
+| periodic 512×512 | GUDHI: 269.6 ms · 50 MB | 250.8 ms · 162 MB (0.93×) | phlite (dilation): 40.9 ms · 37 MB (0.15×) |
+| periodic 1024×1024 | GUDHI: 1.60 s · 199 MB | 1.44 s · 658 MB (0.90×) | phlite (dilation): 173.0 ms · 148 MB (0.11×) |
+| periodic 48×48×48 | GUDHI: 243.5 ms · 41 MB | 250.4 ms · 184 MB (1.03×) | phlite (dilation): 29.5 ms · 10 MB (0.12×) |
+| periodic 96×96×96 | GUDHI: 3.11 s · 326 MB | 3.41 s · 1567 MB (1.10×) | phlite (dilation): 305.3 ms · 78 MB (0.10×) |
+
+<details><summary>Every phlite configuration (fastest per case in bold)</summary>
+
+| configuration | periodic 128×128 | periodic 512×512 | periodic 1024×1024 | periodic 48×48×48 | periodic 96×96×96 |
+|---|---:|---:|---:|---:|---:|
+| phlite (serial) | 11.5 ms · 10 MB | 250.8 ms · 162 MB | 1.44 s · 658 MB | 250.4 ms · 184 MB | 3.41 s · 1567 MB |
+| phlite (dilation) | **2.1 ms · 2 MB** | **40.9 ms · 37 MB** | **173.0 ms · 148 MB** | **29.5 ms · 10 MB** | **305.3 ms · 78 MB** |
+| phlite (signed distance) | 2.5 ms · 2 MB | 48.8 ms · 37 MB | 212.4 ms · 149 MB | 34.5 ms · 10 MB | 343.2 ms · 79 MB |
+| phlite (density) | 3.3 ms · 2 MB | 62.9 ms · 37 MB |  |  |  |
+
+</details>
+
+## Maps, integers and spectral sequences: `phlite.complexes`
+
+On the Rips filtration (up to triangles) of `n` random points in the unit square, as an explicit complex: the image, kernel and cokernel of the inclusion of the left half of the points (`image_kernel_cokernel`) and its whole six-pack with representatives (`six_pack`); ordinary persistence over Z/2 for scale; persistence over the integers (`modulus=0`: the barcode over Q and its torsion); and the spectral sequence of the filtration to its last page (`spectral_sequence`). phlite alone: phimaker, Kenzo, spectral-sequence-engine and PerMaViss are compared in `perf-results/`.
+
+Python 3.13.13.
+
+| case | persistence (Z/2) | image/kernel/cokernel | six-pack | integers | spectral sequence |
+|---|---:|---:|---:|---:|---:|
+| Rips of 200 points (threshold 0.25) | 12.7 ms · 9 MB | 82.5 ms · 17 MB | 117.3 ms · 20 MB | 52.9 ms · 15 MB | 13.0 ms · 6 MB |
+| Rips of 300 points (threshold 0.25) | 45.4 ms · 29 MB | 415.2 ms · 73 MB | 596.6 ms · 81 MB | 307.4 ms · 53 MB | 47.8 ms · 20 MB |
+| Rips of 400 points (threshold 0.25) | 130.0 ms · 80 MB | 1.28 s · 208 MB | 1.88 s · 232 MB | 2.02 s · 252 MB | 142.2 ms · 63 MB |
+
+How phlite compares on one thread, per case: the fastest other implementation, phlite's default (`persistence (Z/2)`), and the fastest phlite configuration (all of them are in the next table). Ratios are to the fastest other implementation (below 1 means phlite is faster).
+
+| case | fastest other (1 thread) | phlite default | fastest phlite (1 thread) |
+|---|---|---:|---|
+| Rips of 200 points (threshold 0.25) | persistence (Z/2): 12.7 ms · 9 MB | 12.7 ms · 9 MB (1.00×) |  |
+| Rips of 300 points (threshold 0.25) | persistence (Z/2): 45.4 ms · 29 MB | 45.4 ms · 29 MB (1.00×) |  |
+| Rips of 400 points (threshold 0.25) | persistence (Z/2): 130.0 ms · 80 MB | 130.0 ms · 80 MB (1.00×) |  |
+
+<details><summary>Every phlite configuration (fastest per case in bold)</summary>
+
+| configuration | Rips of 200 points (threshold 0.25) | Rips of 300 points (threshold 0.25) | Rips of 400 points (threshold 0.25) |
+|---|---:|---:|---:|
+
+</details>
+
+## Zigzag persistence: `phlite.complexes.zigzag` vs fzz and Dionysus 2
+
+Sliding windows of Rips complexes (points along a noisy circle arriving one at a time, each bringing its simplices with the window's points, the oldest leaving with its simplices): phlite's `zigzag` on the operations and `timed_zigzag` on the same simplices given lifetimes, against Dey and Hou's fzz (the C++ binary, as released: homology on PHAT, timed as a whole process with its file input and output) and Dionysus 2's `zigzag_homology_persistence` (in a subprocess). fzz and Dionysus run when `FZZ_BIN` and `DIONYSUS_PYTHON` are set; see `perf-results/maps-zigzag-2026-11-22.md` for fzz reducing by cohomology too.
+
+Python 3.13.13.
+
+| case | Dionysus 2 | fzz | phlite (serial) | phlite (timed) |
+|---|---:|---:|---:|---:|
+| sliding Rips n=300 window=20 (6611 operations) | 130.6 ms · 0 MB | 9.0 ms · 0 MB | 3.7 ms · 2 MB | 8.3 ms · 4 MB |
+| sliding Rips n=1000 window=30 (126182 operations) | 13.09 s · 13 MB | 570.8 ms · 1 MB | 147.8 ms · 60 MB | 340.0 ms · 95 MB |
+| sliding Rips n=2000 window=35 (461837 operations) |  | 181.20 s · 9 MB | 926.9 ms · 279 MB | 1.88 s · 412 MB |
+| sliding Rips n=5000 window=40 (1674242 operations) |  |  | 5.24 s · 1443 MB | 8.47 s · 1908 MB |
+
+How phlite compares on one thread, per case: the fastest other implementation, phlite's default (`phlite (serial)`), and the fastest phlite configuration (all of them are in the next table). Ratios are to the fastest other implementation (below 1 means phlite is faster).
+
+| case | fastest other (1 thread) | phlite default | fastest phlite (1 thread) |
+|---|---|---:|---|
+| sliding Rips n=300 window=20 (6611 operations) | fzz: 9.0 ms · 0 MB | 3.7 ms · 2 MB (0.41×) | phlite (serial): 3.7 ms · 2 MB (0.41×) |
+| sliding Rips n=1000 window=30 (126182 operations) | fzz: 570.8 ms · 1 MB | 147.8 ms · 60 MB (0.26×) | phlite (serial): 147.8 ms · 60 MB (0.26×) |
+| sliding Rips n=2000 window=35 (461837 operations) | fzz: 181.20 s · 9 MB | 926.9 ms · 279 MB (0.01×) | phlite (serial): 926.9 ms · 279 MB (0.01×) |
+| sliding Rips n=5000 window=40 (1674242 operations) |  | 5.24 s · 1443 MB | phlite (serial): 5.24 s · 1443 MB |
+
+<details><summary>Every phlite configuration (fastest per case in bold)</summary>
+
+| configuration | sliding Rips n=300 window=20 (6611 operations) | sliding Rips n=1000 window=30 (126182 operations) | sliding Rips n=2000 window=35 (461837 operations) | sliding Rips n=5000 window=40 (1674242 operations) |
+|---|---:|---:|---:|---:|
+| phlite (serial) | **3.7 ms · 2 MB** | **147.8 ms · 60 MB** | **926.9 ms · 279 MB** | **5.24 s · 1443 MB** |
+| phlite (timed) | 8.3 ms · 4 MB | 340.0 ms · 95 MB | 1.88 s · 412 MB | 8.47 s · 1908 MB |
+
+</details>
+
+## Zigzags of point clouds, networks and videos: `cloud_zigzag`, `network_zigzag`, `video_zigzag`
+
+Zigzags whose complexes phlite builds in Rust from the data: sliding windows and moving points (Rips, alpha and Čech complexes of each frame, joined by unions), snapshots of a random temporal network (clique and directed flag complexes of the edges active in each window of time), and videos (each frame of smoothed noise cut at its median, as a cubical complex). phlite alone: serial and parallel reductions.
+
+Python 3.11.18.
+
+| case | phlite (serial) | phlite (parallel) |
+|---|---:|---:|
+| windows rips 1000 | 417.5 ms · 78 MB | 870.6 ms · 97 MB |
+| windows alpha 1000 | 78.4 ms · 8 MB | 77.5 ms · 8 MB |
+| windows cech 400 | 120.7 ms · 5 MB | 125.9 ms · 5 MB |
+| moving rips 300 | 224.6 ms · 61 MB | 314.9 ms · 68 MB |
+| moving alpha 2000 | 531.0 ms · 146 MB | 850.8 ms · 190 MB |
+| network clique 200 | 16.0 ms · 2 MB | 91.9 ms · 3 MB |
+| network directed flag 200 | 15.4 ms · 2 MB | 93.3 ms · 3 MB |
+| video 64 | 428.7 ms · 91 MB | 1.67 s · 112 MB |
+| video 128 | 4.14 s · 360 MB | 24.01 s · 591 MB |
+
+How phlite compares on one thread, per case: the fastest other implementation, phlite's default (`phlite (serial)`), and the fastest phlite configuration (all of them are in the next table). Ratios are to the fastest other implementation (below 1 means phlite is faster).
+
+| case | fastest other (1 thread) | phlite default | fastest phlite (1 thread) |
+|---|---|---:|---|
+| windows rips 1000 |  | 417.5 ms · 78 MB | phlite (serial): 417.5 ms · 78 MB |
+| windows alpha 1000 |  | 78.4 ms · 8 MB | phlite (serial): 78.4 ms · 8 MB |
+| windows cech 400 |  | 120.7 ms · 5 MB | phlite (serial): 120.7 ms · 5 MB |
+| moving rips 300 |  | 224.6 ms · 61 MB | phlite (serial): 224.6 ms · 61 MB |
+| moving alpha 2000 |  | 531.0 ms · 146 MB | phlite (serial): 531.0 ms · 146 MB |
+| network clique 200 |  | 16.0 ms · 2 MB | phlite (serial): 16.0 ms · 2 MB |
+| network directed flag 200 |  | 15.4 ms · 2 MB | phlite (serial): 15.4 ms · 2 MB |
+| video 64 |  | 428.7 ms · 91 MB | phlite (serial): 428.7 ms · 91 MB |
+| video 128 |  | 4.14 s · 360 MB | phlite (serial): 4.14 s · 360 MB |
+
+<details><summary>Every phlite configuration (fastest per case in bold)</summary>
+
+| configuration | windows rips 1000 | windows alpha 1000 | windows cech 400 | moving rips 300 | moving alpha 2000 | network clique 200 | network directed flag 200 | video 64 | video 128 |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| phlite (serial) | **417.5 ms · 78 MB** | 78.4 ms · 8 MB | **120.7 ms · 5 MB** | **224.6 ms · 61 MB** | **531.0 ms · 146 MB** | **16.0 ms · 2 MB** | **15.4 ms · 2 MB** | **428.7 ms · 91 MB** | **4.14 s · 360 MB** |
+| phlite (parallel) | 870.6 ms · 97 MB | **77.5 ms · 8 MB** | 125.9 ms · 5 MB | 314.9 ms · 68 MB | 850.8 ms · 190 MB | 91.9 ms · 3 MB | 93.3 ms · 3 MB | 1.67 s · 112 MB | 24.01 s · 591 MB |
 
 </details>
 
 ## Sparse matrices: `phlite` (explicit complexes) vs PHAT and LoPHAT
 
-Persistence of explicit boundary matrices over Z/2, given to every implementation as the same list of columns in filtration order. Times include loading the columns from Python, except for `(reduce)`, where the matrix is built before the clock starts. phlite's default stores the reduced columns of R and reduces with a dense pivot column (`pivot`, as PHAT does), without caching columns of D; other configurations are named by how they differ, and `V only` recomputes the columns of R from V instead. Larger cases are timed once each. `rips`: Rips complexes of `n` random points in the plane, up to triangles. `grid`: cubical complexes of `n`×`n` grids, filtered by smoothed noise on the vertices. `cells`: sparse random cellular complexes with `n` cells in each dimension up to 3. `dense`: the same, with dense boundaries. Structured, with long bars: `rips torus` and `rips circles`, Rips complexes of the noisy torus and wedge of circles from the Rips section; `rings`, cubical complexes of `n`×`n` images of the distance to five overlapping rings, plus noise (a long H1 bar for each hole); and `torus mesh`, a triangulated torus filtered by its height, plus noise (essential bars in every dimension).
+Persistence of explicit boundary matrices over Z/2, given to every implementation as the same list of columns in filtration order. Times include loading the columns from Python, except for `(reduce)`, where the matrix is built before the clock starts. phlite's default stores the reduced columns of R and reduces with a dense pivot column (`pivot`, as PHAT does), without caching columns of D; other configurations are named by how they differ, and `V only` recomputes the columns of R from V instead. Larger cases are timed once each. `rips`: Rips complexes of `n` random points in the plane, up to triangles. `grid`: cubical complexes of `n`×`n` grids, filtered by smoothed noise on the vertices. `cells`: sparse random cellular complexes with `n` cells in each dimension up to 3. `dense`: the same, with dense boundaries. Structured, with long bars: `rips torus` and `rips circles`, Rips complexes of the noisy torus and wedge of circles from the Rips section; `rings`, cubical complexes of `n`×`n` images of the distance to five overlapping rings, plus noise (a long H1 bar for each hole); and `torus mesh`, a triangulated torus filtered by its height, plus noise (essential bars in every dimension). `linial-meshulam`: the random 2-complex Y_2(n, p) on the complete graph (at 0), each triangle with probability `p` at one of a few levels, so that many triangles arrive in a few big batches. Perseus 6 (`perseus.simplices`, over Z/2 on one thread) takes simplicial complexes as vertex lists, so runs on the Rips complexes, the torus mesh and Linial–Meshulam, building the boundary matrix itself.
 
 Python 3.13.13.
 
-| case | phat (twist) | phat (twist, reduce) | lophat (1 thread) | phlite (serial) | phlite (serial, reduce) | phlite (V only, reduce) | phlite (parallel, reduce) | phlite (homology, reduce) |
-|---|---:|---:|---:|---:|---:|---:|---:|---:|
-| rips n=100 dim≤2 | 196.5 ms · 10 MB | 83.2 ms · 5 MB | 85.3 ms · 38 MB | 31.6 ms · 36 MB | 7.6 ms · 23 MB | 7.8 ms · 23 MB | 8.6 ms · 23 MB | 115.0 ms · 15 MB |
-| rips n=150 dim≤2 | 732.3 ms · 32 MB | 411.5 ms · 18 MB | 354.6 ms · 141 MB | 120.3 ms · 125 MB | 32.1 ms · 78 MB | 38.1 ms · 78 MB | 35.1 ms · 78 MB | 545.3 ms · 52 MB |
-| grid 300x300 | 234.2 ms · 21 MB | 19.8 ms · 12 MB | 857.4 ms · 68 MB | 75.2 ms · 44 MB | 23.1 ms · 19 MB | 37.7 ms · 28 MB | 60.8 ms · 21 MB | 21.9 ms · 17 MB |
-| grid 500x500 | 680.3 ms · 53 MB | 77.8 ms · 28 MB | 5.51 s · 182 MB | 240.1 ms · 121 MB | 75.2 ms · 53 MB | 128.5 ms · 81 MB | 178.2 ms · 60 MB | 75.5 ms · 50 MB |
-| cells n=1000 | 3.2 ms · 0 MB | 612 µs · 0 MB | 3.9 ms · 1 MB | 1.4 ms · 1 MB | 547 µs · 1 MB | 1.0 ms · 1 MB | 2.0 ms · 1 MB | 1.0 ms · 1 MB |
-| cells n=3000 | 12.2 ms · 2 MB | 4.1 ms · 1 MB | 18.3 ms · 4 MB | 6.2 ms · 3 MB | 2.4 ms · 1 MB | 5.9 ms · 1 MB | 7.4 ms · 2 MB | 6.1 ms · 1 MB |
-| dense n=100 p=0.3 | 465 µs · 0 MB | 175 µs · 0 MB | 1.6 ms · 0 MB | 434 µs · 1 MB | 241 µs · 0 MB | 5.6 ms · 0 MB | 7.1 ms · 1 MB | 281 µs · 0 MB |
-| dense n=200 p=0.3 | 1.8 ms · 0 MB | 1.1 ms · 0 MB | 7.5 ms · 1 MB | 1.7 ms · 1 MB | 1.2 ms · 1 MB | 86.9 ms · 1 MB | 118.1 ms · 5 MB | 2.2 ms · 1 MB |
-| rips torus n=150 dim≤2 | 1.12 s · 32 MB | 774.2 ms · 18 MB | 361.5 ms · 141 MB | 124.2 ms · 125 MB | 30.1 ms · 78 MB | 31.3 ms · 78 MB | 36.2 ms · 78 MB | 999.7 ms · 52 MB |
-| rips circles n=150 dim≤2 | 758.7 ms · 32 MB | 418.9 ms · 18 MB | 383.6 ms · 141 MB | 120.1 ms · 125 MB | 30.2 ms · 78 MB | 31.5 ms · 78 MB | 36.8 ms · 78 MB | 563.3 ms · 52 MB |
-| rings 500x500 | 648.7 ms · 52 MB | 51.8 ms · 26 MB | 1.39 s · 180 MB | 199.2 ms · 123 MB | 55.2 ms · 54 MB | 74.6 ms · 80 MB | 148.8 ms · 67 MB | 64.4 ms · 59 MB |
-| torus mesh 300x300 | 349.4 ms · 33 MB | 26.6 ms · 19 MB | 487.2 ms · 113 MB | 104.9 ms · 60 MB | 25.9 ms · 21 MB | 33.0 ms · 34 MB | 61.2 ms · 31 MB | 30.6 ms · 30 MB |
-| rips n=200 dim≤2 | 2.12 s · 76 MB | 1.25 s · 42 MB | 1.22 s · 307 MB | 372.2 ms · 296 MB | 87.7 ms · 186 MB | 91.9 ms · 186 MB | 89.2 ms · 186 MB | 1.68 s · 124 MB |
-| grid 1000x1000 | 3.10 s · 215 MB | 406.2 ms · 114 MB | 87.42 s · 734 MB | 1.51 s · 486 MB | 493.2 ms · 213 MB | 934.8 ms · 326 MB | 1.02 s · 243 MB | 459.5 ms · 166 MB |
-| cells n=10000 | 96.7 ms · 8 MB | 56.2 ms · 4 MB | 519.8 ms · 26 MB | 54.7 ms · 15 MB | 27.7 ms · 5 MB | 361.7 ms · 3 MB | 350.3 ms · 46 MB | 101.0 ms · 3 MB |
-| dense n=400 p=0.3 | 11.3 ms · 1 MB | 7.6 ms · 1 MB | 68.3 ms · 2 MB | 10.5 ms · 2 MB | 8.0 ms · 1 MB | 1.63 s · 1 MB | 3.19 s · 76 MB | 9.9 ms · 1 MB |
-| rips torus n=200 dim≤2 | 2.52 s · 76 MB | 1.58 s · 42 MB | 1.45 s · 308 MB | 406.1 ms · 296 MB | 97.9 ms · 186 MB | 103.3 ms · 186 MB | 90.0 ms · 186 MB | 1.98 s · 124 MB |
-| rings 1000x1000 | 2.82 s · 209 MB | 240.9 ms · 108 MB | 11.72 s · 723 MB | 1.04 s · 492 MB | 299.6 ms · 219 MB | 441.9 ms · 323 MB | 750.2 ms · 268 MB | 358.5 ms · 179 MB |
-| torus mesh 700x700 | 2.03 s · 162 MB | 171.5 ms · 88 MB | 5.39 s · 565 MB | 675.8 ms · 321 MB | 181.2 ms · 116 MB | 257.1 ms · 174 MB | 402.9 ms · 144 MB | 227.9 ms · 139 MB |
+| case | phat (twist) | phat (twist, reduce) | lophat (1 thread) | perseus (F2) | phlite (serial) | phlite (serial, reduce) | phlite (V only, reduce) | phlite (parallel, reduce) | phlite (homology, reduce) |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| rips n=100 dim≤2 | 194.2 ms · 10 MB | 84.2 ms · 5 MB | 85.4 ms · 38 MB | 159.7 ms · 51 MB | 32.1 ms · 37 MB | 8.1 ms · 23 MB | 8.1 ms · 23 MB | 9.0 ms · 23 MB | 114.9 ms · 15 MB |
+| rips n=150 dim≤2 | 785.8 ms · 32 MB | 412.6 ms · 18 MB | 330.8 ms · 141 MB | 802.0 ms · 187 MB | 108.1 ms · 127 MB | 33.1 ms · 80 MB | 33.1 ms · 80 MB | 32.2 ms · 80 MB | 541.5 ms · 52 MB |
+| grid 300x300 | 252.5 ms · 21 MB | 20.5 ms · 12 MB | 840.3 ms · 68 MB |  | 54.5 ms · 37 MB | 8.6 ms · 12 MB | 9.5 ms · 14 MB | 14.7 ms · 17 MB | 23.3 ms · 17 MB |
+| grid 500x500 | 688.0 ms · 53 MB | 76.7 ms · 28 MB | 5.39 s · 182 MB |  | 159.4 ms · 100 MB | 27.3 ms · 32 MB | 29.6 ms · 36 MB | 42.1 ms · 43 MB | 76.1 ms · 50 MB |
+| cells n=1000 | 3.3 ms · 0 MB | 634 µs · 0 MB | 3.6 ms · 1 MB |  | 1.4 ms · 1 MB | 509 µs · 1 MB | 799 µs · 1 MB | 1.4 ms · 1 MB | 1.1 ms · 1 MB |
+| cells n=3000 | 12.3 ms · 2 MB | 4.1 ms · 1 MB | 18.7 ms · 4 MB |  | 5.6 ms · 3 MB | 2.2 ms · 1 MB | 5.9 ms · 1 MB | 5.3 ms · 2 MB | 6.2 ms · 1 MB |
+| dense n=100 p=0.3 | 511 µs · 0 MB | 181 µs · 0 MB | 1.2 ms · 0 MB |  | 443 µs · 1 MB | 240 µs · 0 MB | 5.6 ms · 0 MB | 6.8 ms · 1 MB | 281 µs · 0 MB |
+| dense n=200 p=0.3 | 1.8 ms · 0 MB | 1.1 ms · 0 MB | 7.3 ms · 1 MB |  | 1.7 ms · 1 MB | 1.1 ms · 0 MB | 87.2 ms · 0 MB | 126.5 ms · 8 MB | 2.5 ms · 1 MB |
+| rips torus n=150 dim≤2 | 1.07 s · 32 MB | 687.4 ms · 18 MB | 337.7 ms · 141 MB | 803.5 ms · 187 MB | 108.6 ms · 127 MB | 30.4 ms · 80 MB | 30.1 ms · 80 MB | 32.1 ms · 80 MB | 941.2 ms · 52 MB |
+| rips circles n=150 dim≤2 | 758.1 ms · 32 MB | 378.9 ms · 18 MB | 369.2 ms · 141 MB | 806.1 ms · 187 MB | 114.5 ms · 127 MB | 32.1 ms · 80 MB | 31.6 ms · 80 MB | 31.4 ms · 80 MB | 571.3 ms · 52 MB |
+| rings 500x500 | 674.6 ms · 52 MB | 52.3 ms · 26 MB | 1.35 s · 180 MB |  | 157.6 ms · 102 MB | 25.4 ms · 34 MB | 27.5 ms · 38 MB | 39.5 ms · 53 MB | 64.2 ms · 59 MB |
+| torus mesh 300x300 | 356.9 ms · 33 MB | 27.5 ms · 19 MB | 468.0 ms · 113 MB | 838.3 ms · 160 MB | 77.5 ms · 52 MB | 12.3 ms · 13 MB | 15.0 ms · 20 MB | 24.2 ms · 24 MB | 33.8 ms · 30 MB |
+| linial-meshulam n=100 p=0.1 | 198.4 ms · 2 MB | 186.4 ms · 1 MB | 7.18 s · 20 MB | 543.8 ms · 15 MB | 90.8 ms · 12 MB | 88.8 ms · 11 MB | 1.12 s · 3 MB | 1.14 s · 82 MB | 215.6 ms · 2 MB |
+| rips n=200 dim≤2 | 2.01 s · 76 MB | 1.11 s · 42 MB | 1.11 s · 307 MB | 2.59 s · 411 MB | 392.4 ms · 301 MB | 88.4 ms · 192 MB | 84.5 ms · 192 MB | 78.4 ms · 192 MB | 1.63 s · 124 MB |
+| grid 1000x1000 | 2.98 s · 215 MB | 390.1 ms · 114 MB | 88.09 s · 734 MB |  | 870.4 ms · 399 MB | 134.0 ms · 127 MB | 149.8 ms · 144 MB | 208.9 ms · 171 MB | 439.1 ms · 166 MB |
+| cells n=10000 | 92.6 ms · 8 MB | 56.5 ms · 4 MB | 504.6 ms · 26 MB |  | 47.9 ms · 15 MB | 26.3 ms · 4 MB | 364.8 ms · 3 MB | 278.9 ms · 36 MB | 89.4 ms · 3 MB |
+| dense n=400 p=0.3 | 12.6 ms · 1 MB | 7.6 ms · 1 MB | 67.7 ms · 2 MB |  | 10.4 ms · 2 MB | 8.1 ms · 1 MB | 1.62 s · 1 MB | 3.33 s · 75 MB | 11.5 ms · 1 MB |
+| rips torus n=200 dim≤2 | 2.76 s · 76 MB | 1.79 s · 42 MB | 1.29 s · 308 MB | 2.67 s · 411 MB | 347.1 ms · 301 MB | 108.6 ms · 192 MB | 115.6 ms · 192 MB | 111.4 ms · 192 MB | 2.42 s · 124 MB |
+| rings 1000x1000 | 2.89 s · 209 MB | 241.0 ms · 108 MB | 11.48 s · 723 MB |  | 854.3 ms · 406 MB | 129.0 ms · 134 MB | 128.1 ms · 152 MB | 210.9 ms · 212 MB | 351.2 ms · 179 MB |
+| torus mesh 700x700 | 2.10 s · 162 MB | 172.8 ms · 88 MB | 5.17 s · 565 MB | 6.55 s · 780 MB | 582.8 ms · 279 MB | 82.4 ms · 74 MB | 92.4 ms · 98 MB | 145.6 ms · 152 MB | 204.9 ms · 139 MB |
+| linial-meshulam n=150 p=0.05 | 2.67 s · 7 MB | 2.67 s · 6 MB | 374.08 s · 102 MB | 13.29 s · 71 MB | 2.23 s · 65 MB | 2.23 s · 62 MB | 52.78 s · 23 MB | 58.60 s · 459 MB | 2.80 s · 4 MB |
 
 How phlite compares on one thread, per case: the fastest other implementation, phlite's default (`phlite (serial, reduce)`), and the fastest phlite configuration (all of them are in the next table). Only `(reduce)` timings are compared, which leave out loading the input. Ratios are to the fastest other implementation (below 1 means phlite is faster).
 
 | case | fastest other (1 thread) | phlite default | fastest phlite (1 thread) |
 |---|---|---:|---|
-| rips n=100 dim≤2 | phat (twist, reduce): 83.2 ms · 5 MB | 7.6 ms · 23 MB (0.09×) | phlite (V only, merged, reduce): 7.3 ms · 23 MB (0.09×) |
-| rips n=150 dim≤2 | phat (twist, reduce): 411.5 ms · 18 MB | 32.1 ms · 78 MB (0.08×) | phlite (serial, reduce): 32.1 ms · 78 MB (0.08×) |
-| grid 300x300 | phat (twist, reduce): 19.8 ms · 12 MB | 23.1 ms · 19 MB (1.17×) | phlite (homology, reduce): 21.9 ms · 17 MB (1.11×) |
-| grid 500x500 | phat (twist, reduce): 77.8 ms · 28 MB | 75.2 ms · 53 MB (0.97×) | phlite (homology, heap, reduce): 70.8 ms · 42 MB (0.91×) |
-| cells n=1000 | phat (twist, reduce): 612 µs · 0 MB | 547 µs · 1 MB (0.89×) | phlite (no skipping, reduce): 546 µs · 1 MB (0.89×) |
-| cells n=3000 | phat (twist, reduce): 4.1 ms · 1 MB | 2.4 ms · 1 MB (0.60×) | phlite (no skipping, reduce): 2.4 ms · 1 MB (0.59×) |
-| dense n=100 p=0.3 | phat (twist, reduce): 175 µs · 0 MB | 241 µs · 0 MB (1.38×) | phlite (cached, reduce): 229 µs · 0 MB (1.31×) |
-| dense n=200 p=0.3 | phat (twist, reduce): 1.1 ms · 0 MB | 1.2 ms · 1 MB (1.11×) | phlite (serial, reduce): 1.2 ms · 1 MB (1.11×) |
-| rips torus n=150 dim≤2 | phat (twist, reduce): 774.2 ms · 18 MB | 30.1 ms · 78 MB (0.04×) | phlite (no skipping, reduce): 27.3 ms · 78 MB (0.04×) |
-| rips circles n=150 dim≤2 | phat (twist, reduce): 418.9 ms · 18 MB | 30.2 ms · 78 MB (0.07×) | phlite (V only, merged, reduce): 28.5 ms · 78 MB (0.07×) |
-| rings 500x500 | phat (twist, reduce): 51.8 ms · 26 MB | 55.2 ms · 54 MB (1.07×) | phlite (serial, reduce): 55.2 ms · 54 MB (1.07×) |
-| torus mesh 300x300 | phat (twist, reduce): 26.6 ms · 19 MB | 25.9 ms · 21 MB (0.97×) | phlite (serial, reduce): 25.9 ms · 21 MB (0.97×) |
-| rips n=200 dim≤2 | phat (twist, reduce): 1.25 s · 42 MB | 87.7 ms · 186 MB (0.07×) | phlite (V only, merged, cached, reduce): 86.4 ms · 186 MB (0.07×) |
-| grid 1000x1000 | phat (twist, reduce): 406.2 ms · 114 MB | 493.2 ms · 213 MB (1.21×) | phlite (homology, heap, reduce): 435.8 ms · 134 MB (1.07×) |
-| cells n=10000 | phat (twist, reduce): 56.2 ms · 4 MB | 27.7 ms · 5 MB (0.49×) | phlite (serial, reduce): 27.7 ms · 5 MB (0.49×) |
-| dense n=400 p=0.3 | phat (twist, reduce): 7.6 ms · 1 MB | 8.0 ms · 1 MB (1.04×) | phlite (no skipping, reduce): 7.9 ms · 1 MB (1.04×) |
-| rips torus n=200 dim≤2 | phat (twist, reduce): 1.58 s · 42 MB | 97.9 ms · 186 MB (0.06×) | phlite (V only, merged, cached, reduce): 93.2 ms · 186 MB (0.06×) |
-| rings 1000x1000 | phat (twist, reduce): 240.9 ms · 108 MB | 299.6 ms · 219 MB (1.24×) | phlite (serial, reduce): 299.6 ms · 219 MB (1.24×) |
-| torus mesh 700x700 | phat (twist, reduce): 171.5 ms · 88 MB | 181.2 ms · 116 MB (1.06×) | phlite (serial, reduce): 181.2 ms · 116 MB (1.06×) |
+| rips n=100 dim≤2 | phat (twist, reduce): 84.2 ms · 5 MB | 8.1 ms · 23 MB (0.10×) | phlite (V only, merged, reduce): 7.8 ms · 23 MB (0.09×) |
+| rips n=150 dim≤2 | phat (twist, reduce): 412.6 ms · 18 MB | 33.1 ms · 80 MB (0.08×) | phlite (merged, reduce): 32.0 ms · 80 MB (0.08×) |
+| grid 300x300 | phat (twist, reduce): 20.5 ms · 12 MB | 8.6 ms · 12 MB (0.42×) | phlite (heap, reduce): 8.5 ms · 12 MB (0.41×) |
+| grid 500x500 | phat (twist, reduce): 76.7 ms · 28 MB | 27.3 ms · 32 MB (0.36×) | phlite (heap, reduce): 25.3 ms · 32 MB (0.33×) |
+| cells n=1000 | phat (twist, reduce): 634 µs · 0 MB | 509 µs · 1 MB (0.80×) | phlite (no skipping, reduce): 485 µs · 1 MB (0.77×) |
+| cells n=3000 | phat (twist, reduce): 4.1 ms · 1 MB | 2.2 ms · 1 MB (0.54×) | phlite (serial, reduce): 2.2 ms · 1 MB (0.54×) |
+| dense n=100 p=0.3 | phat (twist, reduce): 181 µs · 0 MB | 240 µs · 0 MB (1.33×) | phlite (cached, reduce): 209 µs · 0 MB (1.15×) |
+| dense n=200 p=0.3 | phat (twist, reduce): 1.1 ms · 0 MB | 1.1 ms · 0 MB (1.08×) | phlite (serial, reduce): 1.1 ms · 0 MB (1.08×) |
+| rips torus n=150 dim≤2 | phat (twist, reduce): 687.4 ms · 18 MB | 30.4 ms · 80 MB (0.04×) | phlite (V only, merged, reduce): 28.9 ms · 80 MB (0.04×) |
+| rips circles n=150 dim≤2 | phat (twist, reduce): 378.9 ms · 18 MB | 32.1 ms · 80 MB (0.08×) | phlite (no skipping, reduce): 30.7 ms · 81 MB (0.08×) |
+| rings 500x500 | phat (twist, reduce): 52.3 ms · 26 MB | 25.4 ms · 34 MB (0.49×) | phlite (heap, reduce): 25.0 ms · 33 MB (0.48×) |
+| torus mesh 300x300 | phat (twist, reduce): 27.5 ms · 19 MB | 12.3 ms · 13 MB (0.45×) | phlite (serial, reduce): 12.3 ms · 13 MB (0.45×) |
+| linial-meshulam n=100 p=0.1 | phat (twist, reduce): 186.4 ms · 1 MB | 88.8 ms · 11 MB (0.48×) | phlite (serial, reduce): 88.8 ms · 11 MB (0.48×) |
+| rips n=200 dim≤2 | phat (twist, reduce): 1.11 s · 42 MB | 88.4 ms · 192 MB (0.08×) | phlite (V only, heap, reduce): 80.7 ms · 192 MB (0.07×) |
+| grid 1000x1000 | phat (twist, reduce): 390.1 ms · 114 MB | 134.0 ms · 127 MB (0.34×) | phlite (heap, reduce): 130.9 ms · 126 MB (0.34×) |
+| cells n=10000 | phat (twist, reduce): 56.5 ms · 4 MB | 26.3 ms · 4 MB (0.47×) | phlite (serial, reduce): 26.3 ms · 4 MB (0.47×) |
+| dense n=400 p=0.3 | phat (twist, reduce): 7.6 ms · 1 MB | 8.1 ms · 1 MB (1.08×) | phlite (homology, cached, reduce): 7.7 ms · 1 MB (1.02×) |
+| rips torus n=200 dim≤2 | phat (twist, reduce): 1.79 s · 42 MB | 108.6 ms · 192 MB (0.06×) | phlite (serial, reduce): 108.6 ms · 192 MB (0.06×) |
+| rings 1000x1000 | phat (twist, reduce): 241.0 ms · 108 MB | 129.0 ms · 134 MB (0.54×) | phlite (merged, reduce): 110.9 ms · 134 MB (0.46×) |
+| torus mesh 700x700 | phat (twist, reduce): 172.8 ms · 88 MB | 82.4 ms · 74 MB (0.48×) | phlite (sorted, reduce): 80.8 ms · 74 MB (0.47×) |
+| linial-meshulam n=150 p=0.05 | phat (twist, reduce): 2.67 s · 6 MB | 2.23 s · 62 MB (0.83×) | phlite (no skipping, reduce): 2.22 s · 62 MB (0.83×) |
 
 <details><summary>Every phlite configuration (fastest per case in bold)</summary>
 
-| configuration | rips n=100 dim≤2 | rips n=150 dim≤2 | grid 300x300 | grid 500x500 | cells n=1000 | cells n=3000 | dense n=100 p=0.3 | dense n=200 p=0.3 | rips torus n=150 dim≤2 | rips circles n=150 dim≤2 | rings 500x500 | torus mesh 300x300 | rips n=200 dim≤2 | grid 1000x1000 | cells n=10000 | dense n=400 p=0.3 | rips torus n=200 dim≤2 | rings 1000x1000 | torus mesh 700x700 |
-|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| phlite (serial) | 31.6 ms · 36 MB | 120.3 ms · 125 MB | 75.2 ms · 44 MB | 240.1 ms · 121 MB | 1.4 ms · 1 MB | 6.2 ms · 3 MB | 434 µs · 1 MB | 1.7 ms · 1 MB | 124.2 ms · 125 MB | 120.1 ms · 125 MB | 199.2 ms · 123 MB | 104.9 ms · 60 MB | 372.2 ms · 296 MB | 1.51 s · 486 MB | 54.7 ms · 15 MB | 10.5 ms · 2 MB | 406.1 ms · 296 MB | 1.04 s · 492 MB | 675.8 ms · 321 MB |
-| phlite (serial, csc) | 52.4 ms · 43 MB | 194.5 ms · 147 MB | 112.0 ms · 56 MB | 343.3 ms · 153 MB | 2.3 ms · 2 MB | 9.7 ms · 5 MB | 551 µs · 1 MB | 2.1 ms · 1 MB | 197.7 ms · 147 MB | 190.6 ms · 147 MB | 305.1 ms · 154 MB | 161.8 ms · 77 MB | 546.7 ms · 349 MB | 1.94 s · 614 MB | 71.3 ms · 22 MB | 12.5 ms · 2 MB | 621.1 ms · 349 MB | 1.54 s · 619 MB | 980.6 ms · 416 MB |
-| phlite (serial, reduce) | 7.6 ms · 23 MB | **32.1 ms · 78 MB** | 23.1 ms · 19 MB | 75.2 ms · 53 MB | 547 µs · 1 MB | 2.4 ms · 1 MB | 241 µs · 0 MB | **1.2 ms · 1 MB** | 30.1 ms · 78 MB | 30.2 ms · 78 MB | **55.2 ms · 54 MB** | **25.9 ms · 21 MB** | 87.7 ms · 186 MB | 493.2 ms · 213 MB | **27.7 ms · 5 MB** | 8.0 ms · 1 MB | 97.9 ms · 186 MB | **299.6 ms · 219 MB** | **181.2 ms · 116 MB** |
-| phlite (parallel) | 33.5 ms · 36 MB | 126.9 ms · 125 MB | 115.1 ms · 46 MB | 354.9 ms · 128 MB | 3.3 ms · 1 MB | 11.5 ms · 4 MB | 7.3 ms · 1 MB | 95.1 ms · 9 MB | 132.7 ms · 125 MB | 120.9 ms · 125 MB | 290.2 ms · 135 MB | 140.0 ms · 70 MB | 374.0 ms · 296 MB | 1.96 s · 515 MB | 308.1 ms · 42 MB | 2.76 s · 42 MB | 402.3 ms · 296 MB | 1.52 s · 540 MB | 930.2 ms · 349 MB |
-| phlite (parallel, reduce) | 8.6 ms · 23 MB | 35.1 ms · 78 MB | 60.8 ms · 21 MB | 178.2 ms · 60 MB | 2.0 ms · 1 MB | 7.4 ms · 2 MB | 7.1 ms · 1 MB | 118.1 ms · 5 MB | 36.2 ms · 78 MB | 36.8 ms · 78 MB | 148.8 ms · 67 MB | 61.2 ms · 31 MB | 89.2 ms · 186 MB | 1.02 s · 243 MB | 350.3 ms · 46 MB | 3.19 s · 76 MB | **90.0 ms · 186 MB** | 750.2 ms · 268 MB | 402.9 ms · 144 MB |
-| phlite (homology, reduce) | 115.0 ms · 15 MB | 545.3 ms · 52 MB | **21.9 ms · 17 MB** | 75.5 ms · 50 MB | 1.0 ms · 1 MB | 6.1 ms · 1 MB | 281 µs · 0 MB | 2.2 ms · 1 MB | 999.7 ms · 52 MB | 563.3 ms · 52 MB | 64.4 ms · 59 MB | 30.6 ms · 30 MB | 1.68 s · 124 MB | 459.5 ms · 166 MB | 101.0 ms · 3 MB | 9.9 ms · 1 MB | 1.98 s · 124 MB | 358.5 ms · 179 MB | 227.9 ms · 139 MB |
-| phlite (homology, parallel, reduce) | 235.4 ms · 58 MB | 1.11 s · 243 MB | 33.5 ms · 19 MB | 102.9 ms · 62 MB | 3.0 ms · 1 MB | 27.8 ms · 2 MB | 13.3 ms · 1 MB | 254.4 ms · 8 MB | 3.38 s · 471 MB | 1.09 s · 223 MB | 83.9 ms · 62 MB | 73.8 ms · 33 MB | 3.45 s · 614 MB | 565.9 ms · 229 MB | 3.56 s · 14 MB | 4.89 s · 68 MB | 6.63 s · 835 MB | 455.2 ms · 229 MB | 494.6 ms · 185 MB |
-| phlite (cached, reduce) | 8.1 ms · 23 MB | 33.9 ms · 78 MB | 37.3 ms · 20 MB | 133.0 ms · 57 MB | 755 µs · 1 MB | 2.8 ms · 1 MB | **229 µs · 0 MB** | 1.5 ms · 1 MB | 30.6 ms · 78 MB | 30.1 ms · 78 MB | 114.4 ms · 59 MB | 44.0 ms · 25 MB | 91.1 ms · 186 MB | 814.8 ms · 231 MB | 33.9 ms · 6 MB | 8.3 ms · 1 MB | 97.1 ms · 186 MB | 714.4 ms · 243 MB | 416.9 ms · 150 MB |
-| phlite (merged, reduce) | 7.9 ms · 23 MB | 32.2 ms · 78 MB | 34.3 ms · 19 MB | 109.1 ms · 52 MB | 1.2 ms · 1 MB | 7.0 ms · 1 MB | 1.8 ms · 0 MB | 18.6 ms · 1 MB | 30.1 ms · 78 MB | 30.3 ms · 78 MB | 93.6 ms · 55 MB | 42.2 ms · 23 MB | 88.3 ms · 186 MB | 636.6 ms · 208 MB | 178.1 ms · 4 MB | 140.6 ms · 1 MB | 98.9 ms · 186 MB | 453.7 ms · 221 MB | 300.4 ms · 118 MB |
-| phlite (heap, reduce) | 8.0 ms · 23 MB | 36.2 ms · 78 MB | 32.0 ms · 17 MB | 99.6 ms · 46 MB | 1.6 ms · 1 MB | 9.6 ms · 1 MB | 2.2 ms · 0 MB | 21.8 ms · 1 MB | 32.5 ms · 78 MB | 31.6 ms · 78 MB | 85.1 ms · 46 MB | 40.5 ms · 17 MB | 88.9 ms · 186 MB | 580.4 ms · 185 MB | 233.8 ms · 5 MB | 186.9 ms · 1 MB | 107.8 ms · 186 MB | 410.2 ms · 187 MB | 279.4 ms · 93 MB |
-| phlite (sorted, reduce) | 8.0 ms · 23 MB | 33.5 ms · 78 MB | 879.4 ms · 17 MB | 6.71 s · 47 MB | 1.0 ms · 1 MB | 6.1 ms · 1 MB | 1.1 ms · 0 MB | 9.5 ms · 1 MB | 32.7 ms · 78 MB | 39.5 ms · 78 MB | 971.7 ms · 47 MB | 206.0 ms · 17 MB | 88.2 ms · 186 MB | 119.74 s · 190 MB | 153.3 ms · 4 MB | 79.5 ms · 1 MB | 119.7 ms · 186 MB | 9.84 s · 187 MB | 3.83 s · 93 MB |
-| phlite (V only, reduce) | 7.8 ms · 23 MB | 38.1 ms · 78 MB | 37.7 ms · 28 MB | 128.5 ms · 81 MB | 1.0 ms · 1 MB | 5.9 ms · 1 MB | 5.6 ms · 0 MB | 86.9 ms · 1 MB | 31.3 ms · 78 MB | 31.5 ms · 78 MB | 74.6 ms · 80 MB | 33.0 ms · 34 MB | 91.9 ms · 186 MB | 934.8 ms · 326 MB | 361.7 ms · 3 MB | 1.63 s · 1 MB | 103.3 ms · 186 MB | 441.9 ms · 323 MB | 257.1 ms · 174 MB |
-| phlite (V only, merged, reduce) | **7.3 ms · 23 MB** | 38.3 ms · 78 MB | 60.6 ms · 30 MB | 197.4 ms · 84 MB | 1.9 ms · 1 MB | 10.4 ms · 2 MB | 18.1 ms · 0 MB | 352.8 ms · 2 MB | 28.8 ms · 78 MB | **28.5 ms · 78 MB** | 118.5 ms · 82 MB | 50.4 ms · 36 MB | 86.9 ms · 186 MB | 1.24 s · 338 MB | 709.1 ms · 20 MB | 8.43 s · 18 MB | 94.3 ms · 186 MB | 635.1 ms · 329 MB | 361.9 ms · 176 MB |
-| phlite (V only, merged, cached, reduce) | 7.4 ms · 23 MB | 38.1 ms · 78 MB | 80.8 ms · 27 MB | 288.4 ms · 79 MB | 2.1 ms · 1 MB | 10.6 ms · 1 MB | 18.1 ms · 0 MB | 349.2 ms · 1 MB | 30.4 ms · 78 MB | 28.9 ms · 78 MB | 188.6 ms · 78 MB | 72.5 ms · 30 MB | **86.4 ms · 186 MB** | 1.73 s · 317 MB | 675.5 ms · 5 MB | 8.17 s · 1 MB | 93.2 ms · 186 MB | 1.14 s · 320 MB | 613.6 ms · 174 MB |
-| phlite (V only, heap, reduce) | 7.8 ms · 23 MB | 38.8 ms · 78 MB | 55.9 ms · 25 MB | 176.0 ms · 74 MB | 2.2 ms · 1 MB | 15.2 ms · 2 MB | 22.4 ms · 0 MB | 423.0 ms · 1 MB | 30.4 ms · 78 MB | 30.0 ms · 78 MB | 110.7 ms · 73 MB | 48.9 ms · 30 MB | 87.6 ms · 186 MB | 1.10 s · 298 MB | 1.12 s · 20 MB | 10.45 s · 4 MB | 96.5 ms · 186 MB | 555.9 ms · 295 MB | 360.6 ms · 150 MB |
-| phlite (V only, sorted, reduce) | 8.2 ms · 23 MB | 39.0 ms · 78 MB | 898.3 ms · 26 MB | 6.84 s · 76 MB | 1.9 ms · 1 MB | 16.1 ms · 1 MB | 13.2 ms · 0 MB | 231.0 ms · 1 MB | 34.0 ms · 78 MB | 39.9 ms · 78 MB | 998.9 ms · 74 MB | 212.5 ms · 30 MB | 89.6 ms · 186 MB | 119.29 s · 308 MB | 1.29 s · 5 MB | 4.26 s · 1 MB | 118.5 ms · 186 MB | 9.99 s · 295 MB | 3.93 s · 150 MB |
-| phlite (homology, cached, reduce) | 180.1 ms · 19 MB | 880.6 ms · 68 MB | 32.5 ms · 22 MB | 115.2 ms · 55 MB | 1.2 ms · 1 MB | 6.6 ms · 1 MB | 264 µs · 0 MB | 1.4 ms · 1 MB | 1.51 s · 68 MB | 921.3 ms · 67 MB | 111.1 ms · 66 MB | 61.5 ms · 40 MB | 2.67 s · 155 MB | 716.8 ms · 212 MB | 90.5 ms · 6 MB | 8.0 ms · 1 MB | 3.08 s · 150 MB | 697.0 ms · 221 MB | 546.5 ms · 216 MB |
-| phlite (homology, merged, reduce) | 272.8 ms · 15 MB | 1.26 s · 52 MB | 24.5 ms · 14 MB | 77.1 ms · 42 MB | 2.7 ms · 1 MB | 19.4 ms · 1 MB | 2.4 ms · 0 MB | 20.1 ms · 1 MB | 3.26 s · 52 MB | 1.21 s · 52 MB | 70.9 ms · 52 MB | 45.1 ms · 28 MB | 4.02 s · 124 MB | 453.4 ms · 133 MB | 375.7 ms · 3 MB | 179.3 ms · 1 MB | 6.30 s · 124 MB | 348.3 ms · 148 MB | 281.7 ms · 124 MB |
-| phlite (homology, heap, reduce) | 222.8 ms · 15 MB | 1.04 s · 52 MB | 22.4 ms · 14 MB | **70.8 ms · 42 MB** | 3.1 ms · 1 MB | 22.8 ms · 1 MB | 3.1 ms · 0 MB | 26.5 ms · 1 MB | 2.70 s · 52 MB | 1.01 s · 52 MB | 65.7 ms · 51 MB | 39.0 ms · 26 MB | 3.34 s · 124 MB | **435.8 ms · 134 MB** | 423.2 ms · 3 MB | 241.9 ms · 1 MB | 5.31 s · 124 MB | 333.1 ms · 146 MB | 259.2 ms · 115 MB |
-| phlite (homology, sorted, reduce) | 136.5 ms · 15 MB | 656.0 ms · 52 MB | 24.1 ms · 14 MB | 76.5 ms · 42 MB | 1.8 ms · 1 MB | 12.5 ms · 1 MB | 1.4 ms · 0 MB | 11.6 ms · 1 MB | 1.88 s · 52 MB | 651.0 ms · 52 MB | 80.6 ms · 51 MB | 85.3 ms · 26 MB | 2.13 s · 124 MB | 562.6 ms · 134 MB | 234.6 ms · 3 MB | 98.3 ms · 1 MB | 3.85 s · 124 MB | 471.6 ms · 146 MB | 853.3 ms · 115 MB |
-| phlite (homology, V only, reduce) | 177.4 ms · 26 MB | 856.9 ms · 104 MB | 32.1 ms · 24 MB | 113.7 ms · 71 MB | 2.3 ms · 1 MB | 22.2 ms · 1 MB | 8.8 ms · 0 MB | 137.5 ms · 1 MB | 2.47 s · 175 MB | 877.6 ms · 99 MB | 76.0 ms · 78 MB | 42.9 ms · 43 MB | 2.91 s · 257 MB | 826.6 ms · 256 MB | 817.4 ms · 4 MB | 2.33 s · 1 MB | 5.21 s · 324 MB | 447.1 ms · 257 MB | 345.8 ms · 230 MB |
-| phlite (homology, V only, merged, reduce) | 363.3 ms · 25 MB | 1.76 s · 99 MB | 38.7 ms · 21 MB | 124.6 ms · 64 MB | 5.2 ms · 1 MB | 73.8 ms · 1 MB | 42.2 ms · 0 MB | 819.5 ms · 3 MB | 6.27 s · 170 MB | 1.67 s · 94 MB | 79.2 ms · 71 MB | 65.9 ms · 47 MB | 6.05 s · 246 MB | 837.5 ms · 230 MB | 3.66 s · 6 MB | 15.47 s · 19 MB | 13.10 s · 314 MB | 452.3 ms · 229 MB | 479.5 ms · 240 MB |
-| phlite (homology, V only, merged, cached, reduce) | 479.1 ms · 38 MB | 2.29 s · 147 MB | 55.4 ms · 22 MB | 195.6 ms · 69 MB | 5.5 ms · 1 MB | 74.8 ms · 1 MB | 42.1 ms · 0 MB | 810.7 ms · 1 MB | 7.66 s · 219 MB | 2.22 s · 142 MB | 138.0 ms · 77 MB | 107.0 ms · 41 MB | 7.76 s · 351 MB | 1.21 s · 248 MB | 3.67 s · 5 MB | 14.94 s · 2 MB | 15.76 s · 419 MB | 907.3 ms · 267 MB | 916.5 ms · 218 MB |
-| phlite (homology, V only, heap, reduce) | 319.7 ms · 25 MB | 1.56 s · 99 MB | 37.2 ms · 21 MB | 117.8 ms · 64 MB | 6.8 ms · 1 MB | 88.5 ms · 1 MB | 49.7 ms · 0 MB | 943.5 ms · 1 MB | 5.46 s · 170 MB | 1.46 s · 94 MB | 76.3 ms · 70 MB | 57.6 ms · 39 MB | 5.42 s · 246 MB | 801.7 ms · 226 MB | 4.23 s · 4 MB | 18.00 s · 5 MB | 11.23 s · 314 MB | 429.7 ms · 225 MB | 406.4 ms · 206 MB |
-| phlite (homology, V only, sorted, reduce) | 207.6 ms · 25 MB | 974.0 ms · 99 MB | 35.0 ms · 21 MB | 117.1 ms · 64 MB | 3.8 ms · 1 MB | 43.3 ms · 1 MB | 22.0 ms · 0 MB | 384.8 ms · 1 MB | 3.52 s · 170 MB | 983.2 ms · 94 MB | 91.0 ms · 70 MB | 98.4 ms · 39 MB | 3.47 s · 246 MB | 847.3 ms · 228 MB | 1.76 s · 4 MB | 6.18 s · 1 MB | 7.36 s · 314 MB | 540.2 ms · 225 MB | 956.4 ms · 206 MB |
-| phlite (no skipping, reduce) | 7.4 ms · 23 MB | 34.9 ms · 78 MB | 23.2 ms · 21 MB | 76.6 ms · 57 MB | **546 µs · 1 MB** | **2.4 ms · 1 MB** | 232 µs · 0 MB | 1.3 ms · 1 MB | **27.3 ms · 78 MB** | 29.1 ms · 78 MB | 55.7 ms · 58 MB | 27.2 ms · 25 MB | 88.5 ms · 186 MB | 519.6 ms · 228 MB | 29.4 ms · 5 MB | **7.9 ms · 1 MB** | 98.3 ms · 186 MB | 327.8 ms · 232 MB | 217.1 ms · 154 MB |
-| phlite (standard, reduce) | 553.8 ms · 23 MB | 3.18 s · 78 MB | 1.10 s · 51 MB | 4.26 s · 184 MB | 25.1 ms · 1 MB | 358.0 ms · 2 MB | 47.4 ms · 1 MB | 898.0 ms · 4 MB | 3.33 s · 78 MB | 4.12 s · 78 MB | 3.58 s · 181 MB | 1.79 s · 103 MB | 9.84 s · 186 MB | 32.67 s · 846 MB | 25.40 s · 39 MB | 16.59 s · 36 MB | 11.06 s · 186 MB | 24.47 s · 805 MB | 19.60 s · 557 MB |
-| phlite (reps, reduce) | 823.4 ms · 73 MB | 4.19 s · 299 MB | 101.4 ms · 19 MB | 368.7 ms · 53 MB | 7.5 ms · 1 MB | 89.1 ms · 2 MB | 44.5 ms · 1 MB | 834.7 ms · 1 MB | 10.89 s · 581 MB | 4.12 s · 282 MB | 260.0 ms · 55 MB | 160.5 ms · 32 MB | 13.87 s · 775 MB | 2.31 s · 215 MB | 3.81 s · 7 MB | 15.14 s · 2 MB | 23.53 s · 1075 MB | 1.52 s · 237 MB | 1.32 s · 214 MB |
+| configuration | rips n=100 dim≤2 | rips n=150 dim≤2 | grid 300x300 | grid 500x500 | cells n=1000 | cells n=3000 | dense n=100 p=0.3 | dense n=200 p=0.3 | rips torus n=150 dim≤2 | rips circles n=150 dim≤2 | rings 500x500 | torus mesh 300x300 | linial-meshulam n=100 p=0.1 | rips n=200 dim≤2 | grid 1000x1000 | cells n=10000 | dense n=400 p=0.3 | rips torus n=200 dim≤2 | rings 1000x1000 | torus mesh 700x700 | linial-meshulam n=150 p=0.05 |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| phlite (serial) | 32.1 ms · 37 MB | 108.1 ms · 127 MB | 54.5 ms · 37 MB | 159.4 ms · 100 MB | 1.4 ms · 1 MB | 5.6 ms · 3 MB | 443 µs · 1 MB | 1.7 ms · 1 MB | 108.6 ms · 127 MB | 114.5 ms · 127 MB | 157.6 ms · 102 MB | 77.5 ms · 52 MB | 90.8 ms · 12 MB | 392.4 ms · 301 MB | 870.4 ms · 399 MB | 47.9 ms · 15 MB | 10.4 ms · 2 MB | 347.1 ms · 301 MB | 854.3 ms · 406 MB | 582.8 ms · 279 MB | 2.23 s · 65 MB |
+| phlite (serial, csc) | 54.0 ms · 44 MB | 189.8 ms · 149 MB | 93.5 ms · 48 MB | 269.4 ms · 132 MB | 2.2 ms · 2 MB | 8.9 ms · 4 MB | 569 µs · 1 MB | 2.1 ms · 1 MB | 190.2 ms · 149 MB | 192.1 ms · 149 MB | 268.7 ms · 133 MB | 172.5 ms · 69 MB | 95.0 ms · 13 MB | 478.4 ms · 354 MB | 1.35 s · 527 MB | 65.4 ms · 22 MB | 12.4 ms · 2 MB | 513.1 ms · 354 MB | 1.33 s · 534 MB | 882.9 ms · 374 MB | 2.24 s · 67 MB |
+| phlite (serial, reduce) | 8.1 ms · 23 MB | 33.1 ms · 80 MB | 8.6 ms · 12 MB | 27.3 ms · 32 MB | 509 µs · 1 MB | **2.2 ms · 1 MB** | 240 µs · 0 MB | **1.1 ms · 0 MB** | 30.4 ms · 80 MB | 32.1 ms · 80 MB | 25.4 ms · 34 MB | **12.3 ms · 13 MB** | **88.8 ms · 11 MB** | 88.4 ms · 192 MB | 134.0 ms · 127 MB | **26.3 ms · 4 MB** | 8.1 ms · 1 MB | **108.6 ms · 192 MB** | 129.0 ms · 134 MB | 82.4 ms · 74 MB | 2.23 s · 62 MB |
+| phlite (parallel) | 34.2 ms · 37 MB | 116.9 ms · 127 MB | 65.8 ms · 42 MB | 185.2 ms · 111 MB | 2.4 ms · 1 MB | 9.3 ms · 4 MB | 6.9 ms · 1 MB | 111.3 ms · 5 MB | 116.6 ms · 127 MB | 136.3 ms · 127 MB | 214.8 ms · 121 MB | 101.3 ms · 62 MB | 925.2 ms · 57 MB | 337.3 ms · 301 MB | 963.6 ms · 444 MB | 276.0 ms · 78 MB | 3.31 s · 71 MB | 369.6 ms · 301 MB | 943.9 ms · 484 MB | 658.5 ms · 357 MB | 63.56 s · 337 MB |
+| phlite (parallel, reduce) | 9.0 ms · 23 MB | 32.2 ms · 80 MB | 14.7 ms · 17 MB | 42.1 ms · 43 MB | 1.4 ms · 1 MB | 5.3 ms · 2 MB | 6.8 ms · 1 MB | 126.5 ms · 8 MB | 32.1 ms · 80 MB | 31.4 ms · 80 MB | 39.5 ms · 53 MB | 24.2 ms · 24 MB | 1.14 s · 82 MB | **78.4 ms · 192 MB** | 208.9 ms · 171 MB | 278.9 ms · 36 MB | 3.33 s · 75 MB | 111.4 ms · 192 MB | 210.9 ms · 212 MB | 145.6 ms · 152 MB | 58.60 s · 459 MB |
+| phlite (homology, reduce) | 114.9 ms · 15 MB | 541.5 ms · 52 MB | 23.3 ms · 17 MB | 76.1 ms · 50 MB | 1.1 ms · 1 MB | 6.2 ms · 1 MB | 281 µs · 0 MB | 2.5 ms · 1 MB | 941.2 ms · 52 MB | 571.3 ms · 52 MB | 64.2 ms · 59 MB | 33.8 ms · 30 MB | 215.6 ms · 2 MB | 1.63 s · 124 MB | 439.1 ms · 166 MB | 89.4 ms · 3 MB | 11.5 ms · 1 MB | 2.42 s · 124 MB | 351.2 ms · 179 MB | 204.9 ms · 139 MB | 2.80 s · 4 MB |
+| phlite (homology, parallel, reduce) | 246.2 ms · 58 MB | 1.13 s · 243 MB | 32.6 ms · 19 MB | 96.2 ms · 62 MB | 3.2 ms · 1 MB | 34.7 ms · 2 MB | 12.5 ms · 1 MB | 266.6 ms · 10 MB | 2.87 s · 363 MB | 1.11 s · 227 MB | 79.6 ms · 62 MB | 76.7 ms · 33 MB | 62.62 s · 179 MB | 3.35 s · 614 MB | 548.2 ms · 229 MB | 2.36 s · 14 MB | 5.18 s · 78 MB | 8.44 s · 1108 MB | 442.4 ms · 229 MB | 481.9 ms · 185 MB |  |
+| phlite (cached, reduce) | 8.7 ms · 23 MB | 32.6 ms · 80 MB | 9.0 ms · 12 MB | 27.0 ms · 32 MB | 580 µs · 1 MB | 2.8 ms · 1 MB | **209 µs · 0 MB** | 1.3 ms · 0 MB | 29.4 ms · 80 MB | 31.9 ms · 80 MB | 25.0 ms · 34 MB | 13.5 ms · 13 MB | 95.8 ms · 11 MB | 83.2 ms · 192 MB | 140.4 ms · 127 MB | 35.8 ms · 6 MB | 8.0 ms · 1 MB | 118.5 ms · 192 MB | 113.4 ms · 134 MB | 81.4 ms · 74 MB | 2.24 s · 63 MB |
+| phlite (merged, reduce) | 8.1 ms · 23 MB | **32.0 ms · 80 MB** | 8.7 ms · 12 MB | 25.5 ms · 32 MB | 1.1 ms · 1 MB | 8.0 ms · 1 MB | 1.8 ms · 0 MB | 19.0 ms · 0 MB | 29.4 ms · 80 MB | 32.4 ms · 80 MB | 25.3 ms · 33 MB | 13.2 ms · 13 MB | 1.75 s · 11 MB | 82.3 ms · 192 MB | 137.5 ms · 126 MB | 190.5 ms · 4 MB | 147.7 ms · 1 MB | 116.7 ms · 192 MB | **110.9 ms · 134 MB** | 82.8 ms · 74 MB | 64.84 s · 62 MB |
+| phlite (heap, reduce) | 8.2 ms · 23 MB | 33.0 ms · 80 MB | **8.5 ms · 12 MB** | **25.3 ms · 32 MB** | 1.4 ms · 1 MB | 10.4 ms · 1 MB | 2.2 ms · 0 MB | 23.1 ms · 0 MB | 30.2 ms · 80 MB | 33.0 ms · 80 MB | **25.0 ms · 33 MB** | 13.2 ms · 13 MB | 2.50 s · 16 MB | 82.5 ms · 192 MB | **130.9 ms · 126 MB** | 243.2 ms · 5 MB | 188.3 ms · 1 MB | 121.3 ms · 192 MB | 111.7 ms · 134 MB | 81.0 ms · 74 MB | 102.44 s · 104 MB |
+| phlite (sorted, reduce) | 8.2 ms · 23 MB | 32.2 ms · 80 MB | 8.8 ms · 12 MB | 26.7 ms · 32 MB | 915 µs · 1 MB | 6.3 ms · 1 MB | 1.1 ms · 0 MB | 9.9 ms · 0 MB | 31.3 ms · 80 MB | 40.9 ms · 80 MB | 25.4 ms · 33 MB | 13.2 ms · 13 MB | 1.43 s · 11 MB | 82.6 ms · 192 MB | 137.3 ms · 126 MB | 159.9 ms · 4 MB | 79.8 ms · 1 MB | 131.0 ms · 192 MB | 114.3 ms · 134 MB | **80.8 ms · 74 MB** | 37.77 s · 62 MB |
+| phlite (V only, reduce) | 8.1 ms · 23 MB | 33.1 ms · 80 MB | 9.5 ms · 14 MB | 29.6 ms · 36 MB | 799 µs · 1 MB | 5.9 ms · 1 MB | 5.6 ms · 0 MB | 87.2 ms · 0 MB | 30.1 ms · 80 MB | 31.6 ms · 80 MB | 27.5 ms · 38 MB | 15.0 ms · 20 MB | 1.12 s · 3 MB | 84.5 ms · 192 MB | 149.8 ms · 144 MB | 364.8 ms · 3 MB | 1.62 s · 1 MB | 115.6 ms · 192 MB | 128.1 ms · 152 MB | 92.4 ms · 98 MB | 52.78 s · 23 MB |
+| phlite (V only, merged, reduce) | **7.8 ms · 23 MB** | 32.2 ms · 80 MB | 9.1 ms · 14 MB | 27.5 ms · 36 MB | 1.4 ms · 1 MB | 10.3 ms · 2 MB | 18.2 ms · 0 MB | 354.0 ms · 3 MB | **28.9 ms · 80 MB** | 31.9 ms · 80 MB | 27.4 ms · 38 MB | 14.9 ms · 20 MB | 1.96 s · 34 MB | 82.1 ms · 192 MB | 144.7 ms · 144 MB | 735.8 ms · 20 MB | 8.51 s · 25 MB | 113.4 ms · 192 MB | 125.6 ms · 151 MB | 91.0 ms · 98 MB | 126.23 s · 274 MB |
+| phlite (V only, merged, cached, reduce) | 8.0 ms · 23 MB | 32.3 ms · 80 MB | 9.2 ms · 14 MB | 27.7 ms · 36 MB | 1.6 ms · 1 MB | 10.3 ms · 1 MB | 18.2 ms · 0 MB | 347.4 ms · 0 MB | 29.2 ms · 80 MB | 32.4 ms · 80 MB | 26.8 ms · 38 MB | 14.9 ms · 20 MB | 2.05 s · 14 MB | 84.6 ms · 192 MB | 145.1 ms · 144 MB | 694.2 ms · 4 MB | 8.29 s · 1 MB | 118.6 ms · 192 MB | 125.5 ms · 151 MB | 90.4 ms · 98 MB | 131.88 s · 108 MB |
+| phlite (V only, heap, reduce) | 7.9 ms · 23 MB | 32.3 ms · 80 MB | 9.2 ms · 14 MB | 27.5 ms · 36 MB | 1.9 ms · 1 MB | 15.1 ms · 1 MB | 22.4 ms · 0 MB | 426.5 ms · 1 MB | 29.2 ms · 80 MB | 31.5 ms · 80 MB | 26.7 ms · 38 MB | 14.9 ms · 20 MB | 2.35 s · 14 MB | 80.7 ms · 192 MB | 148.2 ms · 144 MB | 1.12 s · 20 MB | 10.34 s · 6 MB | 113.4 ms · 192 MB | 125.5 ms · 151 MB | 90.1 ms · 98 MB | 130.24 s · 107 MB |
+| phlite (V only, sorted, reduce) | 8.3 ms · 23 MB | 32.9 ms · 80 MB | 9.6 ms · 14 MB | 29.0 ms · 36 MB | 1.6 ms · 1 MB | 16.0 ms · 1 MB | 13.4 ms · 0 MB | 236.8 ms · 0 MB | 31.9 ms · 80 MB | 41.3 ms · 80 MB | 27.1 ms · 38 MB | 14.7 ms · 20 MB | 3.29 s · 4 MB | 83.1 ms · 192 MB | 155.3 ms · 144 MB | 1.32 s · 5 MB | 4.32 s · 1 MB | 134.5 ms · 192 MB | 128.8 ms · 151 MB | 92.3 ms · 98 MB | 126.87 s · 24 MB |
+| phlite (homology, cached, reduce) | 175.8 ms · 19 MB | 872.7 ms · 68 MB | 34.1 ms · 22 MB | 117.9 ms · 55 MB | 1.2 ms · 1 MB | 6.8 ms · 1 MB | 253 µs · 0 MB | 1.2 ms · 1 MB | 1.37 s · 68 MB | 921.8 ms · 67 MB | 108.9 ms · 66 MB | 63.3 ms · 40 MB | 222.6 ms · 2 MB | 2.52 s · 155 MB | 680.2 ms · 212 MB | 94.1 ms · 6 MB | **7.7 ms · 1 MB** | 3.59 s · 154 MB | 683.7 ms · 221 MB | 517.9 ms · 216 MB | 2.87 s · 6 MB |
+| phlite (homology, merged, reduce) | 274.2 ms · 15 MB | 1.27 s · 52 MB | 25.6 ms · 14 MB | 81.9 ms · 42 MB | 2.7 ms · 1 MB | 20.2 ms · 1 MB | 2.4 ms · 0 MB | 20.7 ms · 1 MB | 2.82 s · 52 MB | 1.23 s · 52 MB | 72.1 ms · 52 MB | 48.5 ms · 28 MB | 4.46 s · 2 MB | 3.92 s · 124 MB | 443.9 ms · 133 MB | 379.0 ms · 3 MB | 178.4 ms · 1 MB | 7.61 s · 124 MB | 344.8 ms · 148 MB | 268.3 ms · 124 MB | 89.99 s · 4 MB |
+| phlite (homology, heap, reduce) | 228.7 ms · 15 MB | 1.05 s · 52 MB | 23.5 ms · 14 MB | 74.4 ms · 42 MB | 3.1 ms · 1 MB | 22.8 ms · 1 MB | 3.1 ms · 0 MB | 27.3 ms · 1 MB | 2.33 s · 52 MB | 1.02 s · 52 MB | 64.9 ms · 51 MB | 40.6 ms · 26 MB | 4.77 s · 2 MB | 3.26 s · 124 MB | 413.6 ms · 134 MB | 432.9 ms · 3 MB | 239.8 ms · 1 MB | 6.34 s · 124 MB | 329.0 ms · 146 MB | 245.6 ms · 115 MB | 108.44 s · 5 MB |
+| phlite (homology, sorted, reduce) | 140.5 ms · 15 MB | 666.7 ms · 52 MB | 25.6 ms · 14 MB | 80.1 ms · 42 MB | 1.8 ms · 1 MB | 13.0 ms · 1 MB | 1.5 ms · 0 MB | 11.9 ms · 1 MB | 1.47 s · 52 MB | 654.4 ms · 52 MB | 81.3 ms · 51 MB | 87.5 ms · 26 MB | 2.25 s · 2 MB | 2.06 s · 124 MB | 530.7 ms · 134 MB | 246.1 ms · 3 MB | 102.5 ms · 1 MB | 4.47 s · 124 MB | 455.1 ms · 146 MB | 838.2 ms · 115 MB | 42.08 s · 4 MB |
+| phlite (homology, V only, reduce) | 178.9 ms · 26 MB | 874.8 ms · 104 MB | 33.3 ms · 24 MB | 113.1 ms · 71 MB | 2.1 ms · 1 MB | 22.2 ms · 1 MB | 8.9 ms · 0 MB | 152.7 ms · 1 MB | 2.07 s · 144 MB | 874.7 ms · 99 MB | 76.6 ms · 78 MB | 44.6 ms · 43 MB | 43.87 s · 53 MB | 2.79 s · 257 MB | 780.1 ms · 256 MB | 817.9 ms · 4 MB | 2.37 s · 1 MB | 6.41 s · 428 MB | 437.8 ms · 257 MB | 325.0 ms · 230 MB |  |
+| phlite (homology, V only, merged, reduce) | 371.8 ms · 25 MB | 1.81 s · 99 MB | 39.4 ms · 21 MB | 127.5 ms · 64 MB | 5.2 ms · 1 MB | 77.3 ms · 1 MB | 43.4 ms · 0 MB | 831.0 ms · 3 MB | 5.17 s · 140 MB | 1.70 s · 94 MB | 80.7 ms · 71 MB | 68.8 ms · 47 MB | 150.75 s · 58 MB | 6.01 s · 246 MB | 815.5 ms · 230 MB | 3.75 s · 6 MB | 15.48 s · 19 MB | 16.41 s · 418 MB | 449.5 ms · 229 MB | 445.1 ms · 240 MB |  |
+| phlite (homology, V only, merged, cached, reduce) | 481.5 ms · 38 MB | 2.36 s · 147 MB | 56.7 ms · 22 MB | 192.1 ms · 69 MB | 5.5 ms · 1 MB | 78.0 ms · 1 MB | 43.7 ms · 0 MB | 828.9 ms · 1 MB | 6.31 s · 188 MB | 2.22 s · 142 MB | 138.6 ms · 77 MB | 111.3 ms · 41 MB | 166.77 s · 55 MB | 7.69 s · 351 MB | 1.17 s · 248 MB | 3.75 s · 5 MB | 15.14 s · 2 MB | 19.78 s · 522 MB | 876.8 ms · 267 MB | 874.4 ms · 218 MB |  |
+| phlite (homology, V only, heap, reduce) | 318.8 ms · 25 MB | 1.54 s · 99 MB | 37.5 ms · 21 MB | 120.5 ms · 64 MB | 6.4 ms · 1 MB | 89.4 ms · 1 MB | 50.2 ms · 0 MB | 943.0 ms · 1 MB | 4.47 s · 140 MB | 1.43 s · 94 MB | 76.3 ms · 70 MB | 60.0 ms · 39 MB | 127.93 s · 53 MB | 5.25 s · 246 MB | 779.3 ms · 226 MB | 4.21 s · 4 MB | 18.02 s · 5 MB | 13.93 s · 418 MB | 411.1 ms · 225 MB | 392.1 ms · 206 MB |  |
+| phlite (homology, V only, sorted, reduce) | 208.4 ms · 25 MB | 994.8 ms · 99 MB | 36.6 ms · 21 MB | 117.0 ms · 64 MB | 3.8 ms · 1 MB | 45.1 ms · 1 MB | 22.7 ms · 0 MB | 395.6 ms · 1 MB | 2.77 s · 140 MB | 960.9 ms · 94 MB | 92.4 ms · 70 MB | 100.3 ms · 39 MB | 65.90 s · 53 MB | 3.39 s · 246 MB | 809.3 ms · 228 MB | 1.79 s · 4 MB | 6.33 s · 1 MB | 9.05 s · 418 MB | 519.7 ms · 225 MB | 948.2 ms · 206 MB |  |
+| phlite (no skipping, reduce) | 8.0 ms · 24 MB | 32.9 ms · 81 MB | 10.2 ms · 13 MB | 30.2 ms · 34 MB | **485 µs · 1 MB** | 2.2 ms · 1 MB | 245 µs · 0 MB | 1.2 ms · 0 MB | 29.1 ms · 81 MB | **30.7 ms · 81 MB** | 28.8 ms · 35 MB | 16.3 ms · 25 MB | 89.0 ms · 11 MB | 80.9 ms · 193 MB | 168.1 ms · 135 MB | 30.2 ms · 4 MB | 7.9 ms · 1 MB | 113.8 ms · 193 MB | 148.9 ms · 141 MB | 95.8 ms · 118 MB | **2.22 s · 62 MB** |
+| phlite (standard, reduce) | 583.0 ms · 23 MB | 3.19 s · 78 MB | 1.07 s · 51 MB | 4.10 s · 184 MB | 25.3 ms · 1 MB | 371.5 ms · 2 MB | 48.0 ms · 1 MB | 919.6 ms · 4 MB | 3.75 s · 78 MB | 4.06 s · 78 MB | 3.42 s · 181 MB | 1.70 s · 103 MB | 8.36 s · 39 MB | 9.66 s · 186 MB | 31.45 s · 846 MB | 25.82 s · 39 MB | 16.75 s · 36 MB | 11.67 s · 186 MB | 24.13 s · 805 MB | 19.01 s · 557 MB | 381.53 s · 298 MB |
+| phlite (reps, reduce) | 806.8 ms · 73 MB | 4.24 s · 299 MB | 102.7 ms · 19 MB | 360.0 ms · 53 MB | 7.6 ms · 1 MB | 91.2 ms · 2 MB | 46.1 ms · 1 MB | 845.9 ms · 1 MB | 9.19 s · 462 MB | 4.04 s · 282 MB | 253.0 ms · 55 MB | 155.8 ms · 32 MB | 167.84 s · 205 MB | 13.74 s · 775 MB | 2.26 s · 215 MB | 3.90 s · 7 MB | 15.34 s · 2 MB | 30.03 s · 1466 MB | 1.49 s · 237 MB | 1.29 s · 214 MB |  |
 
 </details>
 
@@ -568,7 +810,7 @@ The core reduction alone, from criterion (`cargo bench`), on the Rips coboundary
 
 | case | serial merged cached | serial merged uncached | serial heap cached | serial heap uncached | serial sorted cached | serial sorted uncached | serial merged store-r | parallel locking/1 | parallel locking/2 | parallel locking/4 | parallel lock-free/1 | parallel lock-free/2 | parallel lock-free/4 |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| grpph n=50 p=0.1 | 37.2 ms | 76.2 ms | 59.3 ms | 60.7 ms | 251.7 ms | 256.2 ms | 61.1 ms | 43.3 ms | 30.4 ms | 25.6 ms | 43.4 ms | 30.6 ms | 25.7 ms |
-| grpph n=100 p=0.1 | 881.0 ms | 2.22 s | 1.81 s | 2.18 s | 12.91 s | 13.30 s | 1.06 s | 936.1 ms | 608.8 ms | 424.7 ms | 929.5 ms | 611.5 ms | 404.5 ms |
-| rips n=100 dim≤2 | 18.9 ms | 19.3 ms | 18.7 ms | 18.0 ms | 19.4 ms | 19.0 ms | 18.4 ms | 19.0 ms | 13.2 ms | 9.9 ms | 19.4 ms | 13.3 ms | 9.6 ms |
-| rips n=160 dim≤2 | 83.0 ms | 84.6 ms | 80.8 ms | 78.7 ms | 85.0 ms | 81.8 ms | 81.2 ms | 93.0 ms | 55.4 ms | 38.0 ms | 84.7 ms | 55.5 ms | 36.9 ms |
+| grpph n=50 p=0.1 | 37.3 ms | 76.9 ms | 59.9 ms | 60.7 ms | 255.9 ms | 261.5 ms | 61.1 ms | 43.3 ms | 30.9 ms | 26.2 ms | 43.8 ms | 31.1 ms | 26.1 ms |
+| grpph n=100 p=0.1 | 880.7 ms | 2.19 s | 1.83 s | 2.15 s | 13.01 s | 13.42 s | 1.07 s | 928.7 ms | 615.2 ms | 434.8 ms | 930.2 ms | 615.1 ms | 423.8 ms |
+| rips n=100 dim≤2 | 17.5 ms | 17.9 ms | 17.9 ms | 17.4 ms | 19.3 ms | 18.8 ms | 18.6 ms | 18.8 ms | 13.4 ms | 9.4 ms | 19.0 ms | 13.5 ms | 9.5 ms |
+| rips n=160 dim≤2 | 76.5 ms | 77.1 ms | 78.3 ms | 74.9 ms | 84.5 ms | 81.5 ms | 80.5 ms | 81.7 ms | 56.2 ms | 36.8 ms | 81.9 ms | 56.4 ms | 37.1 ms |
