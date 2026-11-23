@@ -92,9 +92,10 @@ IMPLEMENTATIONS.update(sweep(phlite))
 CASES = [("random", 25), ("random", 50), ("random", 100), ("ring", 100), ("lattice", 15)]
 QUICK = [("random", 50)]
 LARGE = [("random", 200), ("ring", 400), ("lattice", 30)]
-# grpphati needs over 5 GB at 100 random nodes (enough, with the rest of a benchmark run, to exhaust 16 GB), so it isn't
-# run on that case or the large ones, which are checked against phlite's default instead
-NO_GRPPHATI = [("random", 100)] + LARGE
+# grpphati needs over 5 GB at 100 random nodes and 7.4 GB on the ring of 100 (enough, with the rest of a benchmark run,
+# to exhaust 16 GB: a run was stopped for memory there), so it isn't run on those cases or the large ones, which are
+# checked against phlite's default instead
+NO_GRPPHATI = [("random", 100), ("ring", 100)] + LARGE
 LARGE_REFERENCE = "phlite (serial)"
 
 
