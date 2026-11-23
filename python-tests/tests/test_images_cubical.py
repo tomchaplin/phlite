@@ -263,3 +263,64 @@ def test_input_handling():
     with pytest.raises(ValueError, match="filtration"):
         cubical(image, filtration="lower")
     assert Algorithm.serial().resolve("images.cubical").columns == "merged"
+
+
+def _periodic_reference(image, periodic, construction):
+    """GUDHI's PeriodicCubicalComplex over Z/2: {dimension: sorted (birth, death)}."""
+    import gudhi
+
+    kwargs = {"top_dimensional_cells" if construction == "T" else "vertices": image, "periodic_dimensions": periodic}
+    complex_ = gudhi.PeriodicCubicalComplex(**kwargs)
+    complex_.compute_persistence(homology_coeff_field=2, min_persistence=0)
+    out = {}
+    for d in range(image.ndim + 1):
+        bars = complex_.persistence_intervals_in_dimension(d)
+        out[d] = sorted((float(b), float(e)) for b, e in bars if e > b)
+    return out
+
+
+@given(st.integers(0, 2**32 - 1), st.sampled_from(["T", "V"]), st.sampled_from([(5,), (4, 6), (3, 4, 5), (2, 7), (6, 2, 3)]),
+       st.integers(1, 6))
+def test_periodic_random_against_gudhi(seed, construction, shape, levels):
+    """Random images (ties as likely as `levels` makes them), periodic along a random set of axes, against GUDHI."""
+    pytest.importorskip("gudhi")
+    rng = np.random.default_rng(seed)
+    image = rng.integers(0, levels, size=shape).astype(float)
+    periodic = [bool(b) for b in rng.integers(0, 2, size=len(shape))]
+    barcode = cubical(image, construction=construction, periodic=periodic)
+    ours = {
+        d: sorted([tuple(map(float, p)) for p in barcode.pairings[d]] + [(float(b), math.inf) for b in barcode.essential[d]])
+        for d in range(len(shape))
+    }
+    reference = _periodic_reference(image, periodic, construction)
+    for d in range(len(shape)):
+        assert ours[d] == reference[d], (periodic, d)
+
+
+@pytest.mark.parametrize("construction", ["T", "V"])
+@pytest.mark.parametrize("shape", [(5,), (4, 6), (3, 4, 5)])
+def test_periodic_against_gudhi(construction, shape):
+    """Periodic cubical complexes (every axis, and each axis alone) against GUDHI's PeriodicCubicalComplex, on random
+    images with ties."""
+    pytest.importorskip("gudhi")
+    rng = np.random.default_rng(len(shape))
+    for _ in range(4):
+        image = rng.integers(0, 4, size=shape).astype(float)
+        choices = [[True] * len(shape)] + [[a == b for a in range(len(shape))] for b in range(len(shape))]
+        for periodic in choices:
+            barcode = cubical(image, construction=construction, periodic=periodic)
+            ours = {
+                d: sorted([tuple(map(float, p)) for p in barcode.pairings[d]] + [(float(b), math.inf) for b in barcode.essential[d]])
+                for d in range(len(shape))
+            }
+            reference = _periodic_reference(image, periodic, construction)
+            for d in range(len(shape)):
+                assert ours[d] == reference[d], (periodic, d)
+
+
+def test_periodic_tori():
+    for construction in ["T", "V"]:
+        barcode = cubical(np.zeros((3, 4)), construction=construction, periodic=True)
+        assert [len(e) for e in barcode.essential] == [1, 2, 1]
+        barcode = cubical(np.zeros((3, 4)), construction=construction, periodic=[True, False])
+        assert [len(e) for e in barcode.essential] == [1, 1]

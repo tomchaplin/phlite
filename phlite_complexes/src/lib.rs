@@ -16,8 +16,12 @@
 pub mod complex;
 pub mod extended;
 pub mod field;
+#[cfg(test)]
+mod integral_tests;
+pub mod maps;
 #[cfg(feature = "python")]
 mod python;
+pub mod zigzag;
 
 /// What `phlite_complexes_stub_gen` writes: `python/phlite/complexes/__init__.pyi`.
 #[cfg(feature = "python")]

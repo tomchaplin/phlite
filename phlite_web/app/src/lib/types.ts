@@ -8,17 +8,46 @@ export interface Bar {
   death_cell: number[] | null;
   /** A representative cycle as `[coefficient, cell]` pairs, if representatives were computed. */
   rep: [number, number[]][] | null;
-  /** For extended persistence, which kind of bar (its death may then be below its birth). */
+  /** For extended persistence, which kind of bar (its death may then be below its birth); for a six-pack, which of
+   * its barcodes (`domain`, `codomain`, `image`, `kernel`, `cokernel` or `pair`). */
   kind?: ExtendedKind;
 }
 
-export type ExtendedKind = 'ordinary' | 'relative' | 'extended+' | 'extended-';
+export type ExtendedKind =
+  | 'ordinary'
+  | 'relative'
+  | 'extended+'
+  | 'extended-'
+  | 'domain'
+  | 'codomain'
+  | 'image'
+  | 'kernel'
+  | 'cokernel'
+  | 'pair';
 
 export interface Barcode {
   bars: Bar[];
   summary: string;
   /** The filtration's edges, if the pipeline draws its complex (see `FiltrationEdges`). */
   edges?: FiltrationEdges | null;
+  /** The magnitude-path spectral sequence (no bars). */
+  mpss?: {
+    pages: {
+      r: number;
+      /** `table[l][k]`, `null` where not determined */
+      table: (MpssGroup | null)[][];
+      nonzero: { l: number; k: number; group: MpssGroup; generators: { order: string | null; chain: [string, number[]][] }[] | null }[];
+      differentials: { from: [number, number]; to: [number, number]; image: MpssGroup }[];
+    }[];
+    degenerates_at: number | null;
+    /** 0: the integers */
+    modulus: number;
+    l_max: number;
+    n_tuples: number;
+    generators: boolean;
+  };
+  /** Magnitude homology (no bars): `ranks[l][k]` (`null`: unknown), and over the integers `[k, l, orders]` of torsion. */
+  magnitude?: { ranks: (number | null)[][]; torsion: [number, number, string[]][]; integral: boolean };
 }
 
 /**
@@ -53,6 +82,14 @@ export interface AlgoOptions {
   parallelSetup?: boolean;
 }
 
+/** A finitely generated abelian group: free rank and invariant factors (as strings: they can be large). */
+export interface MpssGroup {
+  rank: number;
+  torsion: string[];
+}
+
+export type BinaryFiltration = 'height' | 'radial' | 'dilation' | 'erosion' | 'signed_distance' | 'density';
+
 export type Metric = 'euclidean' | 'manhattan' | 'chebyshev';
 
 /** The complexes of `phlite_web::network`. */
@@ -60,6 +97,9 @@ export type Metric = 'euclidean' | 'manhattan' | 'chebyshev';
 export type GraphKind = 'flag' | 'flag-sp';
 
 export type NetworkKind = 'pph' | 'flag' | 'grounded-flag' | 'tuples' | 'dowker-sink' | 'dowker-source';
+
+/** The complexes a point-cloud zigzag can be built from. */
+export type ZigzagCloudComplex = 'rips' | 'cech' | 'alpha' | 'delaunay-cech' | 'witness';
 
 export type Job =
   | {
@@ -73,7 +113,75 @@ export type Job =
       dtmK: number | null;
       options: AlgoOptions;
     }
+  | {
+      /** The six-pack of the inclusion of the Rips filtration of a subset of the points into that of all of them. */
+      pipeline: 'rips-six-pack';
+      coords: Float64Array;
+      pointDim: number;
+      subset: Uint32Array;
+      maxDim: number;
+      threshold: number | null;
+      metric: Metric;
+      options: AlgoOptions;
+    }
   | { pipeline: 'delaunay'; coords: Float64Array; pointDim: number; cech: boolean; options: AlgoOptions }
+  | {
+      /** Zigzag persistence of the complexes of sliding windows of consecutive points. */
+      pipeline: 'cloud-zigzag';
+      coords: Float64Array;
+      pointDim: number;
+      window: number;
+      /** Windows start every `step` points. */
+      step: number;
+      threshold: number;
+      maxDim: number;
+      metric: Metric;
+      complex: ZigzagCloudComplex;
+      /** Join consecutive windows by intersections rather than unions. */
+      intersection: boolean;
+    }
+  | {
+      /** Zigzag persistence of moving points: frames of the same points, concatenated. */
+      pipeline: 'moving-zigzag';
+      coords: Float64Array;
+      pointDim: number;
+      nFrames: number;
+      threshold: number;
+      maxDim: number;
+      metric: Metric;
+      complex: Exclude<ZigzagCloudComplex, 'witness'>;
+      intersection: boolean;
+    }
+  | {
+      /** Zigzag persistence of a temporal network: snapshots of the edges active in sliding windows of time. */
+      pipeline: 'network-zigzag';
+      n: number;
+      sources: Uint32Array;
+      targets: Uint32Array;
+      /** Each edge's time. */
+      weights: Float64Array;
+      directed: boolean;
+      width: number;
+      step: number;
+      maxDim: number;
+      intersection: boolean;
+    }
+  | {
+      /** Zigzag persistence of a video's frames cut at a threshold. */
+      pipeline: 'video-zigzag';
+      pixels: Float64Array;
+      width: number;
+      height: number;
+      nFrames: number;
+      threshold: number;
+      superlevel: boolean;
+      construction: 'T' | 'V';
+      periodic: boolean;
+      /** Join consecutive frames by intersections rather than unions. */
+      intersection: boolean;
+    }
+  | { pipeline: 'mpss'; n: number; sources: Uint32Array; targets: Uint32Array; lMax: number; modulus: number; rMax: number }
+  | { pipeline: 'magnitude'; n: number; sources: Uint32Array; targets: Uint32Array; lMax: number; integral: boolean }
   | { pipeline: 'grpph'; n: number; sources: Uint32Array; targets: Uint32Array; weights: Float64Array; grounded: boolean; options: AlgoOptions }
   | {
       pipeline: 'network';
@@ -104,6 +212,10 @@ export type Job =
       height: number;
       superlevel: boolean;
       construction: 'T' | 'V';
+      /** Wrap both axes round (a torus). */
+      periodic: boolean;
+      /** First turn the image into a binary one (pixels above 0.5) and filter that, as giotto-tda's filtrations. */
+      binary: BinaryFiltration | null;
       options: AlgoOptions;
     }
   | {
@@ -118,6 +230,18 @@ export type Job =
       /** Extended persistence instead (bars with a `kind`). */
       extended: boolean;
       options: AlgoOptions;
+    }
+  /** Zigzag persistence of cells with lifetimes (faces over Z/2). */
+  | {
+      pipeline: 'timed-zigzag';
+      dimensions: Uint32Array;
+      indptr: Uint32Array;
+      indices: Uint32Array;
+      lifeIndptr: Uint32Array;
+      starts: Float64Array;
+      ends: Float64Array;
+      maxDim: number | null;
+      intersection: boolean;
     }
   /** Crash on purpose, to test the recovery (`window.__phlite.run({pipeline: 'crash', how: 'pool'})`). */
   | { pipeline: 'crash'; how: 'panic' | 'pool' | 'oom' };

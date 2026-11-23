@@ -63,7 +63,8 @@
     {:else if error}
       <span class="error">{error}</span>
     {:else if result}
-      <span>{result.barcode.summary}</span>
+      {@const [what, ...how] = result.barcode.summary.split('; ')}
+      <span class="what">{what}{#if how.length}<span class="how">{how.join('; ')}</span>{/if}</span>
       <span class="time">{duration(result.ms)}</span>
     {:else}
       <span class="muted">No barcode yet.</span>
@@ -114,11 +115,9 @@
               born with {describe(bar.birth_cell, bar.dim)}{bar.death_cell ? `, killed by ${describe(bar.death_cell, bar.dim + 1)}` : ', never dies'}
             </div>
           {/if}
-          {#if bar.kind}
-            <!-- (extended persistence has no representatives here) -->
-          {:else if bar.rep}
+          {#if bar.rep}
             <div class="rep"><span class="muted">Representative ({bar.rep.length} cell{bar.rep.length === 1 ? '' : 's'}):</span> {repText(bar)}</div>
-          {:else}
+          {:else if !bar.kind || KINDS[bar.kind].order >= 10}
             <div class="muted">Turn on representatives to see a cycle for this bar.</div>
           {/if}
         {:else}
@@ -130,6 +129,8 @@
 </div>
 
 <style>
+  .what { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+  .how { font-size: 0.78rem; color: var(--muted); }
   .results { display: flex; flex-direction: column; gap: 0.6rem; }
   .status { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; min-height: 1.8rem; font-size: 0.9rem; }
   .time { margin-left: auto; font-variant-numeric: tabular-nums; color: var(--muted); }

@@ -31,9 +31,11 @@
 //! [`rips_barcode`] shows the optimised version.
 
 pub mod cohomology;
+pub mod collapse;
 pub mod distances;
 pub mod explicit;
 pub mod homology;
+pub mod image;
 
 pub use distances::{distance_to_measure, Distances, Metric, SparseDistances, Weighted};
 
@@ -47,6 +49,7 @@ use phlite::{
 };
 
 use crate::rips::{cohomology::RipsCoboundary, homology::RipsBoundary};
+use phlite::union_find::IncidenceReduction;
 
 // TUTORIAL:
 // First we implement the types that index into our boundary an coboundary matrix
@@ -700,13 +703,21 @@ pub fn rips_barcode<R: ColumnRepresentation, I: RipsInt, D: Distances>(
 ) -> Vec<RipsBar<I>> {
     #[allow(unreachable_patterns)]
     let parallel = matches!(algorithm, Algorithm::ParallelClearing(_));
-    rips_barcode_with(distances, max_dim, threshold, method, algorithm, representatives, true, parallel)
+    rips_barcode_with(distances, max_dim, threshold, method, algorithm, representatives, true, parallel, true)
 }
 
 /// As [`rips_barcode`], choosing whether (by cohomology) to find dimension 0 by union-find (`union_find`, which
-/// [`rips_barcode`] does) rather than by reducing it, and whether to build the bases (and run the union-find's sorts)
+/// [`rips_barcode`] does) rather than by reducing it, whether to build the bases (and run the union-find's sorts)
 /// in parallel on the current rayon thread pool (`parallel_setup`, which [`rips_barcode`] does only for the parallel
-/// algorithm), whatever the algorithm.
+/// algorithm), whatever the algorithm, and whether to [collapse the edges](collapse) first (`collapse`, which
+/// [`rips_barcode`] does).
+///
+/// Edges are collapsed only when it can help and is safe: from `max_dim` 1 (dimension 0 is a union-find, cheaper than
+/// collapsing), without representatives, and when the points have no births. The collapsed edges are used only if at
+/// least a tenth of the edges went (when collapsing moves many edges but removes few, the reduction can get slower, as
+/// Perseus 6 found), and then collapsed again while that removes a tenth of what is left; and only on at most
+/// [`collapse::MAX_POINTS`] points. Collapsing keeps the bars' values but not which simplices are paired: the birth and
+/// death simplices are those of the collapsed filtration.
 ///
 /// # Panics
 /// As [`rips_barcode`]: if simplices of dimension `max_dim + 1` don't fit in a [`RipsIndex`].
@@ -720,6 +731,7 @@ pub fn rips_barcode_with<R: ColumnRepresentation, I: RipsInt, D: Distances>(
     representatives: bool,
     union_find: bool,
     parallel_setup: bool,
+    collapse: bool,
 ) -> Vec<RipsBar<I>> {
     let n_points = distances.n_points();
     // A simplex with an infinite diameter has an edge that never appears, so it never appears either
@@ -727,6 +739,34 @@ pub fn rips_barcode_with<R: ColumnRepresentation, I: RipsInt, D: Distances>(
     let threshold = threshold
         .min(enclosing_radius(&distances))
         .min(largest_finite);
+    // (Collapsing keeps two n × n bitsets, so is left out on many points: on large sparse inputs it cost more than it
+    // saved, 50,000 points taking 4 s and 677 MB against 0.94 s and 43 MB)
+    if collapse && max_dim >= 1 && !representatives && !D::HAS_BIRTHS && n_points <= collapse::MAX_POINTS {
+        let (mut collapsed, stats) = collapse::collapse_edges(&distances, threshold);
+        if stats.edges_after * 10 <= stats.edges_before * 9 {
+            // Collapsing again removes more (an edge's dominator may only appear after others moved), and is quick on
+            // the sparse result: repeat while a pass removes a tenth of what is left
+            loop {
+                let (again, stats) = collapse::collapse_edges(&collapsed, threshold);
+                collapsed = again;
+                // (An empty graph removes nothing, a tenth of nothing included)
+                if stats.edges_after == stats.edges_before || stats.edges_after * 10 > stats.edges_before * 9 {
+                    break;
+                }
+            }
+            return rips_barcode_with(
+                collapsed,
+                max_dim,
+                threshold,
+                method,
+                algorithm,
+                representatives,
+                union_find,
+                parallel_setup,
+                false,
+            );
+        }
+    }
     // Both methods need simplices of dimension max_dim + 1 (as cofacets, or the top of the boundary matrix)
     assert!(
         RipsIndex::<I>::fits(n_points, max_dim + 1),
@@ -871,30 +911,22 @@ fn connected_components<I: RipsInt, D: Distances>(
     }
     let vertex = |v: u32| RipsIndex(I::from_usize(v as usize + 1));
     let birth = |v: u32| distances.birth(v as usize);
-    // Each vertex's parent, next to its birth, so that comparing roots needs no other lookup
-    let mut nodes: Vec<(u32, NotNan<f64>)> = (0..n as u32).map(|v| (v, birth(v))).collect();
-    fn find(nodes: &mut [(u32, NotNan<f64>)], mut v: u32) -> u32 {
-        while nodes[v as usize].0 != v {
-            let grandparent = nodes[nodes[v as usize].0 as usize].0;
-            nodes[v as usize].0 = grandparent;
-            v = grandparent;
-        }
-        v
-    }
+    // The boundary of each edge, v - w, by phlite's union-find: the root of a component is its oldest vertex (by
+    // birth, then index), and the younger of two roots is the pivot, so dies
+    let mut union_find = IncidenceReduction::<Z2, NotNan<f64>>::with_keys((0..n as u32).map(birth));
     let rep = |cells: &[u32]| {
         representatives.then(|| cells.iter().map(|&v| (<Z2 as NonZeroCoefficient>::one(), vertex(v))).collect())
     };
     let mut bars = vec![];
     let mut deaths = vec![];
     for (value, index, a, b) in edges {
-        let (ra, rb) = (find(&mut nodes, a), find(&mut nodes, b));
-        if ra == rb {
+        let Some(younger) = union_find.join(a, Some(b)) else {
             continue;
-        }
-        let (older, younger) = if (nodes[ra as usize].1, ra) < (nodes[rb as usize].1, rb) { (ra, rb) } else { (rb, ra) };
-        nodes[younger as usize].0 = older;
+        };
+        // (The surviving root only matters for representatives)
+        let older = if representatives { union_find.root(younger) } else { younger };
         deaths.push(index);
-        let birth_value = nodes[younger as usize].1;
+        let birth_value = birth(younger);
         if birth_value != value {
             bars.push(Bar {
                 birth: vertex(younger),
@@ -905,7 +937,7 @@ fn connected_components<I: RipsInt, D: Distances>(
         }
     }
     for v in 0..n as u32 {
-        if present[v as usize] && nodes[v as usize].0 == v {
+        if present[v as usize] && union_find.is_free_root(v) {
             bars.push(Bar { birth: vertex(v), birth_value: birth(v), death: None, representative: rep(&[v]) });
         }
     }
@@ -925,7 +957,8 @@ mod tests {
     /// `rips_barcode` attaches transposes (enabling apparent pairs); that must not change any bar
     #[test]
     fn apparent_pairs_do_not_change_barcode() {
-        use crate::rips::{cohomology::build_rips_coboundary_matrix, rips_barcode, Method};
+        // Without edge collapse, which changes which simplices pair (not the values)
+        use crate::rips::{cohomology::build_rips_coboundary_matrix, rips_barcode_with, Method};
         use ordered_float::NotNan;
         use phlite::{
             barcode::{self, Algorithm},
@@ -979,32 +1012,41 @@ mod tests {
                         Algorithm::Clearing(clearing.clone().store_r(true)),
                         Algorithm::Clearing(clearing),
                     ]
-                }) {  let bars = rips_barcode::<_, usize, _>(
+                }) {  let bars = rips_barcode_with::<_, usize, _>(
                 distances.clone(),
                 2,
                 INFINITY,
                 Method::Cohomology,
                 algorithm.clone(),
                 false,
+                true,
+                false,
+                false,
             );
             assert_eq!(summary(bars), expected, "{algorithm:?}");
             // With representatives the involution's debug assertions check them against the pairing
-            let bars = rips_barcode::<_, usize, _>(
+            let bars = rips_barcode_with::<_, usize, _>(
                 distances.clone(),
                 2,
                 INFINITY,
                 Method::Cohomology,
                 algorithm.clone(),
                 true,
+                true,
+                false,
+                false,
             );
             assert_eq!(bars.len(), expected.len());
             // Homology pairs simplices the same way (the pairing doesn't depend on the method)
-            let bars = rips_barcode::<_, usize, _>(
+            let bars = rips_barcode_with::<_, usize, _>(
                 distances.clone(),
                 2,
                 INFINITY,
                 Method::Homology,
                 algorithm,
+                false,
+                true,
+                false,
                 false,
             );
             let mut hom: Vec<_> = bars

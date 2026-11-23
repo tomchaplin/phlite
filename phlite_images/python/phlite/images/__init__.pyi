@@ -5,14 +5,34 @@ Persistent homology of images (cubical complexes): `cubical`, in the V- and T-co
 """
 
 import builtins
+import numpy
 import numpy.typing
 from phlite import core
 import typing
+from . import filtrations as filtrations
+from . import videos as videos
+from .videos import video_zigzag as video_zigzag
+
 __all__ = [
+    "filtrations",
+    "video_zigzag",
     "cubical",
+    "cubical_complex",
 ]
 
-def cubical(image: numpy.typing.ArrayLike, max_dim: typing.Optional[builtins.int] = None, *, construction: typing.Literal['T', 'V'] = "T", filtration: typing.Literal['sublevel', 'superlevel'] = "sublevel", method: typing.Literal['cohomology', 'homology'] = "cohomology", algorithm: typing.Optional[core.Algorithm] = None, representatives: builtins.bool = False) -> core.Barcode:
+def _binary_filtration(kind: builtins.str, image: numpy.typing.NDArray[numpy.bool_], *, direction: typing.Optional[typing.Sequence[builtins.float]] = None, center: typing.Optional[typing.Sequence[builtins.float]] = None, radius: builtins.float = float('inf'), metric: builtins.str = 'euclidean', n_iterations: typing.Optional[builtins.int] = None) -> numpy.typing.NDArray[numpy.float64]:
+    r"""
+    The filtration `kind` (`'height'`, `'radial'`, `'dilation'`, `'erosion'`, `'signed_distance'` or `'density'`) of a
+    boolean image, as an array of its shape (unreached pixels `inf`). See `phlite.images.filtrations`.
+    """
+
+def _video_zigzag(video: numpy.typing.ArrayLike, threshold: builtins.float, max_dim: builtins.int, construction: builtins.str, superlevel: builtins.bool, periodic: typing.Sequence[builtins.bool], join: builtins.str = 'union', algorithm: typing.Optional[typing.Any] = None) -> builtins.list[tuple[builtins.int, builtins.int, builtins.int]]:
+    r"""
+    The zigzag barcode of a video (frames along the first axis) cut at `threshold`, as `(dimension, birth, death)` in
+    levels (frame `i` at `2 i`). See `phlite.images.video_zigzag`, which calls this.
+    """
+
+def cubical(image: numpy.typing.ArrayLike, max_dim: typing.Optional[builtins.int] = None, *, construction: typing.Literal['T', 'V'] = "T", filtration: typing.Literal['sublevel', 'superlevel'] = "sublevel", method: typing.Literal['cohomology', 'homology'] = "cohomology", algorithm: typing.Optional[core.Algorithm] = None, representatives: builtins.bool = False, periodic: typing.Union[builtins.bool, typing.Sequence[builtins.bool], None] = None) -> core.Barcode:
     r"""
     Compute the persistent homology of the cubical complex of an image (or a volume, or any grid with 1 to 4 axes), in
     dimensions `0, ..., max_dim`.
@@ -21,8 +41,8 @@ def cubical(image: numpy.typing.ArrayLike, max_dim: typing.Optional[builtins.int
         image: The pixel values: a numpy array (or anything numpy can make one of) with 1 to 4 axes. NaN pixels are
             left out of the complex, as are those that would enter at infinity (`+inf` for sublevel sets, `-inf` for
             superlevel sets).
-        max_dim: The maximum homology dimension to compute (default: one less than the number of axes, the highest
-            that can be non-zero).
+        max_dim: The maximum homology dimension to compute (default: the highest that can be non-zero, one less than
+            the number of axes, or the number of axes if every axis is periodic).
         construction: `'T'` (the default, as GUDHI's `top_dimensional_cells`): pixels are the top-dimensional cells
             (squares, cubes), and every other cell enters with the smallest of the top cells around it; or `'V'` (as
             Cubical Ripser's default, and GUDHI's `vertices`): pixels are the vertices, and every other cell enters
@@ -33,12 +53,42 @@ def cubical(image: numpy.typing.ArrayLike, max_dim: typing.Optional[builtins.int
         algorithm: The reduction algorithm and its options, as a `phlite.core.Algorithm` (default:
             `Algorithm.serial()`).
             Pipeline defaults (`'images.cubical'`): columns='merged', cache=False, store_r=True, union_find=True.
+            With `union_find` (by cohomology, without representatives), dimension 0 and the top dimension are found by
+            union-find, and the T-construction of a volume (3 axes) by a filtered discrete gradient (as Perseus).
         representatives: Whether to also compute a representative cycle for every bar.
+        periodic: Which axes wrap round (periodic boundary conditions, as GUDHI's `PeriodicCubicalComplex` and Cubical
+            Ripser's periodic option): `True` for all, `False` (the default) for none, or one bool per axis. Along a
+            periodic axis the first and last pixels are neighbours, so a constant image is a torus. The periodic
+            complex is built explicitly and reduced as `phlite.complexes` does (union-find at both ends): exact for any
+            number of axes, but slower than the non-periodic complex on large volumes, and without representatives.
     
     Returns:
         The barcode, with dimensions `0, ..., max_dim`. Cells (births, deaths and representatives) are given by their
         coordinates on the doubled grid, as GUDHI does, in the order of the image's axes: a coordinate is even where
         the cell sits at a vertex along that axis and odd where it spans an interval, so in the T-construction pixel
         `p` is the top cell `2 p + 1`, and in the V-construction the vertex `2 p`.
+    """
+
+def cubical_complex(image: numpy.typing.ArrayLike, *, construction: typing.Literal['T', 'V'] = "T", filtration: typing.Literal['sublevel', 'superlevel'] = "sublevel") -> dict[str, numpy.typing.NDArray[typing.Any]]:
+    r"""
+    The cubical complex of an image as an explicit chain complex, with the oriented boundary (coefficients ±1), for
+    your own computations: for instance over the integers,
+    
+    ```python
+    c = cubical_complex(image)
+    chain = ChainComplex.from_csc(c["indptr"], c["indices"], c["dimensions"], data=c["coefficients"], modulus=0)
+    filtered = chain.filtration(c["values"])     # then .persistence(), .torsion(), .spectral_sequence()
+    ```
+    
+    Args:
+        image: The pixel values, as for `cubical`.
+        construction: `'T'` or `'V'`, as for `cubical`.
+        filtration: `'sublevel'` or `'superlevel'`, as for `cubical`; for superlevel sets the values are those of the
+            negated image (so that they increase).
+    
+    Returns:
+        A dict of numpy arrays, one entry per cell that enters the filtration: `dimensions`, the boundary as `indptr`,
+        `indices` (faces as positions among the cells) and `coefficients`, `values` (sublevel), and `coordinates`
+        (each cell's coordinates on the doubled grid, as `cubical`'s cells).
     """
 

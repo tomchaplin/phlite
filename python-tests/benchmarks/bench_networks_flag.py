@@ -11,8 +11,9 @@ import random
 
 import gudhi
 import networkx as nx
+import perseus
 import pytest
-from common import THREADS, fingerprint, run, sweep
+from common import THREADS, fingerprint, perseus_fingerprint, run, sweep
 
 from phlite.core import Algorithm
 from phlite.networks import flag
@@ -24,9 +25,10 @@ SUITE = {
     "description": "Persistent homology in dimensions up to `dim` of the flag complex of a random graph G(n, p), "
         "weights and node values uniform in [0, 1]: by edge weights (`weight`), by the node values' lower-star "
         "filtration (`lower star`), and Rips of the shortest-path metric (`shortest path`). The reference is GUDHI's "
-        "SimplexTree (with the edges and values inserted, and expanded).",
+        "SimplexTree (with the edges and values inserted, and expanded). Perseus 6 (`perseus.flag`, over Z/2 on one "
+        "thread) is given the same edges and node values.",
     "order": 24,
-    "summary": ["gudhi", "phlite (serial)", "phlite (parallel)"],
+    "summary": ["gudhi", "perseus (F2)", "phlite (serial)", "phlite (parallel)"],
     "default": "phlite (serial)",
     "light_references": ["gudhi"],
 }
@@ -72,6 +74,18 @@ def gudhi_flag(kind):
     return compute
 
 
+def perseus_flag(kind):
+    """Perseus 6's clique filtration over Z/2, one thread, given the edges and node values GUDHI is."""
+
+    def compute(case):
+        n, edges, values, max_dim = case
+        _, perseus_edges, perseus_values = setup(kind, n, edges, values)
+        result = perseus.flag(perseus_edges, vertex_births=perseus_values, maxdim=max_dim, coeff=2, threads=1)
+        return lambda: perseus_fingerprint(result, max_dim)
+
+    return compute
+
+
 def phlite_flag(kind, algorithm=Algorithm.serial):
     def compute(case):
         n, edges, values, max_dim = case
@@ -85,6 +99,7 @@ def phlite_flag(kind, algorithm=Algorithm.serial):
 IMPLEMENTATIONS = {
     kind: {
         "gudhi": gudhi_flag(kind),
+        "perseus (F2)": perseus_flag(kind),
         "phlite (serial)": phlite_flag(kind),
         "phlite (parallel)": phlite_flag(kind, lambda: Algorithm.parallel(THREADS)),
     }

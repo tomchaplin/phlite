@@ -212,6 +212,27 @@ impl AlgorithmConfig {
         self.with(|spec| spec.union_find = union_find)
     }
 
+    /// Whether to collapse the edges of the flag filtration before reducing, or `None` for the pipeline's default:
+    /// collapse in `phlite.clouds.rips` and `phlite.networks.flag` (implicit); other pipelines can't, and refuse it.
+    ///
+    /// An edge that is dominated (some other vertex is adjacent to every common neighbour of its ends) can be moved to
+    /// the time it stops being dominated, or removed if it never does, without changing the barcode (Boissonnat and
+    /// Pritam; Glisse and Pritam). On point clouds this removes most edges, and the reduction then takes a fraction of
+    /// the time (10–75× faster in dimensions up to 2 on phlite's benchmarks). It is used only from `max_dim` 1, without
+    /// representatives, with every point born at 0 (not with weights or node values), and when it removes at least a
+    /// tenth of the edges. The bars' values are unchanged, but their birth and death simplices are those of the
+    /// collapsed filtration; turn it off for the original filtration's.
+    #[pyo3(signature = (collapse = Some(true)))]
+    fn with_collapse(&self, collapse: Option<bool>) -> PyResult<Self> {
+        self.with(|spec| spec.collapse = collapse)
+    }
+
+    /// Whether edges are collapsed, or `None` for the pipeline's default.
+    #[getter]
+    fn collapse(&self) -> Option<bool> {
+        self.spec.collapse
+    }
+
     /// Whether to do the work before the reduction in parallel (building the bases of the matrices, sorting cells for
     /// union-find, enumerating paths), or `None` (the default) to follow the algorithm: in parallel for parallel
     /// clearing, serially otherwise. So `Algorithm.serial().with_parallel_setup()` builds in parallel and reduces
@@ -365,6 +386,9 @@ impl AlgorithmConfig {
         // Only shown when set (or resolved for a pipeline that can use it)
         if let Some(union_find) = spec.union_find {
             fields.push(format!("union_find={}", python_bool(union_find)));
+        }
+        if let Some(collapse) = spec.collapse {
+            fields.push(format!("collapse={}", python_bool(collapse)));
         }
         format!("Algorithm({})", fields.join(", "))
     }

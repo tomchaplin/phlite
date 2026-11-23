@@ -30,7 +30,7 @@ import tempfile
 
 import numpy as np
 import pytest
-from common import THREADS, fingerprint, run, sweep
+from common import THREADS, fingerprint, perseus_fingerprint, run, sweep
 
 # Import everything up front, so that import costs are not counted
 import lophat
@@ -61,9 +61,14 @@ SUITE = {
         "circles`, Rips complexes of the noisy torus and wedge of circles from the Rips section; `rings`, "
         "cubical complexes of `n`×`n` images of the distance to five overlapping rings, plus noise (a long H1 "
         "bar for each hole); and `torus mesh`, a triangulated torus filtered by its height, plus noise "
-        "(essential bars in every dimension).",
+        "(essential bars in every dimension). `linial-meshulam`: the random 2-complex Y_2(n, p) on the complete "
+        "graph (at 0), each triangle with probability `p` at one of a few levels, so that many triangles arrive "
+        "in a few big batches. Perseus 6 (`perseus.simplices`, over Z/2 on one thread) takes "
+        "simplicial complexes as vertex lists, so runs on the Rips complexes, the torus mesh and Linial–Meshulam, "
+        "building the "
+        "boundary matrix itself.",
     "order": 90,
-    "summary": ["phat (twist)", "phat (twist, reduce)", "lophat (1 thread)", "phlite (serial)", "phlite (serial, reduce)", "phlite (V only, reduce)", "phlite (parallel, reduce)", "phlite (homology, reduce)"],
+    "summary": ["phat (twist)", "phat (twist, reduce)", "lophat (1 thread)", "perseus (F2)", "phlite (serial)", "phlite (serial, reduce)", "phlite (V only, reduce)", "phlite (parallel, reduce)", "phlite (homology, reduce)"],
     "default": "phlite (serial, reduce)",
     "compare_only": "reduce",
     "light_references": ["phat (twist)"],
@@ -164,6 +169,17 @@ def torus_complex(n, seed):
     return _sorted_columns(cells, values, _simplicial_faces)
 
 
+def linial_meshulam_complex(n, p, levels, seed):
+    """Linial–Meshulam Y_2(n, p): the complete graph on `n` vertices at 0, and each triangle with probability `p` at a
+    random level in `1..levels`."""
+    rng = np.random.default_rng(seed)
+    triangles = [t for t in itertools.combinations(range(n), 3) if rng.random() < p]
+    levels_of = rng.integers(1, levels + 1, size=len(triangles)).astype(np.float64)
+    cells = [[(i,) for i in range(n)], list(itertools.combinations(range(n), 2)), triangles]
+    values = [np.zeros(n), np.zeros(len(cells[1])), levels_of]
+    return _sorted_columns(cells, values, _simplicial_faces)
+
+
 def _sorted_columns(cells, values, faces):
     """Columns in filtration order (by value, then dimension), and the values in that order."""
     keys = [(v, k, i) for k, vs in enumerate(values) for i, v in enumerate(vs.tolist())]
@@ -208,6 +224,8 @@ def generate_complex(case):
         columns, values = grid_complex(n, seed, rings_image)
     elif kind == "torus":
         columns, values = torus_complex(n, seed)
+    elif kind == "lm":
+        columns, values = linial_meshulam_complex(n, case["density"], 3, seed)
     else:
         density = case["density"] if kind == "dense" else None
         columns, values = random_complex(random.Random(seed), 3, n, n, 50, density=density)
@@ -234,6 +252,20 @@ def pairs_fingerprint(columns, values, pairs):
         return fingerprint(dims)
 
     return compute
+
+
+def perseus_impl(data):
+    """Perseus 6's `simplices` over Z/2 on one thread (the simplicial kinds only: it takes vertex lists, which
+    `make_input` lists before the clock starts; its time includes building the boundary matrix from them)."""
+    import perseus
+
+    columns = data["columns"]
+    result = perseus.simplices(data["simplices"], coeff=2, threads=1)
+    return lambda: perseus_fingerprint(result, max(d for d, _ in columns))
+
+
+# The kinds of complex that are simplicial, so that Perseus can take them
+SIMPLICIAL = ("rips", "torus", "lm")
 
 
 def phat_impl(reduction=phat.reductions.twist_reduction, representation=None):
@@ -308,6 +340,7 @@ IMPLEMENTATIONS = {
     "phat (chunk)": phat_impl(phat.reductions.chunk_reduction),
     "phat (standard, vector_vector)": phat_impl(phat.reductions.standard_reduction, phat.representations.vector_vector),
     "lophat (1 thread)": lophat_impl(1),
+    "perseus (F2)": perseus_impl,
     "lophat (parallel)": lophat_impl(THREADS),
     "phlite (serial)": phlite_impl(),
     "phlite (serial, csc)": phlite_impl(csc=True),
@@ -327,8 +360,8 @@ IMPLEMENTATIONS.update(sweep(phlite_impl, ", reduce"))
 # ====== Cases ============================================================
 
 
-def case(kind, n, quick=False, large=False, shape=None):
-    values = {"kind": kind, "n": n, "top_dim": 2, "density": 0.3, "seed": 0, "large": large, "shape": shape}
+def case(kind, n, quick=False, large=False, shape=None, density=0.3):
+    values = {"kind": kind, "n": n, "top_dim": 2, "density": density, "seed": 0, "large": large, "shape": shape}
     marks = [pytest.mark.quick] if quick else [pytest.mark.large] if large else []
     return pytest.param(values, id=label(values), marks=marks)
 
@@ -345,6 +378,8 @@ def label(case):
         return f"torus mesh {n}x{n}"
     if kind == "grid":
         return f"grid {n}x{n}"
+    if kind == "lm":
+        return f"linial-meshulam n={n} p={case['density']}"
     if kind == "dense":
         return f"dense n={n} p={case['density']}"
     return f"cells n={n}"
@@ -364,6 +399,7 @@ CASES = [
     case("rips", 150, shape="circles"),
     case("rings", 500),
     case("torus", 300),
+    case("lm", 100, density=0.1),
     # Timed once each
     case("rips", 200, large=True),
     case("grid", 1000, large=True),
@@ -372,12 +408,18 @@ CASES = [
     case("rips", 200, large=True, shape="torus"),
     case("rings", 1000, large=True),
     case("torus", 700, large=True),
+    case("lm", 150, large=True, density=0.05),
 ]
 
 
 def make_input(case, implementation):
     columns, values = cached_complex(case_key(case))
     data = {"columns": columns, "values": values}
+    if implementation.startswith("perseus"):
+        vertices = []
+        for dim, boundary in columns:
+            vertices.append((len(vertices),) if dim == 0 else tuple(sorted(set().union(*(vertices[f] for f in boundary)))))
+        data["simplices"] = [(list(s), float(v)) for s, v in zip(vertices, values)]
     if "reduce)" in implementation:
         if implementation.startswith("phat"):
             data["matrix"] = phat.boundary_matrix(columns=columns)
@@ -398,6 +440,8 @@ def reference(key):
 @pytest.mark.parametrize("implementation", IMPLEMENTATIONS)
 @pytest.mark.parametrize("case", CASES)
 def test_sparse(benchmark, case, implementation):
+    if implementation.startswith("perseus") and case["kind"] not in SIMPLICIAL:
+        pytest.skip("Perseus takes simplicial complexes as vertex lists")
     run(
         benchmark,
         group=label(case),

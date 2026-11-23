@@ -1,4 +1,5 @@
 <script lang="ts">
+  import SpectralTable from './SpectralTable.svelte';
   import { untrack } from 'svelte';
   import SourceTabs, { type Source } from '../../components/SourceTabs.svelte';
   import FileDrop from '../../components/FileDrop.svelte';
@@ -7,21 +8,28 @@
   import Results from '../../components/Results.svelte';
   import FiltrationSlider from '../../components/FiltrationSlider.svelte';
   import ComplexView, { type Tool } from './ComplexView.svelte';
+  import Segmented from '../../components/Segmented.svelte';
+  import More from '../../components/More.svelte';
+  import { JOINS } from '../../lib/joins';
   import MatrixView from './MatrixView.svelte';
   import { Runner } from '../../lib/runner.svelte';
   import { COMPLEX, defaultsFor } from '../../lib/options';
   import { barDomain } from '../../lib/scale';
   import { randomSeed } from '../../lib/random';
   import type { Job } from '../../lib/types';
-  import { EXAMPLES, FORMAT_HELP, randomComplex, toText, parseText, effectiveValues, drawable, vertexSets, type Complex } from './data';
+  import { EXAMPLES, FORMAT_HELP, randomComplex, toText, parseText, effectiveValues, drawable, vertexSets, lifetimesOf, parseLifetimes, formatLifetimes, type Complex } from './data';
 
   let source = $state<Source>('examples');
   let exampleId = $state(EXAMPLES[0].id);
   let c = $state.raw<Complex>(EXAMPLES[0].make());
   let modulus = $state(2);
   let maxDim = $state<number | null>(null);
-  /** Extended persistence instead: up through the filtration, then back down. */
-  let extended = $state(false);
+  /** Ordinary persistence of the filtration; extended (up through it, then back down); or a zigzag of the cells'
+   * lifetimes. */
+  let kind = $state<'ordinary' | 'extended' | 'zigzag'>(EXAMPLES[0].zigzag ? 'zigzag' : 'ordinary');
+  const extended = $derived(kind === 'extended');
+  const zigzag = $derived(kind === 'zigzag');
+  let intersection = $state(false);
   let options = $state(defaultsFor(COMPLEX));
   const runner = new Runner();
 
@@ -30,6 +38,7 @@
     exampleId = id;
     c = ex.make();
     modulus = ex.modulus;
+    kind = ex.zigzag ? 'zigzag' : kind === 'zigzag' ? 'ordinary' : kind;
   }
 
   let randomN = $state(30);
@@ -96,8 +105,29 @@
   }
 
   // ---- Computing ----
+  const lifetimes = $derived(lifetimesOf(c));
   const job = $derived.by((): Job | null => {
     if (c.length === 0) return null;
+    if (zigzag) {
+      const lifeIndptr = [0];
+      const starts: number[] = [];
+      const ends: number[] = [];
+      for (const l of lifetimes) {
+        for (const [a, b] of l) (starts.push(a), ends.push(b));
+        lifeIndptr.push(starts.length);
+      }
+      return {
+        pipeline: 'timed-zigzag',
+        dimensions: Uint32Array.from(c.map((x) => x.dim)),
+        indptr: Uint32Array.from(c.reduce((acc, x) => (acc.push(acc[acc.length - 1] + x.faces.length), acc), [0])),
+        indices: Uint32Array.from(c.flatMap((x) => x.faces.map((f) => f.cell))),
+        lifeIndptr: Uint32Array.from(lifeIndptr),
+        starts: Float64Array.from(starts),
+        ends: Float64Array.from(ends),
+        maxDim,
+        intersection,
+      };
+    }
     const indptr = [0];
     const indices: number[] = [];
     const coefficients: number[] = [];
@@ -122,7 +152,7 @@
     };
   });
   // Moving a vertex only changes values when they come from lengths or heights
-  const jobKey = $derived(JSON.stringify([c.map((x) => [x.dim, x.faces, x.value]), modulus, maxDim, extended, options]));
+  const jobKey = $derived(JSON.stringify([c.map((x) => [x.dim, x.faces, x.value, x.lifetimes]), modulus, maxDim, kind, intersection, options]));
   $effect(() => {
     jobKey;
     const j = untrack(() => job);
@@ -131,7 +161,22 @@
 
   const values = $derived(effectiveValues(c));
   const canDraw = $derived(drawable(c) || source === 'draw');
-  const domain = $derived(barDomain(runner.result?.barcode.bars ?? [], values));
+  /** A zigzag's span of time: from the first start to past the last finite end. */
+  const times = $derived(lifetimes.flat(2).filter(Number.isFinite));
+  const domain = $derived<[number, number]>(
+    zigzag && times.length ? [Math.min(...times), Math.max(...times) + 1] : barDomain(runner.result?.barcode.bars ?? [], values),
+  );
+  const alive = $derived(zigzag ? (i: number) => runner.t !== null && lifetimes[i].some(([a, b]) => a <= runner.t! && runner.t! < b) : null);
+  let lifetimeError = $state<string | null>(null);
+  function setLifetimes(i: number, text: string) {
+    try {
+      const l = parseLifetimes(text);
+      c = c.map((x, j) => (j === i ? { ...x, lifetimes: l } : x));
+      lifetimeError = null;
+    } catch (e) {
+      lifetimeError = `${c[i].label}: ${(e as Error).message}`;
+    }
+  }
   const bar = $derived(runner.selected === null ? null : (runner.result?.barcode.bars[runner.selected] ?? null));
   const describe = (cell: number[]) => c[cell[0]]?.label ?? `cell ${cell[0]}`;
   const topDim = $derived(Math.max(0, ...c.map((x) => x.dim)));
@@ -141,9 +186,9 @@
   <div>
     <div class="panel">
       {#if canDraw}
-        <ComplexView {c} {values} t={runner.t} {bar} tool={source === 'draw' && mode === 'draw' ? tool : null} onedit={edited} />
+        <ComplexView {c} {values} {alive} t={runner.t} {bar} tool={source === 'draw' && mode === 'draw' ? tool : null} onedit={edited} />
         <div style="margin: 0.6rem 0">
-          <FiltrationSlider bind:t={runner.t} {domain} label="Value" />
+          <FiltrationSlider bind:t={runner.t} {domain} label={zigzag ? 'Time' : 'Value'} />
         </div>
       {/if}
       {#if c.length > 0 && c.length <= 90}
@@ -230,38 +275,80 @@ abc 2 _ : ab bc -ac`}</pre>
     <div class="panel">
       <Results result={runner.result} error={runner.error} running={runner.running} {domain} bind:selected={runner.selected} bind:t={runner.t} {describe} name="complex" />
     </div>
+    {#if runner.result && kind === 'ordinary' && runner.result.barcode.bars.length > 0}
+      <div class="panel secondary">
+        <SpectralTable bars={runner.result.barcode.bars} {values} topDim={topDim} />
+      </div>
+    {/if}
 
     <div class="panel secondary">
       <h3>Compute</h3>
-      <label class="field"><span>Coefficients</span>
+      <div class="field"><span>Compute</span>
+        <Segmented
+          label="What to compute"
+          bind:value={kind}
+          options={[
+            { id: 'ordinary', label: 'Persistence', title: 'The filtration by value' },
+            { id: 'extended', label: 'Extended', title: 'Up through the filtration, then back down' },
+            { id: 'zigzag', label: 'Zigzag', title: 'Each cell over its lifetimes' },
+          ]}
+          onchange={(k) => k === 'zigzag' && (runner.t = domain[0])}
+        />
+      </div>
+      {#if !zigzag}<label class="field"><span>Coefficients</span>
         <select bind:value={modulus}>
           {#each [2, 3, 5, 7] as p}<option value={p}>Z/{p}</option>{/each}
+          <option value={0}>Z (torsion)</option>
         </select>
-      </label>
+      </label>{/if}
       <label class="field"><span>Up to dimension</span>
         <select bind:value={maxDim}>
           <option value={null}>all (H₀–H{['₀', '₁', '₂', '₃', '₄', '₅'][topDim] ?? topDim})</option>
           {#each Array.from({ length: topDim + 1 }, (_, d) => d) as d}<option value={d}>{d}</option>{/each}
         </select>
       </label>
-      <label class="field"><span>Extended</span>
-        <span><input type="checkbox" bind:checked={extended} /> extended persistence</span>
-      </label>
-      {#if extended}
-        <p class="note">
-          Up through the filtration, then back down (each cell at the least value of it and its faces), so every class
-          dies: ordinary and relative bars, and extended bars for the whole complex's homology (Ext⁺ for a component,
-          from its lowest value to its highest; Ext⁻ for a loop of a graph, from its highest to its lowest). With
-          vertex heights, the classical setting: lower-star up, upper-star down. phlite.complexes'
-          <code>extended_persistence</code>.
-        </p>
+      {#if zigzag}
+        <div class="field"><span>Join</span>
+          <Segmented label="Join" value={intersection ? 'intersection' : 'union'} options={JOINS} onchange={(j) => (intersection = j === 'intersection')} />
+        </div>
+        <More>
+          {#snippet lead()}Each cell lives over its lifetimes, start–end below; the slider moves through time.{/snippet}
+          A cell is there when start ≤ t &lt; end for one of its lifetimes (by default from its value on, which makes this
+          ordinary persistence), and its faces must be there whenever it is. At each time something changes, the zigzag
+          passes through the {intersection ? 'intersection' : 'union'} of the complexes before and after, so a class can
+          live for an instant. Over Z/2, by FastZigzag (Dey and Hou), as <code>phlite.complexes.timed_zigzag</code>; in the
+          text format, <code>~ 0-3 5-inf</code>.
+        </More>
+        {#if c.length <= 80}
+          <div class="lifetimes">
+            {#each c as x, i}
+              <label><span>{x.label}</span><input type="text" value={formatLifetimes(lifetimes[i])} onchange={(e) => setLifetimes(i, e.currentTarget.value)} /></label>
+            {/each}
+          </div>
+          {#if lifetimeError}<p class="error">{lifetimeError}</p>{/if}
+        {:else}
+          <p class="note">Too many cells to list: give lifetimes in the text (Build → Edit as text), ~ 0-3 5-inf.</p>
+        {/if}
       {/if}
-      <Options bind:options defaults={COMPLEX} />
+      {#if extended}
+        <More>
+          {#snippet lead()}Up through the filtration, then back down, so that every class dies.{/snippet}
+          Each cell comes back at the least value of it and its faces: ordinary and relative bars, and extended bars for
+          the whole complex's homology (Ext⁺ for a component, from its lowest value to its highest; Ext⁻ for a loop of a
+          graph, from its highest to its lowest). With vertex heights, the classical setting: lower-star up, upper-star
+          down. phlite.complexes' <code>extended_persistence</code>.
+        </More>
+      {/if}
+      {#if !zigzag}<Options bind:options defaults={COMPLEX} />{/if}
       <ComputeRow {runner} {job} />
     </div>
   </div>
 </div>
 
 <style>
+  .lifetimes { display: grid; grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr)); gap: 0.25rem 0.6rem; max-height: 14rem; overflow-y: auto; margin-bottom: 0.4rem; }
+  .lifetimes label { display: flex; align-items: center; gap: 0.3rem; font-size: 0.85rem; }
+  .lifetimes span { min-width: 2.2rem; color: var(--muted); }
+  .lifetimes input { width: 100%; min-width: 0; font-family: monospace; font-size: 0.8rem; }
   textarea { width: 100%; font-size: 0.85rem; margin-top: 0.4rem; }
 </style>

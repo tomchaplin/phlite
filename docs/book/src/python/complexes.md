@@ -33,7 +33,8 @@ chain = ChainComplex.from_pairs(pairs)
 | `from_csc(indptr, indices, dimensions, data=None)` | numpy arrays | the fast path: no per-entry Python objects |
 | `from_cells(cells, ...)` | your own objects (or tuples) with a dimension and a boundary | results come back as your objects |
 
-All take `coefficients=` (per boundary entry) and `modulus=` (2, 3, 5, 7, 11 or 13).
+All take `coefficients=` (per boundary entry) and `modulus=` (2, 3, 5, 7, 11 or 13, or 0 for the integers: see
+[Over the integers](#over-the-integers)).
 
 **Your own cells.** Any hashable object with a `dimension` and a `boundary()` works (the same protocol as grpphati's
 `Column`), or plain values with functions saying how to get the pieces:
@@ -87,6 +88,57 @@ values):
 
 Representatives are `(cell, coefficient)` lists in decreasing filtration order, so the birth cell comes first. Bars of
 length zero are omitted (with the default index filtration there are none, so you get every pair, as with PHAT).
+
+## Over the integers
+
+With `modulus=0` the complex has integer coefficients. Over Z a filtration has no barcode (its persistence module
+needn't decompose into intervals), but everything around one is computed exactly:
+
+* `persistence()` is the barcode over Q, by a fraction-free reduction over Z, and `torsion()` the primes whose
+  barcode over `F_p` differs from it, with those barcodes: the primes of the torsion, whether in the homology of a
+  subcomplex or only in the maps between them (as Perseus finds its bad primes: the reduction over Z bounds them,
+  and each candidate is checked mod p);
+* `spectral_sequence` and `persistent_group` give groups, torsion included, by integer elimination on dense
+  matrices (fine up to a few thousand cells per degree).
+
+Boundaries need their signs: building the complex checks that the boundary of every boundary is zero.
+`ChainComplex.from_simplices(simplices, modulus=0)` fills them in for a simplicial complex, so any simplicial
+filtration (`phlite.clouds.alpha_complex`, a mesh, ...) can be brought over Z.
+
+```python
+chain = ChainComplex.from_pairs(pairs, coefficients=signs, modulus=0)     # e.g. the projective plane
+filtered = chain.filtration(values)
+filtered.persistent_group(1, 0.0, 0.0)      # (0, [2]): H_1 = Z/2
+ss = filtered.spectral_sequence()          # computed one page at a time
+print(ss.next())                            # E^1, as a table, with its differentials
+ss.page(2)[1, 1]                            # (0, [2]): Z/2 at step 1 in degree 1
+g = ss.page(2).group(1, 1)                  # as a group: str(g) == "Z/2", g.rank, g.torsion, g.elementary_divisors
+[gen] = g.generators                        # gen.order == 2, gen.chain == {cell: coefficient}: a representing chain
+g.classify({c: 2 * x for c, x in gen.chain.items()})   # [0]: twice the generator is zero
+```
+
+Generators work over a field too (`spectral_sequence()` of any filtered complex, and
+`phlite.networks.magnitude_path_spectral_sequence`, whose cells are tuples of nodes): each entry's generators are
+computed exactly, from the cells in its window of steps, when first asked for. A generator of `E^r_p` in degree `k`
+is a chain `x` of degree `k` in `F_p` with `dx` in `F_{p-r}`, determined only modulo the denominator of `E^r_p`; over
+the integers it is not canonical, so `classify` (or `contains`) is the way to compare chains.
+
+`persistent_group(dim, start, end)` is the image of `H_dim` at `start` in `H_dim` at `end`, as `(rank, torsion)`. It
+works over a field too, where it is the persistent Betti number with no torsion.
+
+## Maps, zigzags, torsion and spectral sequences
+
+Filtered complexes are where phlite's other constructions start; each has its own chapter:
+
+* [Maps](maps.md): `six_pack(subcomplex)`, and `FilteredMap` between two complexes, give the barcodes of the image,
+  kernel and cokernel of the induced maps on homology (and the relative barcode), with representatives.
+* [Zigzag persistence](zigzag.md): `Zigzag` and `zigzag`, for sequences of complexes going both ways.
+* [Over the integers](integers.md): with `modulus=0`, the barcode over Q and the primes of the torsion.
+* [Spectral sequences](spectral.md): `spectral_sequence()`, a page at a time, with groups and generators.
+
+`FilteredComplex.from_simplices(pairs)` builds a filtered simplicial complex in one step from the `(simplex, value)`
+pairs that `phlite.clouds.rips_complex`, `alpha_complex`, `cech_complex` and the others return, so all of these apply
+to those filtrations too.
 
 ## Choosing cell identifiers yourself
 

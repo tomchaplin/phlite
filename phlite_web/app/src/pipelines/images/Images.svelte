@@ -3,6 +3,8 @@
   import SourceTabs, { type Source } from '../../components/SourceTabs.svelte';
   import FileDrop from '../../components/FileDrop.svelte';
   import Options from '../../components/Options.svelte';
+  import Segmented from '../../components/Segmented.svelte';
+  import More from '../../components/More.svelte';
   import ComputeRow from '../../components/ComputeRow.svelte';
   import Results from '../../components/Results.svelte';
   import FiltrationSlider from '../../components/FiltrationSlider.svelte';
@@ -12,14 +14,20 @@
   import { Runner } from '../../lib/runner.svelte';
   import { IMAGE, defaultsFor } from '../../lib/options';
   import { randomSeed } from '../../lib/random';
-  import type { Job } from '../../lib/types';
+  import type { BinaryFiltration, Job } from '../../lib/types';
   import { EXAMPLES, smoothNoise, loadImage, blur, type Img } from './data';
 
+  /** Persistence of an image, or (on the videos' side of the tab) the zigzag of a video: shared with the other side. */
+  let { kind = $bindable() }: { kind: 'persistence' | 'zigzag' } = $props();
   let source = $state<Source>('examples');
   let exampleId = $state(EXAMPLES[0].id);
   let img = $state.raw<Img>(EXAMPLES[0].make());
   let superlevel = $state(EXAMPLES[0].superlevel);
   let construction = $state<'T' | 'V'>('T');
+  /** Wrap both axes round, as GUDHI's PeriodicCubicalComplex (a torus). */
+  let periodic = $state(false);
+  /** A filtration of the binary image (pixels above 0.5), as giotto-tda's, or none: the image itself. */
+  let binary = $state<BinaryFiltration | null>(null);
   let options = $state(defaultsFor(IMAGE));
   const runner = new Runner();
 
@@ -92,6 +100,8 @@
     height: img.height,
     superlevel,
     construction,
+    periodic,
+    binary,
     options: $state.snapshot(options),
   });
   $effect(() => {
@@ -224,29 +234,77 @@
 
     <div class="panel secondary">
       <h3>Compute</h3>
-      <div class="field"><span>Filtration</span>
-        <div class="tools">
-          <button class:on={!superlevel} onclick={() => (superlevel = false)}>Sublevel (dark first)</button>
-          <button class:on={superlevel} onclick={() => (superlevel = true)}>Superlevel (bright first)</button>
-        </div>
+      <div class="field"><span>Compute</span>
+        <Segmented
+          label="What to compute"
+          bind:value={kind}
+          options={[
+            { id: 'persistence', label: 'Persistence', title: "The persistent homology of the image's sublevel (or superlevel) sets" },
+            { id: 'zigzag', label: 'Zigzag (video)', title: "Zigzag persistence of a video's frames, each cut at a threshold" },
+          ]}
+        />
+      </div>
+      <div class="field"><span>Order</span>
+        <Segmented
+          label="Order"
+          value={superlevel ? 'super' : 'sub'}
+          options={[
+            { id: 'sub', label: 'Dark first', title: 'Sublevel sets' },
+            { id: 'super', label: 'Bright first', title: 'Superlevel sets' },
+          ]}
+          onchange={(v) => (superlevel = v === 'super')}
+        />
       </div>
       <div class="field"><span>Construction</span>
-        <div class="tools">
-          <button class:on={construction === 'T'} onclick={() => (construction = 'T')}>T: pixels as squares</button>
-          <button class:on={construction === 'V'} onclick={() => (construction = 'V')}>V: pixels as vertices</button>
-        </div>
+        <Segmented
+          label="Construction"
+          bind:value={construction}
+          options={[
+            { id: 'T', label: 'T: pixels as squares', title: 'Pixels touching at a corner are connected' },
+            { id: 'V', label: 'V: pixels as vertices', title: 'Only pixels sharing a side are connected' },
+          ]}
+        />
       </div>
-      <p class="note">
+      <More>
+        {#snippet lead()}{construction === 'T' ? 'Pixels touching at a corner are connected.' : 'Only pixels sharing a side are connected.'}{/snippet}
         {#if construction === 'T'}
           The cubical complex with a square per pixel, entering at the pixel's value, and every edge and vertex entering
-          with the {superlevel ? 'brightest' : 'darkest'} square around it: pixels touching at a corner are connected.
+          with the {superlevel ? 'brightest' : 'darkest'} square around it.
         {:else}
           The cubical complex with a vertex per pixel, an edge between neighbouring pixels and a square for each 2×2 block;
-          each cell enters with the {superlevel ? 'darkest' : 'brightest'} of its pixels: only pixels sharing a side are
-          connected.
+          each cell enters with the {superlevel ? 'darkest' : 'brightest'} of its pixels.
         {/if}
         Computed by <code>phlite_images</code>' cubical complexes, nothing stored but the image.
-      </p>
+      </More>
+      <label class="field"><span>Values</span>
+        <select bind:value={binary}>
+          <option value={null}>the pixel values</option>
+          <option value="height">binary: height (along the diagonal)</option>
+          <option value="radial">binary: radial (from the centre)</option>
+          <option value="dilation">binary: dilation</option>
+          <option value="erosion">binary: erosion</option>
+          <option value="signed_distance">binary: signed distance</option>
+          <option value="density">binary: density (radius 3)</option>
+        </select>
+      </label>
+      {#if binary}
+        <More>
+          {#snippet lead()}The image made binary (pixels above 0.5), then filtered.{/snippet}
+          As giotto-tda's <code>gtda.images</code> filtrations (<code>phlite.images.filtrations</code>): pixels unreached
+          by the filtration enter last. The view still shows the image itself.
+        </More>
+      {/if}
+      <label class="field"><span>Periodic</span>
+        <input type="checkbox" bind:checked={periodic} />
+        <span class="note">wrap round (a torus)</span>
+      </label>
+      {#if periodic}
+        <More>
+          {#snippet lead()}Features crossing an edge join up; a constant image has two loops and a void.{/snippet}
+          As <code>cubical(image, periodic=True)</code> and GUDHI's <code>PeriodicCubicalComplex</code>. Built explicitly,
+          without representatives.
+        </More>
+      {/if}
       <Options bind:options defaults={IMAGE} />
       <ComputeRow {runner} {job} />
     </div>

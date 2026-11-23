@@ -29,7 +29,8 @@ const LAZY: AlgorithmDefaults = AlgorithmDefaults {
     cache: true,
     store_r: false,
     row_ranks: false,
-    union_find: None,
+    union_find: Some(true),
+    collapse: None,
 };
 
 /// The pipeline `'networks.directed_flag'`.
@@ -57,6 +58,7 @@ struct LazyRun<'a, K> {
     method: Method,
     representatives: bool,
     parallel_setup: bool,
+    union_find: bool,
 }
 
 impl<K: LazyComplex> AlgorithmVisitor for LazyRun<'_, K> {
@@ -70,6 +72,7 @@ impl<K: LazyComplex> AlgorithmVisitor for LazyRun<'_, K> {
             algorithm,
             self.representatives,
             self.parallel_setup,
+            self.union_find,
         );
         let codec = self.complex.codec();
         SortedBars::new(bars, self.max_dim + 1, |simplex| {
@@ -106,6 +109,7 @@ fn run<'py, K: LazyComplex>(
             method,
             representatives,
             parallel_setup: algorithm.parallel_setup(),
+            union_find: algorithm.union_find(),
         })
     })?;
     bars.into_python(py, &algorithm, representatives, labels.as_deref())
@@ -136,7 +140,7 @@ fn run<'py, K: LazyComplex>(
 ///     method: `'cohomology'` (the default) or `'homology'`.
 ///     algorithm: The reduction algorithm and its options, as a `phlite.core.Algorithm` (default:
 ///         `Algorithm.serial()`).
-///         Pipeline defaults (`'networks.directed_flag'`): columns='merged', cache=True, store_r=False.
+///         Pipeline defaults (`'networks.directed_flag'`): columns='merged', cache=True, store_r=False, union_find=True.
 ///     representatives: Whether to also compute a representative cycle for every bar. Cells are tuples of nodes (node
 ///         labels for a networkx graph), in their order in the simplex.
 ///
@@ -210,7 +214,7 @@ fn directed_flag<'py>(
 ///     method: `'cohomology'` (the default) or `'homology'`.
 ///     algorithm: The reduction algorithm and its options, as a `phlite.core.Algorithm` (default:
 ///         `Algorithm.serial()`).
-///         Pipeline defaults (`'networks.ordered_tuples'`): columns='merged', cache=True, store_r=False.
+///         Pipeline defaults (`'networks.ordered_tuples'`): columns='merged', cache=True, store_r=False, union_find=True.
 ///     representatives: Whether to also compute a representative cycle for every bar (cells as for `directed_flag`).
 ///
 /// Returns:
@@ -266,7 +270,7 @@ fn ordered_tuples<'py>(
 ///     method: `'cohomology'` (the default) or `'homology'`.
 ///     algorithm: The reduction algorithm and its options, as a `phlite.core.Algorithm` (default:
 ///         `Algorithm.serial()`).
-///         Pipeline defaults (`'networks.dowker'`): columns='merged', cache=True, store_r=False.
+///         Pipeline defaults (`'networks.dowker'`): columns='merged', cache=True, store_r=False, union_find=True.
 ///     representatives: Whether to also compute a representative cycle for every bar. Cells are tuples of nodes (node
 ///         labels for a networkx graph), in increasing order of node index.
 ///

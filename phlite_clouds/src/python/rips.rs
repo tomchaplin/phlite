@@ -31,6 +31,7 @@ pub(crate) const DEFAULTS: AlgorithmDefaults = AlgorithmDefaults {
     store_r: false,
     row_ranks: false,
     union_find: Some(true),
+    collapse: Some(true),
 };
 
 /// The pipeline `'clouds.rips_explicit'`: the Rips complex of a sparse input listed and reduced as an explicit complex
@@ -42,6 +43,7 @@ pub(crate) const EXPLICIT_DEFAULTS: AlgorithmDefaults = AlgorithmDefaults {
     store_r: true,
     row_ranks: true,
     union_find: None,
+    collapse: None,
 };
 
 /// The most simplices listed explicitly when `explicit` isn't given: beyond this, the complex is computed implicitly.
@@ -265,7 +267,7 @@ fn read_points(points: &Bound<'_, PyAny>, metric: Metric, threshold: NotNan<f64>
 ///         `Algorithm.serial()`).
 ///         For example `Algorithm.parallel(threads=8)`.
 ///         Computed implicitly: Pipeline defaults (`'clouds.rips'`): columns='heap', cache=False, store_r=False,
-///         union_find=True.
+///         union_find=True, collapse=True.
 ///         Listed explicitly: Pipeline defaults (`'clouds.rips_explicit'`): columns='pivot', cache=False,
 ///         store_r=True.
 ///     representatives: Whether to also compute a representative cycle for every bar.
@@ -372,9 +374,513 @@ fn rips<'py>(
             representatives,
             union_find: algorithm.union_find(),
             parallel_setup: algorithm.parallel_setup(),
+            collapse: algorithm.collapse(),
         })
     })?;
     bars.into_python(py, &algorithm, representatives, None)
+}
+
+/// The persistent homology of the image, kernel and cokernel of the map `H(Rips(subset)) -> H(Rips(points))` induced by
+/// including the Rips complex of some of the points into that of all of them (the same distances), over Z/2, in
+/// dimensions `0, ..., max_dim`, and of the pair (Cohen-Steiner, Edelsbrunner, Harer and Morozov; as phimaker).
+///
+/// The image is what of the subset's homology survives among all the points (the features the subset sees that are
+/// really there); the kernel what of it dies there; the cokernel what of the whole's homology the subset doesn't see.
+/// Computed on the lazy Rips boundary, by `phlite::image_kernel`: the barcodes of the two complexes by the fast
+/// reductions, which also say which columns of the image, kernel and cokernel matrices need reducing. Every simplex up
+/// to dimension `max_dim + 1` and `threshold` is listed, so give a threshold for more than a few hundred points.
+///
+/// Args:
+///     distance_matrix: The distances, as for `rips` (dense, or a scipy sparse matrix).
+///     subset: The points of the subset: their indices, or a boolean mask (one per point).
+///     max_dim: The maximum homology dimension.
+///     points: Or the points, as for `rips`.
+///     metric: The metric for `points`, as for `rips`.
+///     threshold: The largest diameter (default: all); bars still alive there are essential.
+///
+/// Returns:
+///     A dict of barcodes: `'image'`, `'kernel'`, `'cokernel'` and `'relative'` (of the pair), each bar in the dimension
+///     of its homology (a kernel class of `H_k` is born at the `(k + 1)`-simplex that makes a cycle of the subset a
+///     boundary among all the points).
+#[gen_stub_pyfunction(module = "phlite.clouds")]
+#[gen_stub(override_return_type(type_repr = "dict[builtins.str, core.Barcode]", imports = ("builtins", "phlite.core")))]
+#[pyfunction]
+#[pyo3(signature = (distance_matrix = None, subset = None, max_dim = 1, *, points = None, metric = "euclidean", threshold = None))]
+fn rips_image_kernel<'py>(
+    py: Python<'py>,
+    #[gen_stub(override_type(type_repr = "typing.Optional[typing.Union[numpy.typing.NDArray[numpy.floating], typing.Sequence[typing.Sequence[builtins.float]], typing.Any]]", imports = ("builtins", "numpy", "numpy.typing", "typing")))]
+    distance_matrix: Option<&Bound<'_, PyAny>>,
+    #[gen_stub(override_type(type_repr = "typing.Optional[typing.Sequence[typing.Any]]", imports = ("typing")))]
+    subset: Option<&Bound<'_, PyAny>>,
+    max_dim: usize,
+    #[gen_stub(override_type(type_repr = "typing.Optional[typing.Union[numpy.typing.NDArray[numpy.floating], typing.Sequence[typing.Sequence[builtins.float]]]]", imports = ("builtins", "numpy", "numpy.typing", "typing")))]
+    points: Option<&Bound<'_, PyAny>>,
+    #[gen_stub(override_type(type_repr = "typing.Literal['euclidean', 'manhattan', 'cityblock', 'chebyshev']", imports = ("typing")))]
+    metric: &str,
+    threshold: Option<f64>,
+) -> PyResult<Bound<'py, pyo3::types::PyDict>> {
+    use crate::rips::image::rips_image_kernel_cokernel;
+    let threshold = match threshold {
+        None => INFINITY,
+        Some(t) => NotNan::new(t).map_err(|_| PyValueError::new_err("threshold must not be NaN"))?,
+    };
+    let metric = parse_metric(metric)?;
+    let input = match (distance_matrix, points) {
+        (Some(_), Some(_)) => return Err(PyValueError::new_err("Give either a distance matrix or points, not both")),
+        (None, None) => return Err(PyValueError::new_err("Give a distance matrix (the first argument) or points")),
+        (Some(matrix), None) if is_scipy_sparse(matrix) => Input::Sparse(read_sparse(matrix)?),
+        (Some(matrix), None) => Input::Dense(read_dense(matrix)?),
+        (None, Some(points)) => read_points(points, metric, threshold)?,
+    };
+    let n = input.n_points();
+    let subset = subset.ok_or_else(|| PyValueError::new_err("Give the subset (point indices or a boolean mask)"))?;
+    let items: Vec<Bound<'_, PyAny>> = subset.try_iter()?.collect::<PyResult<_>>()?;
+    let is_bool = |x: &Bound<'_, PyAny>| {
+        x.is_instance_of::<pyo3::types::PyBool>()
+            || x.get_type().name().is_ok_and(|name| name.to_cow().is_ok_and(|name| name == "bool" || name == "bool_"))
+    };
+    let mut in_subset = vec![false; n];
+    if items.len() == n && items.iter().all(is_bool) {
+        for (m, x) in in_subset.iter_mut().zip(&items) {
+            *m = x.extract()?;
+        }
+    } else {
+        for x in &items {
+            let i: usize = x.extract()?;
+            if i >= n {
+                return Err(PyValueError::new_err(format!("subset has point {i}, but there are {n} points")));
+            }
+            in_subset[i] = true;
+        }
+    }
+    if !rips_index_fits(n, max_dim + 1) {
+        return Err(PyValueError::new_err(format!("Too many points ({n}) to index simplices of dimension {}", max_dim + 1)));
+    }
+    let result = phlite_bindings::detach(py, || match &input {
+        Input::Dense(d) => rips_image_kernel_cokernel(d, &in_subset, max_dim, threshold),
+        Input::Sparse(d) => rips_image_kernel_cokernel(d, &in_subset, max_dim, threshold),
+    });
+    let algorithm = algorithm_from_py(None, &DEFAULTS)?;
+    let out = pyo3::types::PyDict::new(py);
+    let value = |s: crate::rips::RipsIndex| -> NotNan<f64> {
+        let vertices = s.to_vec(n);
+        let mut v = NotNan::new(0.0).expect("not NaN");
+        for (i, &a) in vertices.iter().enumerate() {
+            for &b in &vertices[i + 1..] {
+                v = v.max(match &input {
+                    Input::Dense(d) => d.distance(a, b),
+                    Input::Sparse(d) => d.distance(a, b),
+                });
+            }
+        }
+        v
+    };
+    for (name, diagram, shift) in [
+        ("image", result.image, 0),
+        ("kernel", result.kernel, 1),
+        ("cokernel", result.cokernel, 0),
+        ("relative", result.relative, 0),
+        ("complex", result.complex, 0),
+        ("subcomplex", result.subcomplex, 0),
+    ] {
+        let bars: Vec<phlite::barcode::Bar<crate::rips::RipsIndex, NotNan<f64>, phlite::fields::Z2>> = diagram
+            .pairings
+            .into_iter()
+            .map(|(b, d)| (b, Some(d)))
+            .chain(diagram.essential.into_iter().map(|b| (b, None)))
+            // (Simplices of dimension max_dim + 1 are listed only to kill classes of dimension max_dim)
+            .filter(|(b, _)| b.dimension(n) - shift <= max_dim)
+            .map(|(b, d)| phlite::barcode::Bar {
+                birth: b,
+                birth_value: value(b),
+                death: d.map(|d| (d, value(d))),
+                representative: None,
+            })
+            .collect();
+        let sorted = SortedBars::new(bars, max_dim + 1, |s: &crate::rips::RipsIndex| {
+            let vertices: Vec<u32> = s.to_vec(n).into_iter().map(|v| v as u32).collect();
+            (vertices.len() - 1 - shift, vertices)
+        });
+        out.set_item(name, sorted.into_python(py, &algorithm, false, None)?)?;
+    }
+    Ok(out)
+}
+
+fn parse_threshold(threshold: Option<f64>) -> PyResult<NotNan<f64>> {
+    match threshold {
+        None => Ok(INFINITY),
+        Some(t) => NotNan::new(t).map_err(|_| PyValueError::new_err("threshold must not be NaN")),
+    }
+}
+
+/// The distances, from a distance matrix or points (exactly one).
+fn read_input(
+    distance_matrix: Option<&Bound<'_, PyAny>>,
+    points: Option<&Bound<'_, PyAny>>,
+    metric: &str,
+    threshold: NotNan<f64>,
+) -> PyResult<Input> {
+    let metric = parse_metric(metric)?;
+    match (distance_matrix, points) {
+        (Some(_), Some(_)) => Err(PyValueError::new_err(
+            "Give either a distance matrix or points, not both",
+        )),
+        (None, None) => Err(PyValueError::new_err(
+            "Give a distance matrix (the first argument) or points",
+        )),
+        (Some(matrix), None) if is_scipy_sparse(matrix) => Ok(Input::Sparse(read_sparse(matrix)?)),
+        (Some(matrix), None) => Ok(Input::Dense(read_dense(matrix)?)),
+        (None, Some(points)) => read_points(points, metric, threshold),
+    }
+}
+
+/// A six-pack of Rips complexes into a `phlite.core.SixPack`, simplices as tuples of points, bars of dimension above
+/// `max_dim` left out (simplices of dimension `max_dim + 1` are there to kill classes of dimension `max_dim`).
+fn rips_pack_to_python<'py>(
+    py: Python<'py>,
+    pack: phlite::six_pack::SixPack<
+        crate::rips::RipsIndex,
+        crate::rips::RipsIndex,
+        NotNan<f64>,
+        phlite::fields::Z2,
+    >,
+    n_domain: usize,
+    n_codomain: usize,
+    max_dim: usize,
+    representatives: bool,
+) -> PyResult<Bound<'py, PyAny>> {
+    use phlite::six_pack::{ConeCell, SixPackBar};
+    use phlite_bindings::PackBarParts;
+    use pyo3::types::{PyList, PyTuple};
+    fn convert<'py, C>(
+        py: Python<'py>,
+        bars: Vec<SixPackBar<NotNan<f64>, C, phlite::fields::Z2>>,
+        max_dim: usize,
+        entry: impl Fn(C) -> PyResult<Bound<'py, PyTuple>>,
+    ) -> PyResult<Vec<PackBarParts<'py>>> {
+        bars.into_iter()
+            .filter(|bar| bar.dimension <= max_dim)
+            .map(|bar| {
+                let representative = bar
+                    .representative
+                    .map(|rep| {
+                        PyList::new(
+                            py,
+                            rep.into_iter()
+                                .map(|(_, c)| entry(c))
+                                .collect::<PyResult<Vec<_>>>()?,
+                        )
+                    })
+                    .transpose()?;
+                let death = bar.death.map_or(f64::INFINITY, NotNan::into_inner);
+                Ok((bar.dimension, bar.birth.into_inner(), death, representative))
+            })
+            .collect()
+    }
+    let simplex =
+        |s: crate::rips::RipsIndex, n: usize| PyTuple::new(py, s.vertices(n).iter().copied());
+    let in_domain = |s| (simplex(s, n_domain)?, 1).into_pyobject(py);
+    let in_codomain = |s| (simplex(s, n_codomain)?, 1).into_pyobject(py);
+    let in_cone = |c: ConeCell<_, _>| match c {
+        ConeCell::Codomain(k) => (simplex(k, n_codomain)?, 1).into_pyobject(py),
+        ConeCell::Cone(l) => (simplex(l, n_domain)?, 1, true).into_pyobject(py),
+    };
+    let barcodes = [
+        convert(py, pack.domain, max_dim, in_domain)?,
+        convert(py, pack.codomain, max_dim, in_codomain)?,
+        convert(py, pack.image, max_dim, in_domain)?,
+        convert(py, pack.kernel, max_dim, in_domain)?,
+        convert(py, pack.cokernel, max_dim, in_codomain)?,
+        convert(py, pack.relative, max_dim, in_cone)?,
+    ];
+    phlite_bindings::six_pack_into_python(py, barcodes, representatives)
+}
+
+/// The six-pack of persistence barcodes of the inclusion of the Rips complex of a subset of the points into that of all
+/// of them (the same distances), over Z/2, in dimensions `0, ..., max_dim`: the barcodes of the subset's and the whole's
+/// Rips filtrations, of the image, kernel and cokernel of `H(Rips(subset)) -> H(Rips(points))`, and of the pair, each
+/// bar with a representative (see `phlite.core.SixPack`). On the lazy Rips boundary; every simplex up to dimension
+/// `max_dim + 1` and `threshold` is listed, so give a threshold for more than a few hundred points.
+///
+/// Args:
+///     distance_matrix: The distances, as for `rips` (dense, or a scipy sparse matrix).
+///     subset: The points of the subset: their indices, or a boolean mask (one per point).
+///     max_dim: The maximum homology dimension.
+///     points: Or the points, as for `rips`.
+///     metric: The metric for `points`, as for `rips`.
+///     threshold: The largest diameter (default: all); bars still alive there are essential.
+///     representatives: Whether to compute a representative for every bar.
+///
+/// Returns:
+///     A `phlite.core.SixPack`, with representatives lists of `(simplex, 1)`, simplices as tuples of point indices.
+#[gen_stub_pyfunction(module = "phlite.clouds")]
+#[gen_stub(override_return_type(type_repr = "phlite.core.SixPack", imports = ("phlite.core")))]
+#[pyfunction]
+#[pyo3(signature = (distance_matrix = None, subset = None, max_dim = 1, *, points = None, metric = "euclidean", threshold = None, representatives = true))]
+#[allow(clippy::too_many_arguments)]
+fn rips_six_pack<'py>(
+    py: Python<'py>,
+    #[gen_stub(override_type(type_repr = "typing.Optional[typing.Union[numpy.typing.NDArray[numpy.floating], typing.Sequence[typing.Sequence[builtins.float]], typing.Any]]", imports = ("builtins", "numpy", "numpy.typing", "typing")))]
+    distance_matrix: Option<&Bound<'_, PyAny>>,
+    #[gen_stub(override_type(type_repr = "typing.Optional[typing.Sequence[typing.Any]]", imports = ("typing")))]
+    subset: Option<&Bound<'_, PyAny>>,
+    max_dim: usize,
+    #[gen_stub(override_type(type_repr = "typing.Optional[typing.Union[numpy.typing.NDArray[numpy.floating], typing.Sequence[typing.Sequence[builtins.float]]]]", imports = ("builtins", "numpy", "numpy.typing", "typing")))]
+    points: Option<&Bound<'_, PyAny>>,
+    #[gen_stub(override_type(type_repr = "typing.Literal['euclidean', 'manhattan', 'cityblock', 'chebyshev']", imports = ("typing")))]
+    metric: &str,
+    threshold: Option<f64>,
+    representatives: bool,
+) -> PyResult<Bound<'py, PyAny>> {
+    use crate::rips::image::rips_six_pack;
+    let threshold = parse_threshold(threshold)?;
+    let input = read_input(distance_matrix, points, metric, threshold)?;
+    let n = input.n_points();
+    let subset = subset.ok_or_else(|| {
+        PyValueError::new_err("Give the subset (point indices or a boolean mask)")
+    })?;
+    let in_subset = subset_mask(subset, n)?;
+    if !rips_index_fits(n, max_dim + 1) {
+        return Err(PyValueError::new_err(format!(
+            "Too many points ({n}) to index simplices of dimension {}",
+            max_dim + 1
+        )));
+    }
+    let pack = phlite_bindings::detach(py, || match &input {
+        Input::Dense(d) => rips_six_pack::<usize, _>(d, &in_subset, max_dim, threshold, representatives),
+        Input::Sparse(d) => rips_six_pack::<usize, _>(d, &in_subset, max_dim, threshold, representatives),
+    });
+    rips_pack_to_python(py, pack, n, n, max_dim, representatives)
+}
+
+/// The six-pack of persistence barcodes of a map of point clouds, through their Rips filtrations: a map of points
+/// `f` (point `i` of `domain` to point `vertex_map[i]` of `codomain`) that never increases distances,
+/// `d(f x, f y) <= d(x, y)`, induces a simplicial map of Rips complexes at every scale. Over Z/2, in dimensions
+/// `0, ..., max_dim`: the barcodes of both filtrations, of the image, kernel and cokernel of
+/// `H(Rips(domain)) -> H(Rips(codomain))`, and of the map's mapping cone, each bar with a representative (see
+/// `phlite.core.SixPack`). Through the map's mapping cylinder, lazily on both Rips boundaries.
+///
+/// For example: a subsample (or a clustering, sending each point to its cluster's centre, if that doesn't stretch
+/// distances), a projection onto a subspace, or a map to a coarser sample.
+///
+/// Args:
+///     domain: The domain's points (an array of shape `(n, d)`), or with `precomputed`, its distance matrix.
+///     codomain: The codomain's points, or with `precomputed`, its distance matrix.
+///     vertex_map: The image of each point of `domain`, a point index of `codomain`.
+///     max_dim: The maximum homology dimension.
+///     metric: The metric for points, as for `rips`.
+///     threshold: The largest diameter (default: all); bars still alive there are essential.
+///     precomputed: Whether `domain` and `codomain` are distance matrices (dense, or scipy sparse).
+///     representatives: Whether to compute a representative for every bar.
+///
+/// Returns:
+///     A `phlite.core.SixPack`, with representatives lists of `(simplex, 1)` (and in the relative barcode,
+///     `(phlite.core.Cone(simplex), 1)` for the cone on a simplex of the domain).
+///
+/// Raises:
+///     ValueError: If the map increases a distance (up to `threshold`).
+#[gen_stub_pyfunction(module = "phlite.clouds")]
+#[gen_stub(override_return_type(type_repr = "phlite.core.SixPack", imports = ("phlite.core")))]
+#[pyfunction]
+#[pyo3(signature = (domain, codomain, vertex_map, max_dim = 1, *, metric = "euclidean", threshold = None, precomputed = false, representatives = true))]
+#[allow(clippy::too_many_arguments)]
+fn rips_map_six_pack<'py>(
+    py: Python<'py>,
+    #[gen_stub(override_type(type_repr = "typing.Any", imports = ("typing")))] domain: &Bound<
+        '_,
+        PyAny,
+    >,
+    #[gen_stub(override_type(type_repr = "typing.Any", imports = ("typing")))] codomain: &Bound<
+        '_,
+        PyAny,
+    >,
+    #[gen_stub(override_type(type_repr = "typing.Sequence[builtins.int]", imports = ("builtins", "typing")))]
+    vertex_map: &Bound<'_, PyAny>,
+    max_dim: usize,
+    #[gen_stub(override_type(type_repr = "typing.Literal['euclidean', 'manhattan', 'cityblock', 'chebyshev']", imports = ("typing")))]
+    metric: &str,
+    threshold: Option<f64>,
+    precomputed: bool,
+    representatives: bool,
+) -> PyResult<Bound<'py, PyAny>> {
+    use crate::rips::image::RipsMap;
+    let threshold = parse_threshold(threshold)?;
+    let read = |x| {
+        if precomputed {
+            read_input(Some(x), None, metric, threshold)
+        } else {
+            read_input(None, Some(x), metric, threshold)
+        }
+    };
+    let (l, k) = (read(domain)?, read(codomain)?);
+    let (n_l, n_k) = (l.n_points(), k.n_points());
+    let vertex_map: Vec<usize> = vertex_map
+        .try_iter()?
+        .map(|v| v?.extract())
+        .collect::<PyResult<_>>()?;
+    if vertex_map.len() != n_l {
+        return Err(PyValueError::new_err(format!(
+            "vertex_map has {} entries, for {n_l} points",
+            vertex_map.len()
+        )));
+    }
+    if let Some(&v) = vertex_map.iter().find(|&&v| v >= n_k) {
+        return Err(PyValueError::new_err(format!(
+            "vertex_map has point {v}, but the codomain has {n_k} points"
+        )));
+    }
+    for n in [n_l, n_k] {
+        if !rips_index_fits(n, max_dim + 1) {
+            return Err(PyValueError::new_err(format!(
+                "Too many points ({n}) to index simplices of dimension {}",
+                max_dim + 1
+            )));
+        }
+    }
+    fn run<D1: crate::rips::Distances, D2: crate::rips::Distances>(
+        l: &D1,
+        k: &D2,
+        vertex_map: &[usize],
+        max_dim: usize,
+        threshold: NotNan<f64>,
+        representatives: bool,
+    ) -> Result<
+        phlite::six_pack::SixPack<
+            crate::rips::RipsIndex,
+            crate::rips::RipsIndex,
+            NotNan<f64>,
+            phlite::fields::Z2,
+        >,
+        (usize, usize),
+    > {
+        Ok(RipsMap::new(l, k, vertex_map, max_dim, threshold)?.six_pack(representatives))
+    }
+    let pack = phlite_bindings::detach(py, || match (&l, &k) {
+        (Input::Dense(a), Input::Dense(b)) => {
+            run(a, b, &vertex_map, max_dim, threshold, representatives)
+        }
+        (Input::Dense(a), Input::Sparse(b)) => {
+            run(a, b, &vertex_map, max_dim, threshold, representatives)
+        }
+        (Input::Sparse(a), Input::Dense(b)) => {
+            run(a, b, &vertex_map, max_dim, threshold, representatives)
+        }
+        (Input::Sparse(a), Input::Sparse(b)) => {
+            run(a, b, &vertex_map, max_dim, threshold, representatives)
+        }
+    });
+    let pack = pack.map_err(|(i, j)| {
+        PyValueError::new_err(format!(
+            "the map increases the distance between points {i} and {j} (to {} and {}): it must never increase distances",
+            vertex_map[i], vertex_map[j]
+        ))
+    })?;
+    rips_pack_to_python(py, pack, n_l, n_k, max_dim, representatives)
+}
+
+/// Which of `n` points are in `subset`: point indices, or a boolean mask.
+fn subset_mask(subset: &Bound<'_, PyAny>, n: usize) -> PyResult<Vec<bool>> {
+    let items: Vec<Bound<'_, PyAny>> = subset.try_iter()?.collect::<PyResult<_>>()?;
+    let is_bool = |x: &Bound<'_, PyAny>| {
+        x.is_instance_of::<pyo3::types::PyBool>()
+            || x.get_type().name().is_ok_and(|name| {
+                name.to_cow()
+                    .is_ok_and(|name| name == "bool" || name == "bool_")
+            })
+    };
+    let mut in_subset = vec![false; n];
+    if items.len() == n && items.iter().all(is_bool) {
+        for (m, x) in in_subset.iter_mut().zip(&items) {
+            *m = x.extract()?;
+        }
+    } else {
+        for x in &items {
+            let i: usize = x.extract()?;
+            if i >= n {
+                return Err(PyValueError::new_err(format!(
+                    "subset has point {i}, but there are {n} points"
+                )));
+            }
+            in_subset[i] = true;
+        }
+    }
+    Ok(in_subset)
+}
+
+/// The Vietoris-Rips complex itself: every simplex of dimension at most `dimension` whose value (the largest distance
+/// between its points, or with `weights`, as for `rips`) is at most `threshold`, with that value, in filtration order
+/// (by value, then dimension). For drawing, or for your own computations: for instance over the integers, with
+/// `phlite.complexes.ChainComplex.from_simplices(simplices, modulus=0)` (homology up to `dimension - 1`).
+///
+/// Unlike `rips`, which stops at the enclosing radius (past which the complex is a cone), this lists every simplex
+/// up to `threshold`, so give one for anything but small inputs.
+///
+/// Args:
+///     distance_matrix: The distances, as for `rips` (dense, or a scipy sparse matrix whose missing entries are
+///         missing edges).
+///     dimension: The largest dimension of a simplex.
+///     points: Or the points, as for `rips`.
+///     metric: The metric for `points`, as for `rips`.
+///     weights: Vertex weights, as for `rips`.
+///     threshold: The largest value listed (default: all).
+///
+/// Returns:
+///     A list of `(simplex, value)` pairs, each simplex a tuple of point indices in increasing order.
+#[gen_stub_pyfunction(module = "phlite.clouds")]
+#[gen_stub(override_return_type(type_repr = "builtins.list[tuple[tuple[builtins.int, ...], builtins.float]]", imports = ("builtins")))]
+#[pyfunction]
+#[pyo3(signature = (distance_matrix = None, dimension = 2, *, points = None, metric = "euclidean", weights = None, threshold = None))]
+#[allow(clippy::too_many_arguments)]
+fn rips_complex<'py>(
+    py: Python<'py>,
+    #[gen_stub(override_type(type_repr = "typing.Optional[typing.Union[numpy.typing.NDArray[numpy.floating], typing.Sequence[typing.Sequence[builtins.float]], typing.Any]]", imports = ("builtins", "numpy", "numpy.typing", "typing")))]
+    distance_matrix: Option<&Bound<'_, PyAny>>,
+    dimension: usize,
+    #[gen_stub(override_type(type_repr = "typing.Optional[typing.Union[numpy.typing.NDArray[numpy.floating], typing.Sequence[typing.Sequence[builtins.float]]]]", imports = ("builtins", "numpy", "numpy.typing", "typing")))]
+    points: Option<&Bound<'_, PyAny>>,
+    #[gen_stub(override_type(type_repr = "typing.Literal['euclidean', 'manhattan', 'cityblock', 'chebyshev']", imports = ("typing")))]
+    metric: &str,
+    #[gen_stub(override_type(type_repr = "typing.Optional[typing.Union[numpy.typing.NDArray[numpy.floating], typing.Sequence[builtins.float]]]", imports = ("builtins", "numpy", "numpy.typing", "typing")))]
+    weights: Option<Vec<f64>>,
+    threshold: Option<f64>,
+) -> PyResult<Vec<(Bound<'py, pyo3::types::PyTuple>, f64)>> {
+    let threshold = match threshold {
+        None => INFINITY,
+        Some(t) => NotNan::new(t).map_err(|_| PyValueError::new_err("threshold must not be NaN"))?,
+    };
+    let metric = parse_metric(metric)?;
+    let input = match (distance_matrix, points) {
+        (Some(_), Some(_)) => return Err(PyValueError::new_err("Give either a distance matrix or points, not both")),
+        (None, None) => return Err(PyValueError::new_err("Give a distance matrix (the first argument) or points")),
+        (Some(matrix), None) if is_scipy_sparse(matrix) => Input::Sparse(read_sparse(matrix)?),
+        (Some(matrix), None) => Input::Dense(read_dense(matrix)?),
+        (None, Some(points)) => read_points(points, metric, threshold)?,
+    };
+    if let Some(weights) = &weights {
+        if weights.len() != input.n_points() || weights.iter().any(|w| !w.is_finite()) {
+            return Err(PyValueError::new_err(format!(
+                "Give one finite weight per point ({} points)",
+                input.n_points()
+            )));
+        }
+    }
+    let mut simplices = py.detach(|| {
+        fn all<D: Distances>(d: &D, dimension: usize, threshold: NotNan<f64>) -> Vec<(NotNan<f64>, Vec<u32>)> {
+            cliques_within(d, dimension, threshold, usize::MAX).expect("no budget")
+        }
+        let weighted = "the weights were checked";
+        match (&input, weights.as_deref()) {
+            (Input::Dense(d), None) => all(d, dimension, threshold),
+            (Input::Sparse(d), None) => all(d, dimension, threshold),
+            (Input::Dense(d), Some(w)) => all(&Weighted::new(d, w).expect(weighted), dimension, threshold),
+            (Input::Sparse(d), Some(w)) => all(&Weighted::new(d, w).expect(weighted), dimension, threshold),
+        }
+    });
+    simplices.sort_by(|(a, s), (b, t)| a.cmp(b).then(s.len().cmp(&t.len())).then(s.cmp(t)));
+    simplices
+        .into_iter()
+        .map(|(value, simplex)| Ok((pyo3::types::PyTuple::new(py, simplex)?, value.into_inner())))
+        .collect()
 }
 
 /// The simplices of the Rips complex of `input` (weighted by `weights`) up to dimension `max_dim + 1` and `threshold`
@@ -440,6 +946,7 @@ struct RipsRun {
     representatives: bool,
     union_find: bool,
     parallel_setup: bool,
+    collapse: bool,
 }
 
 impl AlgorithmVisitor for RipsRun {
@@ -458,6 +965,7 @@ impl AlgorithmVisitor for RipsRun {
                     self.representatives,
                     self.union_find,
                     self.parallel_setup,
+                    self.collapse,
                 )
             };
         }
@@ -545,5 +1053,9 @@ fn dtm(
 
 pub(crate) fn register(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(rips, m)?)?;
+    m.add_function(wrap_pyfunction!(rips_complex, m)?)?;
+    m.add_function(wrap_pyfunction!(rips_image_kernel, m)?)?;
+    m.add_function(wrap_pyfunction!(rips_six_pack, m)?)?;
+    m.add_function(wrap_pyfunction!(rips_map_six_pack, m)?)?;
     m.add_function(wrap_pyfunction!(dtm, m)?)
 }

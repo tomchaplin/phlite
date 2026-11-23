@@ -686,3 +686,52 @@ fn every_column_representation() {
         });
     }
 }
+
+/// The T-construction by the filtered discrete gradient (the default in three dimensions for cohomology without
+/// representatives) against the plain reduction, on larger images than the naive check can afford, with ties, missing and
+/// infinite pixels, every `max_dim`.
+fn check_morse<const D: usize>(seed: u64, cases: usize, max_side: u64) {
+    let mut rng = Rng(seed);
+    for case in 0..cases {
+        let (pixels, shape) = random_image::<D>(&mut rng, max_side);
+        for filtration in [Filtration::Sublevel, Filtration::Superlevel] {
+            let complex =
+                CubicalComplex::new(pixels.clone(), shape, Construction::T, filtration).unwrap();
+            for max_dim in 0..D {
+                let algorithm = || Algorithm::Clearing(Clearing::new().with_columns(MergedColumns));
+                let plain = super::filtration_barcode(
+                    &complex,
+                    max_dim,
+                    Method::Cohomology,
+                    algorithm(),
+                    false,
+                    true,
+                    false,
+                    false,
+                );
+                for parallel in [false, true] {
+                    let morse = super::filtration_barcode(
+                        &complex,
+                        max_dim,
+                        Method::Cohomology,
+                        algorithm(),
+                        false,
+                        true,
+                        true,
+                        parallel,
+                    );
+                    assert_eq!(
+                        summary(&complex, &morse),
+                        summary(&complex, &plain),
+                        "case {case}: {shape:?} {filtration:?} max_dim {max_dim} parallel {parallel} {pixels:?}"
+                    );
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn morse_matches_plain_reduction() {
+    check_morse::<3>(13, 150, 9);
+}

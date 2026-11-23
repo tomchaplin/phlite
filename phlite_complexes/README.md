@@ -35,6 +35,17 @@ barcode.representative(6)           # the cycle born at edge 6, as [(cell, coeff
 * **Extended persistence** (`extended_persistence`) of any filtration, going back down by the least value of each cell
   and its faces (for values on vertices: upper-star, the classical case).
   [Book chapter.](https://phlite.tomchaplin.xyz/book/python/extended.html)
+* **Maps** (`six_pack(subcomplex)`, `FilteredMap`): the six-pack of a map of filtrations (the barcodes of the domain,
+  codomain, image, kernel, cokernel and mapping cone), with representatives, after Cohen-Steiner, Edelsbrunner, Harer
+  and Morozov and [phimaker](https://github.com/tomchaplin/phimaker). [Book chapter.](https://phlite.tomchaplin.xyz/book/python/maps.html)
+* **Zigzag persistence** (`Zigzag`, `zigzag`), by Dey and Hou's FastZigzag; in Rust, the trait
+  `zigzag::ZigzagComplex` makes any complex a term of a zigzag (`ComplexZigzag`, joined by unions or intersections),
+  which `phlite_clouds`, `phlite_networks` and `phlite_images` use for point clouds, networks and videos. [Book chapter.](https://phlite.tomchaplin.xyz/book/python/zigzag.html)
+* **Over the integers** (`modulus=0`): the barcode over Q and the primes of the torsion, found as Perseus finds them,
+  and persistent groups. [Book chapter.](https://phlite.tomchaplin.xyz/book/python/integers.html)
+* **Spectral sequences** (`spectral_sequence`) of any filtration, over a field or Z, a page at a time, with groups,
+  generators and differentials. [Book chapter.](https://phlite.tomchaplin.xyz/book/python/spectral.html)
+* `FilteredComplex.from_simplices` takes the `(simplex, value)` pairs that every `phlite.clouds` filtration exports.
 
 The reduction is phlite's, with the techniques of PHAT for explicit matrices: pivot columns (a bit tree over the rows)
 and storing R. Each filtered complex is stored compactly, renumbered in filtration order with sorted columns and its
@@ -57,6 +68,17 @@ Morozov and Nigmetov, as does [LoPHAT](https://github.com/tomchaplin/lophat).
 * **[GUDHI](https://gudhi.inria.fr)** (extended persistence, by `SimplexTree.extended_persistence`): phlite is
   2.5–5.5× faster on random graphs and flag complexes, building the complex included, and handles any filtration, not
   only lower-star ones.
+
+* **[phimaker](https://github.com/tomchaplin/phimaker)** (images, kernels and cokernels): phlite is faster on every
+  input we tried, with identical barcodes, and its six-pack with representatives costs about 1.5× that; see the
+  [book](https://phlite.tomchaplin.xyz/book/python/maps.html#performance).
+* **[Dionysus 2](https://mrzv.org/software/dionysus2/)** (zigzag persistence): identical barcodes, phlite 17–385×
+  faster on sliding-window zigzags.
+* **[fzz](https://github.com/TDA-Jyamiti/fzz)** (Dey and Hou's FastZigzag, on PHAT): identical barcodes. Reducing by
+  cohomology, fzz (patched to reduce the dual) is 1.25–1.6× faster than phlite; as released it reduces by homology, as
+  slow as phlite by homology (minutes at 460k operations, against under a second).
+* **[Kenzo](https://github.com/miguelmarco/kenzo)** (spectral sequences over Z): identical pages, phlite 1–1000×
+  faster.
 
 What phlite adds is the Python interface: cells of your own type, many filtrations of one complex, representatives in
 terms of your cells, and the same `Algorithm` as phlite's other packages. All of the numbers are in

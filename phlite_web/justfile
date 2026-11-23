@@ -2,6 +2,7 @@
 #
 #   just wasm      build the WebAssembly packages (release, optimised): pkg/ with threads and pkg-single/ without,
 #                  for pages that can't share memory
+#   just wasm-dev  a quick unoptimised-at-link-time build of pkg/ only, for working on the playground
 #   just dev       the app with hot reloading at http://localhost:5173 (after `just wasm`)
 #   just build     build everything into app/dist
 #
@@ -39,6 +40,16 @@ wasm: toolchain
     ls -la pkg/phlite_web_bg.wasm pkg-single/phlite_web_bg.wasm
 
 # Bindings for a built module, as an npm package (the thread pool's workers import the package by its directory)
+# A quick build for working on the playground: the threaded package only (pkg/), no link-time optimisation or
+# wasm-opt; a few times faster to rebuild than `just wasm`. (pkg-single/, for pages that can't share memory, is left
+# as it was: rebuild it with `just wasm` before publishing.)
+wasm-dev: toolchain
+    #!/usr/bin/env bash
+    set -euo pipefail
+    cargo build --profile wasm-dev
+    just _package target/wasm32-unknown-unknown/wasm-dev/phlite_web.wasm pkg phlite-web
+    ls -la pkg/phlite_web_bg.wasm
+
 _package wasm dir name:
     rm -rf {{dir}}
     wasm-bindgen --target web --out-dir {{dir}} {{wasm}}
@@ -56,6 +67,10 @@ build: wasm
 # Type-check the app
 check: _npm-install
     cd app && npm run check
+
+# Smoke tests of the built WebAssembly in Node (after `just wasm` or `just wasm-dev`): each pipeline on a known barcode
+smoke:
+    node tests/smoke.mjs
 
 # Rust unit tests (on the host, not in WebAssembly)
 test:

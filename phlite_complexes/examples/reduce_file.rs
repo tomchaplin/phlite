@@ -4,8 +4,11 @@
 //! (`n + 1` i64), the faces (`nnz` i64) and the filtration values (`n` f64).
 //!
 //! ```text
-//! cargo run --release -p phlite_complexes --example reduce_file -- complex.bin [repetitions] [homology]
+//! cargo run --release -p phlite_complexes --example reduce_file -- complex.bin [repetitions] [homology|no-union-find]
 //! ```
+//!
+//! `no-union-find` computes every dimension by cohomology with the reduction, instead of dimension 0 and (where it can)
+//! the top dimension by union-find.
 //!
 //! It prints the time of each stage: building the chain, filtering it, and computing the barcode (the configuration
 //! `phlite.complexes` uses by default: serial clearing with pivot columns, storing R, no cache).
@@ -45,12 +48,13 @@ fn main() {
     let args: Vec<String> = std::env::args().collect();
     let path = args
         .get(1)
-        .expect("usage: reduce_file FILE [repetitions] [homology]");
+        .expect("usage: reduce_file FILE [repetitions] [homology|no-union-find]");
     let repetitions: usize = args.get(2).map_or(5, |r| r.parse().expect("repetitions"));
     let method = match args.get(3).map(String::as_str) {
         Some("homology") => Method::Homology,
         _ => Method::Cohomology,
     };
+    let union_find = args.get(3).map(String::as_str) != Some("no-union-find");
     let (raw, values) = read(path);
 
     let start = Instant::now();
@@ -70,19 +74,13 @@ fn main() {
                 .store_r(true),
         );
         let start = Instant::now();
-        bars = complex.barcode(None, method, algorithm, false).len();
+        bars = complex
+            .barcode_by_rank_with(None, method, algorithm, false, union_find)
+            .len();
         best = best.min(start.elapsed().as_secs_f64());
     }
     println!(
-        "barcode {:8.1} ms (best of {repetitions}; {bars} bars)",
+        "barcode {:8.1} ms (best of {repetitions}; {bars} bars before dropping zero-length ones)",
         best * 1e3
     );
-    let algorithm = Algorithm::Clearing(
-        Clearing::new()
-            .with_columns(PivotColumns)
-            .cache_columns(false)
-            .store_r(true),
-    );
-    let by_rank = complex.barcode_by_rank(None, method, algorithm, false).len();
-    println!("({by_rank} bars before dropping zero-length ones)");
 }

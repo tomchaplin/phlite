@@ -1,0 +1,1257 @@
+{
+    "machine_info": {
+        "processor": "",
+        "machine": "x86_64",
+        "python_compiler": "GCC 16.2.1 20260810",
+        "python_implementation": "CPython",
+        "python_implementation_version": "3.11.18",
+        "python_version": "3.11.18",
+        "python_build": [
+            "main",
+            "Nov 18 2026 23:11:18"
+        ],
+        "release": "7.3.4-arch1-2",
+        "system": "Linux",
+        "cpu": {
+            "python_version": "3.11.18.final.0 (64 bit)",
+            "cpuinfo_version": [
+                10,
+                1,
+                1
+            ],
+            "cpuinfo_version_string": "10.1.1",
+            "arch": "X86_64",
+            "bits": 64,
+            "count": 8,
+            "arch_string_raw": "x86_64",
+            "vendor_id_raw": "GenuineIntel",
+            "brand_raw": "11th Gen Intel(R) Core(TM) i7-1185G7 @ 3.00GHz",
+            "hz_advertised_friendly": "3.0000 GHz",
+            "hz_advertised": [
+                3000000000,
+                0
+            ],
+            "stepping": 1,
+            "model": 140,
+            "family": 6,
+            "flags": [
+                "3dnowprefetch",
+                "abm",
+                "acpi",
+                "adx",
+                "aes",
+                "aperfmperf",
+                "apic",
+                "arat",
+                "arch_capabilities",
+                "arch_perfmon",
+                "art",
+                "avx",
+                "avx2",
+                "avx512_bitalg",
+                "avx512_vbmi2",
+                "avx512_vnni",
+                "avx512_vp2intersect",
+                "avx512_vpopcntdq",
+                "avx512bitalg",
+                "avx512bw",
+                "avx512cd",
+                "avx512dq",
+                "avx512f",
+                "avx512ifma",
+                "avx512vbmi",
+                "avx512vbmi2",
+                "avx512vl",
+                "avx512vnni",
+                "avx512vpopcntdq",
+                "bmi1",
+                "bmi2",
+                "bts",
+                "cat_l2",
+                "cdp_l2",
+                "clflush",
+                "clflushopt",
+                "clwb",
+                "cmov",
+                "constant_tsc",
+                "cpuid",
+                "cpuid_fault",
+                "cx16",
+                "cx8",
+                "de",
+                "ds_cpl",
+                "dtes64",
+                "dtherm",
+                "dts",
+                "epb",
+                "ept",
+                "ept_ad",
+                "erms",
+                "est",
+                "f16c",
+                "flexpriority",
+                "flush_l1d",
+                "fma",
+                "fpu",
+                "fsgsbase",
+                "fsrm",
+                "fxsr",
+                "gfni",
+                "ht",
+                "hwp",
+                "hwp_act_window",
+                "hwp_epp",
+                "hwp_notify",
+                "hwp_pkg_req",
+                "ibpb",
+                "ibrs",
+                "ibrs_enhanced",
+                "ibt",
+                "ida",
+                "intel_pt",
+                "invpcid",
+                "lahf_lm",
+                "lm",
+                "mca",
+                "mce",
+                "md_clear",
+                "mmx",
+                "monitor",
+                "movbe",
+                "movdir64b",
+                "movdiri",
+                "msr",
+                "mtrr",
+                "nonstop_tsc",
+                "nopl",
+                "nx",
+                "ospke",
+                "osxsave",
+                "pae",
+                "pat",
+                "pbe",
+                "pcid",
+                "pclmulqdq",
+                "pdcm",
+                "pdpe1gb",
+                "pebs",
+                "pge",
+                "pku",
+                "pln",
+                "pni",
+                "popcnt",
+                "pqe",
+                "pse",
+                "pse36",
+                "pts",
+                "rdpid",
+                "rdrand",
+                "rdrnd",
+                "rdseed",
+                "rdt_a",
+                "rdtscp",
+                "rep_good",
+                "sdbg",
+                "sep",
+                "sha",
+                "sha_ni",
+                "smap",
+                "smep",
+                "smx",
+                "split_lock_detect",
+                "ss",
+                "ssbd",
+                "sse",
+                "sse2",
+                "sse4_1",
+                "sse4_2",
+                "ssse3",
+                "stibp",
+                "syscall",
+                "tm",
+                "tm2",
+                "tme",
+                "tpr_shadow",
+                "tsc",
+                "tsc_adjust",
+                "tsc_deadline_timer",
+                "tsc_known_freq",
+                "tscdeadline",
+                "umip",
+                "user_shstk",
+                "vaes",
+                "vme",
+                "vmx",
+                "vnmi",
+                "vpclmulqdq",
+                "vpid",
+                "x2apic",
+                "xgetbv1",
+                "xsave",
+                "xsavec",
+                "xsaveopt",
+                "xsaves",
+                "xtopology",
+                "xtpr"
+            ],
+            "l3_cache_size": 12582912,
+            "l2_cache_size": 5242880,
+            "l1_data_cache_size": 196608,
+            "l1_instruction_cache_size": 131072,
+            "l2_cache_line_size": 256,
+            "l2_cache_associativity": 7
+        }
+    },
+    "commit_info": {
+        "id": "f91c0ac2772629e4a0e33e0b526532f5b703a958",
+        "time": "2026-11-23T08:07:29Z",
+        "author_time": "2026-11-23T08:07:29Z",
+        "dirty": true,
+        "project": "phlite",
+        "branch": "perseus-techniques"
+    },
+    "benchmarks": [
+        {
+            "group": "magnitude n=15 p=0.2 l_max=4",
+            "name": "test_magnitude[15-0.2-4-gramag]",
+            "fullname": "benchmarks/bench_networks_magnitude.py::test_magnitude[15-0.2-4-gramag]",
+            "params": {
+                "n": 15,
+                "p": 0.2,
+                "l_max": 4,
+                "implementation": "gramag"
+            },
+            "param": "15-0.2-4-gramag",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 2.1,
+                "fingerprint": [
+                    [
+                        15
+                    ],
+                    [
+                        0,
+                        42
+                    ],
+                    [
+                        0,
+                        0,
+                        37
+                    ],
+                    [
+                        0,
+                        0,
+                        45,
+                        13
+                    ],
+                    [
+                        0,
+                        0,
+                        3,
+                        119,
+                        6
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.0028821939777117223,
+                "max": 0.003000368975335732,
+                "mean": 0.002941520321959009,
+                "stddev": 5.9088946997594634e-05,
+                "rounds": 3,
+                "median": 0.002941998012829572,
+                "iqr": 8.863124821800739e-05,
+                "q1": 0.0028971449864911847,
+                "q3": 0.002985776234709192,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.0028821939777117223,
+                "hd15iqr": 0.003000368975335732,
+                "ops": 339.9602554280553,
+                "total": 0.008824560965877026,
+                "data": [
+                    0.003000368975335732,
+                    0.0028821939777117223,
+                    0.002941998012829572
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "magnitude n=15 p=0.2 l_max=4",
+            "name": "test_magnitude[15-0.2-4-phlite (serial)]",
+            "fullname": "benchmarks/bench_networks_magnitude.py::test_magnitude[15-0.2-4-phlite (serial)]",
+            "params": {
+                "n": 15,
+                "p": 0.2,
+                "l_max": 4,
+                "implementation": "phlite (serial)"
+            },
+            "param": "15-0.2-4-phlite (serial)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 0.1,
+                "fingerprint": [
+                    [
+                        15
+                    ],
+                    [
+                        0,
+                        42
+                    ],
+                    [
+                        0,
+                        0,
+                        37
+                    ],
+                    [
+                        0,
+                        0,
+                        45,
+                        13
+                    ],
+                    [
+                        0,
+                        0,
+                        3,
+                        119,
+                        6
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.0015043120074551553,
+                "max": 0.0020434859907254577,
+                "mean": 0.0017238776684583474,
+                "stddev": 0.00028316699421625105,
+                "rounds": 3,
+                "median": 0.0016238350071944296,
+                "iqr": 0.0004043804874527268,
+                "q1": 0.0015341927573899738,
+                "q3": 0.0019385732448427007,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.0015043120074551553,
+                "hd15iqr": 0.0020434859907254577,
+                "ops": 580.0875655488323,
+                "total": 0.0051716330053750426,
+                "data": [
+                    0.0016238350071944296,
+                    0.0015043120074551553,
+                    0.0020434859907254577
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "magnitude n=15 p=0.2 l_max=4",
+            "name": "test_magnitude[15-0.2-4-phlite (integers)]",
+            "fullname": "benchmarks/bench_networks_magnitude.py::test_magnitude[15-0.2-4-phlite (integers)]",
+            "params": {
+                "n": 15,
+                "p": 0.2,
+                "l_max": 4,
+                "implementation": "phlite (integers)"
+            },
+            "param": "15-0.2-4-phlite (integers)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 0.2,
+                "fingerprint": null
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.0011818130151368678,
+                "max": 0.0016544169920962304,
+                "mean": 0.0013549873353137325,
+                "stddev": 0.00026037268918898304,
+                "rounds": 3,
+                "median": 0.0012287319987080991,
+                "iqr": 0.00035445298271952197,
+                "q1": 0.0011935427610296756,
+                "q3": 0.0015479957437491976,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.0011818130151368678,
+                "hd15iqr": 0.0016544169920962304,
+                "ops": 738.0142780216178,
+                "total": 0.004064962005941197,
+                "data": [
+                    0.0016544169920962304,
+                    0.0012287319987080991,
+                    0.0011818130151368678
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "magnitude n=15 p=0.2 l_max=4",
+            "name": "test_magnitude[15-0.2-4-phlite (spectral sequence)]",
+            "fullname": "benchmarks/bench_networks_magnitude.py::test_magnitude[15-0.2-4-phlite (spectral sequence)]",
+            "params": {
+                "n": 15,
+                "p": 0.2,
+                "l_max": 4,
+                "implementation": "phlite (spectral sequence)"
+            },
+            "param": "15-0.2-4-phlite (spectral sequence)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 0.7,
+                "fingerprint": null
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.0021000319975428283,
+                "max": 0.0026732129917945713,
+                "mean": 0.002328774988806496,
+                "stddev": 0.00030360025501683497,
+                "rounds": 3,
+                "median": 0.0022130799770820886,
+                "iqr": 0.0004298857456888072,
+                "q1": 0.0021282939924276434,
+                "q3": 0.0025581797381164506,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.0021000319975428283,
+                "hd15iqr": 0.0026732129917945713,
+                "ops": 429.4103143526558,
+                "total": 0.006986324966419488,
+                "data": [
+                    0.0026732129917945713,
+                    0.0022130799770820886,
+                    0.0021000319975428283
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "magnitude n=25 p=0.15 l_max=4",
+            "name": "test_magnitude[25-0.15-4-gramag]",
+            "fullname": "benchmarks/bench_networks_magnitude.py::test_magnitude[25-0.15-4-gramag]",
+            "params": {
+                "n": 25,
+                "p": 0.15,
+                "l_max": 4,
+                "implementation": "gramag"
+            },
+            "param": "25-0.15-4-gramag",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 8.0,
+                "fingerprint": [
+                    [
+                        25
+                    ],
+                    [
+                        0,
+                        80
+                    ],
+                    [
+                        0,
+                        0,
+                        70
+                    ],
+                    [
+                        0,
+                        0,
+                        148,
+                        30
+                    ],
+                    [
+                        0,
+                        0,
+                        73,
+                        382,
+                        19
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.013997704983921722,
+                "max": 0.014800486009335145,
+                "mean": 0.014303015001739064,
+                "stddev": 0.0004345212632144887,
+                "rounds": 3,
+                "median": 0.014110854011960328,
+                "iqr": 0.0006020857690600678,
+                "q1": 0.014025992240931373,
+                "q3": 0.014628078009991441,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.013997704983921722,
+                "hd15iqr": 0.014800486009335145,
+                "ops": 69.91532903226437,
+                "total": 0.042909045005217195,
+                "data": [
+                    0.013997704983921722,
+                    0.014110854011960328,
+                    0.014800486009335145
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "magnitude n=25 p=0.15 l_max=4",
+            "name": "test_magnitude[25-0.15-4-phlite (serial)]",
+            "fullname": "benchmarks/bench_networks_magnitude.py::test_magnitude[25-0.15-4-phlite (serial)]",
+            "params": {
+                "n": 25,
+                "p": 0.15,
+                "l_max": 4,
+                "implementation": "phlite (serial)"
+            },
+            "param": "25-0.15-4-phlite (serial)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 0.4,
+                "fingerprint": [
+                    [
+                        25
+                    ],
+                    [
+                        0,
+                        80
+                    ],
+                    [
+                        0,
+                        0,
+                        70
+                    ],
+                    [
+                        0,
+                        0,
+                        148,
+                        30
+                    ],
+                    [
+                        0,
+                        0,
+                        73,
+                        382,
+                        19
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.0014868650177959353,
+                "max": 0.0020562529971357435,
+                "mean": 0.0017167753345953922,
+                "stddev": 0.0003000906866160561,
+                "rounds": 3,
+                "median": 0.0016072079888544977,
+                "iqr": 0.00042704098450485617,
+                "q1": 0.0015169507605605759,
+                "q3": 0.001943991745065432,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.0014868650177959353,
+                "hd15iqr": 0.0020562529971357435,
+                "ops": 582.4873993985235,
+                "total": 0.0051503260037861764,
+                "data": [
+                    0.0020562529971357435,
+                    0.0014868650177959353,
+                    0.0016072079888544977
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "magnitude n=25 p=0.15 l_max=4",
+            "name": "test_magnitude[25-0.15-4-phlite (integers)]",
+            "fullname": "benchmarks/bench_networks_magnitude.py::test_magnitude[25-0.15-4-phlite (integers)]",
+            "params": {
+                "n": 25,
+                "p": 0.15,
+                "l_max": 4,
+                "implementation": "phlite (integers)"
+            },
+            "param": "25-0.15-4-phlite (integers)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 0.5,
+                "fingerprint": null
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.0015753110055811703,
+                "max": 0.0017859880172181875,
+                "mean": 0.0016721346764825284,
+                "stddev": 0.0001063659158239844,
+                "rounds": 3,
+                "median": 0.0016551050066482276,
+                "iqr": 0.00015800775872776285,
+                "q1": 0.0015952595058479346,
+                "q3": 0.0017532672645756975,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.0015753110055811703,
+                "hd15iqr": 0.0017859880172181875,
+                "ops": 598.0379535598063,
+                "total": 0.005016404029447585,
+                "data": [
+                    0.0017859880172181875,
+                    0.0016551050066482276,
+                    0.0015753110055811703
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "magnitude n=25 p=0.15 l_max=4",
+            "name": "test_magnitude[25-0.15-4-phlite (spectral sequence)]",
+            "fullname": "benchmarks/bench_networks_magnitude.py::test_magnitude[25-0.15-4-phlite (spectral sequence)]",
+            "params": {
+                "n": 25,
+                "p": 0.15,
+                "l_max": 4,
+                "implementation": "phlite (spectral sequence)"
+            },
+            "param": "25-0.15-4-phlite (spectral sequence)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 3.1,
+                "fingerprint": null
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.007932370994240046,
+                "max": 0.00904288497986272,
+                "mean": 0.008460540663994228,
+                "stddev": 0.000557235585077889,
+                "rounds": 3,
+                "median": 0.008406366017879918,
+                "iqr": 0.0008328854892170057,
+                "q1": 0.008050869750150014,
+                "q3": 0.00888375523936702,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.007932370994240046,
+                "hd15iqr": 0.00904288497986272,
+                "ops": 118.19575600596418,
+                "total": 0.025381621991982684,
+                "data": [
+                    0.00904288497986272,
+                    0.008406366017879918,
+                    0.007932370994240046
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "magnitude n=40 p=0.1 l_max=4",
+            "name": "test_magnitude[40-0.1-4-gramag]",
+            "fullname": "benchmarks/bench_networks_magnitude.py::test_magnitude[40-0.1-4-gramag]",
+            "params": {
+                "n": 40,
+                "p": 0.1,
+                "l_max": 4,
+                "implementation": "gramag"
+            },
+            "param": "40-0.1-4-gramag",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 28.6,
+                "fingerprint": [
+                    [
+                        40
+                    ],
+                    [
+                        0,
+                        161
+                    ],
+                    [
+                        0,
+                        0,
+                        177
+                    ],
+                    [
+                        0,
+                        0,
+                        690,
+                        73
+                    ],
+                    [
+                        0,
+                        0,
+                        116,
+                        2666,
+                        48
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.08138179598608986,
+                "max": 0.08232389399199747,
+                "mean": 0.08198613265994936,
+                "stddev": 0.0005245798059687142,
+                "rounds": 3,
+                "median": 0.08225270800176077,
+                "iqr": 0.0007065735044307075,
+                "q1": 0.08159952399000758,
+                "q3": 0.08230609749443829,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.08138179598608986,
+                "hd15iqr": 0.08232389399199747,
+                "ops": 12.197184664724466,
+                "total": 0.2459583979798481,
+                "data": [
+                    0.08138179598608986,
+                    0.08232389399199747,
+                    0.08225270800176077
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "magnitude n=40 p=0.1 l_max=4",
+            "name": "test_magnitude[40-0.1-4-phlite (serial)]",
+            "fullname": "benchmarks/bench_networks_magnitude.py::test_magnitude[40-0.1-4-phlite (serial)]",
+            "params": {
+                "n": 40,
+                "p": 0.1,
+                "l_max": 4,
+                "implementation": "phlite (serial)"
+            },
+            "param": "40-0.1-4-phlite (serial)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 0.8,
+                "fingerprint": [
+                    [
+                        40
+                    ],
+                    [
+                        0,
+                        161
+                    ],
+                    [
+                        0,
+                        0,
+                        177
+                    ],
+                    [
+                        0,
+                        0,
+                        690,
+                        73
+                    ],
+                    [
+                        0,
+                        0,
+                        116,
+                        2666,
+                        48
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.004882480978267267,
+                "max": 0.00513658398995176,
+                "mean": 0.0050292186594257755,
+                "stddev": 0.00013154741210882895,
+                "rounds": 3,
+                "median": 0.005068591010058299,
+                "iqr": 0.00019057725876336917,
+                "q1": 0.004929008486215025,
+                "q3": 0.005119585744978394,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.004882480978267267,
+                "hd15iqr": 0.00513658398995176,
+                "ops": 198.83804378356015,
+                "total": 0.015087655978277326,
+                "data": [
+                    0.00513658398995176,
+                    0.004882480978267267,
+                    0.005068591010058299
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "magnitude n=40 p=0.1 l_max=4",
+            "name": "test_magnitude[40-0.1-4-phlite (integers)]",
+            "fullname": "benchmarks/bench_networks_magnitude.py::test_magnitude[40-0.1-4-phlite (integers)]",
+            "params": {
+                "n": 40,
+                "p": 0.1,
+                "l_max": 4,
+                "implementation": "phlite (integers)"
+            },
+            "param": "40-0.1-4-phlite (integers)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 1.2,
+                "fingerprint": null
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.005210817995248362,
+                "max": 0.006140089011751115,
+                "mean": 0.005694547338255991,
+                "stddev": 0.00046581099075173417,
+                "rounds": 3,
+                "median": 0.005732735007768497,
+                "iqr": 0.0006969532623770647,
+                "q1": 0.005341297248378396,
+                "q3": 0.006038250510755461,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.005210817995248362,
+                "hd15iqr": 0.006140089011751115,
+                "ops": 175.6065830346156,
+                "total": 0.017083642014767975,
+                "data": [
+                    0.006140089011751115,
+                    0.005732735007768497,
+                    0.005210817995248362
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "magnitude n=40 p=0.1 l_max=4",
+            "name": "test_magnitude[40-0.1-4-phlite (spectral sequence)]",
+            "fullname": "benchmarks/bench_networks_magnitude.py::test_magnitude[40-0.1-4-phlite (spectral sequence)]",
+            "params": {
+                "n": 40,
+                "p": 0.1,
+                "l_max": 4,
+                "implementation": "phlite (spectral sequence)"
+            },
+            "param": "40-0.1-4-phlite (spectral sequence)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 14.9,
+                "fingerprint": null
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.04158810299122706,
+                "max": 0.05927120099659078,
+                "mean": 0.0528582556580659,
+                "stddev": 0.009791186651243797,
+                "rounds": 3,
+                "median": 0.05771546298637986,
+                "iqr": 0.013262323504022788,
+                "q1": 0.04561994299001526,
+                "q3": 0.05888226649403805,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.04158810299122706,
+                "hd15iqr": 0.05927120099659078,
+                "ops": 18.918520627485087,
+                "total": 0.1585747669741977,
+                "data": [
+                    0.05927120099659078,
+                    0.05771546298637986,
+                    0.04158810299122706
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "magnitude n=30 p=0.2 l_max=5",
+            "name": "test_magnitude[30-0.2-5-gramag]",
+            "fullname": "benchmarks/bench_networks_magnitude.py::test_magnitude[30-0.2-5-gramag]",
+            "params": {
+                "n": 30,
+                "p": 0.2,
+                "l_max": 5,
+                "implementation": "gramag"
+            },
+            "param": "30-0.2-5-gramag",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 141.4,
+                "fingerprint": [
+                    [
+                        30
+                    ],
+                    [
+                        0,
+                        170
+                    ],
+                    [
+                        0,
+                        0,
+                        503
+                    ],
+                    [
+                        0,
+                        0,
+                        538,
+                        972
+                    ],
+                    [
+                        0,
+                        0,
+                        1,
+                        5785,
+                        1743
+                    ],
+                    [
+                        0,
+                        0,
+                        0,
+                        119,
+                        29218,
+                        3731
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 1.2731783220078796,
+                "max": 1.4248965109873097,
+                "mean": 1.3511880659983337,
+                "stddev": 0.07595049767200085,
+                "rounds": 3,
+                "median": 1.355489364999812,
+                "iqr": 0.1137886417345726,
+                "q1": 1.2937560827558627,
+                "q3": 1.4075447244904353,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 1.2731783220078796,
+                "hd15iqr": 1.4248965109873097,
+                "ops": 0.7400894258647435,
+                "total": 4.0535641979950015,
+                "data": [
+                    1.2731783220078796,
+                    1.355489364999812,
+                    1.4248965109873097
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "magnitude n=30 p=0.2 l_max=5",
+            "name": "test_magnitude[30-0.2-5-phlite (serial)]",
+            "fullname": "benchmarks/bench_networks_magnitude.py::test_magnitude[30-0.2-5-phlite (serial)]",
+            "params": {
+                "n": 30,
+                "p": 0.2,
+                "l_max": 5,
+                "implementation": "phlite (serial)"
+            },
+            "param": "30-0.2-5-phlite (serial)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 7.6,
+                "fingerprint": [
+                    [
+                        30
+                    ],
+                    [
+                        0,
+                        170
+                    ],
+                    [
+                        0,
+                        0,
+                        503
+                    ],
+                    [
+                        0,
+                        0,
+                        538,
+                        972
+                    ],
+                    [
+                        0,
+                        0,
+                        1,
+                        5785,
+                        1743
+                    ],
+                    [
+                        0,
+                        0,
+                        0,
+                        119,
+                        29218,
+                        3731
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.06415200800984167,
+                "max": 0.07393018799484707,
+                "mean": 0.06851408666504237,
+                "stddev": 0.004973572539304583,
+                "rounds": 3,
+                "median": 0.06746006399043836,
+                "iqr": 0.007333634988754056,
+                "q1": 0.06497902200499084,
+                "q3": 0.0723126569937449,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.06415200800984167,
+                "hd15iqr": 0.07393018799484707,
+                "ops": 14.59553865015945,
+                "total": 0.2055422599951271,
+                "data": [
+                    0.06415200800984167,
+                    0.07393018799484707,
+                    0.06746006399043836
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "magnitude n=30 p=0.2 l_max=5",
+            "name": "test_magnitude[30-0.2-5-phlite (integers)]",
+            "fullname": "benchmarks/bench_networks_magnitude.py::test_magnitude[30-0.2-5-phlite (integers)]",
+            "params": {
+                "n": 30,
+                "p": 0.2,
+                "l_max": 5,
+                "implementation": "phlite (integers)"
+            },
+            "param": "30-0.2-5-phlite (integers)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 7.7,
+                "fingerprint": null
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.07611512602306902,
+                "max": 0.07682836000458337,
+                "mean": 0.07652758834107469,
+                "stddev": 0.00036950207012028297,
+                "rounds": 3,
+                "median": 0.07663927899557166,
+                "iqr": 0.0005349254861357622,
+                "q1": 0.07624616426619468,
+                "q3": 0.07678108975233044,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.07611512602306902,
+                "hd15iqr": 0.07682836000458337,
+                "ops": 13.067182981686482,
+                "total": 0.22958276502322406,
+                "data": [
+                    0.07663927899557166,
+                    0.07611512602306902,
+                    0.07682836000458337
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "magnitude n=30 p=0.2 l_max=5",
+            "name": "test_magnitude[30-0.2-5-phlite (spectral sequence)]",
+            "fullname": "benchmarks/bench_networks_magnitude.py::test_magnitude[30-0.2-5-phlite (spectral sequence)]",
+            "params": {
+                "n": 30,
+                "p": 0.2,
+                "l_max": 5,
+                "implementation": "phlite (spectral sequence)"
+            },
+            "param": "30-0.2-5-phlite (spectral sequence)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 239.3,
+                "fingerprint": null
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.9698626140016131,
+                "max": 0.9976085110101849,
+                "mean": 0.9844939260122677,
+                "stddev": 0.0139349935710765,
+                "rounds": 3,
+                "median": 0.986010653025005,
+                "iqr": 0.02080942275642883,
+                "q1": 0.9738996237574611,
+                "q3": 0.9947090465138899,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.9698626140016131,
+                "hd15iqr": 0.9976085110101849,
+                "ops": 1.0157502992939127,
+                "total": 2.953481778036803,
+                "data": [
+                    0.986010653025005,
+                    0.9976085110101849,
+                    0.9698626140016131
+                ],
+                "iterations": 1
+            }
+        }
+    ],
+    "datetime": "2026-11-23T13:06:31.729870+00:00",
+    "version": "5.3.1"
+}

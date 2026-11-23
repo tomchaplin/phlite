@@ -45,6 +45,13 @@ export const KINDS: Record<string, { order: number; name: string; about: string 
   'extended+': { order: 1, name: 'Ext⁺', about: 'born going up, dying going down above its birth: a component, from its lowest point to its highest' },
   'extended-': { order: 2, name: 'Ext⁻', about: 'born going up, dying going down below its birth: a loop, from its highest point to its lowest' },
   relative: { order: 3, name: 'Rel', about: 'born and dying going down, in the pairs (graph, superlevel set)' },
+  // The six-pack of a map L -> K (here the Rips filtration of the selected points into that of all of them)
+  image: { order: 10, name: 'Image', about: 'homology of the subset that survives among all the points; its representative is a cycle of the subset' },
+  kernel: { order: 11, name: 'Kernel', about: 'homology of the subset that dies among all the points: its representative, a cycle of the subset, bounds in the whole from the birth' },
+  cokernel: { order: 12, name: 'Cokernel', about: "homology of all the points that doesn't come from the subset" },
+  domain: { order: 13, name: 'Subset', about: 'the persistence of the subset on its own' },
+  codomain: { order: 14, name: 'All', about: 'the persistence of all the points' },
+  pair: { order: 15, name: 'Pair', about: 'relative homology of the pair (all the points, the subset): its representative is a chain outside the subset with boundary in it' },
 };
 
 /** The heading of a group of bars: its dimension, and its kind if any. */

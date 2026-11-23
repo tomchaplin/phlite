@@ -91,3 +91,7 @@ code, pre, textarea.code { font-family: ui-monospace, 'SF Mono', Menlo, Consolas
 /* Choosing data and options: secondary to the data and its barcode, so quieter */
 .panel.secondary { background: transparent; padding: 0.7rem 0.9rem; }
 .panel.secondary h3 { font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); margin-bottom: 0.4rem; }
+
+details.upload { margin: 0.3rem 0; }
+details.upload > summary { cursor: pointer; color: var(--accent); font-size: 0.85rem; }
+details.upload[open] > summary { margin-bottom: 0.3rem; }

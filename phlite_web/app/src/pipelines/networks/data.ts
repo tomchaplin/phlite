@@ -28,7 +28,7 @@ export interface NetworkExample {
   about: string;
   make: () => Digraph;
   /** What to compute, if the example is about a particular complex: chosen with it. */
-  show?: { complex: 'pph' | 'dowker-sink'; shortestPath: boolean; maxDim: number };
+  show?: { complex: 'pph' | 'dowker-sink' | 'mpss' | 'zz-clique' | 'zz-flag'; shortestPath: boolean; maxDim: number; lMax?: number };
 }
 
 export const EXAMPLES: NetworkExample[] = [
@@ -62,6 +62,25 @@ export const EXAMPLES: NetworkExample[] = [
     name: 'Directed 5-cycle',
     about: 'A directed cycle of unit edges: an H₁ bar born at 0 that lives until shortcut edges (paths of about half its length) appear to fill it in.',
     make: () => cycle(5),
+  },
+  {
+    id: 'mpss-cycle',
+    name: 'Directed 4-cycle (MPSS)',
+    about:
+      "Hepworth and Roff's example: in the magnitude-path spectral sequence of a directed m-cycle, E¹ has rank m in bidegrees (2i, mi) and (2i+1, mi+1), E² = … = E^(m−1), and E^m is a single generator at (0, 0). Step through the pages and look at the generators.",
+    make: () => cycle(4),
+    show: { complex: 'mpss', shortestPath: false, maxDim: 1, lMax: 6 },
+  },
+  {
+    id: 'mpss-square',
+    name: 'Directed square (MPSS)',
+    about:
+      'Two paths a → b → d and a → c → d: the square is filled in path homology (E² on the diagonal k = l is path homology), but magnitude homology (E¹) sees the two geodesics. Click entries for generators, and tuples to see them on the graph.',
+    make: () => ({
+      nodes: [{ x: 0.2, y: 0.5, label: 'a' }, { x: 0.5, y: 0.2, label: 'b' }, { x: 0.5, y: 0.8, label: 'c' }, { x: 0.8, y: 0.5, label: 'd' }],
+      edges: [{ s: 0, t: 1, w: 1 }, { s: 0, t: 2, w: 1 }, { s: 1, t: 3, w: 1 }, { s: 2, t: 3, w: 1 }],
+    }),
+    show: { complex: 'mpss', shortestPath: false, maxDim: 1, lMax: 4 },
   },
   {
     id: 'bicycle',
@@ -127,6 +146,29 @@ export const EXAMPLES: NetworkExample[] = [
       });
       return { nodes, edges };
     },
+  },
+  {
+    id: 'contacts',
+    name: 'Contacts over time',
+    about:
+      "A temporal network: each edge's weight is the time of a contact. A square a→b→c→d→a (times 0–3) gains its diagonals (4, 5), then a triangle e→f→g→e (6–8) and a transitive one e→g, g→h, e→h (9–11). Shown as a zigzag of windows of time: the square's loop lives while a window holds it, until the diagonals fill it; the cyclic triangle is a loop of the directed flag complex but filled in the clique complex.",
+    make: () => {
+      const labels = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
+      const at: [number, number][] = [
+        [0.15, 0.2], [0.4, 0.2], [0.4, 0.5], [0.15, 0.5], [0.6, 0.6], [0.85, 0.5], [0.8, 0.85], [0.55, 0.9],
+      ];
+      const e = (a: string, b: string, w: number) => ({ s: labels.indexOf(a), t: labels.indexOf(b), w });
+      return {
+        nodes: labels.map((label, i) => ({ x: at[i][0], y: at[i][1], label })),
+        edges: [
+          e('a', 'b', 0), e('b', 'c', 1), e('c', 'd', 2), e('d', 'a', 3),
+          e('a', 'c', 4), e('b', 'd', 5),
+          e('e', 'f', 6), e('f', 'g', 7), e('g', 'e', 8),
+          e('e', 'g', 9), e('g', 'h', 10), e('e', 'h', 11),
+        ],
+      };
+    },
+    show: { complex: 'zz-flag', shortestPath: false, maxDim: 1 },
   },
 ];
 

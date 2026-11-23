@@ -16,10 +16,11 @@ use crate::matrices::SquareMatrix;
 use crate::matrix_col_product;
 use crate::{
     fields::{Invertible, NonZeroCoefficient},
-    matrices::{ColBasis, HasColBasis, HasRowFiltration, HasSplitColBasis, MatrixOracle},
+    matrices::{BasisElement, ColBasis, HasColBasis, HasRowFiltration, HasSplitColBasis, MatrixOracle},
 };
 
 use crate::reduction::{Diagram, DiagramBuilder, Reduction, ReductionAlgorithm};
+use crate::union_find::{IncidenceOutcome, IncidenceReduction};
 
 use crate::bookkeeping::{ElementMap, ElementSet};
 
@@ -226,6 +227,9 @@ where
     /// The working columns, reused for every column reduced so that their memory is only allocated once
     r_i: C::Column<FilT, RowT, CF>,
     v_i: BHCol<(), RowT, CF>,
+    /// The dimensions to reduce by union-find, see [`Clearing::with_incidence_dimensions`]: empty unless only the
+    /// diagram is wanted
+    incidence_dims: Vec<usize>,
 }
 
 impl<M, DimIter, C> CRMBuilder<M, DimIter, C, M::FiltrationT, M::RowT, M::CoefficientField>
@@ -246,6 +250,7 @@ where
         cache_columns: bool,
         store_r: bool,
         track_v: bool,
+        incidence_dims: Vec<usize>,
     ) -> Self {
         debug_assert!(
             track_v || store_r,
@@ -268,6 +273,7 @@ where
             reduction_columns: ElementMap::new(),
             previous_pairs: ElementMap::new(),
             skipped_births: ElementSet::default(),
+            incidence_dims,
         }
     }
 
@@ -483,7 +489,68 @@ where
         }
     }
 
+    /// Reduce dimension `dim`, all of whose columns have at most two entries, by union-find (see
+    /// [`union_find`](crate::union_find)): the same pairs as [`reduce_dimension`](Self::reduce_dimension), but neither
+    /// `V` nor the pivot table, so only when the diagram is all that is wanted. Rows must have dense indices.
+    fn reduce_incidence_dimension(&mut self, dim: usize, is_last: bool) {
+        debug_assert!(<M::RowT as crate::matrices::BasisElement>::DENSE_INDEX);
+        let mut new_pairs = (!is_last).then(ElementMap::new);
+        let basis_size = self.boundary.sub_basis(dim).size();
+        let mut union_find = IncidenceReduction::<M::CoefficientField>::new(0);
+        let mut entries: Vec<(M::CoefficientField, u32)> = Vec::with_capacity(2);
+        let boundary = &self.boundary;
+        // Rows in the matrix's order: by filtration value, then by the rows themselves
+        let later = |a: u32, b: u32| {
+            let (a, b) = (M::RowT::from_dense_index(a as usize), M::RowT::from_dense_index(b as usize));
+            (boundary.filtration_value(a.clone()), a) > (boundary.filtration_value(b.clone()), b)
+        };
+        for i in 0..basis_size {
+            let basis_element = boundary.sub_basis(dim).element(i);
+            // A cleared column reduces to zero, and union-find would say so without changing anything
+            if self.previous_pairs.remove(&basis_element).is_some() {
+                continue;
+            }
+            entries.clear();
+            for (coeff, row) in boundary.column(basis_element.clone()) {
+                let index = row.dense_index();
+                union_find.grow(index + 1);
+                entries.push((coeff, index as u32));
+            }
+            match union_find.add_column_by(&entries, later) {
+                IncidenceOutcome::Zero => {
+                    self.diagram.essential.insert(basis_element);
+                }
+                IncidenceOutcome::Pivot(index) => {
+                    let pivot_row = M::RowT::from_dense_index(index as usize);
+                    if let Some(new_pairs) = &mut new_pairs {
+                        new_pairs.insert(pivot_row.clone(), basis_element.clone());
+                    }
+                    // Pairs of zero persistence are left out, as apparent ones are (see `record_reduced`)
+                    if self.skip_zero_apparent_pairs
+                        && boundary.same_filtration_value(pivot_row.clone(), basis_element.clone())
+                    {
+                        self.diagram.essential.remove(&pivot_row);
+                    } else {
+                        self.diagram.pairings.push((pivot_row, basis_element));
+                    }
+                }
+            }
+        }
+        // As at the end of reduce_dimension
+        let leftover = std::mem::replace(&mut self.previous_pairs, new_pairs.unwrap_or_default());
+        if self.skip_zero_apparent_pairs {
+            for (row, col) in leftover.into_entries() {
+                if self.boundary.same_filtration_value(row.clone(), col) {
+                    self.skipped_births.insert(row);
+                }
+            }
+        }
+    }
+
     fn reduce_dimension(&mut self, dim: usize, is_last: bool) {
+        if <M::RowT as crate::matrices::BasisElement>::DENSE_INDEX && self.incidence_dims.contains(&dim) {
+            return self.reduce_incidence_dimension(dim, is_last);
+        }
         // low_inverse[i]=(j, lambda) means R[j] has lowest non-zero in row i with coefficient lambda
         // We build a new one for each dimension
         let mut low_inverse: LowInverse<M::RowT, M::CoefficientField> = ElementMap::new();
@@ -649,6 +716,7 @@ pub struct Clearing<C = MergedColumns> {
     pub(crate) columns: C,
     pub(crate) cache_columns: bool,
     pub(crate) store_r: bool,
+    pub(crate) incidence_dimensions: Vec<usize>,
 }
 
 impl<C: Default> Default for Clearing<C> {
@@ -660,6 +728,7 @@ impl<C: Default> Default for Clearing<C> {
             columns: C::default(),
             cache_columns: true,
             store_r: false,
+            incidence_dimensions: Vec::new(),
         }
     }
 }
@@ -687,6 +756,7 @@ impl<C: ColumnRepresentation> Clearing<C> {
             columns,
             cache_columns: self.cache_columns,
             store_r: self.store_r,
+            incidence_dimensions: self.incidence_dimensions,
         }
     }
 
@@ -716,6 +786,22 @@ impl<C: ColumnRepresentation> Clearing<C> {
     /// matrices.
     pub fn store_r(mut self, store: bool) -> Self {
         self.store_r = store;
+        self
+    }
+
+    /// Promise that every column of these dimensions has at most two non-zero entries, so that they can be reduced by
+    /// union-find (see [`union_find`](crate::union_find)) rather than by adding columns. None by default.
+    ///
+    /// For example, the coboundary of a complex in which every `(d - 1)`-cell has at most two cofaces (a cubical grid,
+    /// a triangulated surface or a Delaunay triangulation, with `d` their dimension) in dimension `d - 1`; or the
+    /// boundary of any simplicial or cubical complex in dimension 1. The pairs are the same, but only the
+    /// [diagram](ReductionAlgorithm::diagram) is found this way, since union-find builds no `V`: when `V` is wanted
+    /// ([`reduce`](ReductionAlgorithm::reduce)) these dimensions are reduced as usual. So are they when rows have no
+    /// [dense indices](crate::matrices::BasisElement::DENSE_INDEX), and with the parallel algorithm. With
+    /// [`skip_zero_apparent_pairs`](Self::skip_zero_apparent_pairs), every pair of zero persistence in these dimensions
+    /// is left out of the diagram (not only the apparent ones). A false promise panics.
+    pub fn with_incidence_dimensions(mut self, dimensions: impl IntoIterator<Item = usize>) -> Self {
+        self.incidence_dimensions = dimensions.into_iter().collect();
         self
     }
 
@@ -829,7 +915,7 @@ where
     type V = ClearedReductionMatrix<'static, M>;
 
     fn reduce(self, boundary: M) -> Reduction<Self::V, M::ColT> {
-        let builder = self.run(boundary, true);
+        let builder = self.run(boundary, true, false);
         let v =
             ClearedReductionMatrix::build_from_owned(builder.boundary, builder.reduction_columns);
         let diagram = builder.diagram.finish(Some(&builder.skipped_births));
@@ -839,7 +925,7 @@ where
     /// With [`store_r`](Clearing::store_r), `V` isn't needed to reduce, so it isn't tracked at all.
     fn diagram(self, boundary: M) -> Diagram<M::ColT> {
         let track_v = !self.store_r;
-        let builder = self.run(boundary, track_v);
+        let builder = self.run(boundary, track_v, true);
         builder.diagram.finish(Some(&builder.skipped_births))
     }
 }
@@ -849,6 +935,7 @@ impl<C: ColumnRepresentation> Clearing<C> {
         self,
         boundary: M,
         track_v: bool,
+        diagram_only: bool,
     ) -> CRMBuilder<M, std::vec::IntoIter<usize>, C, M::FiltrationT, M::RowT, M::CoefficientField>
     where
         M: MatrixOracle + SquareMatrix + HasRowFiltration + HasSplitColBasis,
@@ -867,6 +954,7 @@ impl<C: ColumnRepresentation> Clearing<C> {
             self.cache_columns,
             self.store_r,
             track_v,
+            if diagram_only { self.incidence_dimensions } else { Vec::new() },
         );
         builder.reduce_all_dimension();
         builder

@@ -132,7 +132,7 @@ pub struct Options {
     /// `"cohomology"` (the default) or `"homology"`.
     pub method: Option<String>,
     pub representatives: bool,
-    /// Find dimension 0 by union-find (Rips and images only; the default there).
+    /// Find dimension 0 by union-find (Rips, images and the lazy network complexes; the default there).
     pub union_find: Option<bool>,
     /// Build the matrices in parallel (by default, exactly when the algorithm is parallel clearing).
     pub parallel_setup: Option<bool>,
@@ -189,7 +189,7 @@ const NETWORK_DEFAULTS: Defaults = Defaults {
     cache: true,
     store_r: false,
     row_ranks: false,
-    union_find: None,
+    union_find: Some(true),
     parallel_setup: true,
 };
 const IMAGE_DEFAULTS: Defaults = Defaults {
@@ -541,35 +541,8 @@ pub fn rips(
     options: JsValue,
 ) -> Result<JsValue, JsError> {
     let config = Config::resolve(options, RIPS_DEFAULTS)?;
-    use phlite_clouds::rips::Metric;
     let metric_name = metric;
-    let metric = match metric {
-        "euclidean" => Metric::Euclidean,
-        "manhattan" => Metric::Manhattan,
-        "chebyshev" => Metric::Chebyshev,
-        other => return Err(err(format!("Unknown metric {other:?}"))),
-    };
-    let distances = if point_dim == 0 {
-        let n = (coords.len() as f64).sqrt() as usize;
-        if n * n != coords.len() {
-            return Err(err("A distance matrix must be square"));
-        }
-        (0..n)
-            .map(|i| (0..n).map(|j| not_nan(coords[i * n + j])).collect())
-            .collect::<Result<Vec<Vec<_>>, _>>()?
-    } else {
-        if !coords.len().is_multiple_of(point_dim) {
-            return Err(err("The coordinates don't divide into points"));
-        }
-        if !coords.iter().all(|x| x.is_finite()) {
-            return Err(err("Coordinates must be finite"));
-        }
-        let points: Vec<&[f64]> = coords.chunks(point_dim).collect();
-        points
-            .iter()
-            .map(|p| points.iter().map(|q| metric.distance(p, q)).collect())
-            .collect::<Vec<Vec<_>>>()
-    };
+    let distances = read_distances(coords, point_dim, metric)?;
     let n = distances.len();
     if n == 0 {
         return to_js(Barcode {
@@ -620,6 +593,7 @@ pub fn rips(
                 self.representatives,
                 self.union_find,
                 self.parallel_setup,
+                true,
             )
         }
     }
@@ -655,6 +629,693 @@ pub fn rips(
         ),
         edges,
     })
+}
+
+/// The distance matrix of points (`point_dim` coordinates each, in `metric`), or (`point_dim == 0`) a distance matrix
+/// given row by row.
+fn read_distances(coords: &[f64], point_dim: usize, metric: &str) -> Result<Vec<Vec<NotNan<f64>>>, JsError> {
+    use phlite_clouds::rips::Metric;
+    let metric = match metric {
+        "euclidean" => Metric::Euclidean,
+        "manhattan" => Metric::Manhattan,
+        "chebyshev" => Metric::Chebyshev,
+        other => return Err(err(format!("Unknown metric {other:?}"))),
+    };
+    if point_dim == 0 {
+        let n = (coords.len() as f64).sqrt() as usize;
+        if n * n != coords.len() {
+            return Err(err("A distance matrix must be square"));
+        }
+        return (0..n)
+            .map(|i| (0..n).map(|j| not_nan(coords[i * n + j])).collect())
+            .collect::<Result<Vec<Vec<_>>, _>>();
+    }
+    if !coords.len().is_multiple_of(point_dim) {
+        return Err(err("The coordinates don't divide into points"));
+    }
+    if !coords.iter().all(|x| x.is_finite()) {
+        return Err(err("Coordinates must be finite"));
+    }
+    let points: Vec<&[f64]> = coords.chunks(point_dim).collect();
+    Ok(points.iter().map(|p| points.iter().map(|q| metric.distance(p, q)).collect()).collect())
+}
+
+/// The six-pack of the inclusion of the Rips filtration of a subset of the points (`subset`, point indices) into that
+/// of all of them (`phlite_clouds::rips::image::rips_six_pack`): bars of the subset's filtration (`kind` `"domain"`),
+/// the whole's (`"codomain"`), the image, kernel and cokernel of the map on homology (`"image"`, `"kernel"`,
+/// `"cokernel"`) and the pair (`"pair"`), with representatives (lists of simplices) if asked for. Bars have no birth
+/// or death cells (empty). Over Z/2, serially (the reductions run in parallel with each other).
+#[wasm_bindgen]
+pub fn rips_six_pack(
+    coords: &[f64],
+    point_dim: usize,
+    subset: &[u32],
+    max_dim: usize,
+    threshold: Option<f64>,
+    metric: &str,
+    options: JsValue,
+) -> Result<JsValue, JsError> {
+    use phlite::six_pack::{ConeCell, SixPackBar};
+    let config = Config::resolve(options, RIPS_DEFAULTS)?;
+    let distances = read_distances(coords, point_dim, metric)?;
+    let n = distances.len();
+    if n == 0 {
+        return to_js(Barcode { bars: vec![], summary: "No points".into(), edges: None });
+    }
+    if !phlite_clouds::rips::RipsIndex::<u64>::fits(n, max_dim + 1) {
+        return Err(err(format!("Too many points ({n}) for simplices of dimension {}", max_dim + 1)));
+    }
+    let mut in_subset = vec![false; n];
+    for &v in subset {
+        *in_subset.get_mut(v as usize).ok_or_else(|| err(format!("Point {v} isn't one of the {n}")))? = true;
+    }
+    let threshold = not_nan(threshold.unwrap_or(f64::INFINITY))?;
+    let pack = phlite_clouds::rips::image::rips_six_pack::<u64, _>(
+        &distances,
+        &in_subset,
+        max_dim,
+        threshold,
+        config.representatives,
+    );
+    let simplex = |s: phlite_clouds::rips::RipsIndex<u64>| -> Vec<u32> { s.vertices(n).iter().map(|&v| v as u32).collect() };
+    fn out<C>(
+        bars: Vec<SixPackBar<NotNan<f64>, C, Z2>>,
+        kind: &'static str,
+        max_dim: usize,
+        cell: impl Fn(C) -> Vec<u32>,
+    ) -> impl Iterator<Item = OutBar> {
+        bars.into_iter().filter(move |b| b.dimension <= max_dim).map(move |b| OutBar {
+            dim: b.dimension,
+            birth: b.birth.into_inner(),
+            death: b.death.map(NotNan::into_inner),
+            birth_cell: vec![],
+            death_cell: None,
+            rep: b.representative.map(|rep| rep.into_iter().map(|(_, c)| (1, cell(c))).collect()),
+            kind: Some(kind),
+        })
+    }
+    let in_cone = |c: ConeCell<_, _>| match c {
+        ConeCell::Codomain(k) => simplex(k),
+        ConeCell::Cone(l) => simplex(l),
+    };
+    let mut bars: Vec<OutBar> = vec![];
+    bars.extend(out(pack.domain, "domain", max_dim, simplex));
+    bars.extend(out(pack.codomain, "codomain", max_dim, simplex));
+    bars.extend(out(pack.image, "image", max_dim, simplex));
+    bars.extend(out(pack.kernel, "kernel", max_dim, simplex));
+    bars.extend(out(pack.cokernel, "cokernel", max_dim, simplex));
+    bars.extend(out(pack.relative, "pair", max_dim, in_cone));
+    let edges = (n <= DRAWN_POINTS).then(|| FiltrationEdges::flag(&distances));
+    to_js(Barcode {
+        bars,
+        summary: format!(
+            "{} of {n} points, dimensions 0–{max_dim}: the six-pack of the inclusion of their Rips filtrations",
+            subset.len()
+        ),
+        edges,
+    })
+}
+
+/// Zigzag persistence of cells with lifetimes (`phlite_complexes::zigzag::timed_zigzag`): cell `i` has dimension
+/// `dimensions[i]`, faces `indices[indptr[i]..indptr[i + 1]]` (over Z/2, so coefficients don't matter) and lives over
+/// `[starts[k], ends[k])` for `k` in `life_indptr[i]..life_indptr[i + 1]` (an end may be infinite). At each event time
+/// the zigzag passes through the union (or with `intersection` the intersection) of the complexes before and after.
+/// Bars are in time (`null` deaths never die); dimensions up to `max_dim` (all if `None`).
+#[wasm_bindgen]
+#[allow(clippy::too_many_arguments)]
+pub fn timed_zigzag(
+    dimensions: &[u32],
+    indptr: &[u32],
+    indices: &[u32],
+    life_indptr: &[u32],
+    starts: &[f64],
+    ends: &[f64],
+    max_dim: Option<usize>,
+    intersection: bool,
+) -> Result<JsValue, JsError> {
+    use phlite::barcode::Method;
+    use phlite_complexes::zigzag::{timed_zigzag as zigzag, Join, TimedCell};
+    let n = dimensions.len();
+    if indptr.len() != n + 1 || life_indptr.len() != n + 1 || starts.len() != ends.len() {
+        return Err(err("The cells' faces and lifetimes don't match their number"));
+    }
+    if indices.iter().any(|&f| f as usize >= n) {
+        return Err(err("A face is out of range"));
+    }
+    let cells: Vec<TimedCell<usize>> = (0..n)
+        .map(|i| TimedCell {
+            cell: i,
+            dimension: dimensions[i] as usize,
+            faces: indices[indptr[i] as usize..indptr[i + 1] as usize].iter().map(|&f| f as usize).collect(),
+            lifetimes: (life_indptr[i] as usize..life_indptr[i + 1] as usize).map(|k| (starts[k], ends[k])).collect(),
+        })
+        .collect();
+    let join = if intersection { Join::Intersection } else { Join::Union };
+    let (bars, times) = zigzag(&cells, join, Method::Cohomology, Algorithm::Clearing(phlite::reduction::Clearing::new()), true)
+        .map_err(|e| err(e.to_string()))?;
+    let out: Vec<OutBar> = bars
+        .into_iter()
+        .filter(|b| max_dim.is_none_or(|d| b.dimension <= d))
+        .map(|b| OutBar {
+            dim: b.dimension,
+            birth: b.birth,
+            death: b.death.is_finite().then_some(b.death),
+            birth_cell: vec![],
+            death_cell: None,
+            rep: None,
+            kind: None,
+        })
+        .collect();
+    to_js(Barcode {
+        summary: format!(
+            "{n} cells with lifetimes, {} event times, joined at each by {}",
+            times.len(),
+            if intersection { "intersections" } else { "unions" }
+        ),
+        bars: out,
+        edges: None,
+    })
+}
+
+/// A zigzag barcode in levels (frame `i` at `2 i`, see `phlite_complexes::zigzag::LevelBar`) as bars over frames:
+/// alive in frames `b` to `d` is `[b, d + 1)`, the join of frames `i` and `i + 1` counting as `i + 0.5`, and `null`
+/// deaths reaching the last frame.
+fn frame_bars(bars: Vec<phlite_complexes::zigzag::LevelBar>, n_frames: usize) -> Vec<OutBar> {
+    let last = 2 * n_frames.saturating_sub(1);
+    bars.into_iter()
+        .map(|b| OutBar {
+            dim: b.dimension,
+            birth: b.birth as f64 / 2.0,
+            death: (b.death < last).then(|| (b.death + 1) as f64 / 2.0),
+            birth_cell: vec![],
+            death_cell: None,
+            rep: None,
+            kind: None,
+        })
+        .collect()
+}
+
+/// Zigzag persistence of sliding windows (`phlite_clouds::zigzag::cloud_zigzag`, by FastZigzag): the complexes, at
+/// scale `threshold` (simplices up to dimension `max_dim + 1`), of the windows of `window` consecutive points starting
+/// every `step` points, each joined to the next by their union (`K_0 -> K_0 ∪ K_1 <- K_1 -> ...`) or with
+/// `intersection` their intersection. `complex` is `rips` (a diameter, in `metric`, or of a distance matrix when
+/// `point_dim` is 0), `cech`, `alpha` or `delaunay-cech` (a radius; alpha and Delaunay–Čech in the plane or space), or
+/// `witness` (each window's points as landmarks, every point a witness; alpha squared). Bars are over windows (see
+/// [`frame_bars`]). Over Z/2, no representatives.
+#[wasm_bindgen]
+#[allow(clippy::too_many_arguments)]
+pub fn cloud_zigzag(
+    coords: &[f64],
+    point_dim: usize,
+    window: usize,
+    step: usize,
+    threshold: f64,
+    max_dim: usize,
+    metric: &str,
+    complex: &str,
+    intersection: bool,
+) -> Result<JsValue, JsError> {
+    use phlite_clouds::witness::Witness;
+    use phlite_clouds::zigzag::{self as zz, Frame, PointFiltration, RipsDistances, WitnessFiltration};
+    use phlite_complexes::zigzag::Join;
+    let n = if point_dim == 0 { (coords.len() as f64).sqrt() as usize } else { coords.len() / point_dim.max(1) };
+    if window == 0 || window > n {
+        return Err(err(format!("The window must have between 1 and {n} points")));
+    }
+    if step == 0 {
+        return Err(err("The step must be at least one point"));
+    }
+    if threshold.is_nan() || threshold < 0.0 {
+        return Err(err("Give a threshold (a scale) for the complexes"));
+    }
+    if point_dim == 0 && complex != "rips" {
+        return Err(err("A distance matrix has only Rips complexes"));
+    }
+    let points: Vec<Vec<f64>> = if point_dim == 0 { vec![] } else { coords.chunks(point_dim).map(<[f64]>::to_vec).collect() };
+    let frames: Vec<Frame> = (0..=n - window)
+        .step_by(step)
+        .map(|i| {
+            let labels: Vec<u32> = (i as u32..(i + window) as u32).collect();
+            let points = if points.is_empty() { vec![] } else { points[i..i + window].to_vec() };
+            Frame { labels, points }
+        })
+        .collect();
+    let join = if intersection { Join::Intersection } else { Join::Union };
+    fn run<F: PointFiltration>(frames: &[Frame], f: &F, t: f64, d: usize, join: Join) -> Result<Vec<phlite_complexes::zigzag::LevelBar>, JsError> {
+        zz::cloud_zigzag(frames, f, t, d, join, Algorithm::Clearing(phlite::reduction::Clearing::new())).map_err(|e| err(e.to_string()))
+    }
+    let (bars, name) = match complex {
+        "rips" => (run(&frames, &RipsDistances { distances: read_distances(coords, point_dim, metric)? }, threshold, max_dim, join)?, "Rips"),
+        "cech" => (run(&frames, &zz::Cech, threshold, max_dim, join)?, "Čech"),
+        "alpha" => (run(&frames, &zz::Alpha, threshold, max_dim, join)?, "alpha"),
+        "delaunay-cech" => (run(&frames, &zz::DelaunayCech, threshold, max_dim, join)?, "Delaunay–Čech"),
+        "witness" => {
+            let f = WitnessFiltration { witnesses: points.clone(), kind: Witness::Relaxed };
+            (run(&frames, &f, threshold, max_dim, join)?, "witness")
+        }
+        other => return Err(err(format!("Unknown complex {other:?}"))),
+    };
+    to_js(Barcode {
+        bars: frame_bars(bars, frames.len()),
+        summary: format!(
+            "{} windows of {window} of {n} points (every {step}), {name} complexes at scale {threshold}, joined by {}",
+            frames.len(),
+            if intersection { "intersections" } else { "unions" }
+        ),
+        edges: None,
+    })
+}
+
+/// Zigzag persistence of moving points (`phlite_clouds::zigzag::cloud_zigzag` on `moving_points`): `n_frames` frames
+/// of the same points (point `j` of every frame the same point), concatenated in `coords`, each frame's complex at
+/// scale `threshold`: `rips` (in `metric`), `cech`, `alpha` or `delaunay-cech`, joined to the next by their union or
+/// with `intersection` their intersection. Bars are over frames (see [`frame_bars`]).
+#[wasm_bindgen]
+#[allow(clippy::too_many_arguments)]
+pub fn moving_zigzag(
+    coords: &[f64],
+    point_dim: usize,
+    n_frames: usize,
+    threshold: f64,
+    max_dim: usize,
+    metric: &str,
+    complex: &str,
+    intersection: bool,
+) -> Result<JsValue, JsError> {
+    use phlite_clouds::rips::Metric;
+    use phlite_clouds::zigzag::{self as zz, moving_points, PointFiltration};
+    use phlite_complexes::zigzag::Join;
+    if point_dim == 0 || n_frames == 0 || !coords.len().is_multiple_of(point_dim * n_frames) {
+        return Err(err("The frames' coordinates don't divide into points"));
+    }
+    if threshold.is_nan() || threshold < 0.0 {
+        return Err(err("Give a threshold (a scale) for the complexes"));
+    }
+    let per_frame = coords.len() / n_frames;
+    let times: Vec<Vec<Vec<f64>>> =
+        coords.chunks(per_frame).map(|f| f.chunks(point_dim).map(<[f64]>::to_vec).collect()).collect();
+    let frames = moving_points(&times);
+    let join = if intersection { Join::Intersection } else { Join::Union };
+    type Filtration<'a> = &'a dyn Fn(&zz::Frame, usize, f64) -> Result<Vec<(f64, Vec<u32>)>, phlite_clouds::CloudError>;
+    let run = |f: Filtration<'_>| {
+        zz::cloud_zigzag(&frames, &f, threshold, max_dim, join, Algorithm::Clearing(phlite::reduction::Clearing::new()))
+            .map_err(|e| err(e.to_string()))
+    };
+    let metric = match metric {
+        "euclidean" => Metric::Euclidean,
+        "manhattan" => Metric::Manhattan,
+        "chebyshev" => Metric::Chebyshev,
+        other => return Err(err(format!("Unknown metric {other:?}"))),
+    };
+    let (bars, name) = match complex {
+        "rips" => (run(&|f, top, t| zz::Rips { metric }.simplices(f, top, t))?, "Rips"),
+        "cech" => (run(&|f, top, t| zz::Cech.simplices(f, top, t))?, "Čech"),
+        "alpha" => (run(&|f, top, t| zz::Alpha.simplices(f, top, t))?, "alpha"),
+        "delaunay-cech" => (run(&|f, top, t| zz::DelaunayCech.simplices(f, top, t))?, "Delaunay–Čech"),
+        other => return Err(err(format!("Unknown complex {other:?}"))),
+    };
+    to_js(Barcode {
+        bars: frame_bars(bars, n_frames),
+        summary: format!(
+            "{n_frames} frames of {} moving points, {name} complexes at scale {threshold}, joined by {}",
+            per_frame / point_dim,
+            if intersection { "intersections" } else { "unions" }
+        ),
+        edges: None,
+    })
+}
+
+/// Zigzag persistence of a temporal network (`phlite_networks::zigzag::network_zigzag`, by FastZigzag): each edge
+/// `sources[i] → targets[i]` is active at time `weights[i]`; snapshot `k` holds the edges active in
+/// `[start + k step, start + k step + width)` (from the earliest time, while windows start by the latest), and the
+/// nodes they touch, as its clique complex (or with `directed`, its directed flag complex), up to dimension
+/// `max_dim + 1`, joined to the next by their union or with `intersection` their intersection. Bars are over
+/// snapshots (see [`frame_bars`]).
+#[wasm_bindgen]
+#[allow(clippy::too_many_arguments)]
+pub fn network_zigzag(
+    n_vertices: u32,
+    sources: &[u32],
+    targets: &[u32],
+    weights: &[f64],
+    directed: bool,
+    width: f64,
+    step: f64,
+    max_dim: usize,
+    intersection: bool,
+) -> Result<JsValue, JsError> {
+    use phlite_complexes::zigzag::Join;
+    use phlite_networks::zigzag::{network_zigzag as zigzag, NetworkComplex, Snapshot};
+    let edges = read_edges(n_vertices, sources, targets, weights)?;
+    if !(width > 0.0 && step > 0.0) {
+        return Err(err("The window's width and step must be positive"));
+    }
+    if edges.is_empty() {
+        return Err(err("The network has no edges"));
+    }
+    let start = edges.iter().map(|e| e.2).fold(f64::INFINITY, f64::min);
+    let end = edges.iter().map(|e| e.2).fold(f64::NEG_INFINITY, f64::max);
+    let n_snapshots = ((end - start) / step).floor() as usize + 1;
+    if n_snapshots > 2000 {
+        return Err(err(format!("{n_snapshots} snapshots is too many: take a longer step")));
+    }
+    let snapshots: Vec<Snapshot> = (0..n_snapshots)
+        .map(|k| {
+            let t = start + k as f64 * step;
+            Snapshot::new([], edges.iter().filter(|e| t <= e.2 && e.2 < t + width).map(|e| (e.0, e.1)))
+        })
+        .collect();
+    let complex = if directed { NetworkComplex::DirectedFlag } else { NetworkComplex::Clique };
+    let join = if intersection { Join::Intersection } else { Join::Union };
+    let bars = zigzag(&snapshots, complex, max_dim, join, Algorithm::Clearing(phlite::reduction::Clearing::new()));
+    to_js(Barcode {
+        bars: frame_bars(bars, n_snapshots),
+        summary: format!(
+            "{n_snapshots} snapshot{} of the edges active in windows of {width} every {step} from {start}, {} complexes, joined by {}",
+            if n_snapshots == 1 { "" } else { "s" },
+            if directed { "directed flag" } else { "clique" },
+            if intersection { "intersections" } else { "unions" }
+        ),
+        edges: None,
+    })
+}
+
+/// Zigzag persistence of a video (`phlite_images::zigzag::video_zigzag`): `n_frames` frames of `width` × `height`
+/// pixels (row by row, frame after frame), each cut at `threshold` (pixels at most it, or with `superlevel` at least),
+/// as cubical complexes, joined frame to frame (`K_0 -> K_0 ∪ K_1 <- K_1 -> ...`). Bars are over frames: alive in
+/// frames `b` to `d` is `[b, d + 1)`, a union between frames `i` and `i + 1` counting as `i + 0.5`; `null` deaths reach
+/// the last frame. Over Z/2, no representatives.
+#[wasm_bindgen]
+#[allow(clippy::too_many_arguments)]
+pub fn video_zigzag(
+    pixels: &[f64],
+    width: usize,
+    height: usize,
+    n_frames: usize,
+    threshold: f64,
+    superlevel: bool,
+    construction: &str,
+    periodic: bool,
+    intersection: bool,
+) -> Result<JsValue, JsError> {
+    use phlite_complexes::zigzag::Join;
+    use phlite_images::cubical::{Construction, Filtration};
+    if width == 0 || height == 0 || pixels.len() != width * height * n_frames {
+        return Err(err("The frames' size doesn't match their pixels"));
+    }
+    let construction = match construction {
+        "T" => Construction::T,
+        "V" => Construction::V,
+        other => return Err(err(format!("Unknown construction {other:?}"))),
+    };
+    let filtration = if superlevel { Filtration::Superlevel } else { Filtration::Sublevel };
+    let max_dim = if periodic { 2 } else { 1 };
+    let bars = phlite_images::zigzag::video_zigzag(
+        pixels,
+        &[height, width],
+        &[periodic, periodic],
+        threshold,
+        construction,
+        filtration,
+        max_dim,
+        if intersection { Join::Intersection } else { Join::Union },
+        Algorithm::Clearing(phlite::reduction::Clearing::new()),
+    )
+    .map_err(|e| err(e.to_string()))?;
+    let bars = frame_bars(bars, n_frames);
+    to_js(Barcode {
+        bars,
+        summary: format!(
+            "{n_frames} frames of {width}×{height}, cut at {threshold} ({}, {}-construction{}), joined frame to frame by {}",
+            if superlevel { "bright pixels" } else { "dark pixels" },
+            if construction == Construction::T { "T" } else { "V" },
+            if periodic { ", wrapped round" } else { "" },
+            if intersection { "intersections" } else { "unions" }
+        ),
+        edges: None,
+    })
+}
+
+/// An entry of a page of a spectral sequence: `null` if not determined, else its rank and torsion (invariant factors,
+/// as strings: they may not fit a JavaScript number).
+#[derive(Serialize)]
+struct GroupOut {
+    rank: usize,
+    torsion: Vec<String>,
+}
+
+fn group_out(g: &phlite::integral::Group) -> GroupOut {
+    GroupOut { rank: g.rank, torsion: g.torsion.iter().map(u128::to_string).collect() }
+}
+
+#[derive(Serialize)]
+struct GeneratorOut {
+    /// `null` for a free generator
+    order: Option<String>,
+    /// `[coefficient, tuple]`, the tuple as node indices
+    chain: Vec<(String, Vec<u32>)>,
+}
+
+#[derive(Serialize)]
+struct EntryOut {
+    l: usize,
+    k: usize,
+    group: GroupOut,
+    /// `null` if there were too many tuples to compute them
+    generators: Option<Vec<GeneratorOut>>,
+}
+
+#[derive(Serialize)]
+struct DifferentialOut {
+    /// From `(l, k)` to `(l - r, k - 1)`
+    from: (usize, usize),
+    to: (usize, usize),
+    image: GroupOut,
+}
+
+#[derive(Serialize)]
+struct PageOut {
+    r: usize,
+    /// `entries[l][k]`: `null` where not determined by tuples up to `l_max`
+    table: Vec<Vec<Option<GroupOut>>>,
+    nonzero: Vec<EntryOut>,
+    differentials: Vec<DifferentialOut>,
+}
+
+/// The magnitude-path spectral sequence of a digraph (`phlite_networks::mpss`; Asao, Hepworth and Roff): pages
+/// `E^1` (magnitude homology), `E^2` (bigraded path homology), ... up to `r_max` or until it degenerates, each entry
+/// `E^r_{k,l}` (degree `k`, length `l`) as a group, over `Z/modulus` or (`modulus` 0) the integers, with a generator
+/// for each cyclic summand (chains of tuples of nodes) while the complex has at most `generator_tuples` tuples, and the
+/// non-zero differentials `d^r: E^r_{k,l} -> E^r_{k-1,l-r}` with their images. Edge lengths are 1.
+#[wasm_bindgen]
+pub fn mpss(
+    n: u32,
+    sources: &[u32],
+    targets: &[u32],
+    l_max: usize,
+    modulus: u32,
+    r_max: usize,
+    generator_tuples: usize,
+) -> Result<JsValue, JsError> {
+    use phlite_networks::magnitude::MagnitudeGraph;
+    use phlite_networks::mpss::mpss_backend;
+    if sources.len() != targets.len() {
+        return Err(err("sources and targets must have the same length"));
+    }
+    let mut edges = vec![];
+    for (&s, &t) in sources.iter().zip(targets) {
+        if s >= n || t >= n {
+            return Err(err(format!("Edge {s} → {t} has a node out of range")));
+        }
+        if s != t {
+            edges.push((s, t));
+        }
+    }
+    let modulus = match modulus {
+        0 => None,
+        p if phlite_networks::magnitude::MODULI.contains(&(p as u64)) => Some(p as u64),
+        p => return Err(err(format!("Unsupported modulus {p}: 0 (the integers), 2, 3, 5, 7, 11, 13 or 251"))),
+    };
+    let graph = MagnitudeGraph::new(n as usize, &edges);
+    let (backend, tuples) = mpss_backend(&graph, l_max, None, modulus);
+    let with_generators = tuples.len() <= generator_tuples;
+    let overflow = |e: phlite::integral::Overflow| err(e.to_string());
+    let (n_steps, n_degrees) = (backend.n_steps(), backend.n_degrees());
+    let mut pages = vec![];
+    let last = backend.degenerates_at().map_or(r_max, |d| d.min(r_max)).max(1);
+    for r in 1..=last {
+        let mut table = vec![];
+        let mut nonzero = vec![];
+        let mut differentials = vec![];
+        for l in 0..n_steps {
+            let mut row = vec![];
+            for k in 0..n_degrees.min(l + 1) {
+                let entry = backend.entry(r, l, k).map_err(overflow)?;
+                if let Some(group) = &entry {
+                    if !group.is_zero() {
+                        let generators = if with_generators {
+                            backend.generators(r, l, k).map_err(overflow)?.map(|(_, gens)| {
+                                gens.into_iter()
+                                    .map(|g| GeneratorOut {
+                                        order: g.order.map(|o| o.to_string()),
+                                        chain: g.chain.into_iter().map(|(c, x)| (x.to_string(), tuples[c].clone())).collect(),
+                                    })
+                                    .collect()
+                            })
+                        } else {
+                            None
+                        };
+                        nonzero.push(EntryOut { l, k, group: group_out(group), generators });
+                    }
+                    if k > 0 && l >= r {
+                        if let Some(image) = backend.differential(r, l, k).map_err(overflow)? {
+                            if !image.is_zero() {
+                                differentials.push(DifferentialOut { from: (l, k), to: (l - r, k - 1), image: group_out(&image) });
+                            }
+                        }
+                    }
+                }
+                row.push(entry.as_ref().map(group_out));
+            }
+            table.push(row);
+        }
+        pages.push(PageOut { r, table, nonzero, differentials });
+    }
+    #[derive(Serialize)]
+    struct Out {
+        bars: Vec<OutBar>,
+        summary: String,
+        mpss: Mpss,
+    }
+    #[derive(Serialize)]
+    struct Mpss {
+        pages: Vec<PageOut>,
+        degenerates_at: Option<usize>,
+        modulus: u32,
+        l_max: usize,
+        n_tuples: usize,
+        generators: bool,
+    }
+    Out {
+        bars: vec![],
+        summary: format!(
+            "The magnitude-path spectral sequence of {n} nodes and {} edges, tuples up to length {l_max} ({} of them), over {}",
+            edges.len(),
+            tuples.len(),
+            modulus.map_or("Z".to_string(), |p| format!("Z/{p}"))
+        ),
+        mpss: Mpss {
+            degenerates_at: backend.degenerates_at(),
+            pages,
+            modulus: modulus.unwrap_or(0) as u32,
+            l_max,
+            n_tuples: tuples.len(),
+            generators: with_generators,
+        },
+    }
+    .serialize(&serde_wasm_bindgen::Serializer::json_compatible())
+    .map_err(|e| err(e.to_string()))
+}
+
+/// Magnitude homology, for [`magnitude`]: `ranks[l][k]` (`null` where an integral Smith form was too large) and, over
+/// the integers, `torsion` as `[k, l, orders]`.
+#[derive(Serialize)]
+struct MagnitudeTable {
+    ranks: Vec<Vec<Option<usize>>>,
+    torsion: Vec<(usize, usize, Vec<String>)>,
+    integral: bool,
+}
+
+/// Magnitude homology of a digraph (`phlite_networks::magnitude`, Hepworth and Willerton): the ranks of `MH_{k,l}` for
+/// lengths up to `l_max`, over Z/2 or (`integral`) the integers, with its torsion. Edge lengths are 1. Returned as a
+/// barcode with no bars, a `summary` and a `magnitude` table.
+#[wasm_bindgen]
+pub fn magnitude(n: u32, sources: &[u32], targets: &[u32], l_max: usize, integral: bool) -> Result<JsValue, JsError> {
+    use phlite_networks::magnitude::{magnitude_integral, magnitude_ranks, total_ranks, MagnitudeGraph, MagnitudeQuery};
+    if sources.len() != targets.len() {
+        return Err(err("sources and targets must have the same length"));
+    }
+    let mut edges = vec![];
+    for (&s, &t) in sources.iter().zip(targets) {
+        if s >= n || t >= n {
+            return Err(err(format!("Edge {s} → {t} has a node out of range")));
+        }
+        if s != t {
+            edges.push((s, t));
+        }
+    }
+    let graph = MagnitudeGraph::new(n as usize, &edges);
+    let query = MagnitudeQuery { l_max, k_max: None, pairs: None };
+    let parallel = rayon::current_num_threads() > 1;
+    let table = if integral {
+        let pairs = magnitude_integral(&graph, &query, parallel);
+        let mut ranks: Vec<Vec<Option<usize>>> = (0..=l_max).map(|l| vec![Some(0); l + 1]).collect();
+        let mut torsion: std::collections::BTreeMap<(usize, usize), Vec<String>> = Default::default();
+        for pair in &pairs {
+            for (l, row) in pair.groups.iter().enumerate() {
+                for (k, group) in row.iter().enumerate() {
+                    match group {
+                        None => ranks[l][k] = None,
+                        Some((rank, orders)) => {
+                            if let Some(r) = &mut ranks[l][k] {
+                                *r += rank;
+                            }
+                            if !orders.is_empty() {
+                                torsion.entry((k, l)).or_default().extend(orders.iter().map(u128::to_string));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        MagnitudeTable { ranks, torsion: torsion.into_iter().map(|((k, l), o)| (k, l, o)).collect(), integral }
+    } else {
+        let pairs = magnitude_ranks(&graph, &query, &[2], parallel);
+        let ranks = total_ranks(&pairs, 0, l_max, None).into_iter().map(|row| row.into_iter().map(Some).collect()).collect();
+        MagnitudeTable { ranks, torsion: vec![], integral }
+    };
+    #[derive(Serialize)]
+    struct Out {
+        bars: Vec<OutBar>,
+        summary: String,
+        magnitude: MagnitudeTable,
+    }
+    Out {
+        bars: vec![],
+        summary: format!(
+            "Magnitude homology of {n} nodes and {} edges, lengths 0–{l_max}, over {}",
+            edges.len(),
+            if integral { "the integers" } else { "Z/2" }
+        ),
+        magnitude: table,
+    }
+    .serialize(&serde_wasm_bindgen::Serializer::json_compatible())
+    .map_err(|e| err(e.to_string()))
+}
+
+/// A filtration of the binary image `pixels > 0.5` (`width` × `height`, row by row), as giotto-tda's
+/// (`phlite_images::filtrations`): `kind` is `"height"` (along the diagonal), `"radial"` (from the centre),
+/// `"dilation"`, `"erosion"`, `"signed_distance"` or `"density"` (radius 3). Unreached pixels enter last.
+#[wasm_bindgen]
+pub fn binary_filtration(pixels: &[f64], width: usize, height: usize, kind: &str) -> Result<Vec<f64>, JsError> {
+    use phlite_images::filtrations as f;
+    if pixels.len() != width * height {
+        return Err(err("The image size doesn't match its pixels"));
+    }
+    let image: Vec<bool> = pixels.iter().map(|&v| v > 0.5).collect();
+    let shape = [height, width];
+    let mut out = match kind {
+        "height" => f::height(&image, &shape, &[1.0, 1.0]).map_err(|e| err(e.to_string()))?,
+        "radial" => f::radial(&image, &shape, &[(height as f64 - 1.0) / 2.0, (width as f64 - 1.0) / 2.0], f64::INFINITY, f::Metric::Euclidean)
+            .map_err(|e| err(e.to_string()))?,
+        "dilation" => f::dilation(&image, &shape, None),
+        "erosion" => f::erosion(&image, &shape, None),
+        "signed_distance" => f::signed_distance(&image, &shape, None),
+        "density" => f::density(&image, &shape, 3.0, f::Metric::Euclidean),
+        other => return Err(err(format!("Unknown filtration {other:?}"))),
+    };
+    f::unreached_last(&mut out);
+    Ok(out)
 }
 
 fn not_nan(x: f64) -> Result<NotNan<f64>, JsError> {
@@ -967,6 +1628,7 @@ fn lazy_bars<K: phlite_networks::lazy::LazyComplex>(
         method: Method,
         representatives: bool,
         parallel_setup: bool,
+        union_find: bool,
     }
     impl<K: phlite_networks::lazy::LazyComplex> Visitor for V<'_, K> {
         type Output = Vec<Bar<phlite_networks::simplex::Simplex, NotNan<f64>, Z2>>;
@@ -978,11 +1640,13 @@ fn lazy_bars<K: phlite_networks::lazy::LazyComplex>(
                 algorithm,
                 self.representatives,
                 self.parallel_setup,
+                self.union_find,
             )
         }
     }
     let bars = config.run(V {
         complex,
+        union_find: config.union_find,
         max_dim,
         method: config.method,
         representatives: config.representatives,
@@ -1103,6 +1767,7 @@ pub fn graph(
                         self.representatives,
                         self.union_find,
                         self.parallel_setup,
+                        true,
                     )
                 }
             }
@@ -1261,15 +1926,71 @@ pub fn complex(
         3 => complex_bars::<Z3>(raw, values, max_dim, extended, &config)?,
         5 => complex_bars::<Z5>(raw, values, max_dim, extended, &config)?,
         7 => complex_bars::<Z7>(raw, values, max_dim, extended, &config)?,
+        0 if !extended => return integral_complex(raw, values, max_dim),
+        0 => return Err(err("Extended persistence is over a field: choose Z/p")),
         other => {
             return Err(err(format!(
-                "Unsupported modulus {other}; use 2, 3, 5 or 7"
+                "Unsupported modulus {other}; use 0 (the integers), 2, 3, 5 or 7"
             )))
         }
     };
     to_js(Barcode {
         bars,
         summary: format!("{sizes}, over Z/{modulus}; {}", describe(&config)),
+        edges: None,
+    })
+}
+
+/// Persistence over the integers (`phlite::integral_persistence`): the barcode over Q, with the primes whose barcode
+/// over `F_p` differs from it (the primes of the torsion) named in the summary.
+fn integral_complex(raw: RawChain, values: Option<Vec<f64>>, max_dim: Option<usize>) -> Result<JsValue, JsError> {
+    use phlite_complexes::field::Integer;
+    let chain = Chain::<Integer>::from_raw(raw).map_err(|e| err(e.to_string()))?;
+    let values = match values {
+        None => None,
+        Some(values) => Some(
+            chain
+                .extend(values.into_iter().map(|v| (!v.is_nan()).then_some(v)).collect())
+                .map_err(|e| err(e.to_string()))?,
+        ),
+    };
+    let complex = chain.filter(values).map_err(|e| err(e.to_string()))?;
+    let filtered = complex.integral();
+    let result = phlite::integral_persistence::integral_persistence(&filtered.boundary, &filtered.degree)
+        .map_err(|e| err(e.to_string()))?;
+    let at = |rank: usize| complex.at_rank(phlite_complexes::complex::Cell(rank as u32));
+    let bars: Vec<OutBar> = result
+        .rational
+        .iter()
+        .filter_map(|&(b, d)| {
+            let (cell, birth, dim) = at(b);
+            let death = d.map(at);
+            if max_dim.is_some_and(|m| dim > m) || death.is_some_and(|(_, v, _)| v == birth) {
+                return None;
+            }
+            Some(OutBar {
+                dim,
+                birth,
+                death: death.map(|(_, v, _)| v),
+                birth_cell: vec![cell.0],
+                death_cell: death.map(|(c, _, _)| vec![c.0]),
+                rep: None,
+                kind: None,
+            })
+        })
+        .collect();
+    let primes: Vec<String> = result.torsion.iter().map(|(p, _)| p.to_string()).collect();
+    let torsion = if primes.is_empty() {
+        "no torsion: the barcode is the same over every field".to_string()
+    } else {
+        format!("torsion: the barcode over Z/p differs for p = {}", primes.join(", "))
+    };
+    to_js(Barcode {
+        bars,
+        summary: format!(
+            "{} cells, over the integers: the barcode over Q (no representatives); {torsion}",
+            complex.n_cells()
+        ),
         edges: None,
     })
 }
@@ -1326,6 +2047,7 @@ pub fn image(
     height: usize,
     superlevel: bool,
     construction: &str,
+    periodic: bool,
     options: JsValue,
 ) -> Result<JsValue, JsError> {
     use phlite_images::cubical::{filtration_barcode, Construction, CubicalComplex, Filtration};
@@ -1339,6 +2061,55 @@ pub fn image(
         other => return Err(err(format!("Unknown construction {other:?}"))),
     };
     let filtration = if superlevel { Filtration::Superlevel } else { Filtration::Sublevel };
+    if periodic {
+        // Both axes wrap round (a torus, so H₂ too): the explicit periodic complex, without representatives
+        struct P<'a> {
+            pixels: &'a [f64],
+            shape: [usize; 2],
+            construction: Construction,
+            filtration: Filtration,
+        }
+        impl Visitor for P<'_> {
+            type Output = Vec<phlite_images::cubical::periodic::PeriodicBar>;
+            fn visit<R: ColumnRepresentation>(self, algorithm: Algorithm<'_, R>) -> Self::Output {
+                phlite_images::cubical::periodic::periodic_barcode(
+                    self.pixels,
+                    &self.shape,
+                    &[true, true],
+                    self.construction,
+                    self.filtration,
+                    2,
+                    algorithm,
+                )
+            }
+        }
+        let bars = config.run(P { pixels, shape: [height, width], construction, filtration });
+        let sign = if superlevel { -1.0 } else { 1.0 };
+        let cell = |c: &(usize, Vec<u32>)| vec![c.1[1], c.1[0]];
+        let bars = bars
+            .into_iter()
+            .filter(|bar| bar.death.as_ref().is_none_or(|(_, d)| *d != bar.birth_value))
+            .map(|bar| OutBar {
+                dim: bar.birth.0,
+                birth: sign * bar.birth_value.into_inner(),
+                death: bar.death.as_ref().map(|(_, d)| sign * d.into_inner()),
+                birth_cell: cell(&bar.birth),
+                death_cell: bar.death.as_ref().map(|(c, _)| cell(c)),
+                rep: None,
+                kind: None,
+            })
+            .collect();
+        return to_js(Barcode {
+            bars,
+            summary: format!(
+                "{width}×{height} image wrapped round (a torus, {}-construction), {} sets, dimensions 0–2; {}",
+                if construction == Construction::T { "T" } else { "V" },
+                if superlevel { "superlevel" } else { "sublevel" },
+                describe(&config)
+            ),
+            edges: None,
+        });
+    }
     let complex = CubicalComplex::new(pixels.to_vec(), [height, width], construction, filtration)
         .map_err(|e| err(e.to_string()))?;
     struct V<'a> {

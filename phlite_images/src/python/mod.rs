@@ -4,6 +4,8 @@
 //! how to write one); add a new one to [`PIPELINES`] and [`_images`].
 
 mod cubical;
+mod filtrations;
+mod videos;
 
 use phlite_bindings::AlgorithmDefaults;
 use pyo3::prelude::*;
@@ -20,5 +22,7 @@ fn _images(m: &Bound<'_, PyModule>) -> PyResult<()> {
     phlite_bindings::init_package(m.py(), "phlite-images", env!("CARGO_PKG_VERSION"), PIPELINES)?;
     pyo3_log::init();
     m.setattr("__doc__", DOC)?;
-    cubical::register(m)
+    cubical::register(m)?;
+    filtrations::register(m)?;
+    videos::register(m)
 }

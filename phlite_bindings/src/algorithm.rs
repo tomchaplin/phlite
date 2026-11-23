@@ -141,6 +141,9 @@ pub struct AlgorithmDefaults {
     /// Whether the pipeline finds dimension 0 (and, for images, the top dimension) by union-find rather than by
     /// reducing it, when computing by cohomology; `None` if it can't (asking for it is then refused).
     pub union_find: Option<bool>,
+    /// Whether the pipeline collapses the edges of its flag filtration before reducing (see
+    /// `phlite_clouds::rips::collapse`); `None` if it can't (asking for it is then refused).
+    pub collapse: Option<bool>,
 }
 
 /// A reduction algorithm, with the options the user set: `None` means the pipeline's default.
@@ -162,6 +165,8 @@ pub struct AlgorithmSpec {
     pub threads: Option<usize>,
     /// `None` means the pipeline's default (see [`AlgorithmDefaults::union_find`]).
     pub union_find: Option<bool>,
+    /// `None` means the pipeline's default (see [`AlgorithmDefaults::collapse`]).
+    pub collapse: Option<bool>,
     /// Whether the work before the reduction (building bases, sorting) runs in parallel; `None` follows the
     /// algorithm: in parallel only for parallel clearing.
     pub parallel_setup: Option<bool>,
@@ -182,6 +187,7 @@ impl AlgorithmSpec {
             storage: Storage::Locking,
             threads: None,
             union_find: None,
+            collapse: None,
             parallel_setup: None,
         }
     }
@@ -272,9 +278,20 @@ impl AlgorithmSpec {
             (_, None) => None,
             (set, Some(default)) => Some(set.unwrap_or(default)),
         };
+        let collapse = match (self.collapse, defaults.collapse) {
+            (Some(true), None) => {
+                return Err(AlgorithmError(format!(
+                    "The pipeline '{}' can't collapse edges",
+                    defaults.pipeline
+                )))
+            }
+            (_, None) => None,
+            (set, Some(default)) => Some(set.unwrap_or(default)),
+        };
         Ok(ResolvedAlgorithm {
             kind: self.kind,
             union_find,
+            collapse,
             parallel_setup: self.parallel_setup,
             columns,
             threshold: self.threshold,
@@ -321,6 +338,8 @@ pub struct ResolvedAlgorithm {
     pub threads: Option<usize>,
     /// `None` if the pipeline can't use union-find.
     pub union_find: Option<bool>,
+    /// `None` if the pipeline can't collapse edges.
+    pub collapse: Option<bool>,
     /// As set (`None`: follow the algorithm), see [`parallel_setup`](Self::parallel_setup).
     pub parallel_setup: Option<bool>,
 }
@@ -339,6 +358,7 @@ impl ResolvedAlgorithm {
             storage: self.storage,
             threads: self.threads,
             union_find: self.union_find,
+            collapse: self.collapse,
             parallel_setup: self.parallel_setup,
         }
     }
@@ -352,6 +372,11 @@ impl ResolvedAlgorithm {
     /// Whether to use union-find (for a pipeline that can).
     pub fn union_find(&self) -> bool {
         self.union_find.unwrap_or(false)
+    }
+
+    /// Whether to collapse edges (for a pipeline that can).
+    pub fn collapse(&self) -> bool {
+        self.collapse.unwrap_or(false)
     }
 
     /// Run `visitor` with the configured [`Algorithm`], on a pool of `threads` threads if set.
@@ -449,6 +474,7 @@ mod tests {
         store_r: false,
         row_ranks: false,
         union_find: None,
+        collapse: None,
     };
     const COMPLEX: AlgorithmDefaults = AlgorithmDefaults {
         pipeline: "complex",
@@ -457,6 +483,7 @@ mod tests {
         store_r: true,
         row_ranks: true,
         union_find: None,
+        collapse: None,
     };
 
     #[test]

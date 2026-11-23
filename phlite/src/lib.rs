@@ -50,8 +50,14 @@ pub mod columns;
 pub mod extended;
 pub mod fields;
 mod hash;
+pub mod image_kernel;
+pub mod integral;
+pub mod integral_persistence;
 pub mod matrices;
 pub mod reduction;
+pub mod six_pack;
+pub mod spectral;
+pub mod union_find;
 pub mod values;
 
 // TODO: Better system for column algebra

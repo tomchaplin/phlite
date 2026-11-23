@@ -422,6 +422,12 @@ impl<'p, C: ColumnRepresentation> ParallelClearing<'p, C> {
         self
     }
 
+    /// See [`Clearing::with_dimension_order`].
+    pub fn with_dimension_order(mut self, dimension_order: impl IntoIterator<Item = usize>) -> Self {
+        self.clearing = self.clearing.with_dimension_order(dimension_order);
+        self
+    }
+
     /// See [`Clearing::with_columns`].
     pub fn with_columns<C2: ColumnRepresentation>(self, columns: C2) -> ParallelClearing<'p, C2> {
         ParallelClearing {

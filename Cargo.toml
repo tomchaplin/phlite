@@ -16,7 +16,7 @@ exclude = ["phlite_web"]
 # from here): bump it here, in the pins of [workspace.dependencies] below, and in phlite_meta/pyproject.toml and the
 # packages' `phlite-core==` pins (phlite_bindings' tests check all of these agree), then build and release everything.
 [workspace.package]
-version = "0.2.0"
+version = "0.3.0"
 edition = "2021"
 license = "MIT"
 repository = "https://github.com/tomchaplin/phlite"
@@ -24,10 +24,10 @@ repository = "https://github.com/tomchaplin/phlite"
 # The crates' dependencies on each other, pinned exactly to the workspace's version (they are released together), with
 # their paths for building here. crates.io needs the version; each crate adds its own features.
 [workspace.dependencies]
-phlite = { version = "=0.2.0", path = "phlite" }
-phlite_bindings = { version = "=0.2.0", path = "phlite_bindings" }
-phlite_complexes = { version = "=0.2.0", path = "phlite_complexes" }
-phlite_clouds = { version = "=0.2.0", path = "phlite_clouds" }
+phlite = { version = "=0.3.0", path = "phlite" }
+phlite_bindings = { version = "=0.3.0", path = "phlite_bindings" }
+phlite_complexes = { version = "=0.3.0", path = "phlite_complexes" }
+phlite_clouds = { version = "=0.3.0", path = "phlite_clouds" }
 
 # Each extension module's hot code is generic code from phlite instantiated with its own types, plus non-generic
 # helpers from other crates, which only LTO can inline across crates (it was worth 1.5-2x for Rips and GrPPH when their

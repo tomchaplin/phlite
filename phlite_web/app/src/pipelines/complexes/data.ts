@@ -9,6 +9,34 @@ export interface Cell {
   value: number | null;
   /** A position in the plane (vertices only), for drawing. */
   pos?: [number, number];
+  /** For zigzags: the intervals [start, end) of time the cell lives (end may be Infinity); by default from its value on. */
+  lifetimes?: [number, number][];
+}
+
+// ---- Lifetimes, for zigzags ----
+
+/** `0-3 5-inf` as [[0, 3], [5, Infinity]]. */
+export function parseLifetimes(text: string): [number, number][] {
+  return text
+    .trim()
+    .split(/[\s,]+/)
+    .filter(Boolean)
+    .map((token) => {
+      const m = token.match(/^(-?[\d.]+(?:e-?\d+)?)-(-?[\d.]+(?:e-?\d+)?|inf|∞)$/i);
+      if (!m) throw new Error(`"${token}" isn't a lifetime start-end (e.g. 0-3, or 2-inf)`);
+      const a = Number(m[1]);
+      const b = /inf|∞/i.test(m[2]) ? Infinity : Number(m[2]);
+      if (!(a < b)) throw new Error(`the lifetime ${token} is empty: its start must be before its end`);
+      return [a, b] as [number, number];
+    });
+}
+
+export const formatLifetimes = (l: [number, number][]) => l.map(([a, b]) => `${a}-${b === Infinity ? 'inf' : b}`).join(' ');
+
+/** Each cell's lifetimes: its own, or from its (effective) value on. */
+export function lifetimesOf(c: Complex): [number, number][][] {
+  const values = effectiveValues(c);
+  return c.map((x, i) => x.lifetimes ?? [[Number.isFinite(values[i]) ? values[i] : 0, Infinity]]);
 }
 
 export type Complex = Cell[];
@@ -105,6 +133,8 @@ export interface ComplexExample {
   about: string;
   modulus: number;
   make: () => Complex;
+  /** Shown as a zigzag (its cells have lifetimes). */
+  zigzag?: boolean;
 }
 
 export const EXAMPLES: ComplexExample[] = [
@@ -143,7 +173,7 @@ export const EXAMPLES: ComplexExample[] = [
     id: 'rp2',
     name: 'Projective plane',
     about:
-      'The 6-vertex projective plane, every cell at 0. Over Z/2 it has H₁ and H₂ of rank 1; over Z/3 (try it in Compute) both vanish: its H₁ is Z/2 over the integers, which only fields of characteristic 2 see.',
+      'The 6-vertex projective plane, every cell at 0. Over Z/2 it has H₁ and H₂ of rank 1; over Z/3 (try it in Compute) both vanish: its H₁ is Z/2 over the integers, which only fields of characteristic 2 see. Over Z (torsion) the barcode is over Q, and the summary names 2 as the prime of the torsion.',
     modulus: 2,
     make: () =>
       simplicial(
@@ -154,9 +184,31 @@ export const EXAMPLES: ComplexExample[] = [
   {
     id: 'klein',
     name: 'Klein bottle',
-    about: 'A 4 × 4 grid glued with a twist, every cell at 0. Over Z/2: Betti numbers 1, 2, 1. Over Z/3: 1, 1, 0 (it isn\'t orientable).',
+    about: 'A 4 × 4 grid glued with a twist, every cell at 0. Over Z/2: Betti numbers 1, 2, 1. Over Z/3: 1, 1, 0 (it isn\'t orientable). Over Z, H₁ = Z ⊕ Z/2: the prime 2 again.',
     modulus: 2,
     make: () => gluedGrid(4, true),
+  },
+  {
+    id: 'zigzag-loops',
+    name: 'Loops that come and go (zigzag)',
+    about:
+      'A zigzag of cells with lifetimes. The square abcd is there throughout (a loop); its diagonal ac during [2, 4) splits the loop in two, and the triangle abc fills one of them during [3, 4). The edge be comes and goes, [1, 3) and [5, 8), closing a loop with bc, ce (there during [0, 8)) each time, until the triangle bce fills it at 6. Edit the lifetimes in the table, or as text under Build.',
+    modulus: 2,
+    zigzag: true,
+    make: () => {
+      const names = ['a', 'b', 'c', 'd', 'e'];
+      const pos: [number, number][] = [[0, 0], [1, 0], [1, 1], [0, 1], [1.8, 0.5]];
+      const base = simplicial([[0, 1], [1, 2], [2, 3], [3, 0], [0, 2], [0, 1, 2], [1, 4], [2, 4], [1, 2, 4]], { names, positions: pos });
+      const life: Record<string, [number, number][]> = {
+        ac: [[2, 4]],
+        abc: [[3, 4]],
+        be: [[1, 3], [5, 8]],
+        ce: [[0, 8]],
+        e: [[0, 8]],
+        bce: [[6, 8]],
+      };
+      return base.map((x) => ({ ...x, value: 0, lifetimes: life[x.label] ?? [[0, Infinity]] }));
+    },
   },
 ];
 
@@ -189,13 +241,15 @@ export function randomComplex(n: number, radius: number, values: 'rips' | 'heigh
 
 export const FORMAT_HELP = `One cell per line: label, dimension, value, then its faces after a colon.
 The value can be _ to take the largest of its faces' values. A vertex can have a position, @ x y.
+For zigzags, a cell can have lifetimes, ~ 0-3 5-inf (by default, from its value on).
 A face can carry a coefficient: 2*ab, or -ab for −1. Lines starting with # are comments.`;
 
 export function toText(c: Complex): string {
-  const lines = ['# label dim value [@ x y] [: faces]'];
+  const lines = ['# label dim value [@ x y] [~ lifetimes] [: faces]'];
   for (const cell of c) {
     let line = `${cell.label} ${cell.dim} ${cell.value ?? '_'}`;
     if (cell.pos) line += ` @ ${+cell.pos[0].toFixed(4)} ${+cell.pos[1].toFixed(4)}`;
+    if (cell.lifetimes) line += ` ~ ${formatLifetimes(cell.lifetimes)}`;
     if (cell.faces.length)
       line +=
         ' : ' +
@@ -214,8 +268,17 @@ export function parseText(text: string): Complex {
     const line = raw.replace(/#.*/, '').trim();
     if (!line) return;
     const where = `Line ${i + 1}`;
-    const [head, facesPart] = line.split(':');
+    const [head0, facesPart] = line.split(':');
+    const [head, lifePart] = head0.split('~');
     const [main, posPart] = head.split('@');
+    let lifetimes: [number, number][] | undefined;
+    if (lifePart !== undefined) {
+      try {
+        lifetimes = parseLifetimes(lifePart);
+      } catch (e) {
+        throw new Error(`${where}: ${(e as Error).message}`);
+      }
+    }
     const parts = main.trim().split(/\s+/);
     if (parts.length !== 3) throw new Error(`${where}: expected "label dim value", got "${main.trim()}"`);
     const [label, dimText, valueText] = parts;
@@ -243,7 +306,7 @@ export function parseText(text: string): Complex {
         return { cell: face, coeff };
       });
     byLabel.set(label, cells.length);
-    cells.push({ label, dim, faces, value, pos });
+    cells.push({ label, dim, faces, value, pos, lifetimes });
   });
   if (cells.length === 0) throw new Error('No cells');
   return cells;

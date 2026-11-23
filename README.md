@@ -40,8 +40,14 @@ pioneered: clearing, cohomology, apparent and emergent pairs, storing V rather t
 and more. Each technique is optional and documented, with notes on when it helps.
 
 On top of that framework, phlite now comes with batteries for many filtrations, from Python and Rust: Vietoris–Rips,
-alpha and Delaunay–Čech complexes, weighted and DTM-Rips, cubical complexes of images, path homology, directed flag
-complexes, Dowker complexes, flag complexes of graphs, extended persistence, and explicit chain complexes of any kind.
+alpha, Delaunay–Čech, Čech and witness complexes, weighted and DTM-Rips, cubical complexes of images (periodic too,
+and giotto-tda's filtrations of binary images), path homology, directed flag complexes, Dowker complexes, flag
+complexes of graphs, magnitude homology, extended persistence, and explicit chain complexes of any kind.
+
+And the same generic traits carry the constructions around persistence to any filtration: **maps of filtrations**
+(the image, kernel and cokernel barcodes of a map, and its whole six-pack, with representatives), **zigzag
+persistence**, **persistence over the integers** (the barcode over Q and the primes of the torsion) and **spectral
+sequences** (a page at a time, with groups and generators, over a field or Z).
 
 ## Where to start
 
@@ -71,8 +77,9 @@ sharing the namespace `phlite`:
 | [`phlite.clouds`](phlite_clouds/README.md) | `phlite_clouds` | point clouds and distance matrices: Vietoris–Rips (dense or sparse), weighted and DTM-Rips, alpha and Delaunay–Čech complexes | Ripser, giotto-ph, GUDHI |
 | [`phlite.networks`](phlite_networks/README.md) | `phlite_networks` | weighted graphs and digraphs: (grounded) path homology, directed flag, Dowker and ordered-tuple complexes, flag complexes | grpphati, flagser, GUDHI |
 | [`phlite.images`](phlite_images/README.md) | `phlite_images` | images and volumes: cubical complexes, T- and V-constructions | Cubical Ripser, GUDHI |
-| [`phlite.complexes`](phlite_complexes/README.md) | `phlite_complexes` | any chain complex you build, with any filtration, and extended persistence | PHAT, LoPHAT, GUDHI |
-| `phlite.core` | [`phlite_bindings`](phlite_bindings/README.md) | what the others share: `Algorithm` and `Barcode` | |
+| [`phlite.clouds`](phlite_clouds/README.md) (also) | | Čech and witness complexes; six-packs of subsets and of maps of point clouds | GUDHI, phimaker |
+| [`phlite.complexes`](phlite_complexes/README.md) | `phlite_complexes` | any chain complex you build, with any filtration: extended persistence, maps and six-packs, zigzags, the integers, spectral sequences | PHAT, LoPHAT, GUDHI, phimaker, Dionysus, Kenzo |
+| `phlite.core` | [`phlite_bindings`](phlite_bindings/README.md) | what the others share: `Algorithm`, `Barcode`, `SixPack` and `SpectralSequence` | |
 
 **From Rust, for your own filtration**, the core crate [`phlite`](phlite/README.md) has the matrix oracle traits, the
 reduction algorithms and barcodes. The book walks through [how phlite is built](https://phlite.tomchaplin.xyz/book/design/oracles.html)
@@ -99,6 +106,24 @@ Almost every technique in phlite comes from other software, and we are grateful 
   **[GUDHI](https://gudhi.inria.fr)** [[12]](#12): cubical complexes, alpha complexes, weighted Rips and extended
   persistence, which phlite follows (and is tested against).
 * **[grpphati](https://github.com/tomchaplin/grpphati)**: grounded persistent path homology [[7]](#7).
+* **[Perseus](https://people.maths.ox.ac.uk/nanda/perseus/)** (Mischaikow and Nanda) [[13]](#13): discrete Morse
+  reductions before reducing (the filtered discrete gradient of cubical volumes; coreductions and elimination of unit
+  pairs for magnitude homology), word-parallel domination tests in the edge collapse of Rips complexes (after Glisse
+  and Pritam [[18]](#18)), sorted enumeration with faces by binary search, and finding the primes of the torsion from a
+  fraction-free reduction over Z (persistence over the integers).
+* **Cohen-Steiner, Edelsbrunner, Harer and Morozov** [[14]](#14) and **[phimaker](https://github.com/tomchaplin/phimaker)**:
+  the image, kernel and cokernel reductions behind phlite's six-packs.
+* **Dey and Hou's FastZigzag** [[15]](#15): zigzag persistence as ordinary persistence of a coned up-down filtration;
+  tested and benchmarked against their [fzz](https://github.com/TDA-Jyamiti/fzz) and
+  [Dionysus](https://mrzv.org/software/dionysus2/) (Morozov).
+* **[Kenzo](https://github.com/miguelmarco/kenzo)** (Romero, Rubio and Sergeraert) [[16]](#16): spectral sequences over
+  the integers, which phlite's are tested against (as against
+  [spectral-sequence-engine](https://pypi.org/project/spectral-sequence-engine/) and
+  [PerMaViss](https://github.com/atorras1618/PerMaViss)).
+* **Hepworth and Willerton** [[17]](#17), **Asao**, **Hepworth and Roff**: magnitude homology and the magnitude-path
+  spectral sequence, after [gramag](https://github.com/tomchaplin/gramag), against which (and Perseus) it is tested.
+* **GUDHI** again for Čech, witness and periodic cubical complexes, and
+  **[giotto-tda](https://github.com/giotto-ai/giotto-tda)** for the filtrations of binary images.
 
 If you use Julia, [Ripserer.jl](https://github.com/mtsch/Ripserer.jl) [[6]](#6) shares phlite's aim of making Ripser's
 techniques extensible to new filtrations, and we recommend it.
@@ -112,10 +137,17 @@ agree). On one thread, phlite is faster on most of their own inputs:
 * directed flag complexes: 1.4–1.9× faster than flagser;
 * GrPPH and path homology: 24–100× faster than grpphati;
 * flag complexes of graphs, extended persistence and weighted Rips: 3–18×, 2.5–5.5× and over 50× faster than GUDHI;
-* explicit Rips complexes: 11–26× faster than PHAT, and cell complexes 1.1–2× faster.
+* explicit Rips complexes: 11–26× faster than PHAT, and cell complexes 1.1–2× faster;
+* images, kernels and cokernels: 1.2–1.8× faster than phimaker (and the whole six-pack, with representatives, in about
+  phimaker's time); zigzag persistence 17–385× faster than Dionysus (and within 1.6× of Dey and Hou's fzz reducing the same
+  way); spectral sequences over Z 1–1000× faster than
+  Kenzo; magnitude homology 2–100× faster than gramag (more on larger graphs), and level with Perseus.
 
 It is slower in places too, and often uses more memory:
 
+* [Perseus](https://people.maths.ox.ac.uk/nanda/perseus/) is 6–13× faster on 2D images (its planar union-find
+  engine) and 1.2–1.6× faster on 3D volumes, and up to 1.6× faster on small random Rips complexes; phlite is up to 3×
+  faster on Rips complexes with long bars and 5–7× faster on random simplicial complexes;
 * Cubical Ripser is 1.5–1.7× faster on 3D volumes (in 2D the two are level, or phlite up to 2× faster);
 * PHAT is up to 1.4× faster on cubical and dense complexes (level on meshes);
 * GUDHI's alpha and Delaunay–Čech complexes are 7–8× faster on a million points in the plane (phlite is level or
@@ -193,3 +225,21 @@ Bauer, Ulrich, Michael Kerber, Jan Reininghaus, and Hubert Wagner. "PHAT – Per
 
 <a id="12">[12]</a>
 The GUDHI Project. GUDHI User and Reference Manual. [gudhi.inria.fr](https://gudhi.inria.fr)
+
+<a id="13">[13]</a>
+Mischaikow, Konstantin, and Vidit Nanda. "Morse theory for filtrations and efficient computation of persistent homology." Discrete & Computational Geometry 50 (2013): 330-353. [Perseus.](https://people.maths.ox.ac.uk/nanda/perseus/)
+
+<a id="14">[14]</a>
+Cohen-Steiner, David, Herbert Edelsbrunner, John Harer, and Dmitriy Morozov. "Persistent homology for kernels, images, and cokernels." Proceedings of the 20th ACM-SIAM Symposium on Discrete Algorithms (2009).
+
+<a id="15">[15]</a>
+Dey, Tamal K., and Tao Hou. "Fast computation of zigzag persistence." 30th European Symposium on Algorithms (ESA 2022). [GitHub.](https://github.com/TDA-Jyamiti/fzz)
+
+<a id="16">[16]</a>
+Romero, Ana, Julio Rubio, and Francis Sergeraert. "Computing spectral sequences." Journal of Symbolic Computation 41.10 (2006): 1059-1079.
+
+<a id="17">[17]</a>
+Hepworth, Richard, and Simon Willerton. "Categorifying the magnitude of a graph." Homology, Homotopy and Applications 19.2 (2017): 31-60.
+
+<a id="18">[18]</a>
+Glisse, Marc, and Siddharth Pritam. "Swap, shift and trim to edge collapse a filtration." 38th International Symposium on Computational Geometry (SoCG 2022).

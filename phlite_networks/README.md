@@ -32,6 +32,9 @@ Every function takes a networkx graph or `(number of nodes, edge list)`, and `al
 | `ordered_tuples` | directed Rips: ordered tuples of nodes | [Ordered tuples](https://phlite.tomchaplin.xyz/book/python/networks/ordered_tuples.html) |
 | `dowker` | Dowker complexes (sink or source) | [Dowker](https://phlite.tomchaplin.xyz/book/python/networks/dowker.html) |
 | `flag` | flag (clique) complexes of undirected graphs, by edge weight, node values or shortest paths | [Flag](https://phlite.tomchaplin.xyz/book/python/networks/flag.html) |
+| `magnitude` | magnitude homology (Hepworth and Willerton [[4]](#4)) over Z/p or Z, with its torsion | [Magnitude](https://phlite.tomchaplin.xyz/book/python/networks/magnitude.html) |
+| `network_zigzag` | zigzag persistence of snapshots of a network (clique or directed flag complexes, joined by unions or intersections), by FastZigzag | [Zigzag](https://phlite.tomchaplin.xyz/book/python/zigzag.html) |
+| `magnitude_path_spectral_sequence` | the magnitude-path spectral sequence (Asao; Hepworth and Roff [[5]](#5)), a page at a time | [Magnitude](https://phlite.tomchaplin.xyz/book/python/networks/magnitude.html) |
 
 Extended persistence of a function on a graph's nodes is in `phlite.complexes`
 ([book](https://phlite.tomchaplin.xyz/book/python/extended.html)). In Rust, each is a module with a `*_barcode`
@@ -52,6 +55,12 @@ function; `phlite_networks_grpph` and `phlite_networks_pph` are command-line too
   against PathHomFast and was compared with the MATLAB code, and computes it in any dimension, by homology or
   cohomology.
 
+* **[gramag](https://github.com/tomchaplin/gramag)** and **[Perseus](https://people.maths.ox.ac.uk/nanda/perseus/)**
+  (magnitude homology): phlite is 2–100× faster than gramag (2–20× on the random digraphs in `BENCHMARKS.md`, more
+  on larger graphs), and runs where gramag runs out of memory; level with
+  Perseus in time (whose coreductions and elimination phlite borrows, with its sorted enumeration), with about 1.3×
+  its memory. Every rank and torsion group agrees with both.
+
 Ordered tuples and Dowker complexes have, as far as we know, no other implementation to compare with; they are tested
 against brute force. All of the numbers are in [the benchmarks](https://github.com/tomchaplin/phlite/blob/main/python-tests/BENCHMARKS.md).
 
@@ -67,3 +76,11 @@ ACM-SIAM Symposium on Discrete Algorithms (2018). arXiv:1701.00565.
 
 <a id="3">[3]</a>
 Lütgehetmann, Daniel, et al. "Computing persistent homology of directed flag complexes." Algorithms 13.1 (2020): 19.
+
+<a id="4">[4]</a>
+Hepworth, Richard, and Simon Willerton. "Categorifying the magnitude of a graph." Homology, Homotopy and Applications
+19.2 (2017): 31-60.
+
+<a id="5">[5]</a>
+Hepworth, Richard, and Emily Roff. "Bigraded path homology and the magnitude-path spectral sequence."
+arXiv:2404.06689 (2024).

@@ -80,6 +80,16 @@ def peak_heap_mb(function):
 # ====== Barcodes =========================================================
 
 
+def perseus_fingerprint(result, max_dim):
+    """The fingerprint of a Perseus 6 result (`perseus.rips(...)` and the like) in dimensions `0..=max_dim`: its
+    `barcode` is a list, by dimension, of `(birth, death)` arrays (death infinite for an essential bar), which may stop
+    before `max_dim`."""
+    dims = result["barcode"]
+    return fingerprint(
+        [[(float(b), float(d)) for b, d in (dims[k] if k < len(dims) else [])] for k in range(max_dim + 1)]
+    )
+
+
 def fingerprint(dims):
     """Summarise a barcode (a list, per dimension, of (birth, death) bars) so implementations can be compared:
     the number of finite and infinite bars, and the total finite persistence, ignoring zero-length bars."""
@@ -166,11 +176,13 @@ def _before_fork():
 # ====== Running a benchmark ==============================================
 
 
-def run(benchmark, *, group, implementation, make_input, reference=None, rounds=None):
+def run(benchmark, *, group, implementation, make_input, reference=None, rounds=None, timeout=None):
     """Benchmark `implementation(input)` on inputs from `make_input()`, checking it agrees with `reference()`.
 
     `reference` returns the reference fingerprint (and should be cached, since every benchmark of a case asks for it);
     leave it out for the reference implementation itself. `rounds` overrides `ROUNDS`, for cases too slow to repeat.
+    `timeout` overrides `TIMEOUT`: 0 runs the first run in this process, not a forked child, for an implementation
+    that a fork would hang (one with a thread pool of its own that an earlier run started, as gramag's rayon pool).
     """
     benchmark.group = group
     benchmark.extra_info["threads"] = THREADS
@@ -181,7 +193,7 @@ def run(benchmark, *, group, implementation, make_input, reference=None, rounds=
         result, peak = peak_heap_mb(lambda: implementation(data))
         return _resolve(result), peak
 
-    out = call_with_timeout(first_run, TIMEOUT)
+    out = call_with_timeout(first_run, TIMEOUT if timeout is None else timeout)
     del data
     if out is None:
         pytest.skip(f"over the time limit of {TIMEOUT:g} s (PHLITE_BENCH_TIMEOUT)")

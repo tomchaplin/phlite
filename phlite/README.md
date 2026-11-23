@@ -36,6 +36,15 @@ possible:
   pivot columns), with an optional cache of columns of D.
 * **Representatives** for every bar, by homology or (via the involution) cohomology, over any prime field.
 * **Extended persistence** of any filtration with a reverse filtration ([`extended`](https://docs.rs/phlite/latest/phlite/extended/)).
+* **Maps of filtrations** ([`six_pack`](https://docs.rs/phlite/latest/phlite/six_pack/), [`image_kernel`](https://docs.rs/phlite/latest/phlite/image_kernel/)):
+  implement `FilteredChainMap` for any two oracles and a map between them, and get the barcodes of its image, kernel
+  and cokernel (Cohen-Steiner, Edelsbrunner, Harer and Morozov, as phimaker), of both filtrations and of the mapping
+  cone, with representatives, through a lazy mapping cylinder.
+* **Over the integers** ([`integral_persistence`](https://docs.rs/phlite/latest/phlite/integral_persistence/),
+  [`integral`](https://docs.rs/phlite/latest/phlite/integral/)): the barcode over Q and the primes of the torsion
+  (as Perseus finds them), and exact groups, by checked integer elimination.
+* **Spectral sequences** ([`spectral`](https://docs.rs/phlite/latest/phlite/spectral/)): entry by entry, read off a
+  barcode over a field or computed from a window of any `StepFiltered` oracle over Z.
 * **A contract checker** ([`matrices::contract`](https://docs.rs/phlite/latest/phlite/matrices/contract/)) that tests
   your oracle satisfies everything the algorithms assume.
 

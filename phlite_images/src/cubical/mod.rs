@@ -46,14 +46,20 @@
 //!   with the cell's own value is its oldest one (an *emergent pair*, as in Cubical Ripser), and similarly for faces.
 //! * [`build_reduction_bases`] builds the column bases, leaving out every cell in a zero-persistence apparent pair
 //!   (see [`CubicalComplex::in_zero_apparent_pair`]); in images with smooth regions these are most cells.
+//! * By cohomology without representatives, dimension 0 and the top dimension are found by union-find (on the edges
+//!   and on the dual), and the T-construction of a volume (three axes) by a filtered discrete gradient instead, as
+//!   Perseus does: only its critical cells are reduced (`morse`).
 
 pub mod cohomology;
 pub mod grid;
 pub mod homology;
+mod morse;
+pub mod periodic;
 #[cfg(test)]
 mod tests;
 
 use ordered_float::NotNan;
+use phlite::union_find::{IncidenceReduction, GROUND};
 use phlite::{
     barcode::{self, Algorithm, Bar},
     columns::ColumnRepresentation,
@@ -334,6 +340,40 @@ impl<const D: usize> CubicalComplex<D> {
             Construction::V => offsets.iter().map(|&o| self.pixels[base + o]).fold(f64::NEG_INFINITY, f64::max),
             Construction::T => offsets.iter().map(|&o| self.padded[base + o]).fold(f64::INFINITY, f64::min),
         }
+    }
+
+    /// Every cell of the complex (those that enter at a finite value, in order of number) as an explicit chain complex
+    /// with the oriented boundary (coefficients ±1, so right over the integers): each cell's dimension, its boundary
+    /// as CSC arrays (`indptr`, then faces as positions in this list, then their coefficients), its value in the sublevel
+    /// filtration (of the negated image, for superlevel sets), and its coordinates on the doubled grid.
+    #[allow(clippy::type_complexity)]
+    pub fn explicit(&self) -> (Vec<i64>, Vec<i64>, Vec<i64>, Vec<i64>, Vec<f64>, Vec<[u32; D]>) {
+        let Some(grid) = self.grid.as_ref() else {
+            return (vec![], vec![0], vec![], vec![], vec![], vec![]);
+        };
+        let n = grid.n_cells();
+        let mut position = vec![u32::MAX; n as usize];
+        let mut kept = vec![];
+        for c in 0..n {
+            if self.internal_value_of(Cube(c)) < f64::INFINITY {
+                position[c as usize] = kept.len() as u32;
+                kept.push(Cube(c));
+            }
+        }
+        let (mut dims, mut indptr, mut indices, mut coefficients, mut values, mut coordinates) =
+            (vec![], vec![0i64], vec![], vec![], vec![], vec![]);
+        for &cube in &kept {
+            let decoded = grid.decode(cube);
+            dims.push(grid.dimension(cube) as i64);
+            for face in grid.faces(&decoded) {
+                indices.push(i64::from(position[face.cube.0 as usize]));
+                coefficients.push(if face.negative { -1 } else { 1 });
+            }
+            indptr.push(indices.len() as i64);
+            values.push(self.internal_value(&decoded));
+            coordinates.push(decoded.coordinates());
+        }
+        (dims, indptr, indices, coefficients, values, coordinates)
     }
 
     /// The value of the cell numbered `cube`, as [`internal_value`](Self::internal_value).
@@ -737,25 +777,6 @@ fn sort_by_rank(ranks: &[u32], n_ranks: usize, skip_from: u32) -> Vec<u32> {
     keys.into_iter().map(|key| key as u32).collect()
 }
 
-/// A union-find node: its parent, and its rank (to compare roots by, next to the parent so that one cache line has
-/// both).
-#[derive(Clone, Copy)]
-struct Node {
-    parent: u32,
-    rank: u32,
-}
-
-/// Find the root of `v`, halving paths on the way.
-#[inline]
-fn find(nodes: &mut [Node], mut v: u32) -> u32 {
-    while nodes[v as usize].parent != v {
-        let grandparent = nodes[nodes[v as usize].parent as usize].parent;
-        nodes[v as usize].parent = grandparent;
-        v = grandparent;
-    }
-    v
-}
-
 fn not_nan(value: f64) -> NotNan<f64> {
     NotNan::new(value).expect("values are never NaN")
 }
@@ -785,29 +806,24 @@ fn connected_components<const D: usize>(
     let first_edge = grid.cells_of_dimension(1).start;
     let value = |rank: u32| not_nan(ranks.values[rank as usize]);
     let order = sort_by_rank(&edges.ranks, ranks.values.len(), ranks.infinite());
-    // Vertices by index from 0; the root of a component is its oldest vertex
-    let mut nodes: Vec<Node> =
-        vertex_ranks.iter().enumerate().map(|(v, &rank)| Node { parent: v as u32, rank }).collect();
+    // Vertices by index from 0; the boundary of each edge by phlite's union-find, in which the root of a component is
+    // its oldest vertex (by rank, then index) and the younger of two roots is the pivot, so dies
+    let mut union_find = IncidenceReduction::<Z2, u32>::with_keys(vertex_ranks.iter().copied());
     let rep = |cells: &[u32]| representatives.then(|| cells.iter().map(|&v| (one(), Cube(first_vertex + v))).collect());
     let mut bars = vec![];
     let mut deaths = Vec::with_capacity(if want_deaths { vertex_ranks.len() } else { 0 });
     for edge in order {
         let [a, b] = edges.neighbours[edge as usize];
-        let (ra, rb) = (find(&mut nodes, a), find(&mut nodes, b));
-        if ra == rb {
+        let Some(younger) = union_find.join(a, Some(b)) else {
             continue;
-        }
-        let (older, younger) = if (nodes[ra as usize].rank, ra) < (nodes[rb as usize].rank, rb) {
-            (ra, rb)
-        } else {
-            (rb, ra)
         };
-        nodes[younger as usize].parent = older;
+        // (The surviving root only matters for representatives)
+        let older = if representatives { union_find.root(younger) } else { younger };
         let cube = Cube(first_edge + edge);
         if want_deaths {
             deaths.push(cube);
         }
-        let (birth, death) = (nodes[younger as usize].rank, edges.ranks[edge as usize]);
+        let (birth, death) = (union_find.key(younger), edges.ranks[edge as usize]);
         if birth != death {
             bars.push(Bar {
                 birth: Cube(first_vertex + younger),
@@ -818,7 +834,7 @@ fn connected_components<const D: usize>(
         }
     }
     for v in 0..vertex_ranks.len() as u32 {
-        if nodes[v as usize].parent == v && vertex_ranks[v as usize] != ranks.infinite() {
+        if union_find.is_free_root(v) && vertex_ranks[v as usize] != ranks.infinite() {
             bars.push(Bar {
                 birth: Cube(first_vertex + v),
                 birth_value: value(vertex_ranks[v as usize]),
@@ -858,13 +874,16 @@ fn voids<const D: usize>(
     let first_face = grid.cells_of_dimension(D - 1).start;
     let outside = top_ranks.len() as u32;
     let value = |rank: u32| not_nan(ranks.values[rank as usize]);
-    // Top cells by index from 0, then the outside (ranked after everything)
-    let mut nodes: Vec<Node> = top_ranks
-        .iter()
-        .enumerate()
-        .map(|(t, &rank)| Node { parent: t as u32, rank })
-        .chain([Node { parent: outside, rank: u32::MAX }])
-        .collect();
+    // Top cells by index from 0, by phlite's union-find on the coboundary of the (D - 1)-cells: the root of a component is
+    // its youngest top cell (by rank, then index), and the older of two roots is the pivot, so dies. The outside of
+    // the grid, younger than everything, is the union-find's ground: a cell with one top coface grounds its component.
+    // The union-find's rows are the top cells in reverse (row `last - t` for top cell `t`) with reversed ranks as keys, so
+    // that its order on rows, by (key, row), is the reverse of (rank, top cell): the older of two roots is the later.
+    let last_top = outside - 1;
+    let row = |t: u32| last_top - t;
+    let mut union_find = IncidenceReduction::<Z2, std::cmp::Reverse<u32>>::with_keys(
+        top_ranks.iter().rev().map(|&rank| std::cmp::Reverse(rank)),
+    );
     // Every cell, infinite ones too, in decreasing order
     let order = sort_by_rank(&faces.ranks, ranks.values.len(), u32::MAX);
     // With representatives, each component's top cells, as linked lists: `next[v]` follows `v`, and `last[root]`
@@ -876,19 +895,19 @@ fn voids<const D: usize>(
     };
     let mut bars = vec![];
     for cell in order.into_iter().rev() {
-        let [a, b] = faces.neighbours[cell as usize].map(|n| n.min(outside));
-        let (ra, rb) = (find(&mut nodes, a), find(&mut nodes, b));
-        if ra == rb {
-            continue;
-        }
-        // Roots are compared by (rank, number), the outside last
-        let (survivor, dies) = if (nodes[ra as usize].rank, ra) > (nodes[rb as usize].rank, rb) {
-            (ra, rb)
-        } else {
-            (rb, ra)
+        // A cell with one top coface is joined to the outside: the ground
+        let [a, b] = faces.neighbours[cell as usize];
+        let dies = match (a < outside, b < outside) {
+            (true, true) => union_find.join(row(a), Some(row(b))),
+            (true, false) => union_find.join(row(a), None),
+            (false, true) => union_find.join(row(b), None),
+            (false, false) => None,
         };
-        nodes[dies as usize].parent = survivor;
-        let (birth, death) = (faces.ranks[cell as usize], nodes[dies as usize].rank);
+        let Some(dies_row) = dies else {
+            continue;
+        };
+        let dies = row(dies_row);
+        let (birth, death) = (faces.ranks[cell as usize], union_find.key(dies_row).0);
         if birth != ranks.infinite() && birth != death {
             bars.push(Bar {
                 birth: Cube(first_face + cell),
@@ -898,7 +917,11 @@ fn voids<const D: usize>(
             });
         }
         if representatives {
-            // Append the dying list to the survivor's
+            // Append the dying list to the survivor's (grounded: joined to the outside, whose list collects them)
+            let survivor = match union_find.root(dies_row) {
+                GROUND => outside,
+                root => row(root),
+            };
             next[last[survivor as usize] as usize] = dies;
             last[survivor as usize] = last[dies as usize];
         }
@@ -977,7 +1000,8 @@ pub fn cubical_barcode<R: ColumnRepresentation, const D: usize>(
 /// As [`cubical_barcode`], but for superlevel sets only negates the values back to the image's if
 /// `negate_superlevel` (otherwise the bars are those of the sublevel filtration of the negated image), and choosing
 /// whether, by cohomology, to find dimension 0 and the top dimension by union-find (`union_find`, which
-/// [`cubical_barcode`] does) rather than by reducing them, and whether to build the bases and run the union-finds'
+/// [`cubical_barcode`] does) rather than by reducing them (and the T-construction with three axes by its Morse complex,
+/// see the [module docs](self)), and whether to build the bases and run the union-finds'
 /// sorts in parallel on the current rayon thread pool (`parallel_setup`, which [`cubical_barcode`] does only for the
 /// parallel algorithm), whatever the algorithm.
 pub fn filtration_barcode<R: ColumnRepresentation, const D: usize>(
@@ -1009,6 +1033,25 @@ pub fn filtration_barcode<R: ColumnRepresentation, const D: usize>(
             let coboundary = coboundary.with_basis(basis);
             let coboundary = coboundary.by_ref().with_transpose(boundary);
             barcode::cohomology_with_involution(coboundary, algorithm)
+        }
+        Method::Cohomology
+            if D == 3
+                && complex.construction == Construction::T
+                && !representatives
+                && complex.grid_ref().n_cells() as usize <= morse::MAX_MORSE_CELLS =>
+        {
+            // The T-construction in three dimensions by a filtered discrete gradient: the Morse complex of its
+            // critical cells, reduced explicitly (union-find at both ends included)
+            let ranks = Ranks::new(&complex.pixels, parallel);
+            morse::morse_barcode(
+                complex,
+                &ranks.pixels,
+                &ranks.values,
+                ranks.infinite(),
+                max_dim,
+                algorithm,
+                parallel,
+            )
         }
         Method::Cohomology => {
             // Dimension 0 by union-find, as Ripser and Cubical Ripser do: reducing it is most of the work otherwise.

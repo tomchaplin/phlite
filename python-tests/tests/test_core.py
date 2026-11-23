@@ -3,6 +3,7 @@
 stale."""
 
 import importlib
+import os
 import importlib.metadata
 from pathlib import Path
 
@@ -59,9 +60,10 @@ def test_docstrings_state_the_defaults(name):
     serial = defaults()[name]["serial"]
     doc = " ".join(pipeline_function(name).__doc__.split())
     union_find = "" if serial.union_find is None else f", union_find={serial.union_find!r}"
+    collapse = "" if serial.collapse is None else f", collapse={serial.collapse!r}"
     expected = (
         f"Pipeline defaults (`'{name}'`): columns={serial.columns!r}, cache={serial.cache!r}, "
-        f"store_r={serial.store_r!r}{union_find}."
+        f"store_r={serial.store_r!r}{union_find}{collapse}."
     )
     assert expected in doc
 
@@ -83,7 +85,7 @@ def test_book_table_matches_the_registry():
     table = book_table()
     registry = defaults()
     assert set(table) == set(registry), "add a row to the table in docs/book/src/python/algorithms.md"
-    for name, (function, columns, cache, store_r, parallel_columns, parallel_cache, union_find) in table.items():
+    for name, (function, columns, cache, store_r, parallel_columns, parallel_cache, union_find, collapse) in table.items():
         serial, parallel = registry[name]["serial"], registry[name]["parallel"]
         expected_function = (
             "phlite.complexes.FilteredComplex.persistence"
@@ -95,6 +97,8 @@ def test_book_table_matches_the_registry():
         assert [parallel_columns, parallel_cache] == [repr(parallel.columns), repr(parallel.cache)]
         assert union_find == ("—" if serial.union_find is None else repr(serial.union_find))
         assert parallel.union_find == serial.union_find
+        assert collapse == ("—" if serial.collapse is None else repr(serial.collapse))
+        assert parallel.collapse == serial.collapse
 
 
 def test_unset_options_are_shown():
@@ -131,6 +135,16 @@ def test_parallel_setup():
         barcode = rips(points=points, algorithm=algorithm)
         assert (barcode.pairings, barcode.essential) == (expected.pairings, expected.essential)
         assert barcode.algorithm.parallel_setup == algorithm.parallel_setup
+
+
+def test_collapse_only_where_supported():
+    assert Algorithm.serial().resolve("clouds.rips").collapse is True
+    assert Algorithm.serial().with_collapse(False).resolve("clouds.rips").collapse is False
+    assert Algorithm.serial().resolve("networks.grpph").collapse is None
+    assert "collapse" not in repr(Algorithm.serial().resolve("networks.grpph"))
+    assert repr(Algorithm.serial().with_collapse()).endswith("collapse=True)")
+    with pytest.raises(ValueError):
+        Algorithm.serial().with_collapse().resolve("networks.grpph")
 
 
 def test_union_find_only_where_supported():
@@ -228,5 +242,50 @@ def test_modules_and_names():
 
     assert rips.__module__ == "phlite.clouds" and grpph.__module__ == "phlite.networks"
     assert Algorithm.__module__ == "phlite.core" and Barcode.__module__ == "phlite.core"
-    assert {"Algorithm", "Barcode", "ExtendedBarcode", "defaults"} == set(phlite.core.__all__)
+    assert {"Algorithm", "Barcode", "ExtendedBarcode", "SpectralSequence", "SixPack", "PackBarcode", "PackBar", "Cone", "ZigzagBar", "ZigzagBarcode", "defaults"} == set(
+        phlite.core.__all__
+    )
     assert isinstance(phlite.core.__version__, str)
+
+
+def test_fork_after_parallel_helpers():
+    """Calls that use rayon outside a parallel algorithm's pool (magnitude homology and its spectral sequence, witness
+    complexes, six-packs, images/kernels/cokernels, the pages of spectral sequences) run on a pool of their own: a process forked after them (as
+    multiprocessing does on Linux) can call them again, rather than hang on rayon's global pool, whose threads it
+    hasn't got."""
+    import numpy as np
+    import signal
+
+    from phlite.clouds import rips_six_pack, witness_complex
+    from phlite.complexes import FilteredComplex
+    from phlite.networks import magnitude, magnitude_path_spectral_sequence
+
+    rng = np.random.default_rng(0)
+    edges = [(a, b) for a in range(15) for b in range(15) if a != b and rng.random() < 0.2]
+    points = rng.random((40, 2))
+    fc = FilteredComplex.from_simplices([((0,), 0), ((1,), 0), ((2,), 0), ((0, 1), 1), ((1, 2), 1), ((0, 2), 2)])
+
+    def everything():
+        magnitude(15, edges, 4)
+        magnitude(15, edges, 4, integral=True)
+        magnitude_path_spectral_sequence(15, edges, 3)
+        witness_complex(points[:8], points, 2)
+        rips_six_pack(points=points[:20], subset=list(range(10)), max_dim=1)
+        fc.six_pack([(0,), (1,), (0, 1)])
+        fc.image_kernel_cokernel([(0,), (1,), (0, 1)])
+        ss = fc.spectral_sequence()
+        ss.page(1), ss.infinity
+        mpss = magnitude_path_spectral_sequence(15, edges, 3)
+        mpss.page(2)
+
+    everything()
+    pid = os.fork()
+    if pid == 0:
+        signal.alarm(60)  # a hang kills the child, which then fails the test
+        try:
+            everything()
+            os._exit(0)
+        except BaseException:
+            os._exit(1)
+    _, status = os.waitpid(pid, 0)
+    assert os.WIFEXITED(status) and os.WEXITSTATUS(status) == 0, "the forked child hung or failed"

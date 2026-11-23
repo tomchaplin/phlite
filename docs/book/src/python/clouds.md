@@ -12,3 +12,27 @@ Persistent homology of point clouds and distance matrices: the `phlite-clouds` p
 
 Every function returns a `phlite.core.Barcode`, and takes a [`phlite.core.Algorithm`](algorithms.md) whose unset
 options it fills in with its own defaults (the pipeline names are `clouds.<function>`, e.g. `clouds.rips`).
+
+## Čech complexes in any dimension
+
+`cech(points, max_dim, max_radius=...)` is the Čech filtration of points with any number of coordinates, as GUDHI's
+`CechComplex` (in C++): each simplex at the radius of its points' minimal enclosing ball. In the plane and in space
+`alpha` and `delaunay_cech` have the same barcode from much smaller complexes; `cech` lists every simplex of up to
+`max_dim + 2` points within `max_radius` (candidates from the Rips complex at twice the radius), so give a radius for
+more than a few hundred points.
+
+## Witness complexes
+
+`witness(landmarks, witnesses, max_dim)` is the persistence of a witness complex, as GUDHI's `EuclideanWitnessComplex`
+(relaxed, the default) or with `strong=True` its `EuclideanStrongWitnessComplex`: simplices on a few landmarks,
+entering (at `α²`) as the other points vouch for them, a small complex approximating the topology of all the points.
+`witness_complex` lists it. Witnesses are processed in parallel, each enumerating its candidate simplices without allocating; the
+simplices, values and barcodes are identical to GUDHI's, 3.5–20× faster than its relaxed complex and hundreds of times
+faster than its strong one (`perf-results/gudhi-filtrations-2026-11-22.md`).
+
+## The complexes themselves
+
+`alpha_complex`, `delaunay_cech_complex`, `cech_complex`, `witness_complex` and `rips_complex` list the complexes as `(simplex, value)` pairs, for
+drawing or your own computations: `phlite.complexes.ChainComplex.from_simplices(simplices, modulus=0)` with the values
+gives their persistence over the integers (see [explicit complexes](complexes.md#over-the-integers)). Unlike `rips`,
+which stops at the enclosing radius, `rips_complex` lists every simplex up to its `threshold`.

@@ -1,0 +1,985 @@
+{
+    "machine_info": {
+        "processor": "",
+        "machine": "x86_64",
+        "python_compiler": "Clang 22.1.3 ",
+        "python_implementation": "CPython",
+        "python_implementation_version": "3.13.13",
+        "python_version": "3.13.13",
+        "python_build": [
+            "main",
+            "May 10 2026 19:26:54"
+        ],
+        "release": "7.3.4-arch1-2",
+        "system": "Linux",
+        "cpu": {
+            "python_version": "3.13.13.final.0 (64 bit)",
+            "cpuinfo_version": [
+                10,
+                1,
+                1
+            ],
+            "cpuinfo_version_string": "10.1.1",
+            "arch": "X86_64",
+            "bits": 64,
+            "count": 8,
+            "arch_string_raw": "x86_64",
+            "vendor_id_raw": "GenuineIntel",
+            "brand_raw": "11th Gen Intel(R) Core(TM) i7-1185G7 @ 3.00GHz",
+            "hz_advertised_friendly": "3.0000 GHz",
+            "hz_advertised": [
+                3000000000,
+                0
+            ],
+            "stepping": 1,
+            "model": 140,
+            "family": 6,
+            "flags": [
+                "3dnowprefetch",
+                "abm",
+                "acpi",
+                "adx",
+                "aes",
+                "aperfmperf",
+                "apic",
+                "arat",
+                "arch_capabilities",
+                "arch_perfmon",
+                "art",
+                "avx",
+                "avx2",
+                "avx512_bitalg",
+                "avx512_vbmi2",
+                "avx512_vnni",
+                "avx512_vp2intersect",
+                "avx512_vpopcntdq",
+                "avx512bitalg",
+                "avx512bw",
+                "avx512cd",
+                "avx512dq",
+                "avx512f",
+                "avx512ifma",
+                "avx512vbmi",
+                "avx512vbmi2",
+                "avx512vl",
+                "avx512vnni",
+                "avx512vpopcntdq",
+                "bmi1",
+                "bmi2",
+                "bts",
+                "cat_l2",
+                "cdp_l2",
+                "clflush",
+                "clflushopt",
+                "clwb",
+                "cmov",
+                "constant_tsc",
+                "cpuid",
+                "cpuid_fault",
+                "cx16",
+                "cx8",
+                "de",
+                "ds_cpl",
+                "dtes64",
+                "dtherm",
+                "dts",
+                "epb",
+                "ept",
+                "ept_ad",
+                "erms",
+                "est",
+                "f16c",
+                "flexpriority",
+                "flush_l1d",
+                "fma",
+                "fpu",
+                "fsgsbase",
+                "fsrm",
+                "fxsr",
+                "gfni",
+                "ht",
+                "hwp",
+                "hwp_act_window",
+                "hwp_epp",
+                "hwp_notify",
+                "hwp_pkg_req",
+                "ibpb",
+                "ibrs",
+                "ibrs_enhanced",
+                "ibt",
+                "ida",
+                "intel_pt",
+                "invpcid",
+                "lahf_lm",
+                "lm",
+                "mca",
+                "mce",
+                "md_clear",
+                "mmx",
+                "monitor",
+                "movbe",
+                "movdir64b",
+                "movdiri",
+                "msr",
+                "mtrr",
+                "nonstop_tsc",
+                "nopl",
+                "nx",
+                "ospke",
+                "osxsave",
+                "pae",
+                "pat",
+                "pbe",
+                "pcid",
+                "pclmulqdq",
+                "pdcm",
+                "pdpe1gb",
+                "pebs",
+                "pge",
+                "pku",
+                "pln",
+                "pni",
+                "popcnt",
+                "pqe",
+                "pse",
+                "pse36",
+                "pts",
+                "rdpid",
+                "rdrand",
+                "rdrnd",
+                "rdseed",
+                "rdt_a",
+                "rdtscp",
+                "rep_good",
+                "sdbg",
+                "sep",
+                "sha",
+                "sha_ni",
+                "smap",
+                "smep",
+                "smx",
+                "split_lock_detect",
+                "ss",
+                "ssbd",
+                "sse",
+                "sse2",
+                "sse4_1",
+                "sse4_2",
+                "ssse3",
+                "stibp",
+                "syscall",
+                "tm",
+                "tm2",
+                "tme",
+                "tpr_shadow",
+                "tsc",
+                "tsc_adjust",
+                "tsc_deadline_timer",
+                "tsc_known_freq",
+                "tscdeadline",
+                "umip",
+                "user_shstk",
+                "vaes",
+                "vme",
+                "vmx",
+                "vnmi",
+                "vpclmulqdq",
+                "vpid",
+                "x2apic",
+                "xgetbv1",
+                "xsave",
+                "xsavec",
+                "xsaveopt",
+                "xsaves",
+                "xtopology",
+                "xtpr"
+            ],
+            "l3_cache_size": 12582912,
+            "l2_cache_size": 5242880,
+            "l1_data_cache_size": 196608,
+            "l1_instruction_cache_size": 131072,
+            "l2_cache_line_size": 256,
+            "l2_cache_associativity": 7
+        }
+    },
+    "commit_info": {
+        "id": "f91c0ac2772629e4a0e33e0b526532f5b703a958",
+        "time": "2026-11-23T08:07:29Z",
+        "author_time": "2026-11-23T08:07:29Z",
+        "dirty": true,
+        "project": "phlite",
+        "branch": "perseus-techniques"
+    },
+    "benchmarks": [
+        {
+            "group": "Rips of 200 points (threshold 0.25)",
+            "name": "test_maps[200-persistence_(Z/2)]",
+            "fullname": "benchmarks/bench_complexes_maps.py::test_maps[200-persistence_(Z/2)]",
+            "params": {
+                "n": 200,
+                "implementation": "persistence (Z/2)"
+            },
+            "param": "200-persistence_(Z/2)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 9.0,
+                "fingerprint": [
+                    [
+                        199,
+                        1,
+                        9.474862
+                    ],
+                    [
+                        42,
+                        0,
+                        0.841827
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.012657266022870317,
+                "max": 0.015738195012090728,
+                "mean": 0.014395829008814568,
+                "stddev": 0.0015782141476875533,
+                "rounds": 3,
+                "median": 0.01479202599148266,
+                "iqr": 0.002310696741915308,
+                "q1": 0.013190956015023403,
+                "q3": 0.01550165275693871,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.012657266022870317,
+                "hd15iqr": 0.015738195012090728,
+                "ops": 69.46456500613475,
+                "total": 0.043187487026443705,
+                "data": [
+                    0.01479202599148266,
+                    0.012657266022870317,
+                    0.015738195012090728
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "Rips of 200 points (threshold 0.25)",
+            "name": "test_maps[200-image/kernel/cokernel]",
+            "fullname": "benchmarks/bench_complexes_maps.py::test_maps[200-image/kernel/cokernel]",
+            "params": {
+                "n": 200,
+                "implementation": "image/kernel/cokernel"
+            },
+            "param": "200-image/kernel/cokernel",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 16.8,
+                "fingerprint": null
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.08246751400292851,
+                "max": 0.08995388800394721,
+                "mean": 0.08606633767097567,
+                "stddev": 0.0037515291863533407,
+                "rounds": 3,
+                "median": 0.0857776110060513,
+                "iqr": 0.005614780500764027,
+                "q1": 0.08329503825370921,
+                "q3": 0.08890981875447324,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.08246751400292851,
+                "hd15iqr": 0.08995388800394721,
+                "ops": 11.618944491665433,
+                "total": 0.258199013012927,
+                "data": [
+                    0.08995388800394721,
+                    0.0857776110060513,
+                    0.08246751400292851
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "Rips of 200 points (threshold 0.25)",
+            "name": "test_maps[200-six-pack]",
+            "fullname": "benchmarks/bench_complexes_maps.py::test_maps[200-six-pack]",
+            "params": {
+                "n": 200,
+                "implementation": "six-pack"
+            },
+            "param": "200-six-pack",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 20.1,
+                "fingerprint": null
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.1172965620062314,
+                "max": 0.11928377297590487,
+                "mean": 0.1186208819951086,
+                "stddev": 0.0011468949860583748,
+                "rounds": 3,
+                "median": 0.11928231100318953,
+                "iqr": 0.0014904082272551022,
+                "q1": 0.11779299925547093,
+                "q3": 0.11928340748272603,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.1172965620062314,
+                "hd15iqr": 0.11928377297590487,
+                "ops": 8.430218888789206,
+                "total": 0.3558626459853258,
+                "data": [
+                    0.1172965620062314,
+                    0.11928377297590487,
+                    0.11928231100318953
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "Rips of 200 points (threshold 0.25)",
+            "name": "test_maps[200-integers]",
+            "fullname": "benchmarks/bench_complexes_maps.py::test_maps[200-integers]",
+            "params": {
+                "n": 200,
+                "implementation": "integers"
+            },
+            "param": "200-integers",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 14.9,
+                "fingerprint": null
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.0528959890070837,
+                "max": 0.05869469200843014,
+                "mean": 0.0550277543370612,
+                "stddev": 0.003189640216824778,
+                "rounds": 3,
+                "median": 0.05349258199566975,
+                "iqr": 0.004349027251009829,
+                "q1": 0.05304513725423021,
+                "q3": 0.05739416450524004,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.0528959890070837,
+                "hd15iqr": 0.05869469200843014,
+                "ops": 18.17264782194646,
+                "total": 0.1650832630111836,
+                "data": [
+                    0.05869469200843014,
+                    0.0528959890070837,
+                    0.05349258199566975
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "Rips of 200 points (threshold 0.25)",
+            "name": "test_maps[200-spectral_sequence]",
+            "fullname": "benchmarks/bench_complexes_maps.py::test_maps[200-spectral_sequence]",
+            "params": {
+                "n": 200,
+                "implementation": "spectral sequence"
+            },
+            "param": "200-spectral_sequence",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 6.3,
+                "fingerprint": null
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.012953413999639452,
+                "max": 0.014290270977653563,
+                "mean": 0.013506069323436046,
+                "stddev": 0.0006978588125579568,
+                "rounds": 3,
+                "median": 0.013274522993015125,
+                "iqr": 0.0010026427335105836,
+                "q1": 0.01303369124798337,
+                "q3": 0.014036333981493954,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.012953413999639452,
+                "hd15iqr": 0.014290270977653563,
+                "ops": 74.04078685312066,
+                "total": 0.04051820797030814,
+                "data": [
+                    0.014290270977653563,
+                    0.012953413999639452,
+                    0.013274522993015125
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "Rips of 300 points (threshold 0.25)",
+            "name": "test_maps[300-persistence_(Z/2)]",
+            "fullname": "benchmarks/bench_complexes_maps.py::test_maps[300-persistence_(Z/2)]",
+            "params": {
+                "n": 300,
+                "implementation": "persistence (Z/2)"
+            },
+            "param": "300-persistence_(Z/2)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 29.4,
+                "fingerprint": [
+                    [
+                        299,
+                        1,
+                        11.498728
+                    ],
+                    [
+                        71,
+                        0,
+                        1.243098
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.04544139598147012,
+                "max": 0.047232807002728805,
+                "mean": 0.046098807331873104,
+                "stddev": 0.0009862254722758518,
+                "rounds": 3,
+                "median": 0.045622219011420384,
+                "iqr": 0.0013435582659440115,
+                "q1": 0.04548660173895769,
+                "q3": 0.0468301600049017,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.04544139598147012,
+                "hd15iqr": 0.047232807002728805,
+                "ops": 21.692535184279954,
+                "total": 0.1382964219956193,
+                "data": [
+                    0.047232807002728805,
+                    0.045622219011420384,
+                    0.04544139598147012
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "Rips of 300 points (threshold 0.25)",
+            "name": "test_maps[300-image/kernel/cokernel]",
+            "fullname": "benchmarks/bench_complexes_maps.py::test_maps[300-image/kernel/cokernel]",
+            "params": {
+                "n": 300,
+                "implementation": "image/kernel/cokernel"
+            },
+            "param": "300-image/kernel/cokernel",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 72.9,
+                "fingerprint": null
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.41520737900282256,
+                "max": 0.43110728298779577,
+                "mean": 0.42333177699280594,
+                "stddev": 0.00795569172988557,
+                "rounds": 3,
+                "median": 0.42368066898779944,
+                "iqr": 0.011924927988729905,
+                "q1": 0.4173257014990668,
+                "q3": 0.4292506294877967,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.41520737900282256,
+                "hd15iqr": 0.43110728298779577,
+                "ops": 2.3622134088388878,
+                "total": 1.2699953309784178,
+                "data": [
+                    0.43110728298779577,
+                    0.41520737900282256,
+                    0.42368066898779944
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "Rips of 300 points (threshold 0.25)",
+            "name": "test_maps[300-six-pack]",
+            "fullname": "benchmarks/bench_complexes_maps.py::test_maps[300-six-pack]",
+            "params": {
+                "n": 300,
+                "implementation": "six-pack"
+            },
+            "param": "300-six-pack",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 80.6,
+                "fingerprint": null
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.5965994499856606,
+                "max": 0.6040561580157373,
+                "mean": 0.6010167523345444,
+                "stddev": 0.003914661298449451,
+                "rounds": 3,
+                "median": 0.6023946490022354,
+                "iqr": 0.005592531022557523,
+                "q1": 0.5980482497398043,
+                "q3": 0.6036407807623618,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.5965994499856606,
+                "hd15iqr": 0.6040561580157373,
+                "ops": 1.6638471325727193,
+                "total": 1.8030502570036333,
+                "data": [
+                    0.5965994499856606,
+                    0.6023946490022354,
+                    0.6040561580157373
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "Rips of 300 points (threshold 0.25)",
+            "name": "test_maps[300-integers]",
+            "fullname": "benchmarks/bench_complexes_maps.py::test_maps[300-integers]",
+            "params": {
+                "n": 300,
+                "implementation": "integers"
+            },
+            "param": "300-integers",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 52.9,
+                "fingerprint": null
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.3074008469993714,
+                "max": 0.32445268900482915,
+                "mean": 0.3153160826671713,
+                "stddev": 0.008591282714453356,
+                "rounds": 3,
+                "median": 0.3140947119973134,
+                "iqr": 0.012788881504093297,
+                "q1": 0.3090743132488569,
+                "q3": 0.3218631947529502,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.3074008469993714,
+                "hd15iqr": 0.32445268900482915,
+                "ops": 3.1714208534537067,
+                "total": 0.945948248001514,
+                "data": [
+                    0.32445268900482915,
+                    0.3074008469993714,
+                    0.3140947119973134
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "Rips of 300 points (threshold 0.25)",
+            "name": "test_maps[300-spectral_sequence]",
+            "fullname": "benchmarks/bench_complexes_maps.py::test_maps[300-spectral_sequence]",
+            "params": {
+                "n": 300,
+                "implementation": "spectral sequence"
+            },
+            "param": "300-spectral_sequence",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 20.1,
+                "fingerprint": null
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.04775804001837969,
+                "max": 0.06312086500111036,
+                "mean": 0.054062870010966435,
+                "stddev": 0.008042949458397331,
+                "rounds": 3,
+                "median": 0.05130970501340926,
+                "iqr": 0.011522118737048004,
+                "q1": 0.04864595626713708,
+                "q3": 0.060168075004185084,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.04775804001837969,
+                "hd15iqr": 0.06312086500111036,
+                "ops": 18.496983230767327,
+                "total": 0.1621886100328993,
+                "data": [
+                    0.05130970501340926,
+                    0.06312086500111036,
+                    0.04775804001837969
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "Rips of 400 points (threshold 0.25)",
+            "name": "test_maps[400-persistence_(Z/2)]",
+            "fullname": "benchmarks/bench_complexes_maps.py::test_maps[400-persistence_(Z/2)]",
+            "params": {
+                "n": 400,
+                "implementation": "persistence (Z/2)"
+            },
+            "param": "400-persistence_(Z/2)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 79.6,
+                "fingerprint": [
+                    [
+                        399,
+                        1,
+                        12.964429
+                    ],
+                    [
+                        89,
+                        0,
+                        1.444103
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.12996921699959785,
+                "max": 0.13641624498995952,
+                "mean": 0.13388503699873885,
+                "stddev": 0.0034393175611572395,
+                "rounds": 3,
+                "median": 0.13526964900665917,
+                "iqr": 0.004835270992771257,
+                "q1": 0.13129432500136318,
+                "q3": 0.13612959599413443,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.12996921699959785,
+                "hd15iqr": 0.13641624498995952,
+                "ops": 7.469094548701658,
+                "total": 0.40165511099621654,
+                "data": [
+                    0.13641624498995952,
+                    0.12996921699959785,
+                    0.13526964900665917
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "Rips of 400 points (threshold 0.25)",
+            "name": "test_maps[400-image/kernel/cokernel]",
+            "fullname": "benchmarks/bench_complexes_maps.py::test_maps[400-image/kernel/cokernel]",
+            "params": {
+                "n": 400,
+                "implementation": "image/kernel/cokernel"
+            },
+            "param": "400-image/kernel/cokernel",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 207.8,
+                "fingerprint": null
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 1.2772502959996928,
+                "max": 1.3316734920081217,
+                "mean": 1.3102119796676561,
+                "stddev": 0.028976913592795226,
+                "rounds": 3,
+                "median": 1.321712150995154,
+                "iqr": 0.0408173970063217,
+                "q1": 1.288365759748558,
+                "q3": 1.3291831567548797,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 1.2772502959996928,
+                "hd15iqr": 1.3316734920081217,
+                "ops": 0.7632352745344738,
+                "total": 3.9306359390029684,
+                "data": [
+                    1.2772502959996928,
+                    1.3316734920081217,
+                    1.321712150995154
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "Rips of 400 points (threshold 0.25)",
+            "name": "test_maps[400-six-pack]",
+            "fullname": "benchmarks/bench_complexes_maps.py::test_maps[400-six-pack]",
+            "params": {
+                "n": 400,
+                "implementation": "six-pack"
+            },
+            "param": "400-six-pack",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 231.9,
+                "fingerprint": null
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 1.8835948200139683,
+                "max": 2.191899929981446,
+                "mean": 2.019534825657805,
+                "stddev": 0.15734707200450138,
+                "rounds": 3,
+                "median": 1.9831097269780003,
+                "iqr": 0.23122883247560821,
+                "q1": 1.9084735467549763,
+                "q3": 2.1397023792305845,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 1.8835948200139683,
+                "hd15iqr": 2.191899929981446,
+                "ops": 0.4951635333519337,
+                "total": 6.058604476973414,
+                "data": [
+                    1.8835948200139683,
+                    2.191899929981446,
+                    1.9831097269780003
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "Rips of 400 points (threshold 0.25)",
+            "name": "test_maps[400-integers]",
+            "fullname": "benchmarks/bench_complexes_maps.py::test_maps[400-integers]",
+            "params": {
+                "n": 400,
+                "implementation": "integers"
+            },
+            "param": "400-integers",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 252.5,
+                "fingerprint": null
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 2.024956462002592,
+                "max": 2.042244975018548,
+                "mean": 2.0324745946757807,
+                "stddev": 0.008861581983458698,
+                "rounds": 3,
+                "median": 2.0302223470062017,
+                "iqr": 0.012966384761966765,
+                "q1": 2.0262729332534946,
+                "q3": 2.0392393180154613,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 2.024956462002592,
+                "hd15iqr": 2.042244975018548,
+                "ops": 0.4920110699634696,
+                "total": 6.097423784027342,
+                "data": [
+                    2.042244975018548,
+                    2.024956462002592,
+                    2.0302223470062017
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "Rips of 400 points (threshold 0.25)",
+            "name": "test_maps[400-spectral_sequence]",
+            "fullname": "benchmarks/bench_complexes_maps.py::test_maps[400-spectral_sequence]",
+            "params": {
+                "n": 400,
+                "implementation": "spectral sequence"
+            },
+            "param": "400-spectral_sequence",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 62.8,
+                "fingerprint": null
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.1421882990107406,
+                "max": 0.14906186901498586,
+                "mean": 0.14478919700680612,
+                "stddev": 0.0037292911406191466,
+                "rounds": 3,
+                "median": 0.14311742299469188,
+                "iqr": 0.00515517750318395,
+                "q1": 0.14242058000672841,
+                "q3": 0.14757575750991236,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.1421882990107406,
+                "hd15iqr": 0.14906186901498586,
+                "ops": 6.906592623433038,
+                "total": 0.43436759102041833,
+                "data": [
+                    0.14906186901498586,
+                    0.14311742299469188,
+                    0.1421882990107406
+                ],
+                "iterations": 1
+            }
+        }
+    ],
+    "datetime": "2026-11-23T08:33:53.207866+00:00",
+    "version": "5.3.1"
+}

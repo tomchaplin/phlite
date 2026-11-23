@@ -6,7 +6,7 @@ import type { Job } from './types';
 // What both builds export (their glue differs)
 type Module = Pick<
   typeof import('phlite-web-single'),
-  'rips' | 'delaunay' | 'grpph' | 'network' | 'graph' | 'image' | 'complex' | 'n_threads' | 'set_crash_hooks' | 'crash_for_testing'
+  'rips' | 'rips_six_pack' | 'cloud_zigzag' | 'moving_zigzag' | 'network_zigzag' | 'timed_zigzag' | 'video_zigzag' | 'magnitude' | 'mpss' | 'binary_filtration' | 'delaunay' | 'grpph' | 'network' | 'graph' | 'image' | 'complex' | 'n_threads' | 'set_crash_hooks' | 'crash_for_testing'
 >;
 type Message = { type: 'init'; threads: number; single: boolean; channel: string } | { type: 'run'; id: number; job: Job };
 
@@ -43,8 +43,44 @@ self.onmessage = async (event: MessageEvent<Message>) => {
           job.coords, job.pointDim, job.maxDim, job.threshold ?? undefined, job.metric, job.dtmK ?? undefined, job.options,
         );
         break;
+      case 'rips-six-pack':
+        barcode = phlite.rips_six_pack(
+          job.coords, job.pointDim, job.subset, job.maxDim, job.threshold ?? undefined, job.metric, job.options,
+        );
+        break;
       case 'delaunay':
         barcode = phlite.delaunay(job.coords, job.pointDim, job.cech, job.options);
+        break;
+      case 'cloud-zigzag':
+        barcode = phlite.cloud_zigzag(
+          job.coords, job.pointDim, job.window, job.step, job.threshold, job.maxDim, job.metric, job.complex, job.intersection,
+        );
+        break;
+      case 'moving-zigzag':
+        barcode = phlite.moving_zigzag(
+          job.coords, job.pointDim, job.nFrames, job.threshold, job.maxDim, job.metric, job.complex, job.intersection,
+        );
+        break;
+      case 'timed-zigzag':
+        barcode = phlite.timed_zigzag(
+          job.dimensions, job.indptr, job.indices, job.lifeIndptr, job.starts, job.ends, job.maxDim ?? undefined, job.intersection,
+        );
+        break;
+      case 'network-zigzag':
+        barcode = phlite.network_zigzag(
+          job.n, job.sources, job.targets, job.weights, job.directed, job.width, job.step, job.maxDim, job.intersection,
+        );
+        break;
+      case 'video-zigzag':
+        barcode = phlite.video_zigzag(
+          job.pixels, job.width, job.height, job.nFrames, job.threshold, job.superlevel, job.construction, job.periodic, job.intersection,
+        );
+        break;
+      case 'mpss':
+        barcode = phlite.mpss(job.n, job.sources, job.targets, job.lMax, job.modulus, job.rMax, 4000);
+        break;
+      case 'magnitude':
+        barcode = phlite.magnitude(job.n, job.sources, job.targets, job.lMax, job.integral);
         break;
       case 'grpph':
         barcode = phlite.grpph(job.n, job.sources, job.targets, job.weights, job.grounded, job.options);
@@ -56,7 +92,10 @@ self.onmessage = async (event: MessageEvent<Message>) => {
         barcode = phlite.graph(job.kind, job.n, job.sources, job.targets, job.weights, job.maxDim, job.options);
         break;
       case 'image':
-        barcode = phlite.image(job.pixels, job.width, job.height, job.superlevel, job.construction, job.options);
+        {
+          const pixels = job.binary ? phlite.binary_filtration(job.pixels, job.width, job.height, job.binary) : job.pixels;
+          barcode = phlite.image(pixels, job.width, job.height, job.superlevel, job.construction, job.periodic, job.options);
+        }
         break;
       case 'complex':
         barcode = phlite.complex(

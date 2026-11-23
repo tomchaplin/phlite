@@ -28,7 +28,7 @@ use pyo3_stub_gen::derive::*;
 
 use crate::{
     complex::{Cell, Chain, Complex, ComplexError, RawChain},
-    field::IntField,
+    field::{IntField, Integer},
 };
 
 /// Run `$body` with `$c` bound to the inner value of `$any` (an `AnyChain` or `AnyComplex`), whatever its field.
@@ -41,13 +41,39 @@ macro_rules! dispatch {
             $enum::Z7($c) => $body,
             $enum::Z11($c) => $body,
             $enum::Z13($c) => $body,
+            $enum::Integers($c) => $body,
         }
     };
+}
+
+/// As [`dispatch!`] over the fields only, with `$integers` for a complex over the integers (which `phlite` can't reduce).
+macro_rules! dispatch_field {
+    ($enum:ident, $any:expr, $c:ident => $body:expr, integers => $integers:expr) => {
+        match $any {
+            $enum::Z2($c) => $body,
+            $enum::Z3($c) => $body,
+            $enum::Z5($c) => $body,
+            $enum::Z7($c) => $body,
+            $enum::Z11($c) => $body,
+            $enum::Z13($c) => $body,
+            $enum::Integers(_) => $integers,
+        }
+    };
+}
+
+/// The error for asking for a barcode over the integers.
+fn no_integral_barcode() -> PyErr {
+    PyValueError::new_err(
+        "Extended persistence isn't available over the integers (modulus=0): persistence() gives the barcode over Q \
+         and torsion() the primes that differ; or build the complex over a field",
+    )
 }
 
 mod chain;
 mod extended;
 mod filtered;
+mod maps;
+mod zigzag;
 pub use chain::ChainComplex;
 pub use filtered::{ComplexBarcode, FilteredComplex};
 
@@ -64,12 +90,13 @@ pub(crate) const DEFAULTS: AlgorithmDefaults = AlgorithmDefaults {
     // The complex knows the position of every cell in the filtration
     row_ranks: true,
     union_find: None,
+    collapse: None,
 };
 
 // ====== Coefficient fields ===============================================
 
 /// The supported moduli, for error messages.
-const MODULI: &str = "2, 3, 5, 7, 11 or 13";
+const MODULI: &str = "2, 3, 5, 7, 11, 13 or 0 (the integers)";
 
 /// A chain complex over one of the supported fields.
 /// Each field is a separate monomorphisation of the whole reduction, so we keep the list short.
@@ -80,6 +107,8 @@ pub(crate) enum AnyChain {
     Z7(Chain<Z7>),
     Z11(Chain<Z11>),
     Z13(Chain<Z13>),
+    /// Over Z: no reduction, but spectral sequences and persistent groups by `phlite::integral`
+    Integers(Chain<Integer>),
 }
 
 /// A filtered complex over one of the supported fields.
@@ -90,6 +119,7 @@ pub(crate) enum AnyComplex {
     Z7(Complex<Z7>),
     Z11(Complex<Z11>),
     Z13(Complex<Z13>),
+    Integers(Complex<Integer>),
 }
 
 impl AnyChain {
@@ -103,6 +133,9 @@ impl AnyChain {
             7 => Chain::from_raw(raw).map(Self::Z7),
             11 => Chain::from_raw(raw).map(Self::Z11),
             13 => Chain::from_raw(raw).map(Self::Z13),
+            0 => Chain::<Integer>::from_raw(raw)
+                .and_then(|chain| chain.check_boundary_squared().map(|()| chain))
+                .map(Self::Integers),
             other => {
                 return Err(PyValueError::new_err(format!(
                     "Unsupported modulus {other}, expected one of {MODULI}"
@@ -119,6 +152,7 @@ impl AnyChain {
             Self::Z7(c) => AnyComplex::Z7(c.filter(values)?),
             Self::Z11(c) => AnyComplex::Z11(c.filter(values)?),
             Self::Z13(c) => AnyComplex::Z13(c.filter(values)?),
+            Self::Integers(c) => AnyComplex::Integers(c.filter(values)?),
         })
     }
 
@@ -142,7 +176,7 @@ impl AnyChain {
         fn of<CF: IntField>(_: &Chain<CF>) -> u64 {
             CF::MODULUS
         }
-        dispatch!(Self, self, c => of(c))
+        dispatch_field!(Self, self, c => of(c), integers => 0)
     }
 }
 
@@ -157,14 +191,14 @@ impl AnyComplex {
         representatives: bool,
     ) -> PyResult<BarData> {
         let method = parse_method(method)?;
-        let data = dispatch!(Self, self, complex => py.detach(|| {
+        let data = dispatch_field!(Self, self, complex => py.detach(|| {
             algorithm.run(Run {
                 complex,
                 max_dim,
                 method,
                 representatives,
             })
-        }))?;
+        }), integers => return Err(no_integral_barcode()))?;
         Ok(data)
     }
 
@@ -176,9 +210,9 @@ impl AnyComplex {
         algorithm: &ResolvedAlgorithm,
     ) -> PyResult<Vec<phlite::extended::ExtendedBar<Cell, f64>>> {
         let method = parse_method(method)?;
-        Ok(dispatch!(Self, self, complex => py.detach(|| {
+        Ok(dispatch_field!(Self, self, complex => py.detach(|| {
             algorithm.run(extended::ExtendedRun { complex, method })
-        }))?)
+        }), integers => return Err(no_integral_barcode()))?)
     }
 
     fn n_cells(&self) -> usize {
@@ -187,6 +221,81 @@ impl AnyComplex {
 
     fn value(&self, cell: u32) -> f64 {
         dispatch!(Self, self, c => c.value(Cell(cell)))
+    }
+
+    fn top_dimension(&self) -> Option<usize> {
+        dispatch!(Self, self, c => c.top_dimension())
+    }
+
+    /// The complex for `phlite::integral` and `LocalSpectral`, cells by rank (see `Complex::integral`).
+    pub(crate) fn integral_filtered(&self) -> phlite::integral::IntegralFiltered {
+        dispatch!(Self, self, c => c.integral())
+    }
+
+    /// As `integral_filtered`, each cell's step its value (an integer).
+    pub(crate) fn integral_filtered_by_value(&self) -> phlite::integral::IntegralFiltered {
+        dispatch!(Self, self, c => c.integral_by(|v| v as usize))
+    }
+
+    /// The modulus of the coefficients, `None` over the integers.
+    pub(crate) fn modulus(&self) -> Option<u64> {
+        fn of<CF: IntField>(_: &Complex<CF>) -> Option<u64> {
+            Some(CF::MODULUS)
+        }
+        dispatch_field!(Self, self, c => of(c), integers => None)
+    }
+
+    /// The barcodes of the image, kernel, cokernel and pair for the subcomplex `in_subcomplex` (by input cell), as rank
+    /// pairs, or the offending (cell, face) if it isn't a subcomplex.
+    #[allow(clippy::type_complexity)]
+    pub(crate) fn image_kernel_cokernel(
+        &self,
+        in_subcomplex: &[bool],
+    ) -> PyResult<Result<[Vec<(usize, Option<usize>)>; 4], (u32, u32)>> {
+        fn pairs(d: phlite::reduction::Diagram<Cell>) -> Vec<(usize, Option<usize>)> {
+            d.pairings
+                .into_iter()
+                .map(|(b, e)| (b.0 as usize, Some(e.0 as usize)))
+                .chain(d.essential.into_iter().map(|b| (b.0 as usize, None)))
+                .collect()
+        }
+        fn run<CF: IntField>(
+            c: &Complex<CF>,
+            mask: &[bool],
+        ) -> Result<[Vec<(usize, Option<usize>)>; 4], (u32, u32)> {
+            let result = c.image_kernel_cokernel(mask).map_err(|(a, b)| (a.0, b.0))?;
+            Ok([
+                pairs(result.image),
+                pairs(result.kernel),
+                pairs(result.cokernel),
+                pairs(result.relative),
+            ])
+        }
+        Ok(
+            dispatch_field!(Self, self, c => run(c, in_subcomplex), integers => {
+                return Err(PyValueError::new_err(
+                    "image_kernel_cokernel needs a field (build the complex with a modulus other than 0)",
+                ));
+            }),
+        )
+    }
+
+    /// [`BarData`] from rank pairs.
+    pub(crate) fn bar_data_from_rank_pairs(
+        &self,
+        pairs: &[(usize, Option<usize>)],
+        max_dim: Option<usize>,
+        shift: usize,
+    ) -> BarData {
+        dispatch!(Self, self, c => BarData::from_rank_pairs_shifted(c, pairs, max_dim, shift))
+    }
+
+    /// For each rank, the input cell there; and for each input cell, its rank.
+    pub(crate) fn rank_maps(&self) -> (Vec<u32>, Vec<u32>) {
+        dispatch!(Self, self, c => {
+            let n = c.n_cells() as u32;
+            ((0..n).map(|r| c.cell(Cell(r)).0).collect(), (0..n).map(|i| c.rank(Cell(i)).0).collect())
+        })
     }
 }
 
@@ -438,12 +547,12 @@ pub(crate) fn read_columns(
 pub(crate) struct Record {
     birth: u32,
     death: Option<u32>,
-    dimension: u32,
+    pub(crate) dimension: u32,
     /// The index of the representative in [`BarData::representatives`], or [`NO_REPRESENTATIVE`].
     representative: u32,
-    birth_value: f64,
+    pub(crate) birth_value: f64,
     /// Infinite for essential bars.
-    death_value: f64,
+    pub(crate) death_value: f64,
 }
 
 const NO_REPRESENTATIVE: u32 = u32::MAX;
@@ -483,6 +592,53 @@ fn radix_sort(keys: &mut Vec<(u32, u32)>) {
 }
 
 impl BarData {
+    /// From pairs of ranks (`(birth, Some(death))`, or `(birth, None)` if essential), up to dimension `max_dim`,
+    /// dropping those of length zero (no representatives).
+    pub(crate) fn from_rank_pairs<CF: crate::field::ChainCoefficient>(
+        complex: &Complex<CF>,
+        pairs: &[(usize, Option<usize>)],
+        max_dim: Option<usize>,
+    ) -> Self {
+        Self::from_rank_pairs_shifted(complex, pairs, max_dim, 0)
+    }
+
+    /// As [`from_rank_pairs`](Self::from_rank_pairs), each bar in the dimension of its birth cell less `shift` (a kernel
+    /// class of `H_k` is born at a `(k + 1)`-cell).
+    pub(crate) fn from_rank_pairs_shifted<CF: crate::field::ChainCoefficient>(
+        complex: &Complex<CF>,
+        pairs: &[(usize, Option<usize>)],
+        max_dim: Option<usize>,
+        shift: usize,
+    ) -> Self {
+        let n_dims = max_dim.or(complex.top_dimension()).map_or(0, |d| d + 1);
+        let mut bars: Vec<Record> = pairs
+            .iter()
+            .filter_map(|&(birth, death)| {
+                let (birth, birth_value, dimension) = complex.at_rank(Cell(birth as u32));
+                let dimension = dimension - shift;
+                let death = death.map(|d| complex.at_rank(Cell(d as u32)));
+                if dimension >= n_dims || death.is_some_and(|(_, value, _)| value == birth_value) {
+                    return None;
+                }
+                Some(Record {
+                    birth: birth.0,
+                    death: death.map(|(cell, _, _)| cell.0),
+                    dimension: dimension as u32,
+                    representative: NO_REPRESENTATIVE,
+                    birth_value,
+                    death_value: death.map_or(f64::INFINITY, |(_, value, _)| value),
+                })
+            })
+            .collect();
+        bars.sort_unstable_by_key(|bar| bar.birth);
+        Self {
+            bars,
+            representative_chains: vec![],
+            n_dims,
+            representatives: false,
+        }
+    }
+
     /// From the bars of [`Complex::barcode_by_rank`], dropping those of length zero.
     pub(crate) fn new<CF: IntField>(
         complex: &Complex<CF>,
@@ -531,7 +687,10 @@ impl BarData {
             .map(|(i, record)| (record.birth, i as u32))
             .collect();
         radix_sort(&mut order);
-        let bars: Vec<Record> = order.into_iter().map(|(_, i)| records[i as usize]).collect();
+        let bars: Vec<Record> = order
+            .into_iter()
+            .map(|(_, i)| records[i as usize])
+            .collect();
         Self {
             bars,
             representative_chains,
@@ -738,12 +897,20 @@ pyo3_stub_gen::module_doc!("phlite.complexes", "{}", DOC);
 
 #[pymodule(gil_used = false)]
 fn _complexes(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    phlite_bindings::init_package(m.py(), "phlite-complexes", env!("CARGO_PKG_VERSION"), &[DEFAULTS])?;
+    phlite_bindings::init_package(
+        m.py(),
+        "phlite-complexes",
+        env!("CARGO_PKG_VERSION"),
+        &[DEFAULTS],
+    )?;
     pyo3_log::init();
     m.setattr("__doc__", DOC)?;
     m.add_class::<ChainComplex>()?;
     m.add_class::<FilteredComplex>()?;
     m.add_class::<ComplexBarcode>()?;
     m.add_class::<Bar>()?;
+    m.add_class::<maps::FilteredMap>()?;
+    m.add_function(wrap_pyfunction!(zigzag::zigzag, m)?)?;
+    m.add_function(wrap_pyfunction!(zigzag::timed, m)?)?;
     Ok(())
 }

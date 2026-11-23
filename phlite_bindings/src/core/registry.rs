@@ -40,6 +40,7 @@ pub(crate) fn _register_pipeline(
     store_r: bool,
     row_ranks: bool,
     union_find: Option<bool>,
+    collapse: Option<bool>,
 ) -> PyResult<()> {
     let mut registry = REGISTRY.lock().unwrap();
     let columns = Columns::from_name(columns)?;
@@ -50,6 +51,7 @@ pub(crate) fn _register_pipeline(
         store_r,
         row_ranks,
         union_find,
+        collapse,
     };
     match registry.iter_mut().find(|defaults| defaults.pipeline == name) {
         // Registered again (a module re-imported, say): keep the name, take the new defaults

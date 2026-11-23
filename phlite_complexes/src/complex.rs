@@ -33,9 +33,10 @@ use phlite::{
     barcode::{self, Algorithm, Bar, Method},
     columns::{ColumnEntry, ColumnRepresentation},
     matrices::{BasisElement, HasRowFiltration, MatrixOracle, RowRanks, SplitBasis},
+    union_find::{IncidenceOutcome, IncidenceReduction},
 };
 
-use crate::field::IntField;
+use crate::field::{ChainCoefficient, IntField, Integer};
 
 /// The largest dimension we accept, so that a stray huge dimension can't make us allocate a huge basis.
 pub const MAX_DIMENSION: u32 = u16::MAX as u32;
@@ -345,7 +346,7 @@ pub struct Chain<CF> {
     boundary: Csc<CF>,
 }
 
-impl<CF: IntField> Chain<CF> {
+impl<CF: ChainCoefficient> Chain<CF> {
     /// Validate `raw`, and sum repeated entries in each column.
     pub fn from_raw(raw: RawChain) -> Result<Self, ComplexError> {
         use ComplexError::Input;
@@ -454,8 +455,10 @@ impl<CF: IntField> Chain<CF> {
                     total += scratch[k].1 as i128;
                     k += 1;
                 }
-                let residue = total.rem_euclid(CF::MODULUS as i128) as i64;
-                if let Some(coeff) = CF::from_int(residue) {
+                let summed = CF::from_sum(total).map_err(|total| {
+                    Input(format!("The coefficient of face {row} of cell {col} ({total}) is out of range"))
+                })?;
+                if let Some(coeff) = summed {
                     out_rows.push(Cell(row));
                     out_coeffs.push(coeff);
                 }
@@ -623,7 +626,7 @@ impl<CF: IntField> Chain<CF> {
     }
 }
 
-impl<CF: IntField> Complex<CF> {
+impl<CF: ChainCoefficient> Complex<CF> {
     /// The number of cells.
     pub fn n_cells(&self) -> usize {
         self.dimensions.len()
@@ -669,6 +672,113 @@ impl<CF: IntField> Complex<CF> {
         )
     }
 
+    /// The distinct filtration values in increasing order: the *steps* of the filtration, as spectral sequences
+    /// count them.
+    pub fn steps(&self) -> Vec<f64> {
+        let mut steps: Vec<f64> = self.ranked.iter().map(|r| r.value.into_inner()).collect();
+        steps.dedup();
+        steps
+    }
+}
+
+impl Chain<Integer> {
+    /// Check that the boundary of every boundary is zero (over Z, unsigned boundaries usually aren't).
+    pub fn check_boundary_squared(&self) -> Result<(), ComplexError> {
+        let mut sum: std::collections::BTreeMap<u32, i128> = std::collections::BTreeMap::new();
+        for cell in 0..self.n_cells() as u32 {
+            sum.clear();
+            for i in self.boundary.range(Cell(cell)) {
+                let (face, a) = (self.boundary.rows[i], i128::from(self.boundary.coeffs[i].get()));
+                for j in self.boundary.range(face) {
+                    *sum.entry(self.boundary.rows[j].0).or_default() += a * i128::from(self.boundary.coeffs[j].get());
+                }
+            }
+            if let Some((&face, _)) = sum.iter().find(|(_, &total)| total != 0) {
+                return Err(ComplexError::Input(format!(
+                    "The boundary of the boundary of cell {cell} isn't zero (at cell {face}): over the integers, \
+                     boundaries need their signs (coefficients)"
+                )));
+            }
+        }
+        Ok(())
+    }
+}
+
+impl<CF: ChainCoefficient> Complex<CF> {
+    /// This filtered complex for [`phlite::integral`] and [`phlite::spectral::LocalSpectral`]: cells by
+    /// [rank](Self::rank), each at its [step](Self::steps), coefficients as integers (over `Z/p` their representatives
+    /// in `1..p`, so a complex over Z only modulo `p`: compute with it over `Z/p`).
+    pub fn integral(&self) -> phlite::integral::IntegralFiltered {
+        let mut step = Vec::with_capacity(self.n_cells());
+        let mut current = 0;
+        for (rank, ranked) in self.ranked.iter().enumerate() {
+            if rank > 0 && self.ranked[rank - 1].value != ranked.value {
+                current += 1;
+            }
+            step.push(current);
+        }
+        self.integral_with_steps(step)
+    }
+
+    /// As [`integral`](Self::integral), with each cell's step given by `step_of(value)` (which must be monotone).
+    pub fn integral_by(&self, step_of: impl Fn(f64) -> usize) -> phlite::integral::IntegralFiltered {
+        let step = self.ranked.iter().map(|r| step_of(r.value.into_inner())).collect();
+        self.integral_with_steps(step)
+    }
+
+    fn integral_with_steps(&self, step: Vec<usize>) -> phlite::integral::IntegralFiltered {
+        phlite::integral::IntegralFiltered {
+            degree: self.ranked.iter().map(|r| r.dimension as usize).collect(),
+            step,
+            boundary: (0..self.n_cells() as u32)
+                .map(|rank| {
+                    let range = self.boundary.range(Cell(rank));
+                    self.boundary.rows[range.clone()]
+                        .iter()
+                        .zip(&self.boundary.coeffs[range])
+                        .map(|(row, coeff)| (row.idx(), coeff.to_i64()))
+                        .collect()
+                })
+                .collect(),
+        }
+    }
+}
+
+impl<CF: IntField> Complex<CF> {
+    /// The barcodes of the image, kernel and cokernel of `H(L) -> H(K)` for the subcomplex `L` (with the restricted
+    /// filtration) of cells `in_subcomplex[cell]` (input cells; every face of a cell in it must be in it too), and of
+    /// the pair `(K, L)`, by [`phlite::image_kernel`]. Bars are on ranks (see [`rank`](Self::rank)).
+    ///
+    /// # Errors
+    /// If the cells given aren't a subcomplex, with a face of one of them that isn't.
+    pub fn image_kernel_cokernel(
+        &self,
+        in_subcomplex: &[bool],
+    ) -> Result<phlite::image_kernel::ImageKernelCokernel<Cell>, (Cell, Cell)> {
+        let n = self.n_cells();
+        let by_rank: Vec<bool> = (0..n as u32).map(|r| in_subcomplex[self.cell(Cell(r)).idx()]).collect();
+        for r in 0..n as u32 {
+            if by_rank[r as usize] {
+                for i in self.boundary.range(Cell(r)) {
+                    let face = self.boundary.rows[i];
+                    if !by_rank[face.idx()] {
+                        return Err((self.cell(Cell(r)), self.cell(face)));
+                    }
+                }
+            }
+        }
+        let mut cells: Vec<Vec<Cell>> = vec![vec![]; self.top_dimension().map_or(0, |d| d + 1)];
+        for r in 0..n as u32 {
+            cells[self.ranked[r as usize].dimension as usize].push(Cell(r));
+        }
+        Ok(phlite::image_kernel::image_kernel_cokernel(
+            self.boundary(),
+            cells,
+            |c: &Cell| by_rank[c.idx()],
+            phlite::columns::MergedColumns,
+        ))
+    }
+
     /// The boundary matrix, with cells numbered by [`rank`](Self::rank); its transpose is
     /// [`coboundary`](Self::coboundary).
     pub fn boundary(&self) -> View<'_, CF> {
@@ -690,6 +800,12 @@ impl<CF: IntField> Complex<CF> {
 
     /// The cells of dimension at most `max_dim`, by [`rank`](Self::rank), split by dimension and in filtration order.
     pub fn basis(&self, max_dim: usize) -> SplitBasis<Cell> {
+        let (elems, offsets) = self.basis_parts(max_dim);
+        SplitBasis::from_parts(elems, offsets)
+    }
+
+    /// The parts of [`basis`](Self::basis): the cells, and where each dimension's start.
+    fn basis_parts(&self, max_dim: usize) -> (Vec<Cell>, Vec<usize>) {
         let top = self.top_dimension().map_or(0, |top| top.min(max_dim));
         // Fill each dimension's range at once, from the counts
         let mut offsets = vec![0];
@@ -706,7 +822,7 @@ impl<CF: IntField> Complex<CF> {
                 next[dim] += 1;
             }
         }
-        SplitBasis::from_parts(elems, offsets)
+        (elems, offsets)
     }
 
     /// The barcode in dimensions `0..=max_dim` (by default, every dimension of the complex).
@@ -719,7 +835,20 @@ impl<CF: IntField> Complex<CF> {
         algorithm: Algorithm<'_, R>,
         representatives: bool,
     ) -> Vec<Bar<Cell, NotNan<f64>, CF>> {
-        let bars = self.barcode_by_rank(max_dim, method, algorithm, representatives);
+        self.barcode_with(max_dim, method, algorithm, representatives, true)
+    }
+
+    /// As [`barcode`](Self::barcode), choosing whether to use union-find where it applies (see
+    /// [`barcode_by_rank_with`](Self::barcode_by_rank_with)).
+    pub fn barcode_with<R: ColumnRepresentation>(
+        &self,
+        max_dim: Option<usize>,
+        method: Method,
+        algorithm: Algorithm<'_, R>,
+        representatives: bool,
+        union_find: bool,
+    ) -> Vec<Bar<Cell, NotNan<f64>, CF>> {
+        let bars = self.barcode_by_rank_with(max_dim, method, algorithm, representatives, union_find);
         // Back to the input's cells and values, dropping bars of length zero
         bars.into_iter()
             .filter_map(|bar| {
@@ -752,10 +881,32 @@ impl<CF: IntField> Complex<CF> {
         algorithm: Algorithm<'_, R>,
         representatives: bool,
     ) -> Vec<Bar<Cell, u32, CF>> {
+        self.barcode_by_rank_with(max_dim, method, algorithm, representatives, true)
+    }
+
+    /// As [`barcode_by_rank`](Self::barcode_by_rank), choosing whether (by cohomology, without representatives) to
+    /// find the dimensions that allow it by union-find (`union_find`, which [`barcode_by_rank`](Self::barcode_by_rank)
+    /// does): dimension 0 whenever every 1-cell has at most two faces (as in any simplicial or cubical complex), and
+    /// the top dimension `d - 1` of a complex of dimension `d` whenever every `(d - 1)`-cell has at most two cofaces
+    /// (as in a cubical grid, a triangulated surface or a Delaunay triangulation); see
+    /// [`phlite::union_find`]. The bars are the same.
+    pub fn barcode_by_rank_with<R: ColumnRepresentation>(
+        &self,
+        max_dim: Option<usize>,
+        method: Method,
+        algorithm: Algorithm<'_, R>,
+        representatives: bool,
+        union_find: bool,
+    ) -> Vec<Bar<Cell, u32, CF>> {
         let Some(top) = self.top_dimension() else {
             return vec![];
         };
         let max_dim = max_dim.unwrap_or(top);
+        if union_find && method == Method::Cohomology && !representatives && top >= 1 {
+            if let Some(bars) = self.cohomology_by_union_find(max_dim, top, algorithm.clone()) {
+                return bars;
+            }
+        }
         // The basis is every cell up to some dimension, so the pivot table can hold apparent pairs too
         let algorithm = match algorithm {
             Algorithm::Clearing(clearing) => Algorithm::Clearing(clearing.full_basis(true)),
@@ -783,6 +934,101 @@ impl<CF: IntField> Complex<CF> {
                 bars
             }
         }
+    }
+}
+
+impl<CF: IntField> Complex<CF> {
+    /// The barcode by cohomology, with dimension 0 by union-find on the edges, and the top dimension by union-find in
+    /// the reduction if it allows (see [`barcode_by_rank_with`](Self::barcode_by_rank_with)). `None` if some edge has
+    /// more than two faces.
+    fn cohomology_by_union_find<R: ColumnRepresentation>(
+        &self,
+        max_dim: usize,
+        top: usize,
+        algorithm: Algorithm<'_, R>,
+    ) -> Option<Vec<Bar<Cell, u32, CF>>> {
+        if matches!(algorithm, Algorithm::Standard(_)) {
+            return None;
+        }
+        // The basis of dimensions 0..=max_dim (at most the top, and at least 1 for the edges), each in filtration order
+        let basis_top = max_dim.max(1).min(top);
+        let (mut elems, mut offsets) = self.basis_parts(basis_top);
+        let mut bars = vec![];
+        // Dimension 0: reduce the boundary of the edges, in filtration order. The edges that kill a component are
+        // exactly the pivots of the reduced dimension-0 coboundary, which clearing would skip in dimension 1: they are
+        // left out of the basis. Bars of length zero (most of them, in a lower-star filtration) are left out too.
+        let (vertices, edges) = (offsets[0]..offsets[1], offsets[1]..offsets[2]);
+        let mut union_find =
+            IncidenceReduction::<CF>::new(elems[vertices.clone()].last().map_or(0, |v| v.idx() + 1));
+        let mut entries = Vec::with_capacity(2);
+        // Kept edges are written back from the end of their segment, so the segment shrinks from the front
+        let mut kept = Vec::with_capacity(edges.len());
+        for &edge in &elems[edges.clone()] {
+            let range = self.boundary.range(edge);
+            if range.len() > 2 {
+                return None;
+            }
+            entries.clear();
+            for i in range {
+                entries.push((self.boundary.coeffs[i], self.boundary.rows[i].0));
+            }
+            match union_find.add_column(&entries) {
+                IncidenceOutcome::Pivot(vertex) => {
+                    if self.tie_start[edge.idx()] > vertex {
+                        bars.push(Bar {
+                            birth: Cell(vertex),
+                            birth_value: vertex,
+                            death: Some((edge, edge.0)),
+                            representative: None,
+                        });
+                    }
+                }
+                IncidenceOutcome::Zero => kept.push(edge),
+            }
+        }
+        for &vertex in &elems[vertices] {
+            if union_find.is_free_root(vertex.0) {
+                bars.push(Bar {
+                    birth: vertex,
+                    birth_value: vertex.0,
+                    death: None,
+                    representative: None,
+                });
+            }
+        }
+        drop(union_find);
+        if max_dim == 0 {
+            return Some(bars);
+        }
+        // The kept edges at the end of the edges' segment; dimension 0 takes the rest (it isn't reduced)
+        let write = edges.end - kept.len();
+        elems[write..edges.end].copy_from_slice(&kept);
+        offsets[1] = write;
+        // The top dimension by union-find too, if every (top - 1)-cell has at most two cofaces
+        let dual = top >= 2
+            && max_dim + 1 >= top
+            && elems[offsets[top - 1]..offsets[top]]
+                .iter()
+                .all(|&cell| self.coboundary.range(cell).len() <= 2);
+        let basis = SplitBasis::from_parts(elems, offsets);
+        let algorithm = match algorithm {
+            // Without some edges, the basis still holds every column that isn't cleared, so the promise holds
+            Algorithm::Clearing(clearing) => Algorithm::Clearing(
+                clearing
+                    .full_basis(true)
+                    .with_incidence_dimensions(dual.then_some(top - 1))
+                    .with_dimension_order(1..=basis_top),
+            ),
+            Algorithm::ParallelClearing(parallel) => {
+                Algorithm::ParallelClearing(parallel.with_dimension_order(1..=basis_top))
+            }
+            // The standard algorithm reduces every column of the basis
+            _ => unreachable!("checked above"),
+        };
+        let coboundary = self.coboundary().with_basis(basis);
+        let coboundary = coboundary.by_ref().with_transpose(self.boundary());
+        bars.extend(barcode::cohomology(coboundary, algorithm));
+        Some(bars)
     }
 }
 
@@ -1224,6 +1470,134 @@ mod tests {
         (raw, values)
     }
 
+    /// A random piece of a Freudenthal triangulation of a 2D or 3D grid, some axes wrapped around (a torus, or with a
+    /// flip, a Klein bottle), with the lower-star filtration of random vertex values (with ties): every
+    /// `(d - 1)`-simplex then has at most two cofaces, so the top dimension can be found by union-find. Returns the
+    /// chain (with signed boundaries) and the values.
+    fn random_grid_complex(seed: u64) -> (RawChain, Vec<f64>) {
+        let mut rng = Lcg(seed);
+        let d = 2 + rng.below(2);
+        let n = if d == 2 { 3 + rng.below(4) } else { 3 + rng.below(2) };
+        let wrap: Vec<bool> = (0..d).map(|_| rng.below(2) == 1).collect();
+        // A Klein bottle: crossing the edge of axis 0 flips axis 1
+        let flip = d == 2 && wrap[0] && rng.below(2) == 1;
+        let vertex = |mut x: Vec<usize>| -> Option<usize> {
+            if x[0] >= n {
+                if !wrap[0] {
+                    return None;
+                }
+                x[0] -= n;
+                if flip {
+                    x[1] = (n - x[1]) % n;
+                }
+            }
+            for a in 1..d {
+                if x[a] >= n {
+                    if !wrap[a] {
+                        return None;
+                    }
+                    x[a] -= n;
+                }
+            }
+            Some(x.iter().fold(0, |acc, &c| acc * n + c))
+        };
+        let permutations: Vec<Vec<usize>> = if d == 2 {
+            vec![vec![0, 1], vec![1, 0]]
+        } else {
+            vec![vec![0, 1, 2], vec![0, 2, 1], vec![1, 0, 2], vec![1, 2, 0], vec![2, 0, 1], vec![2, 1, 0]]
+        };
+        let keep = [1, 2, 3][rng.below(3)]; // keep each top simplex with probability keep / 3
+        let mut tops = std::collections::BTreeSet::new();
+        let n_anchors = n.pow(d as u32);
+        for anchor in 0..n_anchors {
+            let mut x: Vec<usize> = (0..d).map(|a| anchor / n.pow((d - 1 - a) as u32) % n).collect();
+            let start = x.clone();
+            for perm in &permutations {
+                x.clone_from(&start);
+                let mut simplex = vec![];
+                let mut ok = true;
+                match vertex(x.clone()) {
+                    Some(v) => simplex.push(v),
+                    None => ok = false,
+                }
+                for &a in perm {
+                    x[a] += 1;
+                    match vertex(x.clone()) {
+                        Some(v) => simplex.push(v),
+                        None => ok = false,
+                    }
+                }
+                simplex.sort_unstable();
+                simplex.dedup();
+                if ok && simplex.len() == d + 1 && rng.below(3) < keep {
+                    tops.insert(simplex);
+                }
+            }
+        }
+        let mut simplices = std::collections::BTreeSet::new();
+        for s in &tops {
+            for mask in 1..(1u32 << s.len()) {
+                simplices.insert((0..s.len()).filter(|i| mask & (1 << i) != 0).map(|i| s[i]).collect::<Vec<_>>());
+            }
+        }
+        let max_value = [2, 5, 1000][rng.below(3)];
+        let vertex_values: Vec<f64> = (0..n_anchors).map(|_| rng.below(max_value) as f64).collect();
+        let ordered: Vec<Vec<usize>> = {
+            let mut v: Vec<(usize, Vec<usize>)> = simplices.into_iter().map(|s| (s.len(), s)).collect();
+            v.sort();
+            v.into_iter().map(|(_, s)| s).collect()
+        };
+        let index: std::collections::HashMap<&Vec<usize>, usize> =
+            ordered.iter().enumerate().map(|(i, s)| (s, i)).collect();
+        let (mut indptr, mut indices, mut coefficients, mut dimensions, mut values) =
+            (vec![0], vec![], vec![], vec![], vec![]);
+        for s in &ordered {
+            if s.len() > 1 {
+                for i in 0..s.len() {
+                    let mut face = s.clone();
+                    face.remove(i);
+                    indices.push(index[&face] as i64);
+                    coefficients.push(if i % 2 == 0 { 1 } else { -1 });
+                }
+            }
+            values.push(s.iter().map(|&v| vertex_values[v]).fold(f64::MIN, f64::max));
+            dimensions.push(s.len() as i64 - 1);
+            indptr.push(indices.len() as i64);
+        }
+        let raw = RawChain { dimensions, indptr, indices, coefficients: Some(coefficients) };
+        (raw, values)
+    }
+
+    /// With union-find (in dimension 0 and, where every `(d - 1)`-cell has at most two cofaces, the top dimension),
+    /// `barcode` gives the bars of the standard algorithm, in every dimension up to each `max_dim`.
+    fn union_find_agrees<CF: IntField>(raw: RawChain, values: Vec<f64>, what: &str) {
+        let complex = build::<CF>(raw, Some(values)).unwrap();
+        let Some(top) = complex.top_dimension() else {
+            return;
+        };
+        let reference = bars_from_views(&complex, Method::Cohomology, Algorithm::Standard(Standard::new()));
+        for max_dim in 0..=top {
+            let want: Vec<_> = reference
+                .iter()
+                .copied()
+                .filter(|&(birth, _)| complex.dimension(Cell(birth)) <= max_dim)
+                .collect();
+            for (name, algorithm) in [
+                ("clearing", Algorithm::Clearing(Clearing::new())),
+                ("pivot, store R", Algorithm::Clearing(Clearing::new().store_r(true))),
+                ("standard", Algorithm::Standard(Standard::new())),
+                ("parallel", Algorithm::ParallelClearing(Clearing::new().parallel())),
+            ] {
+                let algorithm: Algorithm<'_, phlite::columns::MergedColumns> = match (name, algorithm) {
+                    (_, Algorithm::Clearing(c)) => Algorithm::Clearing(c.with_columns(phlite::columns::MergedColumns)),
+                    (_, other) => other,
+                };
+                let got = summary(complex.barcode(Some(max_dim), Method::Cohomology, algorithm, false));
+                assert_eq!(got, want, "{what} max_dim {max_dim} {name}");
+            }
+        }
+    }
+
     proptest::proptest! {
         /// The renumbering by rank, the views and the bases on random complexes.
         #[test]
@@ -1238,6 +1612,23 @@ mod tests {
         fn algorithms_agree_on_random_complexes(seed in proptest::prelude::any::<u64>()) {
             algorithms_agree::<Z2>(seed);
             algorithms_agree::<Z3>(seed);
+        }
+
+        /// Union-find on random pieces of triangulated grids (tori, Klein bottles, 3D grids), over Z/2 and Z/3 (where
+        /// the dual graph of a Klein bottle has cycles of independent columns).
+        #[test]
+        fn union_find_agrees_on_grids(seed in proptest::prelude::any::<u64>()) {
+            let (raw, values) = random_grid_complex(seed);
+            union_find_agrees::<Z2>(raw.clone(), values.clone(), &format!("grid {seed} Z2"));
+            union_find_agrees::<Z3>(raw, values, &format!("grid {seed} Z3"));
+        }
+
+        /// And on random simplicial complexes (mostly dimension 0 only).
+        #[test]
+        fn union_find_agrees_on_random_complexes(seed in proptest::prelude::any::<u64>()) {
+            let (raw, values) = random_simplicial(seed);
+            union_find_agrees::<Z2>(raw.clone(), values.clone(), &format!("random {seed} Z2"));
+            union_find_agrees::<Z3>(raw, values, &format!("random {seed} Z3"));
         }
     }
 

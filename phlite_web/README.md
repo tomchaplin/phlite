@@ -7,12 +7,24 @@ the page sends the data to a Web Worker, which runs phlite's reductions on a poo
 * `src/lib.rs`: the WebAssembly API, one function per pipeline:
   * `rips` (Vietoris–Rips in the Euclidean, Manhattan or Chebyshev metric, optionally DTM-weighted, by
     `phlite_clouds` with 64-bit simplex indices);
+  * `rips_zigzag` (zigzag persistence of the Rips complexes of sliding windows of consecutive points, by
+    `phlite_complexes::zigzag`);
+  * `rips_six_pack` (the six-pack of the inclusion of the Rips filtration of selected points into that of all of them:
+    image, kernel, cokernel, both barcodes and the pair's, as bars with a `kind`, by `phlite_clouds::rips::image`);
   * `delaunay` (alpha and Delaunay–Čech filtrations of points in the plane or in space, by `phlite_clouds::alpha`);
   * `grpph` (GrPPH, and PPH of the shortest-path filtration in dimensions 0 and 1, by `phlite_networks`);
   * `network` (PPH in any dimension, directed flag complexes, grounded or not, ordered tuples and Dowker complexes, by
     `phlite_networks`, each by edge weights or shortest paths);
-  * `image` (cubical complexes, T- or V-construction, by `phlite_images`);
-  * `complex` (explicit complexes over Z/2, 3, 5 or 7, by `phlite_complexes`'s explicit complexes).
+  * `image` (cubical complexes, T- or V-construction, periodic or not, by `phlite_images`), and
+    `binary_filtration` (giotto-tda's filtrations of binary images, by `phlite_images::filtrations`);
+  * `mpss` (the magnitude-path spectral sequence of a digraph, every page with each entry as a group, the non-zero
+    differentials, and generators as chains of tuples of nodes, over Z/p or the integers, by
+    `phlite_networks::mpss`);
+  * `video_zigzag` (zigzag persistence of a video's frames cut at a threshold, by `phlite_images::zigzag`);
+  * `magnitude` (the magnitude homology of a digraph over Z/2 or the integers, as a table, by
+    `phlite_networks::magnitude`);
+  * `complex` (explicit complexes over Z/2, 3, 5 or 7, by `phlite_complexes`'s explicit complexes; or over the
+    integers, the barcode over Q with the primes of the torsion, by `phlite::integral_persistence`).
   Each takes an options object (missing options take the pipeline's Python defaults, union-find and parallel setup
   included) and returns the bars, with representatives if asked for. The Rips, GrPPH and network pipelines also
   return their filtration's edges, from the very distances the barcode was computed from, so that the app draws the

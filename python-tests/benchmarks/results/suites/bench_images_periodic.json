@@ -1,0 +1,1549 @@
+{
+    "machine_info": {
+        "processor": "",
+        "machine": "x86_64",
+        "python_compiler": "GCC 16.2.1 20260810",
+        "python_implementation": "CPython",
+        "python_implementation_version": "3.11.18",
+        "python_version": "3.11.18",
+        "python_build": [
+            "main",
+            "Nov 18 2026 23:11:18"
+        ],
+        "release": "7.3.4-arch1-2",
+        "system": "Linux",
+        "cpu": {
+            "python_version": "3.11.18.final.0 (64 bit)",
+            "cpuinfo_version": [
+                10,
+                1,
+                1
+            ],
+            "cpuinfo_version_string": "10.1.1",
+            "arch": "X86_64",
+            "bits": 64,
+            "count": 8,
+            "arch_string_raw": "x86_64",
+            "vendor_id_raw": "GenuineIntel",
+            "brand_raw": "11th Gen Intel(R) Core(TM) i7-1185G7 @ 3.00GHz",
+            "hz_advertised_friendly": "3.0000 GHz",
+            "hz_advertised": [
+                3000000000,
+                0
+            ],
+            "stepping": 1,
+            "model": 140,
+            "family": 6,
+            "flags": [
+                "3dnowprefetch",
+                "abm",
+                "acpi",
+                "adx",
+                "aes",
+                "aperfmperf",
+                "apic",
+                "arat",
+                "arch_capabilities",
+                "arch_perfmon",
+                "art",
+                "avx",
+                "avx2",
+                "avx512_bitalg",
+                "avx512_vbmi2",
+                "avx512_vnni",
+                "avx512_vp2intersect",
+                "avx512_vpopcntdq",
+                "avx512bitalg",
+                "avx512bw",
+                "avx512cd",
+                "avx512dq",
+                "avx512f",
+                "avx512ifma",
+                "avx512vbmi",
+                "avx512vbmi2",
+                "avx512vl",
+                "avx512vnni",
+                "avx512vpopcntdq",
+                "bmi1",
+                "bmi2",
+                "bts",
+                "cat_l2",
+                "cdp_l2",
+                "clflush",
+                "clflushopt",
+                "clwb",
+                "cmov",
+                "constant_tsc",
+                "cpuid",
+                "cpuid_fault",
+                "cx16",
+                "cx8",
+                "de",
+                "ds_cpl",
+                "dtes64",
+                "dtherm",
+                "dts",
+                "epb",
+                "ept",
+                "ept_ad",
+                "erms",
+                "est",
+                "f16c",
+                "flexpriority",
+                "flush_l1d",
+                "fma",
+                "fpu",
+                "fsgsbase",
+                "fsrm",
+                "fxsr",
+                "gfni",
+                "ht",
+                "hwp",
+                "hwp_act_window",
+                "hwp_epp",
+                "hwp_notify",
+                "hwp_pkg_req",
+                "ibpb",
+                "ibrs",
+                "ibrs_enhanced",
+                "ibt",
+                "ida",
+                "intel_pt",
+                "invpcid",
+                "lahf_lm",
+                "lm",
+                "mca",
+                "mce",
+                "md_clear",
+                "mmx",
+                "monitor",
+                "movbe",
+                "movdir64b",
+                "movdiri",
+                "msr",
+                "mtrr",
+                "nonstop_tsc",
+                "nopl",
+                "nx",
+                "ospke",
+                "osxsave",
+                "pae",
+                "pat",
+                "pbe",
+                "pcid",
+                "pclmulqdq",
+                "pdcm",
+                "pdpe1gb",
+                "pebs",
+                "pge",
+                "pku",
+                "pln",
+                "pni",
+                "popcnt",
+                "pqe",
+                "pse",
+                "pse36",
+                "pts",
+                "rdpid",
+                "rdrand",
+                "rdrnd",
+                "rdseed",
+                "rdt_a",
+                "rdtscp",
+                "rep_good",
+                "sdbg",
+                "sep",
+                "sha",
+                "sha_ni",
+                "smap",
+                "smep",
+                "smx",
+                "split_lock_detect",
+                "ss",
+                "ssbd",
+                "sse",
+                "sse2",
+                "sse4_1",
+                "sse4_2",
+                "ssse3",
+                "stibp",
+                "syscall",
+                "tm",
+                "tm2",
+                "tme",
+                "tpr_shadow",
+                "tsc",
+                "tsc_adjust",
+                "tsc_deadline_timer",
+                "tsc_known_freq",
+                "tscdeadline",
+                "umip",
+                "user_shstk",
+                "vaes",
+                "vme",
+                "vmx",
+                "vnmi",
+                "vpclmulqdq",
+                "vpid",
+                "x2apic",
+                "xgetbv1",
+                "xsave",
+                "xsavec",
+                "xsaveopt",
+                "xsaves",
+                "xtopology",
+                "xtpr"
+            ],
+            "l3_cache_size": 12582912,
+            "l2_cache_size": 5242880,
+            "l1_data_cache_size": 196608,
+            "l1_instruction_cache_size": 131072,
+            "l2_cache_line_size": 256,
+            "l2_cache_associativity": 7
+        }
+    },
+    "commit_info": {
+        "id": "d7bf107090455fafa1d7a7fb07268e38a7ac5fa5",
+        "time": "2026-11-23T05:49:09Z",
+        "author_time": "2026-11-23T05:49:09Z",
+        "dirty": true,
+        "project": "phlite",
+        "branch": "perseus-techniques"
+    },
+    "benchmarks": [
+        {
+            "group": "periodic 128\u00d7128",
+            "name": "test_periodic[128x128-GUDHI]",
+            "fullname": "benchmarks/bench_images_periodic.py::test_periodic[128x128-GUDHI]",
+            "params": {
+                "shape": [
+                    128,
+                    128
+                ],
+                "implementation": "GUDHI"
+            },
+            "param": "128x128-GUDHI",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 4.1,
+                "fingerprint": [
+                    [
+                        323,
+                        1,
+                        12.445854
+                    ],
+                    [
+                        413,
+                        2,
+                        13.829895
+                    ],
+                    [
+                        0,
+                        1,
+                        0
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.011694100016029552,
+                "max": 0.01315768001950346,
+                "mean": 0.012384603003738448,
+                "stddev": 0.0007352757708671148,
+                "rounds": 3,
+                "median": 0.012302028975682333,
+                "iqr": 0.0010976850026054308,
+                "q1": 0.011846082255942747,
+                "q3": 0.012943767258548178,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.011694100016029552,
+                "hd15iqr": 0.01315768001950346,
+                "ops": 80.74542233595517,
+                "total": 0.037153809011215344,
+                "data": [
+                    0.01315768001950346,
+                    0.012302028975682333,
+                    0.011694100016029552
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "periodic 128\u00d7128",
+            "name": "test_periodic[128x128-phlite (serial)]",
+            "fullname": "benchmarks/bench_images_periodic.py::test_periodic[128x128-phlite (serial)]",
+            "params": {
+                "shape": [
+                    128,
+                    128
+                ],
+                "implementation": "phlite (serial)"
+            },
+            "param": "128x128-phlite (serial)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 10.3,
+                "fingerprint": [
+                    [
+                        323,
+                        1,
+                        12.445854
+                    ],
+                    [
+                        413,
+                        2,
+                        13.829895
+                    ],
+                    [
+                        0,
+                        1,
+                        0
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.01146327200694941,
+                "max": 0.013047389016719535,
+                "mean": 0.012095796342085427,
+                "stddev": 0.0008388743225974397,
+                "rounds": 3,
+                "median": 0.011776728002587333,
+                "iqr": 0.0011880877573275939,
+                "q1": 0.01154163600585889,
+                "q3": 0.012729723763186485,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.01146327200694941,
+                "hd15iqr": 0.013047389016719535,
+                "ops": 82.67334962648609,
+                "total": 0.03628738902625628,
+                "data": [
+                    0.013047389016719535,
+                    0.01146327200694941,
+                    0.011776728002587333
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "periodic 128\u00d7128",
+            "name": "test_periodic[128x128-phlite (dilation)]",
+            "fullname": "benchmarks/bench_images_periodic.py::test_periodic[128x128-phlite (dilation)]",
+            "params": {
+                "shape": [
+                    128,
+                    128
+                ],
+                "implementation": "phlite (dilation)"
+            },
+            "param": "128x128-phlite (dilation)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 2.3,
+                "fingerprint": null
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.0021115419804118574,
+                "max": 0.0027970030205324292,
+                "mean": 0.0024045986647251993,
+                "stddev": 0.00035336479628598707,
+                "rounds": 3,
+                "median": 0.0023052509932313114,
+                "iqr": 0.0005140957800904289,
+                "q1": 0.002159969233616721,
+                "q3": 0.0026740650137071498,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.0021115419804118574,
+                "hd15iqr": 0.0027970030205324292,
+                "ops": 415.86981423125815,
+                "total": 0.007213795994175598,
+                "data": [
+                    0.0027970030205324292,
+                    0.0023052509932313114,
+                    0.0021115419804118574
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "periodic 128\u00d7128",
+            "name": "test_periodic[128x128-phlite (signed distance)]",
+            "fullname": "benchmarks/bench_images_periodic.py::test_periodic[128x128-phlite (signed distance)]",
+            "params": {
+                "shape": [
+                    128,
+                    128
+                ],
+                "implementation": "phlite (signed distance)"
+            },
+            "param": "128x128-phlite (signed distance)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 2.3,
+                "fingerprint": null
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.002515384985599667,
+                "max": 0.0030562549945898354,
+                "mean": 0.0027063416588741043,
+                "stddev": 0.00030345593923519233,
+                "rounds": 3,
+                "median": 0.002547384996432811,
+                "iqr": 0.00040565250674262643,
+                "q1": 0.002523384988307953,
+                "q3": 0.0029290374950505793,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.002515384985599667,
+                "hd15iqr": 0.0030562549945898354,
+                "ops": 369.5024967453744,
+                "total": 0.008119024976622313,
+                "data": [
+                    0.0030562549945898354,
+                    0.002547384996432811,
+                    0.002515384985599667
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "periodic 128\u00d7128",
+            "name": "test_periodic[128x128-phlite (density)]",
+            "fullname": "benchmarks/bench_images_periodic.py::test_periodic[128x128-phlite (density)]",
+            "params": {
+                "shape": [
+                    128,
+                    128
+                ],
+                "implementation": "phlite (density)"
+            },
+            "param": "128x128-phlite (density)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 2.3,
+                "fingerprint": null
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.0032573439821135253,
+                "max": 0.0038335539866238832,
+                "mean": 0.0034824569884222,
+                "stddev": 0.00030807217820574107,
+                "rounds": 3,
+                "median": 0.0033564729965291917,
+                "iqr": 0.0004321575033827685,
+                "q1": 0.003282126235717442,
+                "q3": 0.0037142837391002104,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.0032573439821135253,
+                "hd15iqr": 0.0038335539866238832,
+                "ops": 287.1535824633604,
+                "total": 0.0104473709652666,
+                "data": [
+                    0.0038335539866238832,
+                    0.0033564729965291917,
+                    0.0032573439821135253
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "periodic 512\u00d7512",
+            "name": "test_periodic[512x512-GUDHI]",
+            "fullname": "benchmarks/bench_images_periodic.py::test_periodic[512x512-GUDHI]",
+            "params": {
+                "shape": [
+                    512,
+                    512
+                ],
+                "implementation": "GUDHI"
+            },
+            "param": "512x512-GUDHI",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 50.5,
+                "fingerprint": [
+                    [
+                        5013,
+                        1,
+                        206.024585
+                    ],
+                    [
+                        6773,
+                        2,
+                        220.512105
+                    ],
+                    [
+                        0,
+                        1,
+                        0
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.2696374169900082,
+                "max": 0.2850267769827042,
+                "mean": 0.2758195313217584,
+                "stddev": 0.008128447878614851,
+                "rounds": 3,
+                "median": 0.27279439999256283,
+                "iqr": 0.01154201999452198,
+                "q1": 0.27042666274064686,
+                "q3": 0.28196868273516884,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.2696374169900082,
+                "hd15iqr": 0.2850267769827042,
+                "ops": 3.6255590574310923,
+                "total": 0.8274585939652752,
+                "data": [
+                    0.27279439999256283,
+                    0.2696374169900082,
+                    0.2850267769827042
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "periodic 512\u00d7512",
+            "name": "test_periodic[512x512-phlite (serial)]",
+            "fullname": "benchmarks/bench_images_periodic.py::test_periodic[512x512-phlite (serial)]",
+            "params": {
+                "shape": [
+                    512,
+                    512
+                ],
+                "implementation": "phlite (serial)"
+            },
+            "param": "512x512-phlite (serial)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 161.5,
+                "fingerprint": [
+                    [
+                        5013,
+                        1,
+                        206.024585
+                    ],
+                    [
+                        6773,
+                        2,
+                        220.512105
+                    ],
+                    [
+                        0,
+                        1,
+                        0
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.2508137430122588,
+                "max": 0.2593674010131508,
+                "mean": 0.2541239916754421,
+                "stddev": 0.004592831255794703,
+                "rounds": 3,
+                "median": 0.25219083100091666,
+                "iqr": 0.006415243500669021,
+                "q1": 0.25115801500942325,
+                "q3": 0.2575732585100923,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.2508137430122588,
+                "hd15iqr": 0.2593674010131508,
+                "ops": 3.935086936920004,
+                "total": 0.7623719750263263,
+                "data": [
+                    0.2508137430122588,
+                    0.2593674010131508,
+                    0.25219083100091666
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "periodic 512\u00d7512",
+            "name": "test_periodic[512x512-phlite (dilation)]",
+            "fullname": "benchmarks/bench_images_periodic.py::test_periodic[512x512-phlite (dilation)]",
+            "params": {
+                "shape": [
+                    512,
+                    512
+                ],
+                "implementation": "phlite (dilation)"
+            },
+            "param": "512x512-phlite (dilation)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 37.0,
+                "fingerprint": null
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.04092809499707073,
+                "max": 0.04203252200386487,
+                "mean": 0.041442066663876176,
+                "stddev": 0.0005561717967784479,
+                "rounds": 3,
+                "median": 0.04136558299069293,
+                "iqr": 0.0008283202550956048,
+                "q1": 0.04103746699547628,
+                "q3": 0.041865787250571884,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.04092809499707073,
+                "hd15iqr": 0.04203252200386487,
+                "ops": 24.13007073490547,
+                "total": 0.12432619999162853,
+                "data": [
+                    0.04203252200386487,
+                    0.04092809499707073,
+                    0.04136558299069293
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "periodic 512\u00d7512",
+            "name": "test_periodic[512x512-phlite (signed distance)]",
+            "fullname": "benchmarks/bench_images_periodic.py::test_periodic[512x512-phlite (signed distance)]",
+            "params": {
+                "shape": [
+                    512,
+                    512
+                ],
+                "implementation": "phlite (signed distance)"
+            },
+            "param": "512x512-phlite (signed distance)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 37.3,
+                "fingerprint": null
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.0487756890070159,
+                "max": 0.050190316018415615,
+                "mean": 0.04929715067070598,
+                "stddev": 0.0007771197571035624,
+                "rounds": 3,
+                "median": 0.04892544698668644,
+                "iqr": 0.001060970258549787,
+                "q1": 0.048813128501933534,
+                "q3": 0.04987409876048332,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.0487756890070159,
+                "hd15iqr": 0.050190316018415615,
+                "ops": 20.285148054088925,
+                "total": 0.14789145201211795,
+                "data": [
+                    0.050190316018415615,
+                    0.0487756890070159,
+                    0.04892544698668644
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "periodic 512\u00d7512",
+            "name": "test_periodic[512x512-phlite (density)]",
+            "fullname": "benchmarks/bench_images_periodic.py::test_periodic[512x512-phlite (density)]",
+            "params": {
+                "shape": [
+                    512,
+                    512
+                ],
+                "implementation": "phlite (density)"
+            },
+            "param": "512x512-phlite (density)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 37.3,
+                "fingerprint": null
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.06294760500895791,
+                "max": 0.06979984501958825,
+                "mean": 0.06526381900766864,
+                "stddev": 0.003928609464086577,
+                "rounds": 3,
+                "median": 0.06304400699445978,
+                "iqr": 0.0051391800079727545,
+                "q1": 0.06297170550533338,
+                "q3": 0.06811088551330613,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.06294760500895791,
+                "hd15iqr": 0.06979984501958825,
+                "ops": 15.322425429662609,
+                "total": 0.19579145702300593,
+                "data": [
+                    0.06979984501958825,
+                    0.06294760500895791,
+                    0.06304400699445978
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "periodic 1024\u00d71024",
+            "name": "test_periodic[1024x1024-GUDHI]",
+            "fullname": "benchmarks/bench_images_periodic.py::test_periodic[1024x1024-GUDHI]",
+            "params": {
+                "shape": [
+                    1024,
+                    1024
+                ],
+                "implementation": "GUDHI"
+            },
+            "param": "1024x1024-GUDHI",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 199.0,
+                "fingerprint": [
+                    [
+                        20075,
+                        1,
+                        829.365192
+                    ],
+                    [
+                        26623,
+                        2,
+                        888.100306
+                    ],
+                    [
+                        0,
+                        1,
+                        0
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 1.6021224800206255,
+                "max": 1.647992454993073,
+                "mean": 1.6205565546697471,
+                "stddev": 0.024223713590092004,
+                "rounds": 3,
+                "median": 1.611554728995543,
+                "iqr": 0.034402481229335535,
+                "q1": 1.6044805422643549,
+                "q3": 1.6388830234936904,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 1.6021224800206255,
+                "hd15iqr": 1.647992454993073,
+                "ops": 0.6170719541495976,
+                "total": 4.861669664009241,
+                "data": [
+                    1.647992454993073,
+                    1.611554728995543,
+                    1.6021224800206255
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "periodic 1024\u00d71024",
+            "name": "test_periodic[1024x1024-phlite (serial)]",
+            "fullname": "benchmarks/bench_images_periodic.py::test_periodic[1024x1024-phlite (serial)]",
+            "params": {
+                "shape": [
+                    1024,
+                    1024
+                ],
+                "implementation": "phlite (serial)"
+            },
+            "param": "1024x1024-phlite (serial)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 658.5,
+                "fingerprint": [
+                    [
+                        20075,
+                        1,
+                        829.365192
+                    ],
+                    [
+                        26623,
+                        2,
+                        888.100306
+                    ],
+                    [
+                        0,
+                        1,
+                        0
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 1.4358267530042212,
+                "max": 1.453656983008841,
+                "mean": 1.4428046023434338,
+                "stddev": 0.009525663769662384,
+                "rounds": 3,
+                "median": 1.4389300710172392,
+                "iqr": 0.013372672503464855,
+                "q1": 1.4366025825074757,
+                "q3": 1.4499752550109406,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 1.4358267530042212,
+                "hd15iqr": 1.453656983008841,
+                "ops": 0.6930945454261643,
+                "total": 4.3284138070303015,
+                "data": [
+                    1.453656983008841,
+                    1.4358267530042212,
+                    1.4389300710172392
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "periodic 1024\u00d71024",
+            "name": "test_periodic[1024x1024-phlite (dilation)]",
+            "fullname": "benchmarks/bench_images_periodic.py::test_periodic[1024x1024-phlite (dilation)]",
+            "params": {
+                "shape": [
+                    1024,
+                    1024
+                ],
+                "implementation": "phlite (dilation)"
+            },
+            "param": "1024x1024-phlite (dilation)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 148.1,
+                "fingerprint": null
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.1730099779961165,
+                "max": 0.17789203999564052,
+                "mean": 0.17508281132904813,
+                "stddev": 0.0025229627241354783,
+                "rounds": 3,
+                "median": 0.17434641599538736,
+                "iqr": 0.003661546499643009,
+                "q1": 0.17334408749593422,
+                "q3": 0.17700563399557723,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.1730099779961165,
+                "hd15iqr": 0.17789203999564052,
+                "ops": 5.711582949856878,
+                "total": 0.5252484339871444,
+                "data": [
+                    0.17789203999564052,
+                    0.1730099779961165,
+                    0.17434641599538736
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "periodic 1024\u00d71024",
+            "name": "test_periodic[1024x1024-phlite (signed distance)]",
+            "fullname": "benchmarks/bench_images_periodic.py::test_periodic[1024x1024-phlite (signed distance)]",
+            "params": {
+                "shape": [
+                    1024,
+                    1024
+                ],
+                "implementation": "phlite (signed distance)"
+            },
+            "param": "1024x1024-phlite (signed distance)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 149.0,
+                "fingerprint": null
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.21239335101563483,
+                "max": 0.21841041499283165,
+                "mean": 0.214471007338337,
+                "stddev": 0.003413334622109779,
+                "rounds": 3,
+                "median": 0.21260925600654446,
+                "iqr": 0.0045127979828976095,
+                "q1": 0.21244732726336224,
+                "q3": 0.21696012524625985,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.21239335101563483,
+                "hd15iqr": 0.21841041499283165,
+                "ops": 4.662634882030736,
+                "total": 0.6434130220150109,
+                "data": [
+                    0.21841041499283165,
+                    0.21260925600654446,
+                    0.21239335101563483
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "periodic 48\u00d748\u00d748",
+            "name": "test_periodic[48x48x48-GUDHI]",
+            "fullname": "benchmarks/bench_images_periodic.py::test_periodic[48x48x48-GUDHI]",
+            "params": {
+                "shape": [
+                    48,
+                    48,
+                    48
+                ],
+                "implementation": "GUDHI"
+            },
+            "param": "48x48x48-GUDHI",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 40.6,
+                "fingerprint": [
+                    [
+                        351,
+                        1,
+                        4.145553
+                    ],
+                    [
+                        1256,
+                        3,
+                        9.979974
+                    ],
+                    [
+                        711,
+                        3,
+                        5.147607
+                    ],
+                    [
+                        0,
+                        1,
+                        0
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.243467338004848,
+                "max": 0.248195571010001,
+                "mean": 0.2453789573337417,
+                "stddev": 0.0024906440762034444,
+                "rounds": 3,
+                "median": 0.24447396298637614,
+                "iqr": 0.0035461747538647614,
+                "q1": 0.24371899425023003,
+                "q3": 0.2472651690040948,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.243467338004848,
+                "hd15iqr": 0.248195571010001,
+                "ops": 4.075329078197576,
+                "total": 0.7361368720012251,
+                "data": [
+                    0.24447396298637614,
+                    0.248195571010001,
+                    0.243467338004848
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "periodic 48\u00d748\u00d748",
+            "name": "test_periodic[48x48x48-phlite (serial)]",
+            "fullname": "benchmarks/bench_images_periodic.py::test_periodic[48x48x48-phlite (serial)]",
+            "params": {
+                "shape": [
+                    48,
+                    48,
+                    48
+                ],
+                "implementation": "phlite (serial)"
+            },
+            "param": "48x48x48-phlite (serial)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 183.6,
+                "fingerprint": [
+                    [
+                        351,
+                        1,
+                        4.145553
+                    ],
+                    [
+                        1256,
+                        3,
+                        9.979974
+                    ],
+                    [
+                        711,
+                        3,
+                        5.147607
+                    ],
+                    [
+                        0,
+                        1,
+                        0
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.2503578229807317,
+                "max": 0.2559671529743355,
+                "mean": 0.25254704464653815,
+                "stddev": 0.003000409509597966,
+                "rounds": 3,
+                "median": 0.2513161579845473,
+                "iqr": 0.004206997495202813,
+                "q1": 0.2505974067316856,
+                "q3": 0.25480440422688844,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.2503578229807317,
+                "hd15iqr": 0.2559671529743355,
+                "ops": 3.9596582941589675,
+                "total": 0.7576411339396145,
+                "data": [
+                    0.2513161579845473,
+                    0.2559671529743355,
+                    0.2503578229807317
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "periodic 48\u00d748\u00d748",
+            "name": "test_periodic[48x48x48-phlite (dilation)]",
+            "fullname": "benchmarks/bench_images_periodic.py::test_periodic[48x48x48-phlite (dilation)]",
+            "params": {
+                "shape": [
+                    48,
+                    48,
+                    48
+                ],
+                "implementation": "phlite (dilation)"
+            },
+            "param": "48x48x48-phlite (dilation)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 9.8,
+                "fingerprint": null
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.029525772988563403,
+                "max": 0.030916463991161436,
+                "mean": 0.0300165849912446,
+                "stddev": 0.0007803891480199593,
+                "rounds": 3,
+                "median": 0.02960751799400896,
+                "iqr": 0.0010430182519485243,
+                "q1": 0.029546209239924792,
+                "q3": 0.030589227491873316,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.029525772988563403,
+                "hd15iqr": 0.030916463991161436,
+                "ops": 33.31491574713397,
+                "total": 0.0900497549737338,
+                "data": [
+                    0.030916463991161436,
+                    0.029525772988563403,
+                    0.02960751799400896
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "periodic 48\u00d748\u00d748",
+            "name": "test_periodic[48x48x48-phlite (signed distance)]",
+            "fullname": "benchmarks/bench_images_periodic.py::test_periodic[48x48x48-phlite (signed distance)]",
+            "params": {
+                "shape": [
+                    48,
+                    48,
+                    48
+                ],
+                "implementation": "phlite (signed distance)"
+            },
+            "param": "48x48x48-phlite (signed distance)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 10.0,
+                "fingerprint": null
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.03449964500032365,
+                "max": 0.03603891498642042,
+                "mean": 0.0350520123320166,
+                "stddev": 0.0008567109970912994,
+                "rounds": 3,
+                "median": 0.03461747700930573,
+                "iqr": 0.0011544524895725772,
+                "q1": 0.03452910300256917,
+                "q3": 0.03568355549214175,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.03449964500032365,
+                "hd15iqr": 0.03603891498642042,
+                "ops": 28.529032528229408,
+                "total": 0.1051560369960498,
+                "data": [
+                    0.03603891498642042,
+                    0.03461747700930573,
+                    0.03449964500032365
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "periodic 96\u00d796\u00d796",
+            "name": "test_periodic[96x96x96-GUDHI]",
+            "fullname": "benchmarks/bench_images_periodic.py::test_periodic[96x96x96-GUDHI]",
+            "params": {
+                "shape": [
+                    96,
+                    96,
+                    96
+                ],
+                "implementation": "GUDHI"
+            },
+            "param": "96x96x96-GUDHI",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 325.9,
+                "fingerprint": [
+                    [
+                        2878,
+                        1,
+                        35.041452
+                    ],
+                    [
+                        9960,
+                        3,
+                        82.022845
+                    ],
+                    [
+                        5925,
+                        3,
+                        44.545803
+                    ],
+                    [
+                        0,
+                        1,
+                        0
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 3.1094374590029474,
+                "max": 3.1204774280195124,
+                "mean": 3.1153028733388055,
+                "stddev": 0.005552314316482409,
+                "rounds": 3,
+                "median": 3.1159937329939567,
+                "iqr": 0.008279976762423757,
+                "q1": 3.1110765275006997,
+                "q3": 3.1193565042631235,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 3.1094374590029474,
+                "hd15iqr": 3.1204774280195124,
+                "ops": 0.32099607667624835,
+                "total": 9.345908620016417,
+                "data": [
+                    3.1159937329939567,
+                    3.1204774280195124,
+                    3.1094374590029474
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "periodic 96\u00d796\u00d796",
+            "name": "test_periodic[96x96x96-phlite (serial)]",
+            "fullname": "benchmarks/bench_images_periodic.py::test_periodic[96x96x96-phlite (serial)]",
+            "params": {
+                "shape": [
+                    96,
+                    96,
+                    96
+                ],
+                "implementation": "phlite (serial)"
+            },
+            "param": "96x96x96-phlite (serial)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 1567.3,
+                "fingerprint": [
+                    [
+                        2878,
+                        1,
+                        35.041452
+                    ],
+                    [
+                        9960,
+                        3,
+                        82.022845
+                    ],
+                    [
+                        5925,
+                        3,
+                        44.545803
+                    ],
+                    [
+                        0,
+                        1,
+                        0
+                    ]
+                ]
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 3.4146058739861473,
+                "max": 3.4738908130093478,
+                "mean": 3.436837976992441,
+                "stddev": 0.032301959599613586,
+                "rounds": 3,
+                "median": 3.422017243981827,
+                "iqr": 0.04446370426740032,
+                "q1": 3.4164587164850673,
+                "q3": 3.4609224207524676,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 3.4146058739861473,
+                "hd15iqr": 3.4738908130093478,
+                "ops": 0.2909651274498238,
+                "total": 10.310513930977322,
+                "data": [
+                    3.4146058739861473,
+                    3.422017243981827,
+                    3.4738908130093478
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "periodic 96\u00d796\u00d796",
+            "name": "test_periodic[96x96x96-phlite (dilation)]",
+            "fullname": "benchmarks/bench_images_periodic.py::test_periodic[96x96x96-phlite (dilation)]",
+            "params": {
+                "shape": [
+                    96,
+                    96,
+                    96
+                ],
+                "implementation": "phlite (dilation)"
+            },
+            "param": "96x96x96-phlite (dilation)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 77.6,
+                "fingerprint": null
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.305334352015052,
+                "max": 0.3104796970146708,
+                "mean": 0.30833854667919997,
+                "stddev": 0.0026790442187881063,
+                "rounds": 3,
+                "median": 0.30920159100787714,
+                "iqr": 0.0038590087497141212,
+                "q1": 0.3063011617632583,
+                "q3": 0.3101601705129724,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.305334352015052,
+                "hd15iqr": 0.3104796970146708,
+                "ops": 3.2431884069312127,
+                "total": 0.9250156400376,
+                "data": [
+                    0.30920159100787714,
+                    0.305334352015052,
+                    0.3104796970146708
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": "periodic 96\u00d796\u00d796",
+            "name": "test_periodic[96x96x96-phlite (signed distance)]",
+            "fullname": "benchmarks/bench_images_periodic.py::test_periodic[96x96x96-phlite (signed distance)]",
+            "params": {
+                "shape": [
+                    96,
+                    96,
+                    96
+                ],
+                "implementation": "phlite (signed distance)"
+            },
+            "param": "96x96x96-phlite (signed distance)",
+            "extra_info": {
+                "threads": 4,
+                "peak_mb": 78.7,
+                "fingerprint": null
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.3432152259920258,
+                "max": 0.34815178997814655,
+                "mean": 0.3459801819893376,
+                "stddev": 0.0025212025685497487,
+                "rounds": 3,
+                "median": 0.3465735299978405,
+                "iqr": 0.003702422989590559,
+                "q1": 0.3440548019934795,
+                "q3": 0.34775722498307005,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.3432152259920258,
+                "hd15iqr": 0.34815178997814655,
+                "ops": 2.8903389617582715,
+                "total": 1.0379405459680129,
+                "data": [
+                    0.3465735299978405,
+                    0.34815178997814655,
+                    0.3432152259920258
+                ],
+                "iterations": 1
+            }
+        }
+    ],
+    "datetime": "2026-11-23T07:30:03.958168+00:00",
+    "version": "5.3.1"
+}

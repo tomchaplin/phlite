@@ -10,7 +10,7 @@ import functools
 
 import numpy as np
 import pytest
-from common import THREADS, fingerprint, run, sweep
+from common import THREADS, fingerprint, perseus_fingerprint, run, sweep
 import datasets
 
 # Import everything up front, so that import costs are not counted
@@ -18,6 +18,7 @@ from gph import ripser_parallel
 from phlite.core import Algorithm
 from phlite.clouds import rips
 from ripser import ripser
+import perseus
 
 INF = float("inf")
 REFERENCE = "ripser"
@@ -30,10 +31,11 @@ SUITE = {
         "random in the unit cube (unlabelled; every bar is short), or noisy samples (by tadasets) of a torus "
         "in R³ (two long H1 bars and one long H2 bar), a 2-sphere (one long H2 bar), a wedge of two 2-spheres "
         "(two) or a wedge of three circles in the plane (three long H1 bars). giotto-ph is ripser with "
-        "parallelism. The cases with 1000 or more points are timed once each, and at 1000 points in dimension "
+        "parallelism. Perseus 6 (whose default is over Q, with a certificate of the primes where the barcode "
+        "differs) runs over Z/2 on one thread. The cases with 1000 or more points are timed once each, and at 1000 points in dimension "
         "2 ripser runs out of memory (over 7 GB), so isn't run.",
     "order": 10,
-    "summary": ["ripser", "giotto-ph (1 thread)", "giotto-ph (parallel)", "phlite (serial)", "phlite (parallel)", "phlite (serial, reps)"],
+    "summary": ["ripser", "giotto-ph (1 thread)", "giotto-ph (parallel)", "perseus (F2)", "phlite (serial)", "phlite (parallel)", "phlite (serial, reps)"],
     "default": "phlite (serial)",
     "light_references": ["ripser", "giotto-ph (1 thread)"],
 }
@@ -65,8 +67,16 @@ def giotto(threads):
     return compute
 
 
+def perseus_rips(case):
+    """Perseus 6 over Z/2 (its default is Q, with a certificate of the primes where the barcode differs), one thread."""
+    distances, max_dim = case
+    result = perseus.rips(distances=np.asarray(distances), maxdim=max_dim, coeff=2, threads=1)
+    return lambda: perseus_fingerprint(result, max_dim)
+
+
 IMPLEMENTATIONS = {
     "ripser": ripser_py,
+    "perseus (F2)": perseus_rips,
     "giotto-ph (1 thread)": giotto(1),
     "giotto-ph (parallel)": giotto(THREADS),
     "phlite (serial)": phlite(),

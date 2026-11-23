@@ -9,11 +9,23 @@ import numpy
 import numpy.typing
 from phlite import core
 import typing
+from . import zigzags as zigzags
+from .zigzags import Zigzag as Zigzag, ZigzagBar as ZigzagBar, ZigzagBarcode as ZigzagBarcode, zigzag as zigzag
+from .zigzags import TimedZigzagBar as TimedZigzagBar, TimedZigzagBarcode as TimedZigzagBarcode, timed_zigzag as timed_zigzag
+
 __all__ = [
+    "zigzag",
+    "Zigzag",
+    "ZigzagBar",
+    "ZigzagBarcode",
+    "timed_zigzag",
+    "TimedZigzagBar",
+    "TimedZigzagBarcode",
     "Bar",
     "ChainComplex",
     "ComplexBarcode",
     "FilteredComplex",
+    "FilteredMap",
 ]
 
 @typing.final
@@ -100,6 +112,25 @@ class ChainComplex:
         The characteristic of the coefficient field.
         """
     @staticmethod
+    def from_simplices(simplices: typing.Any, *, modulus: builtins.int = 2) -> ChainComplex:
+        r"""
+        The chain complex of a simplicial complex, from its simplices, with the usual signs: the boundary of
+        `(v_0, ..., v_k)` (vertices in increasing order) is `sum_i (-1)^i (v_0, ..., v_i omitted, ..., v_k)`. So it is
+        right over the integers too (`modulus=0`), and any simplicial filtration (an alpha or Delaunay-Čech complex,
+        a Rips complex, a triangulated mesh) can be brought over Z: `ChainComplex.from_simplices(s, modulus=0)
+        .filtration(values)`.
+        
+        Cells are the simplices, as tuples of their vertices in increasing order (in the order given, so values can be
+        listed alongside); every face of a simplex must be one of them.
+        
+        Args:
+            simplices: The simplices, each a sequence of distinct integer vertices (in any order).
+            modulus: The characteristic of the coefficient field, or 0 for the integers (as for `from_pairs`).
+        
+        Raises:
+            ValueError: If a simplex is repeated, has a repeated vertex, or has a face that isn't listed.
+        """
+    @staticmethod
     def from_columns(boundaries: typing.Iterable[typing.Sequence[builtins.int]], dimensions: typing.Union[numpy.typing.NDArray[numpy.integer], typing.Sequence[builtins.int]], *, coefficients: typing.Optional[typing.Iterable[typing.Sequence[builtins.int]]] = None, modulus: builtins.int = 2) -> ChainComplex:
         r"""
         A chain complex from its boundary columns and the dimension of every cell. Cells are the integers
@@ -109,8 +140,10 @@ class ChainComplex:
             boundaries: The boundary of every cell, as a sequence of cell indices. Repeated entries are summed.
             dimensions: The dimension of every cell.
             coefficients: The coefficient of every boundary entry, as a sequence of sequences matching `boundaries`
-                (default: all 1). Reduced modulo `modulus`, and entries that become 0 are dropped.
-            modulus: The characteristic of the coefficient field: 2, 3, 5, 7, 11 or 13.
+                (default: all 1). Reduced modulo `modulus` (unless 0), and entries that become 0 are dropped.
+            modulus: The characteristic of the coefficient field: 2, 3, 5, 7, 11 or 13; or 0 for the integers, where
+                boundaries need their signs (the boundary of every boundary must be zero) and the filtered complex has
+                no barcode, only `spectral_sequence` and `persistent_group`, computed exactly.
         """
     @staticmethod
     def from_pairs(pairs: typing.Iterable[tuple[builtins.int, typing.Sequence[builtins.int]]], *, coefficients: typing.Optional[typing.Iterable[typing.Sequence[builtins.int]]] = None, modulus: builtins.int = 2) -> ChainComplex:
@@ -122,8 +155,10 @@ class ChainComplex:
             pairs: The dimension and boundary of every cell, the boundary as a sequence of cell indices.
                 Repeated entries in a boundary are summed.
             coefficients: The coefficient of every boundary entry, as a sequence of sequences matching the
-                boundaries (default: all 1). Reduced modulo `modulus`, and entries that become 0 are dropped.
-            modulus: The characteristic of the coefficient field: 2, 3, 5, 7, 11 or 13.
+                boundaries (default: all 1). Reduced modulo `modulus` (unless 0), and entries that become 0 are dropped.
+            modulus: The characteristic of the coefficient field: 2, 3, 5, 7, 11 or 13; or 0 for the integers, where
+                boundaries need their signs (the boundary of every boundary must be zero) and the filtered complex has
+                no barcode, only `spectral_sequence` and `persistent_group`, computed exactly.
         """
     @staticmethod
     def from_csc(indptr: typing.Union[numpy.typing.NDArray[numpy.integer], typing.Sequence[builtins.int]], indices: typing.Union[numpy.typing.NDArray[numpy.integer], typing.Sequence[builtins.int]], dimensions: typing.Union[numpy.typing.NDArray[numpy.integer], typing.Sequence[builtins.int]], *, data: typing.Optional[typing.Union[numpy.typing.NDArray[numpy.number], typing.Sequence[builtins.int]]] = None, modulus: builtins.int = 2) -> ChainComplex:
@@ -141,7 +176,9 @@ class ChainComplex:
             indices: The row (face) of every non-zero entry.
             dimensions: The dimension of every cell.
             data: The coefficient of every non-zero entry (default: all 1). Must be whole numbers.
-            modulus: The characteristic of the coefficient field: 2, 3, 5, 7, 11 or 13.
+            modulus: The characteristic of the coefficient field: 2, 3, 5, 7, 11 or 13; or 0 for the integers, where
+                boundaries need their signs (the boundary of every boundary must be zero) and the filtered complex has
+                no barcode, only `spectral_sequence` and `persistent_group`, computed exactly.
         """
     @staticmethod
     def from_cells(cells: typing.Union[typing.Iterable[typing.Any], typing.Mapping[typing.Any, typing.Union[typing.Iterable[typing.Any], typing.Mapping[typing.Any, builtins.int]]]], *, boundary: typing.Optional[typing.Callable[[typing.Any], typing.Union[typing.Iterable[typing.Any], typing.Mapping[typing.Any, builtins.int]]]] = None, dimension: typing.Optional[typing.Callable[[typing.Any], builtins.int]] = None, key: typing.Optional[typing.Callable[[typing.Any], builtins.int]] = None, from_key: typing.Optional[typing.Callable[[builtins.int], typing.Any]] = None, face_keys: builtins.bool = False, modulus: builtins.int = 2) -> ChainComplex:
@@ -176,7 +213,9 @@ class ChainComplex:
                 reconstructs cells for results, saving memory when cells are large.
             face_keys: If true, boundaries list the *keys* of faces rather than faces (needs `key`). This is the fastest
                 way to describe a large complex, since no face objects need to be built.
-            modulus: The characteristic of the coefficient field: 2, 3, 5, 7, 11 or 13.
+            modulus: The characteristic of the coefficient field: 2, 3, 5, 7, 11 or 13; or 0 for the integers, where
+                boundaries need their signs (the boundary of every boundary must be zero) and the filtered complex has
+                no barcode, only `spectral_sequence` and `persistent_group`, computed exactly.
         """
     def filtration(self, values: typing.Union[typing.Sequence[builtins.float], numpy.typing.NDArray[numpy.floating], typing.Mapping[typing.Any, typing.Optional[builtins.float]], typing.Callable[[typing.Any], typing.Optional[builtins.float]], None] = None, *, extend: builtins.bool = False) -> FilteredComplex:
         r"""
@@ -278,6 +317,44 @@ class FilteredComplex:
         r"""
         The filtration value of every cell, in cell order.
         """
+    @staticmethod
+    def from_simplices(simplices: typing.Iterable[typing.Any], values: typing.Optional[typing.Any] = None, *, modulus: builtins.int = 2) -> FilteredComplex:
+        r"""
+        A filtered simplicial complex in one step: from `(simplex, value)` pairs, as every exporter of a filtration
+        returns them (`phlite.clouds.rips_complex`, `alpha_complex`, `cech_complex`, `witness_complex`, ...), or from
+        simplices and their values. Shorthand for `ChainComplex.from_simplices(simplices, modulus=...)
+        .filtration(values)`, so that any filtration goes on to `persistence`, `six_pack`, `spectral_sequence`, or (with
+        `modulus=0`) `torsion`:
+        
+        ```python
+        FilteredComplex.from_simplices(clouds.cech_complex(points, 2)).persistence(1)
+        ```
+        
+        Args:
+            simplices: `(simplex, value)` pairs, or (with `values`) simplices, each a sequence of integer vertices.
+            values: The simplices' values, in the same order (if `simplices` are bare simplices).
+            modulus: The characteristic of the coefficient field, or 0 for the integers.
+        """
+    def six_pack(self, subcomplex: typing.Any, *, max_dim: typing.Optional[builtins.int] = None, representatives: builtins.bool = True) -> phlite.core.SixPack:
+        r"""
+        The six-pack of persistence barcodes of the inclusion of a subcomplex `L` into this filtered complex `K`: the
+        barcodes of `L` and `K`, of the image, kernel and cokernel of `H(L) -> H(K)`, and of the pair `(K, L)`, with a
+        representative for every bar (see `phlite.core.SixPack`).
+        
+        Args:
+            subcomplex: The cells of `L`: a sequence of cells, or of booleans (one per cell, in the cells' order). Every
+                face of a cell of `L` must be in `L`.
+            max_dim: The maximum dimension of the bars (default: all).
+            representatives: Whether to compute a representative for every bar.
+        
+        Returns:
+            A `phlite.core.SixPack`. Representatives are lists of `(cell, coefficient)`: cycles of `L` for the domain,
+            image and kernel, of `K` for the codomain and cokernel, and relative cycles (cells of `K` outside `L`) for the
+            relative barcode. Bars of length zero are left out.
+        
+        Raises:
+            ValueError: If the cells aren't a subcomplex, or the complex is over the integers.
+        """
     def persistence(self, max_dim: typing.Optional[builtins.int] = None, *, method: typing.Literal['cohomology', 'homology'] = "cohomology", algorithm: typing.Optional[core.Algorithm] = None, representatives: builtins.bool = False) -> ComplexBarcode:
         r"""
         Compute persistent homology in dimensions `0, ..., max_dim`.
@@ -295,8 +372,112 @@ class FilteredComplex:
             representatives: Whether to also compute a representative cycle for every bar.
                 With `method='cohomology'` these are computed via involution.
         
+        Over the integers (a complex built with `modulus=0`) there is no barcode: this is the barcode over Q, computed
+        exactly by a fraction-free reduction over Z (`method` and `algorithm` are ignored, and there are no
+        representatives); `torsion()` gives the primes whose barcodes differ from it.
+        
         Returns:
             The barcode. Bars of length zero (birth and death at the same filtration value) are omitted.
+        
+        Raises:
+            ValueError: Over the integers, if `representatives` is set.
+            OverflowError: Over the integers, if an entry outgrows 128 bits.
+        """
+    def spectral_sequence(self, max_dim: typing.Optional[builtins.int] = None, *, integer_steps: builtins.bool = False, algorithm: typing.Optional[core.Algorithm] = None) -> core.SpectralSequence:
+        r"""
+        The spectral sequence of this filtration, over the complex's coefficients, computed one page at a time: a
+        `phlite.core.SpectralSequence` (`ss.next()` gives `E^1`, then `E^2`, ...; `ss.page(r)` any page; printing a page
+        shows it as a table, with its differentials).
+        
+        The filtration's steps are its distinct values, in increasing order, and `E^r_p` is the page-`r` term at
+        step `p`, whose differential `d^r` goes to step `p - r` (and down one degree). Page `E^1` is the homology of
+        the associated graded `F_p / F_{p-1}`, and the pages converge to the homology of the whole complex.
+        
+        Over a field the spectral sequence is read off the barcode (computed once, here): a bar of degree `k` from step
+        `b` to step `d` is a generator of `E^r_b` in degree `k` and of `E^r_d` in degree `k + 1` for every `r <= d - b`,
+        cancelled by `d^{d-b}`. Over the integers (a complex built with `modulus=0`) there is no barcode, and each entry
+        is computed exactly when its page is asked for, as a quotient of lattices,
+        `E^r_p = Z^r_p / (Z^{r-1}_{p-1} + d Z^{r-1}_{p+r-1})` with `Z^r_p = {x in F_p : dx in F_{p-r}}`, from the cells
+        with steps `p - r + 1, ..., p + r - 1` alone (by dense integer elimination: for up to a few thousand cells in
+        such a window).
+        
+        Args:
+            max_dim: The largest degree (default: the top dimension).
+            integer_steps: Whether the filtration values are the steps themselves (they must then be non-negative
+                integers): `F_p` is the cells with value at most `p`, for every `p` up to the largest value, so empty
+                levels count (as in a Serre spectral sequence filtered by the dimension of the base). By default the
+                steps are the distinct values, in increasing order.
+            algorithm: The reduction algorithm, as for `persistence` (over a field only).
+        
+        Returns:
+            A `phlite.core.SpectralSequence`, whose steps are labelled by the filtration values.
+        
+        Raises:
+            ValueError: With `integer_steps`, if a value isn't a non-negative integer.
+        """
+    def torsion(self, max_dim: typing.Optional[builtins.int] = None) -> dict[builtins.int, ComplexBarcode]:
+        r"""
+        The torsion of persistence over the integers (a complex built with `modulus=0`): every prime `p` whose barcode
+        over `F_p` differs from that over Q (which `persistence()` gives), with that barcode.
+        
+        These are the primes of the torsion, whether in the homology of a subcomplex of the filtration or only in the
+        maps between them (a loop that, later, is `p` times another). They are found exactly: a fraction-free reduction
+        over Z, whose pivot pattern is that over Q, bounds them (a prime dividing none of its pivots and contents sees
+        the same reduction mod p), and each candidate is checked by reducing mod p, as Perseus does.
+        
+        Args:
+            max_dim: The maximum dimension of the bars (default: the largest dimension of a cell).
+        
+        Returns:
+            A dict from each such prime (increasing) to its barcode over `F_p` (bars of length zero omitted).
+        
+        Raises:
+            ValueError: If the complex isn't over the integers.
+            OverflowError: If an entry outgrows 128 bits.
+        """
+    def image_kernel_cokernel(self, subcomplex: typing.Any, max_dim: typing.Optional[builtins.int] = None) -> dict[builtins.str, ComplexBarcode]:
+        r"""
+        The persistent homology of the image, kernel and cokernel of the map `H(L) -> H(K)` induced by the inclusion of
+        a subcomplex `L` (with the restricted filtration) into this filtered complex `K` (Cohen-Steiner, Edelsbrunner,
+        Harer and Morozov), as phimaker computes them, and of the pair `(K, L)`.
+        
+        The image is what of `L`'s homology survives in `K`; the kernel what of it dies in `K` (a class of `L` that bounds
+        in `K`); the cokernel what of `K`'s homology doesn't come from `L`. The barcodes of `K` and `L` come from the
+        fast reductions (clearing, apparent pairs), which also tell which columns of the other matrices need reducing.
+        
+        Args:
+            subcomplex: The cells of `L`: a sequence of cells, or of booleans (one per cell, in the cells' order). Every
+                face of a cell of `L` must be in `L`.
+            max_dim: The maximum dimension of the bars (default: the largest dimension of a cell).
+        
+        Returns:
+            A dict of barcodes: `'image'`, `'kernel'`, `'cokernel'` and `'relative'` (of `(K, L)`), each bar in the
+            dimension of its homology (a kernel class of `H_k` is born at the `(k + 1)`-cell that makes a cycle of `L` a
+            boundary in `K`, and its cells are given as such). Bars of length zero are omitted.
+        
+        Raises:
+            ValueError: If the cells aren't a subcomplex, or the complex is over the integers.
+        """
+    def persistent_group(self, dim: builtins.int, start: builtins.float, end: builtins.float, *, algorithm: typing.Optional[core.Algorithm] = None) -> tuple[builtins.int, builtins.list[builtins.int]]:
+        r"""
+        The persistent homology group in dimension `dim` from `start` to `end`: the image of `H_dim` of the subcomplex
+        of cells with value at most `start` in `H_dim` of the one at `end`.
+        
+        Over a field this is the number of bars of dimension `dim` born at or before `start` and alive past `end` (the
+        persistent Betti number), with no torsion. Over the integers (a complex built with `modulus=0`) it is computed
+        exactly, as `Z(F_start) / d{x in F_end : dx in F_start}`, with its torsion.
+        
+        Args:
+            dim: The homology dimension.
+            start: The filtration value of the subcomplex mapped from.
+            end: The filtration value of the subcomplex mapped into (at least `start`).
+            algorithm: The reduction algorithm, as for `persistence` (over a field only).
+        
+        Returns:
+            `(rank, torsion)`: the free rank, and the invariant factors of the torsion (each dividing the next).
+        
+        Raises:
+            OverflowError: If, over the integers, an entry outgrows 128 bits.
         """
     def extended_persistence(self, *, method: typing.Literal['cohomology', 'homology'] = "cohomology", algorithm: typing.Optional[core.Algorithm] = None) -> core.ExtendedBarcode:
         r"""
@@ -325,4 +506,123 @@ class FilteredComplex:
         """
     def __len__(self) -> builtins.int: ...
     def __repr__(self) -> builtins.str: ...
+
+@typing.final
+class FilteredMap:
+    r"""
+    A filtration-preserving chain map `f: L -> K` between two filtered complexes over the same field, whose
+    `six_pack` gives the barcodes of `L` and `K`, of the image, kernel and cokernel of `H(L) -> H(K)`, and of the map's
+    mapping cone, each bar with a representative (computed through the map's mapping cylinder, lazily).
+    
+    A map that is the inclusion of a subcomplex with the same values (each cell to one cell, with coefficient 1) is
+    recognised, and its six-pack computed directly, as `FilteredComplex.six_pack` does, without the cylinder.
+    
+    ```python
+    L = ChainComplex.from_simplices(...).filtration(...)
+    K = ChainComplex.from_simplices(...).filtration(...)
+    f = FilteredMap.simplicial(L, K, {0: 0, 1: 0, 2: 1})   # from a map of vertices
+    pack = f.six_pack()
+    ```
+    """
+    @property
+    def domain(self) -> FilteredComplex:
+        r"""
+        The domain `L`.
+        """
+    @property
+    def codomain(self) -> FilteredComplex:
+        r"""
+        The codomain `K`.
+        """
+    def __new__(cls, domain: FilteredComplex, codomain: FilteredComplex, images: typing.Any) -> FilteredMap:
+        r"""
+        The chain map from `domain` to `codomain` sending each cell to `images[cell]`.
+        
+        Args:
+            domain: The filtered complex `L`.
+            codomain: The filtered complex `K`, over the same field.
+            images: The image of each cell of `L`: a dict from cells of `L` (those left out map to zero), or a sequence
+                with an entry per cell (in the cells' order). An image is a chain of `K`: a dict `{cell: coefficient}`, or
+                an iterable of cells (coefficient 1 each).
+        
+        Raises:
+            ValueError: If a cell maps to cells of another dimension or that enter later than it, if the map doesn't
+                commute with the boundaries, or if the complexes aren't over the same field.
+        """
+    @staticmethod
+    def simplicial(domain: FilteredComplex, codomain: FilteredComplex, vertex_map: typing.Any) -> FilteredMap:
+        r"""
+        The simplicial map from `domain` to `codomain` (both built by `ChainComplex.from_simplices`) induced by a map of
+        vertices: a simplex goes to the simplex on its vertices' images (with the sign of the permutation sorting them),
+        or to zero if two of its vertices go to the same one.
+        
+        Args:
+            domain: The filtered complex `L`.
+            codomain: The filtered complex `K`, with the image of every simplex of `L` no later than it.
+            vertex_map: The image of each vertex of `L`: a dict, or a sequence indexed by vertex.
+        """
+    def six_pack(self, *, max_dim: typing.Optional[builtins.int] = None, representatives: builtins.bool = True, method: typing.Literal['auto', 'cylinder'] = "auto") -> phlite.core.SixPack:
+        r"""
+        The six-pack of the map: the barcodes of `L` and `K`, of the image, kernel and cokernel of `H(L) -> H(K)`, and
+        of the mapping cone (see `phlite.core.SixPack`).
+        
+        Args:
+            max_dim: The maximum dimension of the bars (default: all).
+            representatives: Whether to compute a representative for every bar.
+            method: `'auto'` (inclusions of subcomplexes directly, other maps through the mapping cylinder) or
+                `'cylinder'` (always through the cylinder).
+        
+        Returns:
+            A `phlite.core.SixPack`. Representatives are lists of `(cell, coefficient)`: cycles of `L` for the domain,
+            image and kernel, of `K` for the codomain and cokernel; those of the relative barcode are chains of the
+            mapping cone, with `phlite.core.Cone(cell)` the cone on a cell of `L`.
+        """
+    def __repr__(self) -> builtins.str: ...
+
+def _timed_zigzag(cells: typing.Iterable[typing.Any], *, join: builtins.str = 'union', algorithm: typing.Optional[core.Algorithm] = None, method: typing.Literal['cohomology', 'homology'] = "cohomology", union_find: builtins.bool = True) -> tuple[builtins.list[tuple[builtins.int, builtins.float, builtins.float, builtins.bool, builtins.bool, builtins.int, builtins.int]], builtins.list[builtins.float]]:
+    r"""
+    The engine behind `phlite.complexes.timed_zigzag` (which returns a `TimedZigzagBarcode`).
+    
+    Args:
+        cells: `(cell, lifetimes)` pairs, a cell a simplex (a sequence of integer vertices, its faces its facets), or
+            `(cell, lifetimes, faces)` triples for cells of any hashable kind; lifetimes a list of `(start, end)` pairs
+            (the cell is there when `start <= t < end`; `end` may be `inf`).
+        join: `'union'` or `'intersection'`: what the zigzag passes through at each event time.
+        algorithm, method, union_find: As for `zigzag`.
+    
+    Returns:
+        `(bars, times)`: each bar `(dimension, birth, death, birth_closed, death_closed, birth_level, death_level)`,
+        and the event times.
+    """
+
+def _zigzag(operations: typing.Iterable[typing.Union[tuple[typing.Sequence[builtins.int], builtins.bool], tuple[typing.Any, builtins.bool, typing.Sequence[typing.Any]]]], *, algorithm: typing.Optional[core.Algorithm] = None, method: typing.Literal['cohomology', 'homology'] = "cohomology", union_find: builtins.bool = True) -> builtins.list[tuple[builtins.int, builtins.int, builtins.int, builtins.bool, builtins.bool]]:
+    r"""
+    The engine behind `phlite.complexes.zigzag` and `Zigzag` (which return a `ZigzagBarcode`): the intervals as tuples.
+    
+    Compute the zigzag persistence of a sequence of simplicial complexes, each obtained from the last by inserting or
+    deleting one simplex, starting from the empty complex, over Z/2.
+    
+    A zigzag `K_0 <-> K_1 <-> ... <-> K_m` (with `K_0` empty and `K_{i+1}` the result of operation `i`) has a barcode
+    of intervals `[birth, death]` (homology alive in `K_birth, ..., K_death`), each end *closed* or *open*: a birth is
+    closed if made by an insertion (open if by a deletion), a death closed if followed by a deletion (open if by an
+    insertion). Computed by FastZigzag (Dey and Hou): the zigzag is turned into an ordinary filtration of a complex of
+    twice its length (the insertions, then cones on the deletions), whose barcode phlite computes as usual and maps
+    back interval by interval. Intervals still alive at the end end at `m` (closed).
+    
+    Args:
+        operations: The operations, in order, as `(simplex, insert)` pairs: a simplex as a sequence of integer vertices
+            and `True` to insert it (its faces must be there), `False` to delete it (its cofaces must be gone). A simplex
+            may be inserted again after being deleted. Or, for cells of any kind (cubes, ...), `(cell, insert, faces)`
+            triples: any hashable cells, each inserted with its faces (cells inserted before; none for a vertex), the
+            dimension following from them, over Z/2.
+        algorithm: The reduction algorithm, as for `FilteredComplex.persistence`.
+    
+    Returns:
+        The intervals, as `(dimension, birth, death, birth_closed, death_closed)` tuples (positions of complexes, from
+        0 to `m`), sorted.
+    
+    Raises:
+        ValueError: If an operation is impossible (inserting a simplex that is there or without its faces, deleting one
+            that isn't there or with a coface).
+    """
 
