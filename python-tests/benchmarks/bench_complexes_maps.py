@@ -34,7 +34,8 @@ def make(n, seed=0):
 
 
 def barcode_fingerprint(b, top=1):
-    return fingerprint([list(b.pairings[k]) + [(x, math.inf) for x in b.essential[k]] for k in range(top + 1)])
+    # (A ComplexBarcode's pairings are of cells; its diagrams are of values)
+    return fingerprint([[tuple(map(float, bar)) for bar in b.diagram(k)] for k in range(top + 1)])
 
 
 def persistence(case):
@@ -75,7 +76,7 @@ IMPLEMENTATIONS = {
     "integers": integers,
     "spectral sequence": spectral,
 }
-CASES = [200, 500, 1000]
+CASES = [200, 300, 400]
 QUICK = [200]
 
 

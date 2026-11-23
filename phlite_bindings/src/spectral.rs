@@ -189,8 +189,8 @@ impl SpectralBackend {
     fn page<'py>(&self, py: Python<'py>, r: usize) -> PyResult<Vec<Vec<Bound<'py, PyAny>>>> {
         let cells: Vec<(usize, usize)> =
             (0..self.inner.n_steps()).flat_map(|p| (0..self.row_length(p)).map(move |k| (p, k))).collect();
-        let entries = py
-            .detach(|| cells.par_iter().map(|&(p, k)| self.inner.entry(r, p, k)).collect::<Result<Vec<_>, _>>())
+        // On a pool of its own, so that a process forked afterwards doesn't hang (see `crate::detach`)
+        let entries = crate::detach(py, || cells.par_iter().map(|&(p, k)| self.inner.entry(r, p, k)).collect::<Result<Vec<_>, _>>())
             .map_err(overflow)?;
         let mut rows: Vec<Vec<Bound<'py, PyAny>>> = (0..self.inner.n_steps()).map(|_| vec![]).collect();
         for (&(p, _), entry) in cells.iter().zip(entries) {
@@ -206,11 +206,10 @@ impl SpectralBackend {
             .flat_map(|p| (1..self.row_length(p)).map(move |k| (p, k)))
             .filter(|&(p, k)| k - 1 < self.row_length(p - r))
             .collect();
-        let images = py
-            .detach(|| {
-                cells.par_iter().map(|&(p, k)| self.inner.differential(r, p, k)).collect::<Result<Vec<_>, _>>()
-            })
-            .map_err(overflow)?;
+        let images = crate::detach(py, || {
+            cells.par_iter().map(|&(p, k)| self.inner.differential(r, p, k)).collect::<Result<Vec<_>, _>>()
+        })
+        .map_err(overflow)?;
         let mut out = vec![];
         for (&(p, k), image) in cells.iter().zip(images) {
             if let Some(image) = image.filter(|g| !g.is_zero()) {

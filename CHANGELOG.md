@@ -88,7 +88,7 @@ each is tested against the reference implementations named below and benchmarked
 - `phlite_images::zigzag::video_zigzag` takes a `Join` (before the algorithm).
 - `MagnitudeHomology` replaces the dicts `magnitude(..., integral=True)` returned (it still compares equal to them).
 - Calls that run in parallel outside a parallel algorithm's thread pool (images, kernels and cokernels, six-packs,
-  witness complexes, magnitude homology) now use a pool of their own, so a process forked after them, as Python's
+  witness complexes, magnitude homology, the pages of spectral sequences) now use a pool of their own, so a process forked after them, as Python's
   `multiprocessing` does on Linux, no longer hangs.
 
 ## 0.2.0

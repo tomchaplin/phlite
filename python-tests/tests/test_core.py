@@ -250,7 +250,7 @@ def test_modules_and_names():
 
 def test_fork_after_parallel_helpers():
     """Calls that use rayon outside a parallel algorithm's pool (magnitude homology and its spectral sequence, witness
-    complexes, six-packs, images/kernels/cokernels) run on a pool of their own: a process forked after them (as
+    complexes, six-packs, images/kernels/cokernels, the pages of spectral sequences) run on a pool of their own: a process forked after them (as
     multiprocessing does on Linux) can call them again, rather than hang on rayon's global pool, whose threads it
     hasn't got."""
     import numpy as np
@@ -273,6 +273,10 @@ def test_fork_after_parallel_helpers():
         rips_six_pack(points=points[:20], subset=list(range(10)), max_dim=1)
         fc.six_pack([(0,), (1,), (0, 1)])
         fc.image_kernel_cokernel([(0,), (1,), (0, 1)])
+        ss = fc.spectral_sequence()
+        ss.page(1), ss.infinity
+        mpss = magnitude_path_spectral_sequence(15, edges, 3)
+        mpss.page(2)
 
     everything()
     pid = os.fork()
